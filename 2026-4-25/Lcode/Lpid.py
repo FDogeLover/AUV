@@ -16,5 +16,8 @@ class PID:
             self.pid=simple_pid.PID(self.yawp,self.yawi,self.yawd,target)
             self.pid.output_limits=(-self.yawlimit,self.yawlimit)
         pass
+    def set_target(self, target):
+        self.pid.setpoint = target
+
     def get_pid(self,current):
         return self.pid(current)

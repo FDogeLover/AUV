@@ -49,15 +49,27 @@ class Serial_fc(object):
                     if DEBUG :
                         logger.info(rxbuffer)
             time.sleep(0.05)
-    def send_fc(self,comlist:List[int]):
+    def send_fc(self,comlist:List[int],t265_obj=None):
         while self.fcsend_running==True:
+            # T265速度帧 (0x01): AA 01 vx_h vx_l vy_h vy_l FF
+            if t265_obj is not None and t265_obj.is_running():
+                vx, vy, _ = t265_obj.get_velocity()
+                vx_cm = int(vx * 100)
+                vy_cm = int(vy * 100)
+                t265_frame = [0xAA, 0x01,
+                             (vx_cm >> 8) & 0xFF, vx_cm & 0xFF,
+                             (vy_cm >> 8) & 0xFF, vy_cm & 0xFF,
+                             0xFF]
+                for v in t265_frame:
+                    self.ser.write(bytes([v]))
+            # 控制指令帧 (0x02)
             for value in comlist:
-                hex_value = hex(int(value))[2:].zfill(2)  # 将数组中的每个值转换成16进制字符串
-                self.ser.write(bytes.fromhex(hex_value))  # 将16进制字符串转换为字节并发送到串口
+                hex_value = hex(int(value))[2:].zfill(2)
+                self.ser.write(bytes.fromhex(hex_value))
             time.sleep(0.01)
-    def send_start(self,comlist:List[int]):
+    def send_start(self,comlist:List[int],t265_obj=None):
         self.fcsend_running=True
-        fcsend_thread=threading.Thread(target=Serial_fc.send_fc,args=(self,comlist))
+        fcsend_thread=threading.Thread(target=Serial_fc.send_fc,args=(self,comlist,t265_obj))
         fcsend_thread.daemon=True
         fcsend_thread.start()
         logger.info("飞控串口发送线程启动")

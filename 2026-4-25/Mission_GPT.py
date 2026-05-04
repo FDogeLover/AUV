@@ -16,7 +16,7 @@ realsense = t265_class()
 
 class mission:
 
-    def __init__(self, re_fc: List[int], se_fc: List[int], re_dmz: List[int], se_dmz: List[int]):
+    def __init__(self, re_fc: List[int], se_fc: List[int], re_dmz: List[int], se_dmz: List[int], realsense_obj=None):
         self.re_fc = re_fc
         self.se_fc = se_fc
         self.re_dmz = re_dmz
@@ -28,6 +28,7 @@ class mission:
         # 控制
         self.task_running = False
         self.t265_ok = False
+        self.realsense = realsense_obj or realsense
 
         # PID控制器（常驻）
         self.x_pid = PID(0, 0)
@@ -88,8 +89,8 @@ class mission:
     # ================= 启动 =================
     def start(self):
 
-        if realsense.start():
-            realsense.autoset()
+        if self.realsense.start():
+            self.realsense.autoset()
             self.t265_ok = True
             logger.info("T265 OK")
         else:
@@ -110,8 +111,8 @@ class mission:
 
             # 获取定位
             try:
-                pos = realsense.get_position()
-                yaw = realsense.get_orientation()[2]
+                pos = self.realsense.get_position()
+                yaw = self.realsense.get_orientation()[2]
             except Exception:
                 logger.error("T265 ERROR")
                 continue
@@ -136,8 +137,8 @@ class mission:
         logger.info("起飞")
 
         lock.acquire()
-        self.se_fc[1] = 1
-        self.se_fc[4] = fly_height
+        self.se_fc[2] = 1
+        self.se_fc[5] = fly_height
         lock.release()
 
         time.sleep(2)
@@ -183,7 +184,7 @@ class mission:
             f"\rpos=({pos[0]:+.3f},{pos[1]:+.3f},{pos[2]:+.3f}) "
             f"| tgt=({target[0]:+.2f},{target[1]:+.2f},{target[2]:+.2f}) "
             f"| v=({vx:>3},{vy:>3}) "
-            f"| send=({self.se_fc[2]:>3},{self.se_fc[3]:>3},{self.se_fc[4]:>3})",
+            f"| send=({self.se_fc[3]:>3},{self.se_fc[4]:>3},{self.se_fc[5]:>3})",
             end="",
             flush=True
         )
@@ -196,7 +197,7 @@ class mission:
         logger.info("降落")
 
         lock.acquire()
-        self.se_fc[1] = 0
+        self.se_fc[2] = 0
         lock.release()
 
         self.state = "END"
@@ -206,22 +207,22 @@ class mission:
         logger.info("任务结束")
 
         lock.acquire()
-        self.se_fc[2] = sp_side
         self.se_fc[3] = sp_side
-        self.se_fc[5] = sp_side
-        self.se_fc[6] = 101
+        self.se_fc[4] = sp_side
+        self.se_fc[6] = sp_side
+        self.se_fc[7] = 101
         lock.release()
 
-        realsense.stop()
+        self.realsense.stop()
         self.task_running = False
 
     # ================= 控制接口 =================
     def set_speed(self, x, y, yaw, z):
         lock.acquire()
-        self.se_fc[2] = x + sp_side
-        self.se_fc[3] = y + sp_side
-        self.se_fc[4] = z
-        self.se_fc[5] = yaw + sp_side
+        self.se_fc[3] = x + sp_side
+        self.se_fc[4] = y + sp_side
+        self.se_fc[5] = z
+        self.se_fc[6] = yaw + sp_side
         lock.release()
         
     # ================= 工具 =================
