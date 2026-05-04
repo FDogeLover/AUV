@@ -27,6 +27,45 @@ static u8 tx_stage = 0;
 
 s16 integ_side=0x4000;
 s16 t265_vel_x = 0, t265_vel_y = 0;
+
+// ========== 灵活格式址发送 ==========
+// 汁格式: AA FF | ID(0xF1~0xFA) | LEN(1~40) | DATA[LEN] | SC | AC
+// 数据区使用小端序（低字节在前）
+void flex_send(u8 id,const u8 *data, u8 len)
+{
+    u8 buf[2+1+1+1+40+2];  // 最大址长 47 字节
+    u8 cnt = 0;
+
+    buf[cnt++] = 0xAA;
+    buf[cnt++] = 0xFF;
+    buf[cnt++] = id;        // 功能码 0xF1~0xFA
+    buf[cnt++] = len;       // 数据字节数
+
+    for (u8 i = 0; i < len; i++)
+        buf[cnt++] = data[i];
+
+    // SC/AC 校验和（Fletcher-8）
+    u8 sc = 0, ac = 0;
+    for (u8 i = 0; i < cnt; i++)
+    {
+        sc += buf[i];
+        ac += sc;
+    }
+    buf[cnt++] = sc;
+    buf[cnt++] = ac;
+
+    UartSendLXIMU(buf, cnt);
+}
+
+// 打包发送 T265 速度数据（通过灵活址 0xF1 转发至 IMU）
+void flex_send_t265_vel(void)
+{
+    u8 data[4];
+    W16_LE(data,   t265_vel_x);
+    W16_LE(data+2, t265_vel_y);
+    flex_send(0xF1, data, 4);
+}
+
 void Send_str_by_len(USART_TypeDef * USARTx,u8 *s,u16 len)//串口发送函数
 {
 	u16 i=0;

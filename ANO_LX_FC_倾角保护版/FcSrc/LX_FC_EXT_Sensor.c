@@ -18,6 +18,7 @@
 #include "LX_FC_EXT_Sensor.h"
 #include "Drv_AnoOf.h"
 #include "ANO_DT_LX.h"
+#include "my_protocol.h"
 extern u8 pi_ctrl_mode;
 extern s16 t265_vel_x, t265_vel_y;
 
@@ -43,6 +44,8 @@ static inline void General_Velocity_Data_Handle()
 			// T265速度替代光流实现定点稳定
 			ext_sens.gen_vel.st_data.hca_velocity_cmps[0] = t265_vel_x;
 			ext_sens.gen_vel.st_data.hca_velocity_cmps[1] = t265_vel_y;
+			// 速度转发至 IMU
+			flex_send_t265_vel();
 		}
 		else if (ano_of.of1_sta && ano_of.work_sta) //光流有效
 		{

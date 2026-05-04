@@ -12,6 +12,7 @@
 u16 pid_speed=0;
 u8 mission_stage=0;// 用于指示当前任务阶段
 u8 mission_done_flag=0;// 当前任务完成后通知上位机状态
+
 void UserTask_OneKeyCmd(void)// 一键功能
 {
   static u8 one_key_takeoff_f = 1, one_key_land_f = 1, one_key_mission_f = 0;
@@ -20,7 +21,7 @@ void UserTask_OneKeyCmd(void)// 一键功能
 					land_triggered_f=0,landing_f=0,landing_cnt=0,
 					land_cmd_sent_f=0;           // 降落路径上通用降落指令的标志
   //////////////////////////////////////////////////////////////////////
-	
+	pi_ctrl_mode = 1;
 //急停：CH_8通道在 1700<CH_8<2200
 	if ((rc_in.rc_ch.st_data.ch_[ch_8_aux4] > 1700 &&rc_in.rc_ch.st_data.ch_[ch_8_aux4] < 2200 )|| (Attitude_Check() == 1)) 
 	{
@@ -61,6 +62,7 @@ void UserTask_OneKeyCmd(void)// 一键功能
   else  // 离开降落区时清空标志，下次进入时重新触发
   {
       land_triggered_f = 0;
+      land_cmd_sent_f = 0;
   }
 	 //////////////////////////////////////////////////////////////////////
   // 通用降落触发检测（覆盖 CH_8 降落 + mission default 降落）
