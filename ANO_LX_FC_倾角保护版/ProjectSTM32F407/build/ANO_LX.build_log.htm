@@ -21,91 +21,104 @@ Target DLL:      CMSIS_AGDI.dll V1.33.18.0
 Dialog DLL:      TCM.DLL V1.56.4.0
  
 <h2>Project:</h2>
-D:\Competition\自组无人坤\1\5.飞控MCU源码工程\ANO_LX_FC_倾角保护版\ProjectSTM32F407\ANO_LX_STM32F407.uvprojx
+D:\PycharmProject\Project2\ANO_LX_FC_倾角保护版\ProjectSTM32F407\ANO_LX_STM32F407.uvprojx
 Project File Date:  03/29/2026
 
 <h2>Output:</h2>
 *** Using Compiler 'V5.06 update 7 (build 960)', folder: 'E:\Program\Keil\ARM\ARM_Compiler_5.06u7\Bin'
 Rebuild target 'Ano_LX'
 assembling startup_stm32f4xx.s...
+compiling LX_FC_Fun.c...
 compiling main.c...
-compiling Drv_Uart.c...
-..\DriversMcu\STM32F407\Drivers\Drv_Uart.c(235): warning:  #223-D: function "pi_receive" declared implicitly
-  		U2GetOneByte(U2RxDataTmp[U2RxoutCnt++]);
-..\DriversMcu\STM32F407\Drivers\Drv_Uart.c: 1 warning, 0 errors
-compiling Ano_Math.c...
 compiling Ano_Scheduler.c...
 ..\Mycode\my_fun.h(6): warning:  #1-D: last line of file ends without a newline
   #endif
 ..\Mycode\angle_protect.h(9): warning:  #1-D: last line of file ends without a newline
   #endif
-..\Mycode\my_protocol.h(49): warning:  #1295-D: Deprecated declaration pi_send - give arg types
+..\Mycode\my_protocol.h(50): warning:  #1295-D: Deprecated declaration pi_send - give arg types
   void pi_send(); 
-..\Mycode\my_protocol.h(51): warning:  #1295-D: Deprecated declaration PID_init - give arg types
+..\Mycode\my_protocol.h(52): warning:  #1295-D: Deprecated declaration PID_init - give arg types
   void PID_init();
-..\Mycode\my_protocol.h(55): warning:  #1-D: last line of file ends without a newline
+..\Mycode\my_protocol.h(56): warning:  #1-D: last line of file ends without a newline
   	
-..\Mycode\my_protocol.h(55): warning:  #1-D: last line of file ends without a newline
+..\Mycode\my_protocol.h(56): warning:  #1-D: last line of file ends without a newline
   	
 ..\FcSrc\Ano_Scheduler.c: 6 warnings, 0 errors
-compiling stm32f4xx_dma.c...
-compiling stm32f4xx_exti.c...
-compiling Drv_RcIn.c...
-compiling ANO_LX.c...
-compiling misc.c...
-compiling stm32f4xx_flash.c...
-compiling LX_FC_EXT_Sensor.c...
 compiling Drv_Sys.c...
-compiling Drv_Timer.c...
-compiling LX_FC_State.c...
-compiling system_stm32f4xx.c...
+compiling Ano_Math.c...
 compiling ANO_DT_LX.c...
-compiling Drv_led.c...
+compiling Drv_BSP.c...
+compiling ANO_LX.c...
+..\Mycode\my_fun.h(6): warning:  #1-D: last line of file ends without a newline
+  #endif
+..\Mycode\angle_protect.h(9): warning:  #1-D: last line of file ends without a newline
+  #endif
+..\Mycode\my_protocol.h(50): warning:  #1295-D: Deprecated declaration pi_send - give arg types
+  void pi_send(); 
+..\Mycode\my_protocol.h(52): warning:  #1295-D: Deprecated declaration PID_init - give arg types
+  void PID_init();
+..\Mycode\my_protocol.h(56): warning:  #1-D: last line of file ends without a newline
+  	
+..\FcSrc\ANO_LX.c: 5 warnings, 0 errors
+compiling Drv_RcIn.c...
+compiling Drv_UbloxGPS.c...
+compiling system_stm32f4xx.c...
+compiling Drv_PwmOut.c...
+compiling LX_FC_EXT_Sensor.c...
 compiling Drv_adc.c...
+compiling Drv_Uart.c...
+..\DriversMcu\STM32F407\Drivers\Drv_Uart.c(235): warning:  #223-D: function "pi_receive" declared implicitly
+  		U2GetOneByte(U2RxDataTmp[U2RxoutCnt++]);
+..\DriversMcu\STM32F407\Drivers\Drv_Uart.c: 1 warning, 0 errors
+compiling LX_FC_State.c...
+compiling misc.c...
+compiling Drv_led.c...
+compiling stm32f4xx_it.c...
 compiling Drv_AnoOf.c...
+compiling Drv_Timer.c...
 compiling User_Task.c...
 ..\Mycode\my_fun.h(6): warning:  #1-D: last line of file ends without a newline
   #endif
 ..\Mycode\angle_protect.h(9): warning:  #1-D: last line of file ends without a newline
   #endif
-..\Mycode\my_protocol.h(49): warning:  #1295-D: Deprecated declaration pi_send - give arg types
+..\Mycode\my_protocol.h(50): warning:  #1295-D: Deprecated declaration pi_send - give arg types
   void pi_send(); 
-..\Mycode\my_protocol.h(51): warning:  #1295-D: Deprecated declaration PID_init - give arg types
+..\Mycode\my_protocol.h(52): warning:  #1295-D: Deprecated declaration PID_init - give arg types
   void PID_init();
-..\Mycode\my_protocol.h(55): warning:  #1-D: last line of file ends without a newline
+..\Mycode\my_protocol.h(56): warning:  #1-D: last line of file ends without a newline
   	
-..\FcSrc\User_Task.c(123): warning:  #177-D: variable "integ_x"  was declared but never referenced
+..\FcSrc\User_Task.c(124): warning:  #177-D: variable "integ_x"  was declared but never referenced
   			static s16 integ_x,integ_y;
-..\FcSrc\User_Task.c(123): warning:  #177-D: variable "integ_y"  was declared but never referenced
+..\FcSrc\User_Task.c(124): warning:  #177-D: variable "integ_y"  was declared but never referenced
   			static s16 integ_x,integ_y;
-..\FcSrc\User_Task.c(124): warning:  #177-D: variable "integ_x_base"  was declared but never referenced
+..\FcSrc\User_Task.c(125): warning:  #177-D: variable "integ_x_base"  was declared but never referenced
   			static s16 integ_x_base,integ_y_base;
-..\FcSrc\User_Task.c(124): warning:  #177-D: variable "integ_y_base"  was declared but never referenced
+..\FcSrc\User_Task.c(125): warning:  #177-D: variable "integ_y_base"  was declared but never referenced
   			static s16 integ_x_base,integ_y_base;
-..\FcSrc\User_Task.c(125): warning:  #177-D: variable "pos_x_base"  was declared but never referenced
+..\FcSrc\User_Task.c(126): warning:  #177-D: variable "pos_x_base"  was declared but never referenced
   			static s32 pos_x_base,pos_y_base;
-..\FcSrc\User_Task.c(125): warning:  #177-D: variable "pos_y_base"  was declared but never referenced
+..\FcSrc\User_Task.c(126): warning:  #177-D: variable "pos_y_base"  was declared but never referenced
   			static s32 pos_x_base,pos_y_base;
-..\FcSrc\User_Task.c(126): warning:  #177-D: variable "icount"  was declared but never referenced
+..\FcSrc\User_Task.c(127): warning:  #177-D: variable "icount"  was declared but never referenced
   			static u16 icount=0;
 ..\FcSrc\User_Task.c(17): warning:  #550-D: variable "one_key_takeoff_f"  was set but never used
-      static u8 one_key_takeoff_f = 1, one_key_land_f = 1, one_key_mission_f = 0;
+    static u8 one_key_takeoff_f = 1, one_key_land_f = 1, one_key_mission_f = 0;
 ..\FcSrc\User_Task.c(17): warning:  #177-D: variable "one_key_land_f"  was declared but never referenced
-      static u8 one_key_takeoff_f = 1, one_key_land_f = 1, one_key_mission_f = 0;
+    static u8 one_key_takeoff_f = 1, one_key_land_f = 1, one_key_mission_f = 0;
 ..\FcSrc\User_Task.c(19): warning:  #177-D: variable "pi_start_f"  was declared but never referenced
-  		static u8 mission_step,eme_stop=1,pi_start_f=0,now_task_mode=0,
+  	static u8 mission_step,eme_stop=1,pi_start_f=0,now_task_mode=0,
 ..\FcSrc\User_Task.c(19): warning:  #177-D: variable "now_task_mode"  was declared but never referenced
-  		static u8 mission_step,eme_stop=1,pi_start_f=0,now_task_mode=0,
+  	static u8 mission_step,eme_stop=1,pi_start_f=0,now_task_mode=0,
 ..\FcSrc\User_Task.c: 16 warnings, 0 errors
 compiling stm32f4xx_adc.c...
-compiling LX_FC_Fun.c...
-compiling Drv_PwmOut.c...
-compiling stm32f4xx_it.c...
-compiling Drv_BSP.c...
-compiling Drv_UbloxGPS.c...
+compiling stm32f4xx_exti.c...
+compiling stm32f4xx_dma.c...
+compiling stm32f4xx_flash.c...
 compiling stm32f4xx_gpio.c...
 compiling stm32f4xx_rcc.c...
 compiling stm32f4xx_spi.c...
+compiling stm32f4xx_usart.c...
+compiling stm32f4xx_tim.c...
 compiling angle_protect.c...
 ..\Mycode\angle_protect.h(9): warning:  #1-D: last line of file ends without a newline
   #endif
@@ -116,35 +129,33 @@ compiling my_fun.c...
 ..\Mycode\my_fun.c(9): warning:  #1-D: last line of file ends without a newline
   }
 ..\Mycode\my_fun.c: 2 warnings, 0 errors
-compiling stm32f4xx_usart.c...
 compiling my_protocol.c...
 ..\Mycode\angle_protect.h(9): warning:  #1-D: last line of file ends without a newline
   #endif
-..\Mycode\my_protocol.h(49): warning:  #1295-D: Deprecated declaration pi_send - give arg types
+..\Mycode\my_protocol.h(50): warning:  #1295-D: Deprecated declaration pi_send - give arg types
   void pi_send(); 
-..\Mycode\my_protocol.h(51): warning:  #1295-D: Deprecated declaration PID_init - give arg types
+..\Mycode\my_protocol.h(52): warning:  #1295-D: Deprecated declaration PID_init - give arg types
   void PID_init();
-..\Mycode\my_protocol.h(55): warning:  #1-D: last line of file ends without a newline
+..\Mycode\my_protocol.h(56): warning:  #1-D: last line of file ends without a newline
   	
 ..\Mycode\my_fun.h(6): warning:  #1-D: last line of file ends without a newline
   #endif
-..\Mycode\my_protocol.h(55): warning:  #1-D: last line of file ends without a newline
+..\Mycode\my_protocol.h(56): warning:  #1-D: last line of file ends without a newline
   	
-..\Mycode\my_protocol.c(257): warning:  #1-D: last line of file ends without a newline
+..\Mycode\my_protocol.c(253): warning:  #1-D: last line of file ends without a newline
   }
 ..\Mycode\my_protocol.c(24): warning:  #177-D: variable "tx_buf"  was declared but never referenced
   static u8 tx_buf[15];  // 完整发送帧缓存
 ..\Mycode\my_protocol.c(25): warning:  #177-D: variable "tx_stage"  was declared but never referenced
   static u8 tx_stage = 0;
-..\Mycode\my_protocol.c(135): warning:  #177-D: function "calc_checksum"  was declared but never referenced
+..\Mycode\my_protocol.c(131): warning:  #177-D: function "calc_checksum"  was declared but never referenced
   static u8 calc_checksum(u8 *buf)
 ..\Mycode\my_protocol.c: 10 warnings, 0 errors
-compiling stm32f4xx_tim.c...
 linking...
-Program Size: Code=51564 RO-data=2112 RW-data=492 ZI-data=6836  
+Program Size: Code=51864 RO-data=2112 RW-data=496 ZI-data=6832  
 FromELF: creating hex file...
 After Build - User command #1: fromelf.exe --bin -o ./ANO-LX.bin ./build/Ano_LX.axf
-".\build\ANO_LX.axf" - 0 Error(s), 36 Warning(s).
+".\build\ANO_LX.axf" - 0 Error(s), 41 Warning(s).
 
 <h2>Software Packages used:</h2>
 
@@ -157,7 +168,7 @@ Package Vendor: Keil
   E:/Program/Keil/Keil/STM32F4xx_DFP/2.2.0/Drivers/CMSIS/Device/ST/STM32F4xx/Include
 
 <h2>Collection of Component Files used:</h2>
-Build Time Elapsed:  00:00:03
+Build Time Elapsed:  00:00:02
 </pre>
 </body>
 </html>

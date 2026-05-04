@@ -38,7 +38,7 @@ void Send_str_by_len(USART_TypeDef * USARTx,u8 *s,u16 len)//串口发送函数
 		i++;
 	}
 }
-void pi_receive(u8 data)//树莓派接受协议 串口2 双址类薪
+void pi_receive(u8 data)//树莓派接受协议 串口2
 {
 	static u8 state_1 = 0;
 	if(state_1==0&&data==0xAA)	//帧头0xAA
@@ -49,14 +49,14 @@ void pi_receive(u8 data)//树莓派接受协议 串口2 双址类薪
 	else if(state_1==1)	//帧类型字节
 	{
 		RxBuffer[1]=data;
-		if(data == 0x01)		// T265速度郑: AA 01 vx_h vx_l vy_h vy_l FF
+		if(data == 0x01)		//T265速度帧: AA 01 vx_h vx_l vy_h vy_l FF
 			state_1 = 2;
-		else if(data == 0x02)	// 控制指令郑: AA 02 task_sta com_x com_y com_z com_yaw next_task sp_side FF
+		else if(data == 0x02)	//操作指令帧: AA 02 task_sta com_x com_y com_z com_yaw next_task sp_side FF
 			state_1 = 10;
 		else
-			state_1 = 0;		// 未知郑类型
+			state_1 = 0;		//未知帧类型
 	}
-	//--- T265速度郑 (0x01) ---
+	//--- T265速度帧 (0x01) ---
 	else if(state_1==2)		{RxBuffer[2]=data; state_1=3;}	// vx_h
 	else if(state_1==3)		{RxBuffer[3]=data; state_1=4;}	// vx_l
 	else if(state_1==4)		{RxBuffer[4]=data; state_1=5;}	// vy_h
@@ -68,7 +68,7 @@ void pi_receive(u8 data)//树莓派接受协议 串口2 双址类薪
 		t265_vel_y = ((s16)RxBuffer[4] << 8) | RxBuffer[5];
 		state_1 = 0;
 	}
-	//--- 控制指令郑 (0x02) ---
+	//--- 操作指令帧 (0x02) ---
 	else if(state_1==10)	{RxBuffer[2]=data; state_1=11;}	// task_sta
 	else if(state_1==11)	{RxBuffer[3]=data; state_1=12;}	// com_x
 	else if(state_1==12)	{RxBuffer[4]=data; state_1=13;}	// com_y
@@ -91,7 +91,7 @@ void pi_receive(u8 data)//树莓派接受协议 串口2 双址类薪
 	}
 	else
 	{
-		state_1 = 0;
+		state_1=0;
 	}
 }
 void PID_init()

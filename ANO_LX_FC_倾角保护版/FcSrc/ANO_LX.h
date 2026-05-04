@@ -1,9 +1,9 @@
 #ifndef __ANO_LX_H
 #define __ANO_LX_H
-//==ï¿½ï¿½ï¿½ï¿½
+//==ÒıÓÃ
 #include "McuConfig.h"
 
-//==ï¿½ï¿½ï¿½ï¿½/ï¿½ï¿½ï¿½ï¿½
+//==¶¨Òå/ÉùÃ÷
 
 	
 enum 
@@ -124,21 +124,21 @@ typedef struct
 	u16 pwm_m8;
 }_pwm_st;
 
-//==ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+//==Êı¾İÉùÃ÷
 extern _fc_att_un fc_att;
 extern _fc_att_qua_un fc_att_qua;
 extern _fc_vel_un fc_vel;
 extern _rt_tar_un rt_tar;
 extern _fc_bat_un fc_bat;
 extern _pwm_st pwm_to_esc;
-//==ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+//==º¯ÊıÉùÃ÷
 //static
 
 
 //public
 void ANO_LX_Task(void);
 
-extern u8 pi_ctrl_mode;	//æ§åˆ¶æºï¼š0=RC+å…‰æµï¼Œ1=æ ‘è“æ´¾+T265
+extern u8 pi_ctrl_mode;	//¿ØÖÆÔ´£º0=RC+¹âÁ÷£¬1=Ê÷İ®ÅÉ+T265
 
 #endif
 

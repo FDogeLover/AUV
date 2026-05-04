@@ -41,3 +41,7 @@
 .\build\ano_lx.o: ..\DriversBsp\Drv_UbloxGPS.h
 .\build\ano_lx.o: ..\FcSrc\LX_FC_Fun.h
 .\build\ano_lx.o: ..\DriversMcu\STM32F407\Drivers\Drv_Uart.h
+.\build\ano_lx.o: ..\FcSrc\User_Task.h
+.\build\ano_lx.o: ..\Mycode\my_fun.h
+.\build\ano_lx.o: ..\Mycode\my_protocol.h
+.\build\ano_lx.o: ..\Mycode\angle_protect.h

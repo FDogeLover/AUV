@@ -14,12 +14,13 @@ u8 mission_stage=0;// 用于指示当前任务阶段
 u8 mission_done_flag=0;// 当前任务完成后通知上位机状态
 void UserTask_OneKeyCmd(void)// 一键功能
 {
-    static u8 one_key_takeoff_f = 1, one_key_land_f = 1, one_key_mission_f = 0;
+  static u8 one_key_takeoff_f = 1, one_key_land_f = 1, one_key_mission_f = 0;
 //    static u8 mission_step,eme_stop=1,pi_start_f=0,now_task_mode=0,land_triggered_f = 0;
-		static u8 mission_step,eme_stop=1,pi_start_f=0,now_task_mode=0,
+	static u8 mission_step,eme_stop=1,pi_start_f=0,now_task_mode=0,
 					land_triggered_f=0,landing_f=0,landing_cnt=0,
 					land_cmd_sent_f=0;           // 降落路径上通用降落指令的标志
   //////////////////////////////////////////////////////////////////////
+	
 //急停：CH_8通道在 1700<CH_8<2200
 	if ((rc_in.rc_ch.st_data.ch_[ch_8_aux4] > 1700 &&rc_in.rc_ch.st_data.ch_[ch_8_aux4] < 2200 )|| (Attitude_Check() == 1)) 
 	{
@@ -131,6 +132,8 @@ void UserTask_OneKeyCmd(void)// 一键功能
 				case 0:
 				{
 					//reset
+					LX_Change_Mode(2);
+					pi_ctrl_mode = 1;
 					time_dly_cnt_ms = 0;
 					mission_step +=1;
 				}
