@@ -26,6 +26,7 @@ static u8 tx_stage = 0;
 
 
 s16 integ_side=0x4000;
+s16 t265_vel_x = 0, t265_vel_y = 0;
 void Send_str_by_len(USART_TypeDef * USARTx,u8 *s,u16 len)//串口发送函数
 {
 	u16 i=0;
@@ -37,7 +38,7 @@ void Send_str_by_len(USART_TypeDef * USARTx,u8 *s,u16 len)//串口发送函数
 		i++;
 	}
 }
-void pi_receive(u8 data)//树莓派接受协议 串口2
+void pi_receive(u8 data)//树莓派接受协议 串口2 双址类薪
 {
 	static u8 state_1 = 0;
 	if(state_1==0&&data==0xAA)	//帧头0xAA
@@ -45,53 +46,48 @@ void pi_receive(u8 data)//树莓派接受协议 串口2
 		state_1=1;
 		RxBuffer[0]=data;
 	}
-	else if(state_1==1)	//任务模式
+	else if(state_1==1)	//帧类型字节
 	{
-		state_1=2;
 		RxBuffer[1]=data;
-
+		if(data == 0x01)		// T265速度郑: AA 01 vx_h vx_l vy_h vy_l FF
+			state_1 = 2;
+		else if(data == 0x02)	// 控制指令郑: AA 02 task_sta com_x com_y com_z com_yaw next_task sp_side FF
+			state_1 = 10;
+		else
+			state_1 = 0;		// 未知郑类型
 	}
-	else if(state_1==2)		//x移动指令
-	{
-		state_1=3;
-		RxBuffer[2]=data;
-	}
-	else if(state_1==3)		//y移动指令
-	{
-		state_1=4;
-		RxBuffer[3]=data;
-	}
-	else if(state_1==4)    //z移动指令
-	{
-		state_1=5;
-		RxBuffer[4]=data;
-	}
-	else if(state_1==5)    //yaw移动指令
-	{
-		state_1=6;
-		RxBuffer[5]=data;
-	}
-	else if (state_1==6) 		//阶段切换指令 
+	//--- T265速度郑 (0x01) ---
+	else if(state_1==2)		{RxBuffer[2]=data; state_1=3;}	// vx_h
+	else if(state_1==3)		{RxBuffer[3]=data; state_1=4;}	// vx_l
+	else if(state_1==4)		{RxBuffer[4]=data; state_1=5;}	// vy_h
+	else if(state_1==5)		{RxBuffer[5]=data; state_1=6;}	// vy_l
+	else if(state_1==6&&data==0xFF)	//帧尾
 	{
 		RxBuffer[6]=data;
-		state_1=7;
+		t265_vel_x = ((s16)RxBuffer[2] << 8) | RxBuffer[3];
+		t265_vel_y = ((s16)RxBuffer[4] << 8) | RxBuffer[5];
+		state_1 = 0;
 	}
-	else if (state_1==7) 		//速度偏置量
+	//--- 控制指令郑 (0x02) ---
+	else if(state_1==10)	{RxBuffer[2]=data; state_1=11;}	// task_sta
+	else if(state_1==11)	{RxBuffer[3]=data; state_1=12;}	// com_x
+	else if(state_1==12)	{RxBuffer[4]=data; state_1=13;}	// com_y
+	else if(state_1==13)	{RxBuffer[5]=data; state_1=14;}	// com_z
+	else if(state_1==14)	{RxBuffer[6]=data; state_1=15;}	// com_yaw
+	else if(state_1==15)	{RxBuffer[7]=data; state_1=16;}	// next_task
+	else if(state_1==16)	{RxBuffer[8]=data; state_1=17;}	// sp_side
+	else if(state_1==17&&data==0xFF)	//帧尾
 	{
-		RxBuffer[7]=data;
-		state_1=8;
-	}
-	else if (state_1==8&&data==0xFF) 	//接收完成 帧尾0xFF
-	{
-		RxBuffer[8]=data;
-		received_data.sp_side=RxBuffer[7];
-		received_data.task_sta=RxBuffer[1];//启动指示
-		received_data.com_x=RxBuffer[2]-received_data.sp_side;
-		received_data.com_y=RxBuffer[3]-received_data.sp_side;
-		received_data.com_z=RxBuffer[4];
-		received_data.com_yaw=RxBuffer[5]-received_data.sp_side;
-		received_data.next_task_sign=RxBuffer[6];
-		pi_receive_done_sign=1;
+		RxBuffer[9]=data;
+		received_data.sp_side   = RxBuffer[8];
+		received_data.task_sta  = RxBuffer[2];
+		received_data.com_x     = RxBuffer[3] - received_data.sp_side;
+		received_data.com_y     = RxBuffer[4] - received_data.sp_side;
+		received_data.com_z     = RxBuffer[5];
+		received_data.com_yaw   = RxBuffer[6] - received_data.sp_side;
+		received_data.next_task_sign = RxBuffer[7];
+		pi_receive_done_sign    = 1;
+		state_1 = 0;
 	}
 	else
 	{

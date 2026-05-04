@@ -18,6 +18,8 @@
 #include "LX_FC_EXT_Sensor.h"
 #include "Drv_AnoOf.h"
 #include "ANO_DT_LX.h"
+extern u8 pi_ctrl_mode;
+extern s16 t265_vel_x, t265_vel_y;
 
 _fc_ext_sensor_st ext_sens;
 
@@ -36,7 +38,13 @@ static inline void General_Velocity_Data_Handle()
 	{
 		of_update_cnt = ano_of.of_update_cnt;
 		//XY_VEL
-		if (ano_of.of1_sta && ano_of.work_sta) //光流有效
+		if (pi_ctrl_mode == 1)
+		{
+			// T265速度替代光流实现定点稳定
+			ext_sens.gen_vel.st_data.hca_velocity_cmps[0] = t265_vel_x;
+			ext_sens.gen_vel.st_data.hca_velocity_cmps[1] = t265_vel_y;
+		}
+		else if (ano_of.of1_sta && ano_of.work_sta) //光流有效
 		{
 			ext_sens.gen_vel.st_data.hca_velocity_cmps[0] = ano_of.of1_dx;
 			ext_sens.gen_vel.st_data.hca_velocity_cmps[1] = ano_of.of1_dy;

@@ -32,6 +32,7 @@ extern u8 pi_receive_done_sign;
 extern u8 lidar_receive_done_sign;
 extern u8 task_mode;
 extern s16 CSPX,CSPY;
+extern s16 t265_vel_x, t265_vel_y;
 ///////////////////////////////////////½á¹¹Ìå
 struct lidar_data
 {
