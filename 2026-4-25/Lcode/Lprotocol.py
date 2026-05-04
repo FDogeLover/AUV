@@ -16,8 +16,7 @@ class Serial_fc(object):
         self.startbyte=b'\xAA'
         self.endbyte=0xFF
     def port_open(self):
-        self.ser.close()
-        if self.ser.is_open==False:
+        if not self.ser.is_open:
             self.ser.open()
             logger.info("目前飞控串口状态：%s",self.ser.is_open)
     def listen_start(self,rxbuffer:List[int]):
@@ -73,8 +72,7 @@ class Serial_dmz(object):
         self.dmzsend_running=False
         self.rate=115200
     def port_open(self):
-        self.ser.close()
-        if self.ser.is_open==False:
+        if not self.ser.is_open:
             self.ser.open()
             logger.info("目前地面站串口状态：%s",self.ser.is_open)
     def listen_start(self,rxbuffer:List[tuple]):
@@ -101,18 +99,17 @@ class Serial_dmz(object):
                 
                 # 判断数据是否符合通信协议，即以0xFF结尾和以0xAA开头
                 if recv[7] == 0xFF:
-                    lock.acquire()
-                    rxbuffer.clear()
-                    # 解析三个禁飞区坐标
-                    for i in range(3):
-                        a_val = recv[1 + i*2]-0xA0      # A值 (1-9)减去0xA0得到1-9的整数
-                        b_val = recv[2 + i*2]-0xB0      # B值 (1-7)减去0xB0得到1-7的整数
-                        a_str = f"A{a_val}"
-                        b_str = f"B{b_val}"
-                        rxbuffer.append((a_str, b_str))
-                    if DEBUG:
-                        logger.info("地面站反传禁飞区坐标: %s", rxbuffer)
-                    lock.release()
+                    with lock:
+                        rxbuffer.clear()
+                        # 解析三个禁飞区坐标
+                        for i in range(3):
+                            a_val = recv[1 + i*2]-0xA0      # A值 (1-9)减去0xA0得到1-9的整数
+                            b_val = recv[2 + i*2]-0xB0      # B值 (1-7)减去0xB0得到1-7的整数
+                            a_str = f"A{a_val}"
+                            b_str = f"B{b_val}"
+                            rxbuffer.append((a_str, b_str))
+                        if DEBUG:
+                            logger.info("地面站反传禁飞区坐标: %s", rxbuffer)
             time.sleep(0.05)
     def send_dmz(self,comlist:List[int]):
         while self.dmzsend_running==True:
@@ -138,8 +135,7 @@ class Serial_gpio(object):
         self.gpiolisten_running=False
         self.rate=460800
     def port_open(self):
-        self.ser.close()
-        if self.ser.is_open==False:
+        if not self.ser.is_open:
             self.ser.open()
             logger.info("目前gpio串口状态：%s",self.ser.is_open)
     def send_gpio(self,comlist:List[int]):
@@ -174,13 +170,12 @@ class Serial_gpio(object):
                 recv = self.ser.read(5)
                 # 判断数据是否符合通信协议，即以0xFF结尾
                 if recv[4] == 0xFF:
-                    lock.acquire()
-                    rxbuffer.clear()
-                    for i in range(0,4):
-                        rxbuffer.append(recv[i])
-                    if task_start_sign.value ==False:
-                        logger.info(rxbuffer)
-                    lock.release()
+                    with lock:
+                        rxbuffer.clear()
+                        for i in range(0,4):
+                            rxbuffer.append(recv[i])
+                        if task_start_sign.value ==False:
+                            logger.info(rxbuffer)
             time.sleep(0.05)
 class udp_terminal(object):
     def __init__(self):

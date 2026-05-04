@@ -3,7 +3,7 @@ import time
 from typing import List
 from Lcode.Lpid import PID
 from Lcode.Logger import logger
-from Lcode.global_variable import sp_side, lock, task_start_sign
+from Lcode.global_variable import sp_side, lock
 from Lcode.coverage_planner import CoveragePlanner
 from t265 import t265_class
 
@@ -33,7 +33,6 @@ class mission:
         self.x_pid = PID(0, 0)
         self.y_pid = PID(0, 0)
         self.yaw_pid = PID(1, 0)
-        self.z_pid = PID(0, 0)
 
         # 当前目标
         self.current_target = None
@@ -44,6 +43,7 @@ class mission:
         
         self.target_index = 0
         self.emergency_stop = False
+        self.detect_flag = False
 
     def calculate_waypoints_fromdmz(self):
         """从地面站反传信息计算航点并加载"""
@@ -108,19 +108,11 @@ class mission:
                 self.stop_all()
                 continue
 
-            task_flag = False
-            lock.acquire()
-            task_flag = True #False不起飞
-            lock.release()
-            
-            if not task_flag:
-                time.sleep(0.05)
-                continue
             # 获取定位
             try:
                 pos = realsense.get_position()
                 yaw = realsense.get_orientation()[2]
-            except:
+            except Exception:
                 logger.error("T265 ERROR")
                 continue
 
