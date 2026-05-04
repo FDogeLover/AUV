@@ -39,8 +39,8 @@ class mission:
         self.current_target = None
 
         # 航点
-        self.targets = self.calculate_waypoints_fromdmz()
-        # self.targets = self.load_waypoints()
+        # self.targets = self.calculate_waypoints_fromdmz()
+        self.targets = self.load_waypoints()
         
         self.target_index = 0
         self.emergency_stop = False
@@ -160,28 +160,25 @@ class mission:
 
         target = self.targets[self.target_index]
 
-        # 设置目标
+        # Z轴: 直接传航点高度（米→厘米），FC自主控高，避免双级位置环震荡
+        target_z = int(target[2] * 100)
+
+        # XY/Yaw: PID计算速度
         self.x_pid.set_target(target[0])
         self.y_pid.set_target(target[1])
-        self.z_pid.set_target(target[2])
-
-        # === PID计算（m）===
+        self.yaw_pid.set_target(0)
         vx = self.x_pid.get_pid(pos[0])
         vy = self.y_pid.get_pid(pos[1])
         vyaw = self.yaw_pid.get_pid(yaw)
-        vz = self.z_pid.get_pid(pos[2])
 
         # === 转 cm ===
         vx *= 100
         vy *= 100
-        vz *= 100
 
         # === 限幅 ===
         vx = int(self.limit(vx, 40))
         vy = int(self.limit(vy, 40))
-        vyaw = int(self.limit(vyaw, 30))
-        vz = int(self.limit(vz, 40))
-        target_z = pos[2]+vz
+        vyaw = int(self.limit(vyaw, 30)) 
         # === 发送 ===
         self.set_speed(vx, vy, -vyaw, target_z)
 
@@ -193,7 +190,7 @@ class mission:
         print(
             f"\rpos=({pos[0]:+.3f},{pos[1]:+.3f},{pos[2]:+.3f}) "
             f"| tgt=({target[0]:+.2f},{target[1]:+.2f},{target[2]:+.2f}) "
-            f"| v=({vx:>3},{vy:>3},{vz:>3f}) "
+            f"| v=({vx:>3},{vy:>3}) "
             f"| send=({self.se_fc[2]:>3},{self.se_fc[3]:>3},{self.se_fc[4]:>3})",
             end="",
             flush=True

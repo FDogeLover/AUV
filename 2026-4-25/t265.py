@@ -103,7 +103,19 @@ class t265_class:
                     pose = frames.get_pose_frame()
                     if pose:
                         data = pose.get_pose_data()
-                        
+
+                        # 检查追踪置信度（0=失败, 1=低, 2=中, 3=高）
+                        # 飞行振动时置信度会下降，此时位置数据不可靠
+                        tracking_confidence = getattr(data, 'tracker_confidence', 3)
+                        if tracking_confidence < 2:
+                            # 置信度过低，跳过此帧数据，保持上一帧有效值
+                            # 以较低频率输出警告，避免刷屏
+                            if not hasattr(self, '_last_conf_warn') or time.time() - self._last_conf_warn > 2.0:
+                                logger.warning(f"T265追踪置信度过低({tracking_confidence})，位置数据冻结")
+                                self._last_conf_warn = time.time()
+                            self.error_count = 0
+                            continue
+
                         # 处理姿态数据
                         qua0 = data.rotation.x
                         qua1 = data.rotation.y
