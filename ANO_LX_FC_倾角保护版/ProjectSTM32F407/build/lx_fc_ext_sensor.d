@@ -32,3 +32,6 @@
 .\build\lx_fc_ext_sensor.o: ..\FcSrc\ANO_LX.h
 .\build\lx_fc_ext_sensor.o: ..\DriversBsp\Drv_AnoOf.h
 .\build\lx_fc_ext_sensor.o: ..\FcSrc\ANO_DT_LX.h
+.\build\lx_fc_ext_sensor.o: ..\Mycode\my_protocol.h
+.\build\lx_fc_ext_sensor.o: ..\DriversMcu\STM32F407\Drivers\Drv_Uart.h
+.\build\lx_fc_ext_sensor.o: ..\Mycode\angle_protect.h
