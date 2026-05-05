@@ -34,20 +34,19 @@ static inline void General_Velocity_Data_Handle()
 	{
 		dT_ms++;
 	}
+	// T265 mode: send every 1ms, independent of OF update
+	if (pi_ctrl_mode == 1)
+	{
+		ext_sens.gen_vel.st_data.hca_velocity_cmps[0] = t265_vel_x;
+		ext_sens.gen_vel.st_data.hca_velocity_cmps[1] = t265_vel_y;
+//		flex_send_t265_vel();
+//		flex_send_guangliu_vel(); #自定义灵活格式帧发送，用于观察数据的值
+	}
 	//检查OF数据是否更新
-	if (of_update_cnt != ano_of.of_update_cnt)
+	else if (of_update_cnt != ano_of.of_update_cnt)
 	{
 		of_update_cnt = ano_of.of_update_cnt;
-		//XY_VEL
-		if (pi_ctrl_mode == 1)
-		{
-			// T265速度替代光流实现定点稳定
-			ext_sens.gen_vel.st_data.hca_velocity_cmps[0] = t265_vel_x;
-			ext_sens.gen_vel.st_data.hca_velocity_cmps[1] = t265_vel_y;
-			// 速度转发至 IMU
-			flex_send_t265_vel();
-		}
-		else if (ano_of.of1_sta && ano_of.work_sta) //光流有效
+		if (ano_of.of1_sta && ano_of.work_sta) //光流有效
 		{
 			ext_sens.gen_vel.st_data.hca_velocity_cmps[0] = ano_of.of1_dx;
 			ext_sens.gen_vel.st_data.hca_velocity_cmps[1] = ano_of.of1_dy;

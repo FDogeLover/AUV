@@ -65,7 +65,7 @@ I (..\FcSrc\User_Task.h)(0x69D5F37A)
 I (..\Mycode\my_fun.h)(0x6509261D)
 I (..\FcSrc\LX_FC_Fun.h)(0x5F4B3381)
 I (..\FcSrc\ANO_DT_LX.h)(0x5F4B3380)
-I (..\Mycode\my_protocol.h)(0x69F89D13)
+I (..\Mycode\my_protocol.h)(0x69F99CF2)
 I (..\DriversMcu\STM32F407\Drivers\Drv_Uart.h)(0x5F768433)
 I (..\DriversBsp\Drv_AnoOf.h)(0x5F4B3381)
 I (..\Mycode\angle_protect.h)(0x69C8817B)
@@ -103,7 +103,7 @@ I (..\DriversBsp\Drv_BSP.h)(0x5F4B4EE7)
 I (..\DriversMcu\STM32F407\Drivers\Drv_Sys.h)(0x5F4B35A3)
 I (..\FcSrc\ANO_LX.h)(0x69F84A2E)
 I (..\FcSrc\ANO_DT_LX.h)(0x5F4B3380)
-I (..\Mycode\my_protocol.h)(0x69F89D13)
+I (..\Mycode\my_protocol.h)(0x69F99CF2)
 I (..\DriversMcu\STM32F407\Drivers\Drv_Uart.h)(0x5F768433)
 I (..\DriversBsp\Drv_AnoOf.h)(0x5F4B3381)
 I (..\Mycode\angle_protect.h)(0x69C8817B)
@@ -189,10 +189,10 @@ I (..\FcSrc\LX_FC_Fun.h)(0x5F4B3381)
 I (..\DriversMcu\STM32F407\Drivers\Drv_Uart.h)(0x5F768433)
 I (..\FcSrc\User_Task.h)(0x69D5F37A)
 I (..\Mycode\my_fun.h)(0x6509261D)
-I (..\Mycode\my_protocol.h)(0x69F89D13)
+I (..\Mycode\my_protocol.h)(0x69F99CF2)
 I (..\Mycode\angle_protect.h)(0x69C8817B)
 F (..\FcSrc\ANO_LX.h)(0x69F84A2E)()
-F (..\FcSrc\LX_FC_EXT_Sensor.c)(0x69F88D74)(--c99 -c --cpu Cortex-M4.fp.sp -D__MICROLIB -g -O0 --apcs=interwork --signed_chars -I .\build -I ..\FcSrc -I ..\DriversBsp -I ..\DriversMcu\STM32F407\Drivers -I ..\DriversMcu\STM32F407\Libraries\STM32F4xx_StdPeriph_Driver\inc -I ..\DriversMcu\STM32F407\Libraries\CMSIS\Include -I ..\DriversMcu\STM32F407\Libraries\CMSIS\ST\STM32F4xx\Include -I ..\DriversMcu\STM32F407 -I ..\Mycode --c99-IE:\Program\Keil\Keil\STM32F4xx_DFP\2.2.0\Drivers\CMSIS\Device\ST\STM32F4xx\Include-D__UVISION_VERSION="540" -DSTM32F407xx -DUSE_STDPERIPH_DRIVER -DUSE_USB_OTG_FS-o .\build\lx_fc_ext_sensor.o --omf_browse .\build\lx_fc_ext_sensor.crf --depend .\build\lx_fc_ext_sensor.d)
+F (..\FcSrc\LX_FC_EXT_Sensor.c)(0x69F9A297)(--c99 -c --cpu Cortex-M4.fp.sp -D__MICROLIB -g -O0 --apcs=interwork --signed_chars -I .\build -I ..\FcSrc -I ..\DriversBsp -I ..\DriversMcu\STM32F407\Drivers -I ..\DriversMcu\STM32F407\Libraries\STM32F4xx_StdPeriph_Driver\inc -I ..\DriversMcu\STM32F407\Libraries\CMSIS\Include -I ..\DriversMcu\STM32F407\Libraries\CMSIS\ST\STM32F4xx\Include -I ..\DriversMcu\STM32F407 -I ..\Mycode --c99-IE:\Program\Keil\Keil\STM32F4xx_DFP\2.2.0\Drivers\CMSIS\Device\ST\STM32F4xx\Include-D__UVISION_VERSION="540" -DSTM32F407xx -DUSE_STDPERIPH_DRIVER -DUSE_USB_OTG_FS-o .\build\lx_fc_ext_sensor.o --omf_browse .\build\lx_fc_ext_sensor.crf --depend .\build\lx_fc_ext_sensor.d)
 I (..\FcSrc\LX_FC_EXT_Sensor.h)(0x5F4B3380)
 I (..\FcSrc\SysConfig.h)(0x5F4B4DDD)
 I (..\DriversMcu\STM32F407\McuConfig.h)(0x5F75F9DB)
@@ -224,7 +224,7 @@ I (..\DriversMcu\STM32F407\Drivers\Drv_Sys.h)(0x5F4B35A3)
 I (..\FcSrc\ANO_LX.h)(0x69F84A2E)
 I (..\DriversBsp\Drv_AnoOf.h)(0x5F4B3381)
 I (..\FcSrc\ANO_DT_LX.h)(0x5F4B3380)
-I (..\Mycode\my_protocol.h)(0x69F89D13)
+I (..\Mycode\my_protocol.h)(0x69F99CF2)
 I (..\DriversMcu\STM32F407\Drivers\Drv_Uart.h)(0x5F768433)
 I (..\Mycode\angle_protect.h)(0x69C8817B)
 F (..\FcSrc\LX_FC_EXT_Sensor.h)(0x5F4B3380)()
@@ -977,7 +977,7 @@ I (..\DriversMcu\STM32F407\Libraries\STM32F4xx_StdPeriph_Driver\inc\stm32f4xx_ti
 I (..\DriversMcu\STM32F407\Libraries\STM32F4xx_StdPeriph_Driver\inc\stm32f4xx_usart.h)(0x5B8B8FEE)
 I (..\DriversMcu\STM32F407\Libraries\STM32F4xx_StdPeriph_Driver\inc\stm32f4xx_wwdg.h)(0x5B8B8FEE)
 I (..\DriversMcu\STM32F407\Libraries\STM32F4xx_StdPeriph_Driver\inc\misc.h)(0x5B8B8FEC)
-F (..\Mycode\my_protocol.h)(0x69F89D13)()
+F (..\Mycode\my_protocol.h)(0x69F99CF2)()
 F (..\Mycode\angle_protect.h)(0x69C8817B)()
 F (..\Mycode\my_fun.c)(0x69C67838)(--c99 -c --cpu Cortex-M4.fp.sp -D__MICROLIB -g -O0 --apcs=interwork --signed_chars -I .\build -I ..\FcSrc -I ..\DriversBsp -I ..\DriversMcu\STM32F407\Drivers -I ..\DriversMcu\STM32F407\Libraries\STM32F4xx_StdPeriph_Driver\inc -I ..\DriversMcu\STM32F407\Libraries\CMSIS\Include -I ..\DriversMcu\STM32F407\Libraries\CMSIS\ST\STM32F4xx\Include -I ..\DriversMcu\STM32F407 -I ..\Mycode --c99-IE:\Program\Keil\Keil\STM32F4xx_DFP\2.2.0\Drivers\CMSIS\Device\ST\STM32F4xx\Include-D__UVISION_VERSION="540" -DSTM32F407xx -DUSE_STDPERIPH_DRIVER -DUSE_USB_OTG_FS-o .\build\my_fun.o --omf_browse .\build\my_fun.crf --depend .\build\my_fun.d)
 I (..\Mycode\my_fun.h)(0x6509261D)
@@ -1011,8 +1011,8 @@ I (..\DriversBsp\Drv_BSP.h)(0x5F4B4EE7)
 I (..\DriversMcu\STM32F407\Drivers\Drv_Sys.h)(0x5F4B35A3)
 I (..\FcSrc\ANO_LX.h)(0x69F84A2E)
 I (..\FcSrc\ANO_DT_LX.h)(0x5F4B3380)
-F (..\Mycode\my_protocol.c)(0x69F89D11)(--c99 -c --cpu Cortex-M4.fp.sp -D__MICROLIB -g -O0 --apcs=interwork --signed_chars -I .\build -I ..\FcSrc -I ..\DriversBsp -I ..\DriversMcu\STM32F407\Drivers -I ..\DriversMcu\STM32F407\Libraries\STM32F4xx_StdPeriph_Driver\inc -I ..\DriversMcu\STM32F407\Libraries\CMSIS\Include -I ..\DriversMcu\STM32F407\Libraries\CMSIS\ST\STM32F4xx\Include -I ..\DriversMcu\STM32F407 -I ..\Mycode --c99-IE:\Program\Keil\Keil\STM32F4xx_DFP\2.2.0\Drivers\CMSIS\Device\ST\STM32F4xx\Include-D__UVISION_VERSION="540" -DSTM32F407xx -DUSE_STDPERIPH_DRIVER -DUSE_USB_OTG_FS-o .\build\my_protocol.o --omf_browse .\build\my_protocol.crf --depend .\build\my_protocol.d)
-I (..\Mycode\my_protocol.h)(0x69F89D13)
+F (..\Mycode\my_protocol.c)(0x69F99CEA)(--c99 -c --cpu Cortex-M4.fp.sp -D__MICROLIB -g -O0 --apcs=interwork --signed_chars -I .\build -I ..\FcSrc -I ..\DriversBsp -I ..\DriversMcu\STM32F407\Drivers -I ..\DriversMcu\STM32F407\Libraries\STM32F4xx_StdPeriph_Driver\inc -I ..\DriversMcu\STM32F407\Libraries\CMSIS\Include -I ..\DriversMcu\STM32F407\Libraries\CMSIS\ST\STM32F4xx\Include -I ..\DriversMcu\STM32F407 -I ..\Mycode --c99-IE:\Program\Keil\Keil\STM32F4xx_DFP\2.2.0\Drivers\CMSIS\Device\ST\STM32F4xx\Include-D__UVISION_VERSION="540" -DSTM32F407xx -DUSE_STDPERIPH_DRIVER -DUSE_USB_OTG_FS-o .\build\my_protocol.o --omf_browse .\build\my_protocol.crf --depend .\build\my_protocol.d)
+I (..\Mycode\my_protocol.h)(0x69F99CF2)
 I (..\DriversMcu\STM32F407\Drivers\Drv_Uart.h)(0x5F768433)
 I (..\FcSrc\SysConfig.h)(0x5F4B4DDD)
 I (..\DriversMcu\STM32F407\McuConfig.h)(0x5F75F9DB)

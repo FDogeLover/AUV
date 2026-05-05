@@ -146,10 +146,10 @@ class t265_class:
                         cos_yaw = math.cos(yawerr)
                         sin_yaw = math.sin(yawerr)
                         
-                        # 位置坐标转换
+                        # 位置坐标转换（与速度取反一致）
                         tx = data.translation
-                        raw_pos_x = tx.z * cos_yaw + tx.x * sin_yaw
-                        raw_pos_y = -tx.z * sin_yaw + tx.x * cos_yaw
+                        raw_pos_x = -(tx.z * cos_yaw + tx.x * sin_yaw)
+                        raw_pos_y = -(-tx.z * sin_yaw + tx.x * cos_yaw)
                         raw_pos_z = tx.y
                         
                         # 滤波处理
@@ -162,8 +162,8 @@ class t265_class:
                         
                         # 速度转换与滤波
                         tv = data.velocity
-                        raw_vel_x = tv.z * cos_yaw + tv.x * sin_yaw
-                        raw_vel_y = -tv.z * sin_yaw + tv.x * cos_yaw
+                        raw_vel_x = -(tv.z * cos_yaw + tv.x * sin_yaw)
+                        raw_vel_y = -(-tv.z * sin_yaw + tv.x * cos_yaw)
                         raw_vel_z = tv.y
                         
                         velocity_x = self.low_pass_filter(raw_vel_x, self.prev_velocity_x)

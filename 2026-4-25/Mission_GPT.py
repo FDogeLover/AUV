@@ -180,11 +180,19 @@ class mission:
         dy = abs(pos[1] - target[1])
         dz = abs(pos[2] - target[2])
         
+        # 获取 T265 实时速度用于打印
+        if self.t265_ok:
+            t265v = self.realsense.get_velocity()
+            t265_str = f"| t265v=({t265v[0]:+.2f},{t265v[1]:+.2f})"
+        else:
+            t265_str = ""
+
         print(
             f"\rpos=({pos[0]:+.3f},{pos[1]:+.3f},{pos[2]:+.3f}) "
             f"| tgt=({target[0]:+.2f},{target[1]:+.2f},{target[2]:+.2f}) "
             f"| v=({vx:>3},{vy:>3}) "
-            f"| send=({self.se_fc[3]:>3},{self.se_fc[4]:>3},{self.se_fc[5]:>3})",
+            f"| send=({self.se_fc[3]:>3},{self.se_fc[4]:>3},{self.se_fc[5]:>3})"
+            f"{t265_str}",
             end="",
             flush=True
         )

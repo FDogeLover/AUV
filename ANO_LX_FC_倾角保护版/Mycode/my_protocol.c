@@ -33,7 +33,7 @@ s16 t265_vel_x = 0, t265_vel_y = 0;
 // 数据区使用小端序（低字节在前）
 void flex_send(u8 id,const u8 *data, u8 len)
 {
-    u8 buf[2+1+1+1+40+2];  // 最大址长 47 字节
+    u8 buf[2+1+1+40+2];  // 最大址长 46 字节
     u8 cnt = 0;
 
     buf[cnt++] = 0xAA;
@@ -64,6 +64,15 @@ void flex_send_t265_vel(void)
     W16_LE(data,   t265_vel_x);
     W16_LE(data+2, t265_vel_y);
     flex_send(0xF1, data, 4);
+}
+
+// 打包发送 光流 速度数据（通过灵活址 0xF2 转发至 IMU）
+void flex_send_guangliu_vel(void)
+{
+    u8 data[4];
+    W16_LE(data,   ano_of.of1_dx);
+    W16_LE(data+2, ano_of.of1_dy);
+    flex_send(0xF2, data, 4);
 }
 
 void Send_str_by_len(USART_TypeDef * USARTx,u8 *s,u16 len)//串口发送函数

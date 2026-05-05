@@ -66,5 +66,6 @@ s16 xypid_set(s32 ,s16 ,u16 );
 // ========== ¡ÈªÓ∏Ò Ω API ==========
 void flex_send(u8 id, const u8 *data, u8 len);
 void flex_send_t265_vel(void);
+void flex_send_guangliu_vel(void);
 #endif
 	
