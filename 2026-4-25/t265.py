@@ -142,6 +142,9 @@ class t265_class:
                             self.InitialAngle_Yaw = rpy_rad[2]
                             self.InitialAngle_flag = True
                         yawerr = -(rpy_rad[2] - self.InitialAngle_Yaw)
+                        # 归一化到 [-PI, PI]，防止 >180° 时 PID 走错方向
+                        if yawerr > math.pi: yawerr -= 2*math.pi
+                        elif yawerr < -math.pi: yawerr += 2*math.pi
                         
                         cos_yaw = math.cos(yawerr)
                         sin_yaw = math.sin(yawerr)
@@ -213,6 +216,9 @@ class t265_class:
                         self.InitialAngle_Yaw = yaw
                         self.InitialAngle_flag = True
                     yawerr = -(yaw - self.InitialAngle_Yaw)
+                    # 归一化到 [-PI, PI]
+                    if yawerr > math.pi: yawerr -= 2*math.pi
+                    elif yawerr < -math.pi: yawerr += 2*math.pi
                     
                     # 模拟速度数据
                     raw_vel_x = np.random.normal(0, 0.05)
@@ -270,12 +276,21 @@ class t265_class:
     
     def get_orientation(self):
         """获取当前姿态数据
-        
+
         Returns:
             np.array: [roll, pitch, yaw] 单位：弧度
         """
         with self.lock:
             return self.pose_data[3:].copy()
+
+    def get_yaw_deg_x100(self):
+        """获取偏航角（归一化到 [-180,180]），单位 0.01°，用于串口传输
+
+        Returns:
+            int: yaw * 100，范围 [-18000, 18000]
+        """
+        with self.lock:
+            return int(math.degrees(self.pose_data[5]) * 100)
     
     def get_velocity(self):
         """获取当前速度数据

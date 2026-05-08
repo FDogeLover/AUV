@@ -3,10 +3,10 @@
 struct sdata received_data={0,0,140,0,0,0};
 struct PID_inc height_PID;
 struct PID_inc xy_PID;
-u8 RxBuffer[256];//Ê÷İ®ÅÉÊı¾İ»º´æ
-u8 LidarBuffer[256];//¼¤¹âÀ×´ïÊı¾İ»º´æ
-u8 pi_receive_done_sign=0;//Ê÷İ®ÅÉ½ÓÊÕÍê³É±êÖ¾Î»
-u8 lidar_receive_done_sign=0;//¼¤¹âÀ×´ï½ÓÊÕÍê³É±êÖ¾Î»
+u8 RxBuffer[256];//ï¿½ï¿½İ®ï¿½ï¿½ï¿½ï¿½ï¿½İ»ï¿½ï¿½ï¿½
+u8 LidarBuffer[256];//ï¿½ï¿½ï¿½ï¿½ï¿½×´ï¿½ï¿½ï¿½ï¿½İ»ï¿½ï¿½ï¿½
+u8 pi_receive_done_sign=0;//ï¿½ï¿½İ®ï¿½É½ï¿½ï¿½ï¿½ï¿½ï¿½É±ï¿½Ö¾Î»
+u8 lidar_receive_done_sign=0;//ï¿½ï¿½ï¿½ï¿½ï¿½×´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½É±ï¿½Ö¾Î»
 s16 CSPX=0,CSPY=0;
 u8 x_high=0;
 u8 x_low=0;
@@ -20,31 +20,32 @@ u8 yaw_h=0;
 u8 yaw_l=0;
 u8 att_state=0;
 
-// ·¢ËÍ»º´æ±äÁ¿
-static u8 tx_buf[15];  // ÍêÕû·¢ËÍÖ¡»º´æ
+// ï¿½ï¿½ï¿½Í»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+static u8 tx_buf[15];  // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö¡ï¿½ï¿½ï¿½ï¿½
 static u8 tx_stage = 0;
 
 
 s16 integ_side=0x4000;
 s16 t265_vel_x = 0, t265_vel_y = 0;
+s16 t265_yaw_angle = 0; // T265 åèˆªè§’ï¼Œå•ä½ 0.01Â°
 
-// ========== Áé»î¸ñÊ½Ö··¢ËÍ ==========
-// Ö­¸ñÊ½: AA FF | ID(0xF1~0xFA) | LEN(1~40) | DATA[LEN] | SC | AC
-// Êı¾İÇøÊ¹ÓÃĞ¡¶ËĞò£¨µÍ×Ö½ÚÔÚÇ°£©
+// ========== ï¿½ï¿½ï¿½ï¿½Ê½Ö·ï¿½ï¿½ï¿½ï¿½ ==========
+// Ö­ï¿½ï¿½Ê½: AA FF | ID(0xF1~0xFA) | LEN(1~40) | DATA[LEN] | SC | AC
+// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê¹ï¿½ï¿½Ğ¡ï¿½ï¿½ï¿½ò£¨µï¿½ï¿½Ö½ï¿½ï¿½ï¿½Ç°ï¿½ï¿½
 void flex_send(u8 id,const u8 *data, u8 len)
 {
-    u8 buf[2+1+1+40+2];  // ×î´óÖ·³¤ 46 ×Ö½Ú
+    u8 buf[2+1+1+40+2];  // ï¿½ï¿½ï¿½Ö·ï¿½ï¿½ 46 ï¿½Ö½ï¿½
     u8 cnt = 0;
 
     buf[cnt++] = 0xAA;
     buf[cnt++] = 0xFF;
-    buf[cnt++] = id;        // ¹¦ÄÜÂë 0xF1~0xFA
-    buf[cnt++] = len;       // Êı¾İ×Ö½ÚÊı
+    buf[cnt++] = id;        // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ 0xF1~0xFA
+    buf[cnt++] = len;       // ï¿½ï¿½ï¿½ï¿½ï¿½Ö½ï¿½ï¿½ï¿½
 
     for (u8 i = 0; i < len; i++)
         buf[cnt++] = data[i];
 
-    // SC/AC Ğ£ÑéºÍ£¨Fletcher-8£©
+    // SC/AC Ğ£ï¿½ï¿½Í£ï¿½Fletcher-8ï¿½ï¿½
     u8 sc = 0, ac = 0;
     for (u8 i = 0; i < cnt; i++)
     {
@@ -57,7 +58,7 @@ void flex_send(u8 id,const u8 *data, u8 len)
     UartSendLXIMU(buf, cnt);
 }
 
-// ´ò°ü·¢ËÍ T265 ËÙ¶ÈÊı¾İ£¨Í¨¹ıÁé»îÖ· 0xF1 ×ª·¢ÖÁ IMU£©
+// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ T265 ï¿½Ù¶ï¿½ï¿½ï¿½ï¿½İ£ï¿½Í¨ï¿½ï¿½ï¿½ï¿½ï¿½Ö· 0xF1 ×ªï¿½ï¿½ï¿½ï¿½ IMUï¿½ï¿½
 void flex_send_t265_vel(void)
 {
     u8 data[4];
@@ -66,7 +67,7 @@ void flex_send_t265_vel(void)
     flex_send(0xF1, data, 4);
 }
 
-// ´ò°ü·¢ËÍ ¹âÁ÷ ËÙ¶ÈÊı¾İ£¨Í¨¹ıÁé»îÖ· 0xF2 ×ª·¢ÖÁ IMU£©
+// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ù¶ï¿½ï¿½ï¿½ï¿½İ£ï¿½Í¨ï¿½ï¿½ï¿½ï¿½ï¿½Ö· 0xF2 ×ªï¿½ï¿½ï¿½ï¿½ IMUï¿½ï¿½
 void flex_send_guangliu_vel(void)
 {
     u8 data[4];
@@ -75,7 +76,7 @@ void flex_send_guangliu_vel(void)
     flex_send(0xF2, data, 4);
 }
 
-void Send_str_by_len(USART_TypeDef * USARTx,u8 *s,u16 len)//´®¿Ú·¢ËÍº¯Êı
+void Send_str_by_len(USART_TypeDef * USARTx,u8 *s,u16 len)//ï¿½ï¿½ï¿½Ú·ï¿½ï¿½Íºï¿½ï¿½ï¿½
 {
 	u16 i=0;
 	while(i<len)
@@ -86,7 +87,7 @@ void Send_str_by_len(USART_TypeDef * USARTx,u8 *s,u16 len)//´®¿Ú·¢ËÍº¯Êı
 		i++;
 	}
 }
-void pi_receive(u8 data)//Ê÷İ®ÅÉ½ÓÊÜĞ­Òé ´®¿Ú2
+void pi_receive(u8 data)//ï¿½ï¿½İ®ï¿½É½ï¿½ï¿½ï¿½Ğ­ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½2
 {
 	static u8 state_1 = 0;
 	if(state_1==0&&data==0xAA)	//Ö¡Í·0xAA
@@ -94,29 +95,32 @@ void pi_receive(u8 data)//Ê÷İ®ÅÉ½ÓÊÜĞ­Òé ´®¿Ú2
 		state_1=1;
 		RxBuffer[0]=data;
 	}
-	else if(state_1==1)	//Ö¡ÀàĞÍ×Ö½Ú
+	else if(state_1==1)	//Ö¡ï¿½ï¿½ï¿½ï¿½ï¿½Ö½ï¿½
 	{
 		RxBuffer[1]=data;
-		if(data == 0x01)		//T265ËÙ¶ÈÖ¡: AA 01 vx_h vx_l vy_h vy_l FF
+		if(data == 0x01)		//T265ï¿½Ù¶ï¿½Ö¡: AA 01 vx_h vx_l vy_h vy_l FF
 			state_1 = 2;
-		else if(data == 0x02)	//²Ù×÷Ö¸ÁîÖ¡: AA 02 task_sta com_x com_y com_z com_yaw next_task sp_side FF
+		else if(data == 0x02)	//ï¿½ï¿½ï¿½ï¿½Ö¸ï¿½ï¿½Ö¡: AA 02 task_sta com_x com_y com_z com_yaw next_task sp_side FF
 			state_1 = 10;
 		else
-			state_1 = 0;		//Î´ÖªÖ¡ÀàĞÍ
+			state_1 = 0;		//Î´ÖªÖ¡ï¿½ï¿½ï¿½ï¿½
 	}
-	//--- T265ËÙ¶ÈÖ¡ (0x01) ---
+	//--- T265ï¿½Ù¶ï¿½Ö¡ (0x01) ---
 	else if(state_1==2)		{RxBuffer[2]=data; state_1=3;}	// vx_h
 	else if(state_1==3)		{RxBuffer[3]=data; state_1=4;}	// vx_l
 	else if(state_1==4)		{RxBuffer[4]=data; state_1=5;}	// vy_h
 	else if(state_1==5)		{RxBuffer[5]=data; state_1=6;}	// vy_l
-	else if(state_1==6&&data==0xFF)	//Ö¡Î²
+	else if(state_1==6)		{RxBuffer[6]=data; state_1=7;}	// yaw_h
+	else if(state_1==7)		{RxBuffer[7]=data; state_1=8;}	// yaw_l
+	else if(state_1==8&&data==0xFF)	//å¸§å°¾
 	{
-		RxBuffer[6]=data;
+		RxBuffer[8]=data;
 		t265_vel_x = ((s16)RxBuffer[2] << 8) | RxBuffer[3];
 		t265_vel_y = ((s16)RxBuffer[4] << 8) | RxBuffer[5];
+		t265_yaw_angle = ((s16)RxBuffer[6] << 8) | RxBuffer[7];
 		state_1 = 0;
 	}
-	//--- ²Ù×÷Ö¸ÁîÖ¡ (0x02) ---
+	//--- ï¿½ï¿½ï¿½ï¿½Ö¸ï¿½ï¿½Ö¡ (0x02) ---
 	else if(state_1==10)	{RxBuffer[2]=data; state_1=11;}	// task_sta
 	else if(state_1==11)	{RxBuffer[3]=data; state_1=12;}	// com_x
 	else if(state_1==12)	{RxBuffer[4]=data; state_1=13;}	// com_y
@@ -175,7 +179,7 @@ s16 height_set(u32 height,u16 height_set)
 	return output;
 }
 
-// ¼ÆËãĞ£ÑéºÍ£¨×Ö½Ú1~12ÀÛ¼Ó£©
+// ï¿½ï¿½ï¿½ï¿½Ğ£ï¿½ï¿½Í£ï¿½ï¿½Ö½ï¿½1~12ï¿½Û¼Ó£ï¿½
 static u8 calc_checksum(u8 *buf)
 {
     u16 sum = 0;
@@ -187,11 +191,11 @@ static u8 calc_checksum(u8 *buf)
 //{
 //    if(tx_stage == 0)
 //    {
-//        // ========== ×é×°ÍêÕûÖ¡ ==========
+//        // ========== ï¿½ï¿½×°ï¿½ï¿½ï¿½ï¿½Ö¡ ==========
 //        tx_buf[0] = 0xAA;  // Ö¡Í·
 //        tx_buf[1] = mission_stage;
 
-//        // ×ËÌ¬½Ç
+//        // ï¿½ï¿½Ì¬ï¿½ï¿½
 //        tx_buf[2] = (fc_att.st_data.rol_x100 >> 0) & 0xFF;
 //        tx_buf[3] = (fc_att.st_data.rol_x100 >> 8) & 0xFF;
 //        tx_buf[4] = (fc_att.st_data.pit_x100 >> 0) & 0xFF;
@@ -200,7 +204,7 @@ static u8 calc_checksum(u8 *buf)
 //        tx_buf[7] = (fc_att.st_data.yaw_x100 >> 8) & 0xFF;
 //        tx_buf[8] = fc_att.st_data.state;
 
-//        // X/Y Êı¾İ
+//        // X/Y ï¿½ï¿½ï¿½ï¿½
 //        s16 x = ano_of.intergral_x + 0x4000;
 //        s16 y = ano_of.intergral_y + 0x4000;
 //        tx_buf[9]  = (x >> 0) & 0xFF;
@@ -208,7 +212,7 @@ static u8 calc_checksum(u8 *buf)
 //        tx_buf[11] = (y >> 0) & 0xFF;
 //        tx_buf[12] = (y >> 8) & 0xFF;
 
-//        // Ğ£ÑéºÍ + Ö¡Î²
+//        // Ğ£ï¿½ï¿½ï¿½ + Ö¡Î²
 //        tx_buf[13] = calc_checksum(tx_buf);
 //        tx_buf[14] = 0xFF;
 
@@ -216,13 +220,13 @@ static u8 calc_checksum(u8 *buf)
 //    }
 //    else if(tx_stage >= 1 && tx_stage <= 15)
 //    {
-//        // ·Ö¶Î·¢ËÍ£¨Ã¿´Î1×Ö½Ú£©
+//        // ï¿½Ö¶Î·ï¿½ï¿½Í£ï¿½Ã¿ï¿½ï¿½1ï¿½Ö½Ú£ï¿½
 //        USART_SendData(USART2, tx_buf[tx_stage - 1]);
 //        tx_stage++;
 //    }
 //    else
 //    {
-//        tx_stage = 0;  // ·¢ËÍÍê³É£¬¸´Î»
+//        tx_stage = 0;  // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½É£ï¿½ï¿½ï¿½Î»
 //    }
 //}
 

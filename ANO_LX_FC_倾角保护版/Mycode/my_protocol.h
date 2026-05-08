@@ -5,8 +5,8 @@
 #ifndef _MY_PROTOCOL_H_
 #define _MY_PROTOCOL_H_
 
-// ========== Áé»î¸ñÊ½Êý¾Ý´ò°ü/½â°üºê ==========
-// Êý¾ÝÇøÊ¹ÓÃÐ¡¶ËÐò£¨µÍ×Ö½ÚÔÚÇ°£©
+// ========== ï¿½ï¿½ï¿½ï¿½Ê½ï¿½ï¿½ï¿½Ý´ï¿½ï¿½/ï¿½ï¿½ï¿½ï¿½ï¿½ ==========
+// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê¹ï¿½ï¿½Ð¡ï¿½ï¿½ï¿½ò£¨µï¿½ï¿½Ö½ï¿½ï¿½ï¿½Ç°ï¿½ï¿½
 #define W8(buf, v)       do { (buf)[0] = (u8)(v); } while(0)
 #define W16_LE(buf, v)   do { (buf)[0]=(u8)(v); (buf)[1]=(u8)((v)>>8); } while(0)
 #define W32_LE(buf, v)   do { (buf)[0]=(u8)(v); (buf)[1]=(u8)((v)>>8); \
@@ -15,15 +15,15 @@
 #define R32_LE(buf) ((s32)((u32)(buf)[0] | ((u32)(buf)[1] << 8) | \
                            ((u32)(buf)[2] << 16) | ((u32)(buf)[3] << 24)))
 
-///////////////////////////////////////±äÁ¿
+///////////////////////////////////////ï¿½ï¿½ï¿½ï¿½
 struct sdata
 {
-	s16 com_x;//x·½ÏòÖ¸Áî
-	s16 com_y;//y·½ÏòÖ¸Áî
-	s16 com_z;//z·½ÏòÖ¸Áî
-	s16 com_yaw;//yawÖ¸Áî
+	s16 com_x;//xï¿½ï¿½ï¿½ï¿½Ö¸ï¿½ï¿½
+	s16 com_y;//yï¿½ï¿½ï¿½ï¿½Ö¸ï¿½ï¿½
+	s16 com_z;//zï¿½ï¿½ï¿½ï¿½Ö¸ï¿½ï¿½
+	s16 com_yaw;//yawÖ¸ï¿½ï¿½
 	u8 task_sta;//
-	u8 next_task_sign;//½×¶ÎÇÐ»»Ö¸Áî
+	u8 next_task_sign;//ï¿½×¶ï¿½ï¿½Ð»ï¿½Ö¸ï¿½ï¿½
 	s16 sp_side;
 };
 struct PID_inc
@@ -44,7 +44,8 @@ extern u8 lidar_receive_done_sign;
 extern u8 task_mode;
 extern s16 CSPX,CSPY;
 extern s16 t265_vel_x, t265_vel_y;
-///////////////////////////////////////½á¹¹Ìå
+extern s16 t265_yaw_angle; // T265 åèˆªè§’ï¼Œå•ä½ 0.01Â°ï¼ŒèŒƒå›´ [-18000,18000]
+///////////////////////////////////////ï¿½á¹¹ï¿½ï¿½
 struct lidar_data
 {
 	u16 lidar_speed;
@@ -55,7 +56,7 @@ struct lidar_data
 	u16 timestamp;
 	u8 crc;
 };
-///////////////////////////////////////º¯Êý
+///////////////////////////////////////ï¿½ï¿½ï¿½ï¿½
 void my_spcal(s16,s16);
 void pi_receive( u8 );
 void pi_send(); 
@@ -63,7 +64,7 @@ void Send_str_by_len(USART_TypeDef * USARTx,u8 *s,u16 len);
 void PID_init();
 s16 height_set(u32 height,u16 height_set);
 s16 xypid_set(s32 ,s16 ,u16 );
-// ========== Áé»î¸ñÊ½ API ==========
+// ========== ï¿½ï¿½ï¿½ï¿½Ê½ API ==========
 void flex_send(u8 id, const u8 *data, u8 len);
 void flex_send_t265_vel(void);
 void flex_send_guangliu_vel(void);

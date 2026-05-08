@@ -21,3 +21,6 @@ class PID:
 
     def get_pid(self,current):
         return self.pid(current)
+    def reset(self):
+        self.pid.integral = 0
+        self.pid.last_error = None

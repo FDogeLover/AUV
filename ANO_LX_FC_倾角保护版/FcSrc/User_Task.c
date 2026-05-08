@@ -15,13 +15,13 @@ u8 mission_done_flag=0;// 当前任务完成后通知上位机状态
 
 void UserTask_OneKeyCmd(void)// 一键功能
 {
-  static u8 one_key_takeoff_f = 1, one_key_land_f = 1, one_key_mission_f = 0;
+  static u8 one_key_land_f = 1, one_key_mission_f = 0;
 //    static u8 mission_step,eme_stop=1,pi_start_f=0,now_task_mode=0,land_triggered_f = 0;
 	static u8 mission_step,eme_stop=1,pi_start_f=0,now_task_mode=0,
 					land_triggered_f=0,landing_f=0,landing_cnt=0,
 					land_cmd_sent_f=0;           // 降落路径上通用降落指令的标志
   //////////////////////////////////////////////////////////////////////
-	pi_ctrl_mode = 1;
+//	pi_ctrl_mode = 1;
 //急停：CH_8通道在 1700<CH_8<2200
 	if ((rc_in.rc_ch.st_data.ch_[ch_8_aux4] > 1700 &&rc_in.rc_ch.st_data.ch_[ch_8_aux4] < 2200 )|| (Attitude_Check() == 1)) 
 	{
@@ -143,45 +143,10 @@ void UserTask_OneKeyCmd(void)// 一键功能
 					case 1://解锁
 					{
 						PID_init();
-						
-						mission_step +=FC_Unlock();
+						if(FC_Unlock()) mission_step = 5;
 					}
 				break;
-					case 2://十字盘旋 默认120cm
-				{
-						if(time_dly_cnt_ms<3500)//转向延时
-					{
-						time_dly_cnt_ms+=20;//ms
-					}
-					else
-					{
-						time_dly_cnt_ms = 0;
-						mission_step += OneKey_Takeoff(100);
-						one_key_takeoff_f=1;
-					}
-				}
-				break;
-					case 3://爬升中
-				{
-						if(time_dly_cnt_ms<5000)//爬升计时
-					{
-						time_dly_cnt_ms+=20;//ms
-					}
-					else
-					{
-						time_dly_cnt_ms = 0;
-						mission_step += 1;
-					}
-				}
-				break;
-					case 4://暂停2s
-				{
-					pid_speed=0;
-					PID_init();
-					time_dly_cnt_ms = 0;
-					mission_step += 1;
-				}	
-				break;
+
 					case 5://视觉控制阶段
 				{
 					if(received_data.next_task_sign==0)
@@ -239,7 +204,7 @@ void UserTask_OneKeyCmd(void)// 一键功能
 			else{
 				rt_tar.st_data.vel_x=0;rt_tar.st_data.vel_y=0;rt_tar.st_data.yaw_dps=0;dt.fun[0x41].WTS=1;
 			}
-			one_key_takeoff_f=0;
+			
 		}
 		
 }

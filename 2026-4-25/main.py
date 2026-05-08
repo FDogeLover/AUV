@@ -24,7 +24,7 @@ realsense = t265_class()
 serial_fc = Lcode.Lprotocol.Serial_fc("/dev/ttyS6", 460800)
 serial_fc.port_open()
 serial_fc.listen_start(re_fc)
-serial_fc.send_start(se_fc, realsense)  # 传入 realsense 用于 T265 速度帧
+serial_fc.send_start(se_fc, realsense, vel_freq=100, cmd_freq=50)  # 速度帧100Hz + 指令帧50Hz
 
 serial_dmz = Lcode.Lprotocol.Serial_dmz("/dev/ttyS7", 115200)
 serial_dmz.port_open()

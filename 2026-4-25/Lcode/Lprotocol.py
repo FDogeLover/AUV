@@ -11,7 +11,8 @@ class Serial_fc(object):
     def __init__(self,port,baudrate):
         self.ser=serial.Serial(port=port,baudrate=baudrate)
         self.fclisten_running=False
-        self.fcsend_running=False
+        self.t265send_running=False
+        self.cmdsend_running=False
         self.rate=460800
         self.startbyte=b'\xAA'
         self.endbyte=0xFF
@@ -49,32 +50,60 @@ class Serial_fc(object):
                     if DEBUG :
                         logger.info(rxbuffer)
             time.sleep(0.05)
-    def send_fc(self,comlist:List[int],t265_obj=None):
-        while self.fcsend_running==True:
-            # T265速度帧 (0x01): AA 01 vx_h vx_l vy_h vy_l FF
+    def _send_t265_loop(self, t265_obj, freq):
+        """独立线程：发送 T265 速度+偏航帧 (0x01)"""
+        sleep_time = 1.0 / freq
+        while self.t265send_running:
             if t265_obj is not None and t265_obj.is_running():
                 vx, vy, _ = t265_obj.get_velocity()
                 vx_cm = int(vx * 100)
                 vy_cm = int(vy * 100)
+                yaw_x100 = t265_obj.get_yaw_deg_x100()
+                # 帧格式: AA 01 vx_h vx_l vy_h vy_l yaw_h yaw_l FF
                 t265_frame = [0xAA, 0x01,
                              (vx_cm >> 8) & 0xFF, vx_cm & 0xFF,
                              (vy_cm >> 8) & 0xFF, vy_cm & 0xFF,
+                             (yaw_x100 >> 8) & 0xFF, yaw_x100 & 0xFF,
                              0xFF]
-                for v in t265_frame:
-                    self.ser.write(bytes([v]))
-            # 控制指令帧 (0x02)
+                for b in t265_frame:
+                    self.ser.write(bytes([b]))
+            time.sleep(sleep_time)
+
+    def _send_command_loop(self, comlist, freq):
+        """独立线程：发送指令帧 (0x02)"""
+        sleep_time = 1.0 / freq
+        while self.cmdsend_running:
             for value in comlist:
                 hex_value = hex(int(value))[2:].zfill(2)
                 self.ser.write(bytes.fromhex(hex_value))
-            time.sleep(0.01)
-    def send_start(self,comlist:List[int],t265_obj=None):
-        self.fcsend_running=True
-        fcsend_thread=threading.Thread(target=Serial_fc.send_fc,args=(self,comlist,t265_obj))
-        fcsend_thread.daemon=True
-        fcsend_thread.start()
-        logger.info("飞控串口发送线程启动")
+            time.sleep(sleep_time)
+
+    def send_start(self, comlist=None, t265_obj=None, vel_freq=100, cmd_freq=50):
+        self.t265send_running = True
+        self.cmdsend_running = True
+
+        if t265_obj is not None:
+            t265_thread = threading.Thread(
+                target=self._send_t265_loop, args=(t265_obj, vel_freq))
+            t265_thread.daemon = True
+            t265_thread.start()
+
+        if comlist is not None:
+            cmd_thread = threading.Thread(
+                target=self._send_command_loop, args=(comlist, cmd_freq))
+            cmd_thread.daemon = True
+            cmd_thread.start()
+
+        parts = []
+        if t265_obj is not None:
+            parts.append("速度帧 %dHz" % vel_freq)
+        if comlist is not None:
+            parts.append("指令帧 %dHz" % cmd_freq)
+        logger.info("飞控串口发送线程启动（%s）", " + ".join(parts))
+
     def send_end(self):
-        self.fcsend_running=False
+        self.t265send_running = False
+        self.cmdsend_running = False
         logger.info("飞控串口发送线程关闭")
 
 class Serial_dmz(object):

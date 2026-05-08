@@ -4,12 +4,14 @@ from typing import List
 from Lcode.Lpid import PID
 from Lcode.Logger import logger
 from Lcode.global_variable import sp_side, lock
-from Lcode.coverage_planner import CoveragePlanner
 from t265 import t265_class
 
 put_height = 100
 fly_height = 100
-posthreshold = 0.03  # 米
+posthreshold_xy = 0.15  # XY 到达阈值（米）
+posthreshold_z = 0.20   # Z 到达阈值（米）
+arrival_confirm_need = 5  # XY 连续确认到达次数
+arrival_timeout_max = 5.0  # 单航点超时（秒）
 
 realsense = t265_class()
 
@@ -39,20 +41,17 @@ class mission:
         self.current_target = None
 
         # 航点
-        # self.targets = self.calculate_waypoints_fromdmz()
         self.targets = self.load_waypoints()
         
         self.target_index = 0
         self.emergency_stop = False
         self.detect_flag = False
 
-    def calculate_waypoints_fromdmz(self):
-        """从地面站反传信息计算航点并加载"""
-        planner = CoveragePlanner(self.re_dmz)
-        planner.plan()
-        planner.save_router_txt("router.txt")
-        return self.load_waypoints()
-        
+        # 到达判断状态（进入航点时自动重置）
+        self.arrival_confirm_count = 0
+        self.arrival_start_time = 0.0
+        self.last_target_index = -1
+
     def load_waypoints(self):
         """从router.txt文件加载航点"""
         try:
@@ -81,8 +80,8 @@ class mission:
         except Exception as e:
             logger.warning(f"读取router.txt时出错: {str(e)}，使用默认航点")
 
-        # 默认航点
-        default_waypoints = [[0.5, 0.0,put_height/100], [0.5, 0.5,put_height/100], [0.0, 0.5,put_height/100], [0.0, 0.0,put_height/100]]
+        # 默认航点（第一个航点为起飞点：原地爬升到目标高度）
+        default_waypoints = [[0.0, 0.0,put_height/100], [0.5, 0.0,put_height/100], [0.5, 0.5,put_height/100], [0.0, 0.5,put_height/100]]
         logger.info(f"使用默认航点: {default_waypoints}")
         return default_waypoints
 
@@ -137,11 +136,10 @@ class mission:
         logger.info("起飞")
 
         lock.acquire()
-        self.se_fc[2] = 1
-        self.se_fc[5] = fly_height
+        self.se_fc[2] = 1  # 触发飞控任务（解锁→模式切换→进入指令接收）
         lock.release()
 
-        time.sleep(2)
+        time.sleep(1)  # 等待飞控完成 unlock + mode switch
         self.state = "NAVIGATE"
     
     def navigate(self, pos, yaw):
@@ -179,7 +177,41 @@ class mission:
         dx = abs(pos[0] - target[0])
         dy = abs(pos[1] - target[1])
         dz = abs(pos[2] - target[2])
-        
+
+        # 航点切换时重置所有状态（计数器 + PID 积分）
+        if self.target_index != self.last_target_index:
+            self.last_target_index = self.target_index
+            self.arrival_confirm_count = 0
+            self.arrival_start_time = time.time()
+            self.x_pid.reset()
+            self.y_pid.reset()
+            self.yaw_pid.reset()
+
+        # 远距离时清零积分防 windup（近距才启用 I 项消除静差）
+        if dx > 0.3:
+            self.x_pid.reset()
+        if dy > 0.3:
+            self.y_pid.reset()
+
+        # XY 到达条件（连续确认）
+        xy_ok = dx < posthreshold_xy and dy < posthreshold_xy
+        # Z 到达条件（独立放松阈值，单次判定）
+        z_ok = dz < posthreshold_z
+
+        if xy_ok and z_ok:
+            self.arrival_confirm_count += 1
+            if self.arrival_confirm_count >= arrival_confirm_need:
+                logger.info(f"到达航点 {self.target_index}")
+                self.target_index += 1
+        elif not xy_ok:
+            # XY 漂出阈值则重置确认计数
+            self.arrival_confirm_count = 0
+
+        # 超时强制跳过
+        if time.time() - self.arrival_start_time >= arrival_timeout_max:
+            logger.warning(f"航点 {self.target_index} 超时，强制跳过")
+            self.target_index += 1
+
         # 获取 T265 实时速度用于打印
         if self.t265_ok:
             t265v = self.realsense.get_velocity()
@@ -188,7 +220,7 @@ class mission:
             t265_str = ""
 
         print(
-            f"\rpos=({pos[0]:+.3f},{pos[1]:+.3f},{pos[2]:+.3f}) "
+            f"pos=({pos[0]:+.3f},{pos[1]:+.3f},{pos[2]:+.3f}) "
             f"| tgt=({target[0]:+.2f},{target[1]:+.2f},{target[2]:+.2f}) "
             f"| v=({vx:>3},{vy:>3}) "
             f"| send=({self.se_fc[3]:>3},{self.se_fc[4]:>3},{self.se_fc[5]:>3})"
@@ -196,9 +228,6 @@ class mission:
             end="",
             flush=True
         )
-        if dx < posthreshold and dy < posthreshold and dz < posthreshold:
-            logger.info(f"到达航点 {self.target_index}")
-            self.target_index += 1
     
     # ================= 降落 =================
     def land(self):
