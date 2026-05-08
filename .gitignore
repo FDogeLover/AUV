@@ -9,3 +9,10 @@ build/
 *.map
 *.htm
 *.uvguix.*
+
+# IDE
+.idea/
+
+# Python 缓存
+__pycache__/
+*.pyc
