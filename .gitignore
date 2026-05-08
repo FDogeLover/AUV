@@ -1,6 +1,11 @@
-.idea/
-.venv/
-__pycache__/
-*.pyc
-*.pyo
-.env
+# 编译产物
+build/
+*.o
+*.crf
+*.dep
+*.axf
+*.hex
+*.bin
+*.map
+*.htm
+*.uvguix.*
