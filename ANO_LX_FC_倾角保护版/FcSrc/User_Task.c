@@ -21,7 +21,7 @@ void UserTask_OneKeyCmd(void)// 一键功能
 					land_triggered_f=0,landing_f=0,landing_cnt=0,
 					land_cmd_sent_f=0;           // 降落路径上通用降落指令的标志
   //////////////////////////////////////////////////////////////////////
-//	pi_ctrl_mode = 1;
+	pi_ctrl_mode = 1;
 //急停：CH_8通道在 1700<CH_8<2200
 	if ((rc_in.rc_ch.st_data.ch_[ch_8_aux4] > 1700 &&rc_in.rc_ch.st_data.ch_[ch_8_aux4] < 2200 )|| (Attitude_Check() == 1)) 
 	{
