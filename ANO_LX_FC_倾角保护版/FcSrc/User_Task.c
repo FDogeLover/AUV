@@ -10,25 +10,25 @@
 #define speed_z 20
 #define speed_yaw 20
 u16 pid_speed=0;
-u8 mission_stage=0;// ç”¨äºæŒ‡ç¤ºå½“å‰ä»»åŠ¡é˜¶æ®µ
-u8 mission_done_flag=0;// å½“å‰ä»»åŠ¡å®Œæˆåé€šçŸ¥ä¸Šä½æœºçŠ¶æ€
+u8 mission_stage=0;// ÓÃÓÚÖ¸Ê¾µ±Ç°ÈÎÎñ½×¶Î
+u8 mission_done_flag=0;// µ±Ç°ÈÎÎñÍê³ÉºóÍ¨ÖªÉÏÎ»»ú×´Ì¬
 
-void UserTask_OneKeyCmd(void)// ä¸€é”®åŠŸèƒ½
+void UserTask_OneKeyCmd(void)// Ò»¼ü¹¦ÄÜ
 {
   static u8 one_key_land_f = 1, one_key_mission_f = 0;
 //    static u8 mission_step,eme_stop=1,pi_start_f=0,now_task_mode=0,land_triggered_f = 0;
 	static u8 mission_step,eme_stop=1,pi_start_f=0,now_task_mode=0,
 					land_triggered_f=0,landing_f=0,landing_cnt=0,
-					land_cmd_sent_f=0;           // é™è½è·¯å¾„ä¸Šé€šç”¨é™è½æŒ‡ä»¤çš„æ ‡å¿—
+					land_cmd_sent_f=0;           // ½µÂäÂ·¾¶ÉÏÍ¨ÓÃ½µÂäÖ¸ÁîµÄ±êÖ¾
   //////////////////////////////////////////////////////////////////////
 //	pi_ctrl_mode = 1;
-//æ€¥åœï¼šCH_8é€šé“åœ¨ 1700<CH_8<2200
+//¼±Í££ºCH_8Í¨µÀÔÚ 1700<CH_8<2200
 	if ((rc_in.rc_ch.st_data.ch_[ch_8_aux4] > 1700 &&rc_in.rc_ch.st_data.ch_[ch_8_aux4] < 2200 )|| (Attitude_Check() == 1)) 
 	{
 		if (eme_stop == 0) 
 		{
 			eme_stop = 1;
-				//æ‰§è¡Œæ€¥åœ
+				//Ö´ĞĞ¼±Í£
 			FC_Lock();
 			pwm_to_esc.pwm_m1 = 0;
 			pwm_to_esc.pwm_m2 = 0;
@@ -41,39 +41,39 @@ void UserTask_OneKeyCmd(void)// ä¸€é”®åŠŸèƒ½
 		eme_stop = 0;
 	}
 	//////////////////////////////////////////////////////////////////////
-//ä¸€é”®é™è½  CH_8é€šé“åœ¨ 1200<CH_8<1700
+//Ò»¼ü½µÂä  CH_8Í¨µÀÔÚ 1200<CH_8<1700
   if (rc_in.rc_ch.st_data.ch_[ch_8_aux4] > 1200 && rc_in.rc_ch.st_data.ch_[ch_8_aux4] < 1700)
   {
-       if (land_triggered_f == 0 && landing_f == 0)  // é™è½å®Œæˆåç¦æ­¢å†æ¬¡è§¦å‘
+       if (land_triggered_f == 0 && landing_f == 0)  // ½µÂäÍê³Éºó½ûÖ¹ÔÙ´Î´¥·¢
 			 {
 						OneKey_Land();
-						// è®¾ç½®ä¸‹é™é€Ÿåº¦ï¼Œç›´æ¥æ‰§è¡Œé™è½
+						// ÉèÖÃÏÂ½µËÙ¶È£¬Ö±½ÓÖ´ĞĞ½µÂä
 						rt_tar.st_data.vel_x = 0;
 						rt_tar.st_data.vel_y = 0;
 						rt_tar.st_data.vel_z = -50;
 						rt_tar.st_data.yaw_dps = 0;
 //						dt.fun[0x41].WTS = 1;
 						land_triggered_f = 1;
-						land_cmd_sent_f = 1;   // æ ‡è®°ï¼šå·²å‘é€é™è½æŒ‡ä»¤
+						land_cmd_sent_f = 1;   // ±ê¼Ç£ºÒÑ·¢ËÍ½µÂäÖ¸Áî
 						landing_f = 0;
 						landing_cnt = 0;
 				}
   }
-  else  // ç¦»å¼€é™è½åŒºæ—¶æ¸…ç©ºæ ‡å¿—ï¼Œä¸‹æ¬¡è¿›å…¥æ—¶é‡æ–°è§¦å‘
+  else  // Àë¿ª½µÂäÇøÊ±Çå¿Õ±êÖ¾£¬ÏÂ´Î½øÈëÊ±ÖØĞÂ´¥·¢
   {
       land_triggered_f = 0;
       land_cmd_sent_f = 0;
   }
 	 //////////////////////////////////////////////////////////////////////
-  // é€šç”¨é™è½è§¦å‘æ£€æµ‹ï¼ˆè¦†ç›– CH_8 é™è½ + mission default é™è½ï¼‰
+  // Í¨ÓÃ½µÂä´¥·¢¼ì²â£¨¸²¸Ç CH_8 ½µÂä + mission default ½µÂä£©
   if (land_cmd_sent_f == 1)
   {
-	      if (landing_f == 0)  // å°šæœªå®Œæˆé™è½è§¦å‘
+	      if (landing_f == 0)  // ÉĞÎ´Íê³É½µÂä´¥·¢
       {
-	          if (ano_of.work_sta && ano_of.of_alt_cm < 10)  // å…‰æµæœ‰æ•ˆä¸”é«˜åº¦ < 10cm
+	          if (ano_of.work_sta && ano_of.of_alt_cm < 10)  // ¹âÁ÷ÓĞĞ§ÇÒ¸ß¶È < 10cm
           {
               landing_cnt++;
-	              if (landing_cnt >= 50)  // è¿ç»­çº¦ 1 ç§’ç¡®è®¤è½åœ°
+	              if (landing_cnt >= 50)  // Á¬ĞøÔ¼ 1 ÃëÈ·ÈÏÂäµØ
               {
                   FC_Lock();
                   pwm_to_esc.pwm_m1 = 0;
@@ -81,45 +81,45 @@ void UserTask_OneKeyCmd(void)// ä¸€é”®åŠŸèƒ½
                   pwm_to_esc.pwm_m3 = 0;
                   pwm_to_esc.pwm_m4 = 0;
 
-	                  landing_f = 1;        // é™è½å®Œæˆ
+	                  landing_f = 1;        // ½µÂäÍê³É
               }
           }
           else
           {
-	              landing_cnt = 0;          // æœªè½åœ°åˆ™æ¸…ç©ºè®¡æ•°å™¨
+	              landing_cnt = 0;          // Î´ÂäµØÔòÇå¿Õ¼ÆÊıÆ÷
           }
       }
-	      // landing_f == 1 -> é™è½å®Œæˆï¼Œä¿æŒçŠ¶æ€ä¸å†è§¦å‘
+	      // landing_f == 1 -> ½µÂäÍê³É£¬±£³Ö×´Ì¬²»ÔÙ´¥·¢
   }
-  else  // land_cmd_sent_f == 0 -> æ— é™è½æŒ‡ä»¤
+  else  // land_cmd_sent_f == 0 -> ÎŞ½µÂäÖ¸Áî
   {
       landing_f = 0;
       landing_cnt = 0;
   }	//////////////////////////////////////////////////////////////////////
-		//ä»»åŠ¡å¯åŠ¨ï¼šCH_7é€šé“ 1700<CH_7<2200 æˆ– ä¸Šä½æœºå‘é€ä»»åŠ¡æŒ‡ä»¤
-		if((rc_in.rc_ch.st_data.ch_[ch_7_aux3]>1700 && rc_in.rc_ch.st_data.ch_[ch_7_aux3]<2200) || (received_data.task_sta==1))//ä¸Šä½æœºè¿œç¨‹ä»»åŠ¡è§¦å‘åˆ¤æ–­
+		//ÈÎÎñÆô¶¯£ºCH_7Í¨µÀ 1700<CH_7<2200 »ò ÉÏÎ»»ú·¢ËÍÈÎÎñÖ¸Áî
+		if((rc_in.rc_ch.st_data.ch_[ch_7_aux3]>1700 && rc_in.rc_ch.st_data.ch_[ch_7_aux3]<2200) || (received_data.task_sta==1))//ÉÏÎ»»úÔ¶³ÌÈÎÎñ´¥·¢ÅĞ¶Ï
 		{
-				//è¿˜æ²¡æ‰§è¡Œ
+				//»¹Ã»Ö´ĞĞ
 			if(one_key_mission_f ==0)
 			{
-					//æ ‡è®°å·²æ‰§è¡Œ
+					//±ê¼ÇÒÑÖ´ĞĞ
 				one_key_mission_f = 1;
-					//å¼€å§‹ä»»åŠ¡
+					//¿ªÊ¼ÈÎÎñ
 				mission_step = 0;
 			}
 		}
 		else
 		{
-				//æ¸…ç©ºæ ‡è®°ï¼Œä»¥ä¾¿å†æ¬¡æ‰§è¡Œ
+				//Çå¿Õ±ê¼Ç£¬ÒÔ±ãÔÙ´ÎÖ´ĞĞ
 			if(one_key_mission_f==1)
 			{
 					OneKey_Land();
-					land_cmd_sent_f = 1;   // æ ‡è®°é™è½
+					land_cmd_sent_f = 1;   // ±ê¼Ç½µÂä
 			}		
 			one_key_mission_f = 0;		
 		}
 	///////////////////////////////////////////////////////////////////////
-		//ä»»åŠ¡åˆ—è¡¨
+		//ÈÎÎñÁĞ±í
 		if(one_key_mission_f==1)
 		{
 			static u16 time_dly_cnt_ms;  
@@ -140,18 +140,18 @@ void UserTask_OneKeyCmd(void)// ä¸€é”®åŠŸèƒ½
 					mission_step +=1;
 				}
 				break;
-					case 1://è§£é”
+					case 1://½âËø
 					{
 						PID_init();
 						if(FC_Unlock()) mission_step = 5;
 					}
 				break;
 
-					case 5://è§†è§‰æ§åˆ¶é˜¶æ®µ
+					case 5://ÊÓ¾õ¿ØÖÆ½×¶Î
 				{
 					if(received_data.next_task_sign==0)
 					{
-						// é«˜åº¦ï¼šç”¨è§†è§‰æ¨¡å—çš„é«˜åº¦ + ç›®æ ‡é«˜åº¦
+						// ¸ß¶È£ºÓÃÊÓ¾õÄ£¿éµÄ¸ß¶È + Ä¿±ê¸ß¶È
 						tar_setdata(received_data.com_x,received_data.com_y,height_set(ano_of.of_alt_cm,received_data.com_z),received_data.com_yaw);
 					}
 					else if(received_data.next_task_sign==1)
@@ -166,11 +166,11 @@ void UserTask_OneKeyCmd(void)// ä¸€é”®åŠŸèƒ½
 						
 				}
 				break;
-					case 6://å®šç‚¹é™è½é˜¶æ®µ
+					case 6://¶¨µã½µÂä½×¶Î
 				{
 					if(received_data.next_task_sign==1)
 					{
-						// é«˜åº¦ï¼šç›´æ¥ç”¨å®šä½æ¨¡å—çš„é«˜åº¦
+						// ¸ß¶È£ºÖ±½ÓÓÃ¶¨Î»Ä£¿éµÄ¸ß¶È
 						tar_setdata(received_data.com_x,received_data.com_y,height_set(received_data.com_z,received_data.com_z),received_data.com_yaw);
 					}
 					else if(received_data.next_task_sign==0)

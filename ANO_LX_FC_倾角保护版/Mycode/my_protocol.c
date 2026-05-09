@@ -3,10 +3,10 @@
 struct sdata received_data={0,0,140,0,0,0};
 struct PID_inc height_PID;
 struct PID_inc xy_PID;
-u8 RxBuffer[256];//��ݮ�����ݻ���
-u8 LidarBuffer[256];//�����״����ݻ���
-u8 pi_receive_done_sign=0;//��ݮ�ɽ�����ɱ�־λ
-u8 lidar_receive_done_sign=0;//�����״������ɱ�־λ
+u8 RxBuffer[256];//
+u8 LidarBuffer[256];//
+u8 pi_receive_done_sign=0;//��
+u8 lidar_receive_done_sign=0;//��
 s16 CSPX=0,CSPY=0;
 u8 x_high=0;
 u8 x_low=0;
@@ -20,32 +20,32 @@ u8 yaw_h=0;
 u8 yaw_l=0;
 u8 att_state=0;
 
-// ���ͻ������
-static u8 tx_buf[15];  // ��������֡����
+// 
+static u8 tx_buf[15];  // 
 static u8 tx_stage = 0;
 
 
 s16 integ_side=0x4000;
 s16 t265_vel_x = 0, t265_vel_y = 0;
-s16 t265_yaw_angle = 0; // T265 偏航角，单位 0.01°
+s16 t265_yaw_angle = 0; // T265 ƫ���ǣ���λ 0.01��
 
-// ========== ����ʽַ���� ==========
-// ֭��ʽ: AA FF | ID(0xF1~0xFA) | LEN(1~40) | DATA[LEN] | SC | AC
-// ������ʹ��С���򣨵��ֽ���ǰ��
+// ==========  ==========
+// : AA FF | ID(0xF1~0xFA) | LEN(1~40) | DATA[LEN] | SC | AC
+// ��
 void flex_send(u8 id,const u8 *data, u8 len)
 {
-    u8 buf[2+1+1+40+2];  // ���ַ�� 46 �ֽ�
+    u8 buf[2+1+1+40+2];  //  46 
     u8 cnt = 0;
 
     buf[cnt++] = 0xAA;
     buf[cnt++] = 0xFF;
-    buf[cnt++] = id;        // ������ 0xF1~0xFA
-    buf[cnt++] = len;       // �����ֽ���
+    buf[cnt++] = id;        //  0xF1~0xFA
+    buf[cnt++] = len;       // 
 
     for (u8 i = 0; i < len; i++)
         buf[cnt++] = data[i];
 
-    // SC/AC У��ͣ�Fletcher-8��
+    // SC/AC ��Fletcher-8
     u8 sc = 0, ac = 0;
     for (u8 i = 0; i < cnt; i++)
     {
@@ -58,7 +58,7 @@ void flex_send(u8 id,const u8 *data, u8 len)
     UartSendLXIMU(buf, cnt);
 }
 
-// ������� T265 �ٶ����ݣ�ͨ�����ַ 0xF1 ת���� IMU��
+//  T265  0xF1  IMU
 void flex_send_t265_vel(void)
 {
     u8 data[4];
@@ -67,7 +67,7 @@ void flex_send_t265_vel(void)
     flex_send(0xF1, data, 4);
 }
 
-// ������� ���� �ٶ����ݣ�ͨ�����ַ 0xF2 ת���� IMU��
+//    0xF2  IMU
 void flex_send_guangliu_vel(void)
 {
     u8 data[4];
@@ -76,7 +76,7 @@ void flex_send_guangliu_vel(void)
     flex_send(0xF2, data, 4);
 }
 
-void Send_str_by_len(USART_TypeDef * USARTx,u8 *s,u16 len)//���ڷ��ͺ���
+void Send_str_by_len(USART_TypeDef * USARTx,u8 *s,u16 len)//
 {
 	u16 i=0;
 	while(i<len)
@@ -87,32 +87,32 @@ void Send_str_by_len(USART_TypeDef * USARTx,u8 *s,u16 len)//���ڷ��ͺ�
 		i++;
 	}
 }
-void pi_receive(u8 data)//��ݮ�ɽ���Э�� ����2
+void pi_receive(u8 data)//�� 2
 {
 	static u8 state_1 = 0;
-	if(state_1==0&&data==0xAA)	//֡ͷ0xAA
+	if(state_1==0&&data==0xAA)	//0xAA
 	{
 		state_1=1;
 		RxBuffer[0]=data;
 	}
-	else if(state_1==1)	//֡�����ֽ�
+	else if(state_1==1)	//
 	{
 		RxBuffer[1]=data;
-		if(data == 0x01)		//T265�ٶ�֡: AA 01 vx_h vx_l vy_h vy_l FF
+		if(data == 0x01)		//T265: AA 01 vx_h vx_l vy_h vy_l FF
 			state_1 = 2;
-		else if(data == 0x02)	//����ָ��֡: AA 02 task_sta com_x com_y com_z com_yaw next_task sp_side FF
+		else if(data == 0x02)	//: AA 02 task_sta com_x com_y com_z com_yaw next_task sp_side FF
 			state_1 = 10;
 		else
-			state_1 = 0;		//δ֪֡����
+			state_1 = 0;		//��
 	}
-	//--- T265�ٶ�֡ (0x01) ---
+	//--- T265 (0x01) ---
 	else if(state_1==2)		{RxBuffer[2]=data; state_1=3;}	// vx_h
 	else if(state_1==3)		{RxBuffer[3]=data; state_1=4;}	// vx_l
 	else if(state_1==4)		{RxBuffer[4]=data; state_1=5;}	// vy_h
 	else if(state_1==5)		{RxBuffer[5]=data; state_1=6;}	// vy_l
 	else if(state_1==6)		{RxBuffer[6]=data; state_1=7;}	// yaw_h
 	else if(state_1==7)		{RxBuffer[7]=data; state_1=8;}	// yaw_l
-	else if(state_1==8&&data==0xFF)	//帧尾
+	else if(state_1==8&&data==0xFF)	//֡β
 	{
 		RxBuffer[8]=data;
 		t265_vel_x = ((s16)RxBuffer[2] << 8) | RxBuffer[3];
@@ -120,7 +120,7 @@ void pi_receive(u8 data)//��ݮ�ɽ���Э�� ����2
 		t265_yaw_angle = ((s16)RxBuffer[6] << 8) | RxBuffer[7];
 		state_1 = 0;
 	}
-	//--- ����ָ��֡ (0x02) ---
+	//---  (0x02) ---
 	else if(state_1==10)	{RxBuffer[2]=data; state_1=11;}	// task_sta
 	else if(state_1==11)	{RxBuffer[3]=data; state_1=12;}	// com_x
 	else if(state_1==12)	{RxBuffer[4]=data; state_1=13;}	// com_y
@@ -128,7 +128,7 @@ void pi_receive(u8 data)//��ݮ�ɽ���Э�� ����2
 	else if(state_1==14)	{RxBuffer[6]=data; state_1=15;}	// com_yaw
 	else if(state_1==15)	{RxBuffer[7]=data; state_1=16;}	// next_task
 	else if(state_1==16)	{RxBuffer[8]=data; state_1=17;}	// sp_side
-	else if(state_1==17&&data==0xFF)	//֡β
+	else if(state_1==17&&data==0xFF)	//��
 	{
 		RxBuffer[9]=data;
 		received_data.sp_side   = RxBuffer[8];
@@ -179,7 +179,7 @@ s16 height_set(u32 height,u16 height_set)
 	return output;
 }
 
-// ����У��ͣ��ֽ�1~12�ۼӣ�
+// ��1~12
 static u8 calc_checksum(u8 *buf)
 {
     u16 sum = 0;
@@ -191,11 +191,11 @@ static u8 calc_checksum(u8 *buf)
 //{
 //    if(tx_stage == 0)
 //    {
-//        // ========== ��װ����֡ ==========
-//        tx_buf[0] = 0xAA;  // ֡ͷ
+//        // ==========  ==========
+//        tx_buf[0] = 0xAA;  // 
 //        tx_buf[1] = mission_stage;
 
-//        // ��̬��
+//        // 
 //        tx_buf[2] = (fc_att.st_data.rol_x100 >> 0) & 0xFF;
 //        tx_buf[3] = (fc_att.st_data.rol_x100 >> 8) & 0xFF;
 //        tx_buf[4] = (fc_att.st_data.pit_x100 >> 0) & 0xFF;
@@ -204,7 +204,7 @@ static u8 calc_checksum(u8 *buf)
 //        tx_buf[7] = (fc_att.st_data.yaw_x100 >> 8) & 0xFF;
 //        tx_buf[8] = fc_att.st_data.state;
 
-//        // X/Y ����
+//        // X/Y 
 //        s16 x = ano_of.intergral_x + 0x4000;
 //        s16 y = ano_of.intergral_y + 0x4000;
 //        tx_buf[9]  = (x >> 0) & 0xFF;
@@ -212,7 +212,7 @@ static u8 calc_checksum(u8 *buf)
 //        tx_buf[11] = (y >> 0) & 0xFF;
 //        tx_buf[12] = (y >> 8) & 0xFF;
 
-//        // У��� + ֡β
+//        // �� + ��
 //        tx_buf[13] = calc_checksum(tx_buf);
 //        tx_buf[14] = 0xFF;
 
@@ -220,13 +220,13 @@ static u8 calc_checksum(u8 *buf)
 //    }
 //    else if(tx_stage >= 1 && tx_stage <= 15)
 //    {
-//        // �ֶη��ͣ�ÿ��1�ֽڣ�
+//        // ��1
 //        USART_SendData(USART2, tx_buf[tx_stage - 1]);
 //        tx_stage++;
 //    }
 //    else
 //    {
-//        tx_stage = 0;  // ������ɣ���λ
+//        tx_stage = 0;  // ��
 //    }
 //}
 
