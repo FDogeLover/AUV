@@ -16,3 +16,6 @@ build/
 # Python 缓存
 __pycache__/
 *.pyc
+
+# Claude Code 记忆/配置
+.claude/

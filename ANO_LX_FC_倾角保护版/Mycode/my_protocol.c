@@ -3,10 +3,10 @@
 struct sdata received_data={0,0,140,0,0,0};
 struct PID_inc height_PID;
 struct PID_inc xy_PID;
-u8 RxBuffer[256];//
-u8 LidarBuffer[256];//
-u8 pi_receive_done_sign=0;//��
-u8 lidar_receive_done_sign=0;//��
+u8 RxBuffer[256];//树莓派接收数据缓存
+u8 LidarBuffer[256];//激光雷达数据缓存
+u8 pi_receive_done_sign=0;//树莓派接收完成标志位
+u8 lidar_receive_done_sign=0;//激光雷达接收完成标志位
 s16 CSPX=0,CSPY=0;
 u8 x_high=0;
 u8 x_low=0;
@@ -20,32 +20,32 @@ u8 yaw_h=0;
 u8 yaw_l=0;
 u8 att_state=0;
 
-// 
-static u8 tx_buf[15];  // 
+// 发送缓冲区
+static u8 tx_buf[15];  // 发送缓存帧数组
 static u8 tx_stage = 0;
 
 
 s16 integ_side=0x4000;
 s16 t265_vel_x = 0, t265_vel_y = 0;
-s16 t265_yaw_angle = 0; // T265 ƫ���ǣ���λ 0.01��
+s16 t265_yaw_angle = 0; // T265 偏航角，单位 0.01°
 
-// ==========  ==========
-// : AA FF | ID(0xF1~0xFA) | LEN(1~40) | DATA[LEN] | SC | AC
-// ��
+// ========== 灵活帧协议 ==========
+// 帧格式: AA FF | ID(0xF1~0xFA) | LEN(1~40) | DATA[LEN] | SC | AC
+// 校验使用小端序（低字节在前）
 void flex_send(u8 id,const u8 *data, u8 len)
 {
-    u8 buf[2+1+1+40+2];  //  46 
+    u8 buf[2+1+1+40+2];  // 最大帧 46 字节
     u8 cnt = 0;
 
     buf[cnt++] = 0xAA;
     buf[cnt++] = 0xFF;
-    buf[cnt++] = id;        //  0xF1~0xFA
-    buf[cnt++] = len;       // 
+    buf[cnt++] = id;        // 数据帧 0xF1~0xFA
+    buf[cnt++] = len;       // 数据字节数
 
     for (u8 i = 0; i < len; i++)
         buf[cnt++] = data[i];
 
-    // SC/AC ��Fletcher-8
+    // SC/AC 校验和（Fletcher-8）
     u8 sc = 0, ac = 0;
     for (u8 i = 0; i < cnt; i++)
     {
@@ -58,7 +58,7 @@ void flex_send(u8 id,const u8 *data, u8 len)
     UartSendLXIMU(buf, cnt);
 }
 
-//  T265  0xF1  IMU
+// 发送 T265 速度数据，通过灵活帧 0xF1 转发到 IMU 口
 void flex_send_t265_vel(void)
 {
     u8 data[4];
@@ -67,7 +67,7 @@ void flex_send_t265_vel(void)
     flex_send(0xF1, data, 4);
 }
 
-//    0xF2  IMU
+// 发送 光流 速度数据，通过灵活帧 0xF2 转发到 IMU 口
 void flex_send_guangliu_vel(void)
 {
     u8 data[4];
@@ -76,7 +76,7 @@ void flex_send_guangliu_vel(void)
     flex_send(0xF2, data, 4);
 }
 
-void Send_str_by_len(USART_TypeDef * USARTx,u8 *s,u16 len)//
+void Send_str_by_len(USART_TypeDef * USARTx,u8 *s,u16 len)//用于发送函数
 {
 	u16 i=0;
 	while(i<len)
@@ -87,32 +87,32 @@ void Send_str_by_len(USART_TypeDef * USARTx,u8 *s,u16 len)//
 		i++;
 	}
 }
-void pi_receive(u8 data)//�� 2
+void pi_receive(u8 data)//树莓派接收协议 串口2
 {
 	static u8 state_1 = 0;
-	if(state_1==0&&data==0xAA)	//0xAA
+	if(state_1==0&&data==0xAA)	//帧头0xAA
 	{
 		state_1=1;
 		RxBuffer[0]=data;
 	}
-	else if(state_1==1)	//
+	else if(state_1==1)	//帧第二字节
 	{
 		RxBuffer[1]=data;
-		if(data == 0x01)		//T265: AA 01 vx_h vx_l vy_h vy_l FF
+		if(data == 0x01)		//T265速度帧: AA 01 vx_h vx_l vy_h vy_l FF
 			state_1 = 2;
-		else if(data == 0x02)	//: AA 02 task_sta com_x com_y com_z com_yaw next_task sp_side FF
+		else if(data == 0x02)	//飞行指令帧: AA 02 task_sta com_x com_y com_z com_yaw next_task sp_side FF
 			state_1 = 10;
 		else
-			state_1 = 0;		//��
+			state_1 = 0;		//未知帧放弃
 	}
-	//--- T265 (0x01) ---
+	//--- T265速度帧 (0x01) ---
 	else if(state_1==2)		{RxBuffer[2]=data; state_1=3;}	// vx_h
 	else if(state_1==3)		{RxBuffer[3]=data; state_1=4;}	// vx_l
 	else if(state_1==4)		{RxBuffer[4]=data; state_1=5;}	// vy_h
 	else if(state_1==5)		{RxBuffer[5]=data; state_1=6;}	// vy_l
 	else if(state_1==6)		{RxBuffer[6]=data; state_1=7;}	// yaw_h
 	else if(state_1==7)		{RxBuffer[7]=data; state_1=8;}	// yaw_l
-	else if(state_1==8&&data==0xFF)	//֡β
+	else if(state_1==8&&data==0xFF)	//帧尾
 	{
 		RxBuffer[8]=data;
 		t265_vel_x = ((s16)RxBuffer[2] << 8) | RxBuffer[3];
@@ -120,7 +120,7 @@ void pi_receive(u8 data)//�� 2
 		t265_yaw_angle = ((s16)RxBuffer[6] << 8) | RxBuffer[7];
 		state_1 = 0;
 	}
-	//---  (0x02) ---
+	//--- 飞行指令帧 (0x02) ---
 	else if(state_1==10)	{RxBuffer[2]=data; state_1=11;}	// task_sta
 	else if(state_1==11)	{RxBuffer[3]=data; state_1=12;}	// com_x
 	else if(state_1==12)	{RxBuffer[4]=data; state_1=13;}	// com_y
@@ -128,7 +128,7 @@ void pi_receive(u8 data)//�� 2
 	else if(state_1==14)	{RxBuffer[6]=data; state_1=15;}	// com_yaw
 	else if(state_1==15)	{RxBuffer[7]=data; state_1=16;}	// next_task
 	else if(state_1==16)	{RxBuffer[8]=data; state_1=17;}	// sp_side
-	else if(state_1==17&&data==0xFF)	//��
+	else if(state_1==17&&data==0xFF)	//帧尾
 	{
 		RxBuffer[9]=data;
 		received_data.sp_side   = RxBuffer[8];
@@ -148,9 +148,9 @@ void pi_receive(u8 data)//�� 2
 }
 void PID_init()
 {
-	height_PID.p=2;
-	height_PID.i=1.4;
-	height_PID.d=0.8;
+	height_PID.p=0.8;
+	height_PID.i=0.3;
+	height_PID.d=0.4;
 	height_PID.actual=0;
 	height_PID.target=0;
 	height_PID.err_current=0;
@@ -169,17 +169,33 @@ s16 height_set(u32 height,u16 height_set)
 {
 	s16 output=0;
 	height_PID.actual=height;
-	height_PID.target=height_set; 
+	height_PID.target=height_set;
 	height_PID.err_current=height_PID.target-height_PID.actual;
-	output=height_PID.p*(height_PID.err_current-height_PID.err_last)+height_PID.i*height_PID.err_current+height_PID.d*(height_PID.err_current-2*height_PID.err_last+height_PID.err_previous);
-	height_PID.err_previous=height_PID.err_last;
-	height_PID.err_last=height_PID.err_current;
-	if (output>30 ) output=30;
-	else if(output<-30) output=-30;
+
+	// 积分分离：误差过大时禁用积分，避免饱和
+	s16 i_term;
+	if (height_PID.err_current > 50 || height_PID.err_current < -50)
+		i_term = 0;
+	else
+		i_term = height_PID.i * height_PID.err_current;
+
+	// I 项限幅 ±5，防止积分累积过多
+	if (i_term > 5) i_term = 5;
+	if (i_term < -5) i_term = -5;
+
+	output = height_PID.p * (height_PID.err_current - height_PID.err_last)
+	       + i_term
+	       + height_PID.d * (height_PID.err_current - 2*height_PID.err_last + height_PID.err_previous);
+
+	height_PID.err_previous = height_PID.err_last;
+	height_PID.err_last = height_PID.err_current;
+
+	if (output > 30) output = 30;
+	else if (output < -30) output = -30;
 	return output;
 }
 
-// ��1~12
+// 校验和：字节1~12累加
 static u8 calc_checksum(u8 *buf)
 {
     u16 sum = 0;
@@ -191,11 +207,11 @@ static u8 calc_checksum(u8 *buf)
 //{
 //    if(tx_stage == 0)
 //    {
-//        // ==========  ==========
-//        tx_buf[0] = 0xAA;  // 
+//        // ========== 打包发送帧 ==========
+//        tx_buf[0] = 0xAA;  // 帧头
 //        tx_buf[1] = mission_stage;
 
-//        // 
+//        // 姿态角
 //        tx_buf[2] = (fc_att.st_data.rol_x100 >> 0) & 0xFF;
 //        tx_buf[3] = (fc_att.st_data.rol_x100 >> 8) & 0xFF;
 //        tx_buf[4] = (fc_att.st_data.pit_x100 >> 0) & 0xFF;
@@ -204,7 +220,7 @@ static u8 calc_checksum(u8 *buf)
 //        tx_buf[7] = (fc_att.st_data.yaw_x100 >> 8) & 0xFF;
 //        tx_buf[8] = fc_att.st_data.state;
 
-//        // X/Y 
+//        // X/Y 积分
 //        s16 x = ano_of.intergral_x + 0x4000;
 //        s16 y = ano_of.intergral_y + 0x4000;
 //        tx_buf[9]  = (x >> 0) & 0xFF;
@@ -212,7 +228,7 @@ static u8 calc_checksum(u8 *buf)
 //        tx_buf[11] = (y >> 0) & 0xFF;
 //        tx_buf[12] = (y >> 8) & 0xFF;
 
-//        // �� + ��
+//        // 校验 + 帧尾
 //        tx_buf[13] = calc_checksum(tx_buf);
 //        tx_buf[14] = 0xFF;
 
@@ -220,13 +236,13 @@ static u8 calc_checksum(u8 *buf)
 //    }
 //    else if(tx_stage >= 1 && tx_stage <= 15)
 //    {
-//        // ��1
+//        // 分段发送，每次1字节
 //        USART_SendData(USART2, tx_buf[tx_stage - 1]);
 //        tx_stage++;
 //    }
 //    else
 //    {
-//        tx_stage = 0;  // ��
+//        tx_stage = 0;  // 发送完成，复位
 //    }
 //}
 
@@ -294,7 +310,7 @@ s16 xypid_set(s32 xy,s16 xy_set,u16 speedmax)
 {
 	s16 output=0;
 	xy_PID.actual=xy;
-	xy_PID.target=xy_set; 
+	xy_PID.target=xy_set;
 	xy_PID.err_current=xy_PID.target-xy_PID.actual;
 	output=xy_PID.p*(xy_PID.err_current-xy_PID.err_last)+xy_PID.i*xy_PID.err_current+xy_PID.d*(xy_PID.err_current-2*xy_PID.err_last+xy_PID.err_previous);
 	xy_PID.err_previous=xy_PID.err_last;

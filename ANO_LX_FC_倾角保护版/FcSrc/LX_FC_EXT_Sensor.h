@@ -1,11 +1,11 @@
 #ifndef __LX_FC_EXT_SENSOR_H
 #define __LX_FC_EXT_SENSOR_H
 
-//==????
+//==外部传感器
 #include "SysConfig.h"
 
-//==????/????
-//====????????????====
+//==共用体/结构体
+//====通用传感器结构体====
 typedef struct
 {
 	//
@@ -43,7 +43,7 @@ typedef union {
 	u8 byte[7];
 	_general_dis_st st_data;
 } _general_dis_un;
-//====GPS????====
+//====GPS结构体====
 typedef struct
 {
 	u8 FIX_STA;
@@ -75,9 +75,9 @@ typedef struct
 	_fc_gps_un fc_gps;
 
 } _fc_ext_sensor_st;
-//==????????
+//==外部变量
 extern _fc_ext_sensor_st ext_sens;
-//==????????
+//==内部变量
 //static
 
 //public
