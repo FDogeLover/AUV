@@ -3,12 +3,12 @@ import time
 from typing import List
 from Lcode.Lpid import PID
 from Lcode.Logger import logger
-from Lcode.global_variable import sp_side, lock
+from Lcode.global_variable import sp_side, lock, fc_last_rx_time
 from t265 import t265_class
-import math
 
 put_height = 100
 fly_height = 100
+VEL_SCALE = 0.7  # XY/Yaw 速度缩放系数 (1.0=原速, 0.5=半速)
 posthreshold_xy = 0.15  # XY 到达阈值（米）
 posthreshold_z = 0.20   # Z 到达阈值（米）
 arrival_confirm_need = 5  # XY 连续确认到达次数
@@ -97,7 +97,7 @@ class mission:
             logger.error("T265 FAILED")
 
         self.task_running = True
-        # self.state = "TAKEOFF"
+        self.state = "TAKEOFF"
 
         threading.Thread(target=self.loop, daemon=True).start()
 
@@ -107,6 +107,18 @@ class mission:
 
             if self.emergency_stop:
                 self.stop_all()
+                continue
+
+            # 串口超时检测：超过2秒无飞控回传数据则急停
+            if fc_last_rx_time > 0 and time.time() - fc_last_rx_time > 2.0:
+                logger.error("飞控串口超时无回传，触发紧急降落")
+                self.emergency_stop = True
+                continue
+
+            # T265存活检测：数据采集线程已停止则急停
+            if self.t265_ok and not self.realsense.is_running():
+                logger.error("T265数据采集已停止，触发紧急降落")
+                self.emergency_stop = True
                 continue
 
             # 获取定位
@@ -158,23 +170,20 @@ class mission:
         # XY/Yaw: PID计算速度
         self.x_pid.set_target(target[0])
         self.y_pid.set_target(target[1])
-        # Yaw target: bearing to next waypoint
-        dx = target[0] - pos[0]
-        dy = target[1] - pos[1]
-        yaw_target = math.atan2(dy, dx)
-        self.yaw_pid.set_target(yaw_target)
+        # Yaw lock: 保持初始航向0°，不随航点转向
+        self.yaw_pid.set_target(0)
         vx = self.x_pid.get_pid(pos[0])
         vy = self.y_pid.get_pid(pos[1])
         vyaw = self.yaw_pid.get_pid(yaw)
 
         # === 转 cm ===
-        vx *= 100
-        vy *= 100
+        vx *= 100 * VEL_SCALE
+        vy *= 100 * VEL_SCALE
 
         # === 限幅 ===
         vx = int(self.limit(vx, 40))
         vy = int(self.limit(vy, 40))
-        vyaw = int(self.limit(vyaw, 30)) 
+        vyaw = int(self.limit(vyaw * VEL_SCALE, 30)) 
         # === 发送 ===
         self.set_speed(vx, vy, -vyaw, target_z)
 

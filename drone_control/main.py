@@ -11,8 +11,8 @@ from t265 import t265_class
 re_fc = [0, 0, 0]  # 飞控反传信息 任务模式/x积分值/y积分值
 re_dmz = [('A9', 'B1'),('A10', 'B2'),('A11', 'B3')]#地面站反传信息 三个禁飞区坐标/x/y
 
-# 双帧协议: AA 02 task_sta com_x+sp com_y+sp com_z com_yaw+sp next_task sp_side FF
-se_fc = [170, 2, 0, sp_side, sp_side, 120, sp_side, 0, sp_side, 255]
+# 双帧协议: AA 02 task_sta com_x+sp com_y+sp com_z com_yaw+sp next_task sp_side CK FF
+se_fc = [170, 2, 0, sp_side, sp_side, 120, sp_side, 0, sp_side, 0, 255]
 se_dmz =[170, 0xA9, 0xB1, 0, 0, 255]#发送给地面站的数据 帧头/动物所在坐标x/y/动物类别/动物数量/帧尾
 
 run_sign = False

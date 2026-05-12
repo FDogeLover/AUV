@@ -43,8 +43,8 @@ extern u8 pi_receive_done_sign;
 extern u8 lidar_receive_done_sign;
 extern u8 task_mode;
 extern s16 CSPX,CSPY;
-extern s16 t265_vel_x, t265_vel_y;
-extern s16 t265_yaw_angle; // T265 偏航角，单位 0.01°，范围 [-18000,18000]
+extern volatile s16 t265_vel_x, t265_vel_y;
+extern volatile s16 t265_yaw_angle; // T265 偏航角，单位 0.01°，范围 [-18000,18000]
 ///////////////////////////////////////结构体
 struct lidar_data
 {

@@ -1,6 +1,8 @@
 #include "my_protocol.h"
 #include "User_Task.h"
-struct sdata received_data={0,0,140,0,0,0};
+#include "Ano_Math.h"
+#include "ANO_LX.h"
+volatile struct sdata received_data={0,0,140,0,0,0};
 struct PID_inc height_PID;
 struct PID_inc xy_PID;
 u8 RxBuffer[256];//树莓派接收数据缓存
@@ -26,8 +28,8 @@ static u8 tx_stage = 0;
 
 
 s16 integ_side=0x4000;
-s16 t265_vel_x = 0, t265_vel_y = 0;
-s16 t265_yaw_angle = 0; // T265 偏航角，单位 0.01°
+volatile s16 t265_vel_x = 0, t265_vel_y = 0;
+volatile s16 t265_yaw_angle = 0; // T265 偏航角，单位 0.01°
 
 // ========== 灵活帧协议 ==========
 // 帧格式: AA FF | ID(0xF1~0xFA) | LEN(1~40) | DATA[LEN] | SC | AC
@@ -98,9 +100,9 @@ void pi_receive(u8 data)//树莓派接收协议 串口2
 	else if(state_1==1)	//帧第二字节
 	{
 		RxBuffer[1]=data;
-		if(data == 0x01)		//T265速度帧: AA 01 vx_h vx_l vy_h vy_l FF
+		if(data == 0x01)		//T265速度帧: AA 01 vx_h vx_l vy_h vy_l yaw_h yaw_l CK FF
 			state_1 = 2;
-		else if(data == 0x02)	//飞行指令帧: AA 02 task_sta com_x com_y com_z com_yaw next_task sp_side FF
+		else if(data == 0x02)	//飞行指令帧: AA 02 task_sta com_x com_y com_z com_yaw next_task sp_side CK FF
 			state_1 = 10;
 		else
 			state_1 = 0;		//未知帧放弃
@@ -112,12 +114,18 @@ void pi_receive(u8 data)//树莓派接收协议 串口2
 	else if(state_1==5)		{RxBuffer[5]=data; state_1=6;}	// vy_l
 	else if(state_1==6)		{RxBuffer[6]=data; state_1=7;}	// yaw_h
 	else if(state_1==7)		{RxBuffer[7]=data; state_1=8;}	// yaw_l
-	else if(state_1==8&&data==0xFF)	//帧尾
+	else if(state_1==8)		{RxBuffer[8]=data; state_1=9;}	// CK
+	else if(state_1==9&&data==0xFF)	//帧尾
 	{
-		RxBuffer[8]=data;
-		t265_vel_x = ((s16)RxBuffer[2] << 8) | RxBuffer[3];
-		t265_vel_y = ((s16)RxBuffer[4] << 8) | RxBuffer[5];
-		t265_yaw_angle = ((s16)RxBuffer[6] << 8) | RxBuffer[7];
+		RxBuffer[9]=data;
+		u8 ck = 0;
+		for(u8 i=1; i<8; i++) ck ^= RxBuffer[i];
+		if(ck == RxBuffer[8])
+		{
+			t265_vel_x = ((s16)RxBuffer[2] << 8) | RxBuffer[3];
+			t265_vel_y = ((s16)RxBuffer[4] << 8) | RxBuffer[5];
+			t265_yaw_angle = ((s16)RxBuffer[6] << 8) | RxBuffer[7];
+		}
 		state_1 = 0;
 	}
 	//--- 飞行指令帧 (0x02) ---
@@ -128,17 +136,23 @@ void pi_receive(u8 data)//树莓派接收协议 串口2
 	else if(state_1==14)	{RxBuffer[6]=data; state_1=15;}	// com_yaw
 	else if(state_1==15)	{RxBuffer[7]=data; state_1=16;}	// next_task
 	else if(state_1==16)	{RxBuffer[8]=data; state_1=17;}	// sp_side
-	else if(state_1==17&&data==0xFF)	//帧尾
+	else if(state_1==17)	{RxBuffer[9]=data; state_1=18;}	// CK
+	else if(state_1==18&&data==0xFF)	//帧尾
 	{
-		RxBuffer[9]=data;
-		received_data.sp_side   = RxBuffer[8];
-		received_data.task_sta  = RxBuffer[2];
-		received_data.com_x     = RxBuffer[3] - received_data.sp_side;
-		received_data.com_y     = RxBuffer[4] - received_data.sp_side;
-		received_data.com_z     = RxBuffer[5];
-		received_data.com_yaw   = RxBuffer[6] - received_data.sp_side;
-		received_data.next_task_sign = RxBuffer[7];
-		pi_receive_done_sign    = 1;
+		RxBuffer[10]=data;
+		u8 ck = 0;
+		for(u8 i=1; i<9; i++) ck ^= RxBuffer[i];
+		if(ck == RxBuffer[9])
+		{
+			received_data.sp_side   = RxBuffer[8];
+			received_data.task_sta  = RxBuffer[2];
+			received_data.com_x     = RxBuffer[3] - received_data.sp_side;
+			received_data.com_y     = RxBuffer[4] - received_data.sp_side;
+			received_data.com_z     = RxBuffer[5];
+			received_data.com_yaw   = RxBuffer[6] - received_data.sp_side;
+			received_data.next_task_sign = RxBuffer[7];
+			pi_receive_done_sign    = 1;
+		}
 		state_1 = 0;
 	}
 	else
@@ -150,7 +164,7 @@ void PID_init()
 {
 	height_PID.p=0.8;
 	height_PID.i=0.3;
-	height_PID.d=0.4;
+	height_PID.d=0.2;
 	height_PID.actual=0;
 	height_PID.target=0;
 	height_PID.err_current=0;
@@ -168,6 +182,15 @@ void PID_init()
 s16 height_set(u32 height,u16 height_set)
 {
 	s16 output=0;
+	// 倾斜补偿：将测距仪斜距转为垂直高度，避免水平移动时高度波动
+	{
+		float rol_deg = fc_att.st_data.rol_x100 / 100.0f;
+		float pit_deg = fc_att.st_data.pit_x100 / 100.0f;
+		float tilt_deg = my_sqrt(rol_deg * rol_deg + pit_deg * pit_deg);
+		if (tilt_deg > 45.0f) tilt_deg = 45.0f;
+		float tilt_rad = tilt_deg * 0.0174533f;
+		height = (u32)((float)height * my_cos(tilt_rad));
+	}
 	height_PID.actual=height;
 	height_PID.target=height_set;
 	height_PID.err_current=height_PID.target-height_PID.actual;
@@ -175,7 +198,7 @@ s16 height_set(u32 height,u16 height_set)
 	// 积分分离 + 真积分累积
 	static s16 height_integral = 0;
 	s16 i_term;
-	if (height_PID.err_current > 50 || height_PID.err_current < -50)
+	if (height_PID.err_current > 200 || height_PID.err_current < -200)
 	{
 		i_term = 0;
 		height_integral = 0;  // 误差过大时清积分防饱和
@@ -188,9 +211,9 @@ s16 height_set(u32 height,u16 height_set)
 		i_term = (s16)(height_PID.i * height_integral);
 	}
 
-	output = height_PID.p * (height_PID.err_current - height_PID.err_last)
+	output = height_PID.p * height_PID.err_current
 	       + i_term
-	       + height_PID.d * (height_PID.err_current - 2*height_PID.err_last + height_PID.err_previous);
+	       + height_PID.d * (height_PID.err_current - height_PID.err_last);
 
 	height_PID.err_previous = height_PID.err_last;
 	height_PID.err_last = height_PID.err_current;

@@ -1,11 +1,9 @@
 import serial
 import threading
-import pickle
-import socket
 from typing import List
 from Lcode.Logger import logger
 import time
-from Lcode.global_variable import lock,task_start_sign
+from Lcode.global_variable import lock,task_start_sign,fc_last_rx_time
 DEBUG=False
 class Serial_fc(object):
     def __init__(self,port,baudrate):
@@ -30,19 +28,25 @@ class Serial_fc(object):
         self.fclisten_running=False
         logger.info("飞控串口监听线程关闭")
     def listen_fc(self,rxbuffer:List[int]):
+        global fc_last_rx_time
         while self.fclisten_running ==True:
             byte_data = self.ser.read() 
             if byte_data == self.startbyte:
                 # 读取接下来的6个字节数据
                 recv = self.ser.read(6) #recv[0]是任务模式，recv[1]和recv[2]是x积分值，recv[3]和recv[4]是y积分值，recv[5]是帧尾
+                if len(recv) < 6:
+                    continue
                 # 判断数据是否符合通信协议，即以0xFF结尾
                 if recv[5] == self.endbyte:
                     intergral_x = ((recv[1] << 8) | recv[2])-0x4000
                     intergral_y = ((recv[3] << 8) | recv[4])-0x4000
+                    lock.acquire()
                     rxbuffer.clear()
                     rxbuffer.append(recv[0])
                     rxbuffer.append(intergral_x)
                     rxbuffer.append(intergral_y)
+                    lock.release()
+                    fc_last_rx_time = time.time()
                     if recv[0]==0x05:
                         task_start_sign.value=True
                     else:
@@ -59,12 +63,16 @@ class Serial_fc(object):
                 vx_cm = int(vx * 100)
                 vy_cm = int(vy * 100)
                 yaw_x100 = t265_obj.get_yaw_deg_x100()
-                # 帧格式: AA 01 vx_h vx_l vy_h vy_l yaw_h yaw_l FF
+                # 帧格式: AA 01 vx_h vx_l vy_h vy_l yaw_h yaw_l CK FF
                 t265_frame = [0xAA, 0x01,
                              (vx_cm >> 8) & 0xFF, vx_cm & 0xFF,
                              (vy_cm >> 8) & 0xFF, vy_cm & 0xFF,
-                             (yaw_x100 >> 8) & 0xFF, yaw_x100 & 0xFF,
-                             0xFF]
+                             (yaw_x100 >> 8) & 0xFF, yaw_x100 & 0xFF]
+                ck = 0
+                for b in t265_frame[1:]:
+                    ck ^= b
+                t265_frame.append(ck)
+                t265_frame.append(0xFF)
                 self.ser.write(bytes(t265_frame))
             time.sleep(sleep_time)
 
@@ -74,6 +82,11 @@ class Serial_fc(object):
         while self.cmdsend_running:
             with lock:
                 values = list(comlist)
+            # CK = XOR(02 ... sp_side)，位于 FF 前
+            ck = 0
+            for b in values[1:-2]:
+                ck ^= b
+            values[-2] = ck
             self.ser.write(bytes(values))
             time.sleep(sleep_time)
 
@@ -141,6 +154,8 @@ class Serial_dmz(object):
             if byte_data == b'\xAA': 
                 # 读取接下来的8个字节数据 
                 recv = self.ser.read(8) # recv[0]=AA, recv[1]=A1, recv[2]=B1, recv[3]=A2, recv[4]=B2, recv[5]=A3, recv[6]=B3, recv[7]=FF
+                if len(recv) < 8:
+                    continue
                 
                 # 判断数据是否符合通信协议，即以0xFF结尾和以0xAA开头
                 if recv[7] == 0xFF:
@@ -225,57 +240,4 @@ class Serial_gpio(object):
                             rxbuffer.append(recv[i])
                         if task_start_sign.value ==False:
                             logger.info(rxbuffer)
-            time.sleep(0.05)
-class udp_terminal(object):
-    def __init__(self):
-        self.udp_socket=socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.udp_listen_running=False
-        self.udp_send_running=False
-        self.takeoff_sign=False
-        self.task_hjm=False
-        self.task_number=0
-    def listen_start(self,IP,PORT):
-        self.udp_listen_running=True
-        self.udp_socket.bind((IP,PORT))
-        listen_thread=threading.Thread(target=udp_terminal.listen_udp,args=(self,))
-        listen_thread.daemon=True
-        listen_thread.start()
-        logger.info("udp监听线程启动")
-    def listen_end(self):
-        self.udp_listen_running=False
-        logger.info("udp监听线程关闭")
-    def listen_udp(self):
-        received_data=[]
-        state=0
-        while self.udp_listen_running==True:
-            data, client_address = self.udp_socket.recvfrom(1024)
-            #logger.info("接收到的数据是%s",data)
-            try:
-                realdata=pickle.loads(data)
-            except Exception:
-                logger.warning("udp_terminal: pickle���л�ʧ��")
-                continue
-            if realdata[0]==170 and realdata[3]==255:
-                if realdata[1]==160 and realdata[2]==160:
-                    self.task_number=1
-                elif realdata[1]==160 and realdata[2]==161:
-                    self.task_number=2
-                elif realdata[1]==192 and realdata[2]==192:
-                    self.task_hjm=True
-            time.sleep(0.02)
-    """ def tasksort(self):
-        self.task_list.sort(key=lambda x:x[0],reverse=True)
-        logger.info("任务列表排序后:%s",self.task_list) """
-    
-    def send_start(self,IP,PORT,senddata):
-        self.udp_send_running=True
-        self.udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1) # 设置允许发送广播数据
-        send_thread=threading.Thread(target=udp_terminal.send_udp,args=(self,IP,PORT,senddata))
-        send_thread.daemon=True
-        send_thread.start()
-        logger.info("udp发送线程启动")
-    def send_udp(self,IP,PORT,senddata):
-        while self.udp_send_running==True:
-            changedata=pickle.dumps(senddata)
-            self.udp_socket.sendto(changedata,(IP,PORT))
             time.sleep(0.05)

@@ -254,6 +254,11 @@ class t265_class:
                 if self.error_count > self.max_error_count:
                     logger.error(f"T265数据获取连续失败{self.max_error_count}次，停止数据获取")
                     self.running = False
+                    if not self.use_simulation and self.pipe:
+                        try:
+                            self.pipe.stop()
+                        except Exception:
+                            pass
                 else:
                     logger.warning(f"T265数据获取失败: {str(e)}")
                 time.sleep(0.1)

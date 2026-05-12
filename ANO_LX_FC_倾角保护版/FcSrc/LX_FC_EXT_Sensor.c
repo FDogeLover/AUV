@@ -21,7 +21,7 @@
 #include "ANO_LX.h"
 #include "my_protocol.h"
 extern volatile u8 pi_ctrl_mode;
-extern s16 t265_vel_x, t265_vel_y;
+extern volatile s16 t265_vel_x, t265_vel_y;
 
 _fc_ext_sensor_st ext_sens;
 
