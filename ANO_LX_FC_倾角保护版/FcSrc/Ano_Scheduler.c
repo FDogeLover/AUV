@@ -108,7 +108,7 @@ void Scheduler_Run(void)
 		{
 
 			//更新线程的执行时间，用于下一次判断
-			sched_tasks[index].last_run = tnow;
+			sched_tasks[index].last_run += sched_tasks[index].interval_ticks;
 			//执行线程函数，使用的是函数指针
 			sched_tasks[index].task_func();
 		}

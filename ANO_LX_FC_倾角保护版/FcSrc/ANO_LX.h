@@ -138,7 +138,7 @@ extern _pwm_st pwm_to_esc;
 //public
 void ANO_LX_Task(void);
 
-extern u8 pi_ctrl_mode;	//控制源：0=RC+光流，1=树莓派+T265
+extern volatile u8 pi_ctrl_mode;	//控制源：0=RC+光流，1=树莓派+T265
 
 #endif
 

@@ -172,16 +172,21 @@ s16 height_set(u32 height,u16 height_set)
 	height_PID.target=height_set;
 	height_PID.err_current=height_PID.target-height_PID.actual;
 
-	// 积分分离：误差过大时禁用积分，避免饱和
+	// 积分分离 + 真积分累积
+	static s16 height_integral = 0;
 	s16 i_term;
 	if (height_PID.err_current > 50 || height_PID.err_current < -50)
+	{
 		i_term = 0;
+		height_integral = 0;  // 误差过大时清积分防饱和
+	}
 	else
-		i_term = height_PID.i * height_PID.err_current;
-
-	// I 项限幅 ±5，防止积分累积过多
-	if (i_term > 5) i_term = 5;
-	if (i_term < -5) i_term = -5;
+	{
+		height_integral += height_PID.err_current;
+		if (height_integral > 100) height_integral = 100;
+		if (height_integral < -100) height_integral = -100;
+		i_term = (s16)(height_PID.i * height_integral);
+	}
 
 	output = height_PID.p * (height_PID.err_current - height_PID.err_last)
 	       + i_term

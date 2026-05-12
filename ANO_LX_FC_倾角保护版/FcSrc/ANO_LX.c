@@ -106,15 +106,11 @@ static inline void RC_Data_Task(float dT_s)
 			}
 			else
 			{
-				u8 tmp;
+				u8 tmp = 0;
 				if (mod_f[2] >= 3)
 				{
 					//执行返航
 					tmp = OneKey_Return_Home();
-				}
-				else
-				{
-					//null
 				}
 				//reset
 				if (tmp)
@@ -307,9 +303,10 @@ void ANO_LX_Task()
 	//通信交换
 	ANO_LX_Data_Exchange_Task(0.001f);
 	//电调输出
-	ESC_Output(1); //unlocked
+	ESC_Output(fc_sta.unlock_sta);
 	//灯光驱动
 	LED_1ms_DRV();
-}u8 pi_ctrl_mode = 0;	//控制系统：0=RC+光流, 1=树莓派+T265
+}
+volatile u8 pi_ctrl_mode = 0;	//控制系统：0=RC+光流, 1=树莓派+T265
 
 

@@ -1,48 +1,59 @@
 /*==========================================================================
- * ÃèÊö    £ºÁèÏö·É¿ØÍâÖÃ´«¸ÐÆ÷´¦Àí
- * ¸üÐÂÊ±¼ä£º2020-02-06 
- * ×÷Õß		 £ºÄäÃû¿Æ´´-Jyoun
- * ¹ÙÍø    £ºwww.anotc.com
- * ÌÔ±¦    £ºanotc.taobao.com
- * ¼¼ÊõQÈº £º190169595
- * ÏîÄ¿ºÏ×÷£º18084888982£¬18061373080
+ * æ–‡ä»¶å   å¤–éƒ¨æ‰©å±•ä¼ æ„Ÿå™¨æ•°æ®
+ * åˆ›å»ºæ—¶é—´ï¼š2020-02-06
+ * ä½œè€…	 åŒ¿åç§‘åˆ›-Jyoun
+ * ç½‘ç«™   www.anotc.com
+ * æ·˜å®   anotc.taobao.com
+ * æŠ€æœ¯Qç¾¤ 190169595
+ * å›ºä»¶çƒ­çº¿ï¼š18084888982ï¼Œ18061373080
 ============================================================================
- * ÄäÃû¿Æ´´ÍÅ¶Ó¸ÐÐ»´ó¼ÒµÄÖ§³Ö£¬»¶Ó­´ó¼Ò½øÈº»¥Ïà½»Á÷¡¢ÌÖÂÛ¡¢Ñ§Ï°¡£
- * ÈôÄú¾õµÃÄäÃûÓÐ²»ºÃµÄµØ·½£¬»¶Ó­ÄúÅÄ×©ÌáÒâ¼û¡£
- * ÈôÄú¾õµÃÄäÃûºÃ£¬Çë¶à¶à°ïÎÒÃÇÍÆ¼ö£¬Ö§³ÖÎÒÃÇ¡£
- * ÄäÃû¿ªÔ´³ÌÐò´úÂë»¶Ó­ÄúµÄÒýÓÃ¡¢ÑÓÉìºÍÍØÕ¹£¬²»¹ýÔÚÏ£ÍûÄúÔÚÊ¹ÓÃÊ±ÄÜ×¢Ã÷³ö´¦¡£
- * ¾ý×ÓÌ¹µ´µ´£¬Ð¡ÈË³£ÆÝÆÝ£¬ÄäÃû¼á¾ö²»»áÇëË®¾ü¡¢ÇëÅç×Ó£¬Ò²´ÓÎ´ÓÐ¹ýÄ¨ºÚÍ¬ÐÐµÄÐÐÎª¡£  
- * ¿ªÔ´²»Ò×£¬Éú»î¸ü²»ÈÝÒ×£¬Ï£Íû´ó¼Ò»¥Ïà×ðÖØ¡¢»¥°ï»¥Öú£¬¹²Í¬½ø²½¡£
- * Ö»ÓÐÄúµÄÖ§³Ö£¬ÄäÃû²ÅÄÜ×öµÃ¸üºÃ¡£  
+ * åŒ¿åç§‘åˆ›å›¢é˜Ÿæ„Ÿè°¢å¤§å®¶çš„æ”¯æŒï¼Œæ¬¢è¿Žå¤§å®¶è¿›ç¾¤å¤šäº¤æµã€è®¨è®ºã€å­¦ä¹ ã€‚
+ * è‹¥ç¨‹åºä¸­æœ‰åšå¾—ä¸å¥½çš„åœ°æ–¹ï¼Œæ¬¢è¿Žå¤§å®¶æ‹ç –ã€æŒ‡æ­£ã€‚
+ * å¦‚æžœæ‚¨è§‰å¾—å›ºä»¶å¯¹ä½ æœ‰ç”¨ï¼Œå¸Œæœ›æ‚¨å¯ä»¥èµžåŠ©å¹¶æ”¯æŒæˆ‘ä»¬ã€‚
+ * æœ¬ç€å¼€æºç²¾ç¥žæ¬¢è¿Žå¹¿å¤§çˆ±å¥½è€…è‡ªç”±ä½¿ç”¨ã€ä¿®æ”¹ã€å†å‘å¸ƒï¼Œä½†å¸Œæœ›ä½¿ç”¨æ—¶é—´æ³¨æ˜Žå‡ºå¤„ã€‚
+ * é„™äººå¦è¡è¡ï¼Œå°äººå¸¸æˆšæˆšï¼Œäº§å“åœ°æ°´å†›æ°´æ‰‹ï¼Œä¹Ÿä»Žæœªæœ‰è¿‡æŠ¹é»‘åŒè¡Œçš„è¡Œä¸ºã€‚
+ * å¼€æºé å¤§å®¶ï¼Œåœ¨æ­¤è°¢è¿‡å„ä½ï¼Œå¸Œæœ›æ–°çš„ä¸€å¹´å¤§å®¶ç›¸äº’å°Šé‡ã€äº’æƒ äº’åŠ©ã€å…±åŒè¿›æ­¥ã€‚
+ * åªè¦å¤§å®¶æ”¯æŒï¼Œæˆ‘ä»¬ä¸€å®šæŠŠå›ºä»¶åšå¾—æ›´å¥½ã€‚
 ===========================================================================*/
 #include "LX_FC_EXT_Sensor.h"
 #include "Drv_AnoOf.h"
 #include "ANO_DT_LX.h"
 #include "ANO_LX.h"
 #include "my_protocol.h"
-extern u8 pi_ctrl_mode;
+extern volatile u8 pi_ctrl_mode;
 extern s16 t265_vel_x, t265_vel_y;
 
 _fc_ext_sensor_st ext_sens;
 
-//ÕâÀï°Ñ¹âÁ÷Êý¾Ý´ò°ü³ÉÍ¨ÓÃËÙ¶È´«¸ÐÆ÷Êý¾Ý
+//é€šç”¨å¤–éƒ¨ä¼ æ„Ÿå™¨æ•°æ®é€šè¿‡é€Ÿåº¦ä¼ æ„Ÿå™¨èžåˆ
 static inline void General_Velocity_Data_Handle()
 {
 	static u8 of_update_cnt, of_alt_update_cnt;
 	static u8 dT_ms = 0;
-	//Ã¿Ò»ºÁÃëdT_ms+1£¬ÓÃÀ´ÅÐ¶ÏÊÇ·ñ³¤Ê±¼äÎÞÊý¾Ý
+	//æ¯ä¸€æ¬¡ç»™dT_ms+1ï¼Œå†åˆ¤æ–­æ˜¯å¦è¶…æ—¶å¤ä½
 	if (dT_ms != 255)
 	{
 		dT_ms++;
 	}
-	//¼ì²éOFÊý¾ÝÊÇ·ñ¸üÐÂ
-	// T265 mode: send every 1ms, independent of OF update
+	// T265 æ¨¡å¼ï¼šT265 é€Ÿåº¦ä¸ºä¸»ä¿¡å·ï¼ˆæ— æ¼‚ç§»ï¼‰ï¼Œå…‰æµè¾…åŠ©é«˜é¢‘å“åº”
 	if (pi_ctrl_mode == 1)
 	{
-		ext_sens.gen_vel.st_data.hca_velocity_cmps[0] = t265_vel_x;
-		ext_sens.gen_vel.st_data.hca_velocity_cmps[1] = t265_vel_y;
-//		flex_send_t265_vel();
-//		flex_send_guangliu_vel(); //×Ô¶¨ÒåÁé»î¸ñÊ½Ö¡·¢ËÍ£¬ÓÃÓÚ¹Û²ìÊý¾ÝµÄÖµ
+		s16 vx = t265_vel_x;
+		s16 vy = t265_vel_y;
+
+		// // å…‰æµæ–°æ•°æ®åˆ°è¾¾æ—¶åšäº’è¡¥èžåˆï¼Œå¹³æ»‘è¿‡æ¸¡
+		// if (of_update_cnt != ano_of.of_update_cnt)
+		// {
+		// 	of_update_cnt = ano_of.of_update_cnt;
+		// 	if (ano_of.of1_sta && ano_of.work_sta) //å…‰æµæœ‰æ•ˆ
+		// 	{
+		// 		vx = (s16)(t265_vel_x * 0.7f + ano_of.of1_dx * 0.3f);
+		// 		vy = (s16)(t265_vel_y * 0.7f + ano_of.of1_dy * 0.3f);
+		// 	}
+		// }
+
+		ext_sens.gen_vel.st_data.hca_velocity_cmps[0] = vx;
+		ext_sens.gen_vel.st_data.hca_velocity_cmps[1] = vy;
 		// T265 yaw complementary filter (~10Hz, gentle correction)
 		{
 			static u8 yaw_corr_cnt = 0;
@@ -50,24 +61,23 @@ static inline void General_Velocity_Data_Handle()
 			if (yaw_corr_cnt >= 100)
 			{
 				yaw_corr_cnt = 0;
-				s16 diff = t265_yaw_angle - fc_att.st_data.yaw_x100;
+				s32 diff = (s32)t265_yaw_angle - (s32)fc_att.st_data.yaw_x100;
 				if (diff > 18000) diff -= 36000;
 				else if (diff < -18000) diff += 36000;
-				fc_att.st_data.yaw_x100 += diff * 0.03f;
+				fc_att.st_data.yaw_x100 += (s16)(diff * 0.03f);
 			}
 		}
 	}
-	//¼ì²éOFÊý¾ÝÊÇ·ñ¸üÐÂ
-if (of_update_cnt != ano_of.of_update_cnt)
+	//éž T265 æ¨¡å¼ï¼šå…‰æµä½œä¸ºå”¯ä¸€é€Ÿåº¦æº
+	else if (of_update_cnt != ano_of.of_update_cnt)
 	{
 		of_update_cnt = ano_of.of_update_cnt;
-		//XY_VEL
-		if (ano_of.of1_sta && ano_of.work_sta) //¹âÁ÷ÓÐÐ§
+		if (ano_of.of1_sta && ano_of.work_sta) //å…‰æµæœ‰æ•ˆ
 		{
 			ext_sens.gen_vel.st_data.hca_velocity_cmps[0] = ano_of.of1_dx;
 			ext_sens.gen_vel.st_data.hca_velocity_cmps[1] = ano_of.of1_dy;
 		}
-		else //ÎÞÐ§
+		else //æ— æ•ˆ
 		{
 			ext_sens.gen_vel.st_data.hca_velocity_cmps[0] = 0x8000;
 			ext_sens.gen_vel.st_data.hca_velocity_cmps[1] = 0x8000;
@@ -77,9 +87,9 @@ if (of_update_cnt != ano_of.of_update_cnt)
 	{
 		//
 		of_alt_update_cnt = ano_of.alt_update_cnt;
-		//²»ÊäÈëzÖáËÙ¶È£¬½«zËÙ¶È¸³ÖµÎªÎÞÐ§
+		//é‡ç½®Zè½´é€Ÿåº¦ï¼Œå°†Zé€Ÿåº¦èµ‹å€¼ä¸ºæ— æ•ˆ
 		ext_sens.gen_vel.st_data.hca_velocity_cmps[2] = 0x8000;
-		//´¥·¢·¢ËÍ
+		//è§¦å‘æ•°æ®æ›´æ–°
 		dt.fun[0x33].WTS = 1;
 		//reset
 		dT_ms = 0;
@@ -97,7 +107,7 @@ static inline void General_Distance_Data_Handle()
 		ext_sens.gen_dis.st_data.direction = 0;
 		ext_sens.gen_dis.st_data.angle_100 = 270;
 		ext_sens.gen_dis.st_data.distance_cm = ano_of.of_alt_cm;
-		//´¥·¢·¢ËÍ
+		//è§¦å‘æ•°æ®æ›´æ–°
 		dt.fun[0x34].WTS = 1;
 	}
 }

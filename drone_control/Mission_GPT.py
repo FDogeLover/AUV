@@ -5,6 +5,7 @@ from Lcode.Lpid import PID
 from Lcode.Logger import logger
 from Lcode.global_variable import sp_side, lock
 from t265 import t265_class
+import math
 
 put_height = 100
 fly_height = 100
@@ -157,7 +158,11 @@ class mission:
         # XY/Yaw: PID计算速度
         self.x_pid.set_target(target[0])
         self.y_pid.set_target(target[1])
-        self.yaw_pid.set_target(0)
+        # Yaw target: bearing to next waypoint
+        dx = target[0] - pos[0]
+        dy = target[1] - pos[1]
+        yaw_target = math.atan2(dy, dx)
+        self.yaw_pid.set_target(yaw_target)
         vx = self.x_pid.get_pid(pos[0])
         vy = self.y_pid.get_pid(pos[1])
         vyaw = self.yaw_pid.get_pid(yaw)
@@ -203,8 +208,8 @@ class mission:
             if self.arrival_confirm_count >= arrival_confirm_need:
                 logger.info(f"到达航点 {self.target_index}")
                 self.target_index += 1
-        elif not xy_ok:
-            # XY 漂出阈值则重置确认计数
+        else:
+            # 任一轴漂出阈值则重置确认计数
             self.arrival_confirm_count = 0
 
         # 超时强制跳过

@@ -122,38 +122,40 @@ class t265_class:
                         qua2 = data.rotation.z
                         qua3 = data.rotation.w
                         
+                        tx = data.translation
+                        tv = data.velocity
+                        
                         if tf:
-                            # 使用transformations模块进行坐标转换
+                            # 使用齐次变换矩阵，保证位置和姿态在同一坐标系
                             H_T265Ref_T265body = tf.quaternion_matrix([qua3, qua0, qua1, qua2])
-                            H_aeroRef_aeroBody = self.H_aeroRef_T265Ref.dot(
-                                H_T265Ref_T265body.dot(self.H_T265body_aeroBody)
-                            )
+                            H_T265Ref_T265body[:3, 3] = [tx.x, tx.y, tx.z]
+                            H_aeroRef_aeroBody = self.H_aeroRef_T265Ref @ H_T265Ref_T265body @ self.H_T265body_aeroBody
                             rpy_rad = np.array(tf.euler_from_matrix(H_aeroRef_aeroBody, 'sxyz'))
+                            # 旧t265轴系 (世界锁死): x=-前(tz), y=-右(tx), z=上(ty)
+                            raw_pos_x = -H_aeroRef_aeroBody[1, 3]  # -forward
+                            raw_pos_y = -H_aeroRef_aeroBody[0, 3]  # -right
+                            raw_pos_z = -H_aeroRef_aeroBody[2, 3]  # -down → up
                         else:
-                            # 简化的四元数转欧拉角
+                            # 简化的四元数转欧拉角 + 旧t265轴系坐标转换
                             w, x, y, z = qua3, qua0, qua1, qua2
                             roll = np.arctan2(2*(w*x + y*z), 1 - 2*(x*x + y*y))
                             pitch = np.arcsin(2*(w*y - z*x))
                             yaw = np.arctan2(2*(w*z + x*y), 1 - 2*(y*y + z*z))
                             rpy_rad = np.array([roll, pitch, yaw])
+                            # 旧t265轴系 (世界锁死): x=-前(tz), y=-右(tx), z=上(ty)
+                            raw_pos_x = -tx.z
+                            raw_pos_y = -tx.x
+                            raw_pos_z = +tx.y
                         
                         # 初始航向角处理
-                        if not self.InitialAngle_flag:
-                            self.InitialAngle_Yaw = rpy_rad[2]
-                            self.InitialAngle_flag = True
+                        with self.lock:
+                            if not self.InitialAngle_flag:
+                                self.InitialAngle_Yaw = rpy_rad[2]
+                                self.InitialAngle_flag = True
                         yawerr = -(rpy_rad[2] - self.InitialAngle_Yaw)
                         # 归一化到 [-PI, PI]，防止 >180° 时 PID 走错方向
                         if yawerr > math.pi: yawerr -= 2*math.pi
                         elif yawerr < -math.pi: yawerr += 2*math.pi
-                        
-                        cos_yaw = math.cos(yawerr)
-                        sin_yaw = math.sin(yawerr)
-                        
-                        # 位置坐标转换（与速度取反一致）
-                        tx = data.translation
-                        raw_pos_x = -(tx.z * cos_yaw + tx.x * sin_yaw)
-                        raw_pos_y = -(-tx.z * sin_yaw + tx.x * cos_yaw)
-                        raw_pos_z = tx.y
                         
                         # 滤波处理
                         position_x = self.low_pass_filter(raw_pos_x, self.prev_position_x)
@@ -163,11 +165,10 @@ class t265_class:
                         self.prev_position_y = position_y
                         self.prev_position_z = position_z
                         
-                        # 速度转换与滤波
-                        tv = data.velocity
-                        raw_vel_x = -(tv.z * cos_yaw + tv.x * sin_yaw)
-                        raw_vel_y = -(-tv.z * sin_yaw + tv.x * cos_yaw)
-                        raw_vel_z = tv.y
+                        # 速度 (旧t265轴系 世界锁死): vx=-前, vy=-右, vz=上
+                        raw_vel_x = -tv.z
+                        raw_vel_y = -tv.x
+                        raw_vel_z = +tv.y
                         
                         velocity_x = self.low_pass_filter(raw_vel_x, self.prev_velocity_x)
                         velocity_y = self.low_pass_filter(raw_vel_y, self.prev_velocity_y)
@@ -212,9 +213,10 @@ class t265_class:
                     yaw = self.pose_data[5] + np.random.normal(0, 0.005)
                     
                     # 初始航向角处理
-                    if not self.InitialAngle_flag:
-                        self.InitialAngle_Yaw = yaw
-                        self.InitialAngle_flag = True
+                    with self.lock:
+                        if not self.InitialAngle_flag:
+                            self.InitialAngle_Yaw = yaw
+                            self.InitialAngle_flag = True
                     yawerr = -(yaw - self.InitialAngle_Yaw)
                     # 归一化到 [-PI, PI]
                     if yawerr > math.pi: yawerr -= 2*math.pi
@@ -263,7 +265,9 @@ class t265_class:
             np.array: [x, y, z, roll, pitch, yaw] 单位：米，弧度
         """
         with self.lock:
-            return self.pose_data.copy() - self.calibration_offset
+            result = self.pose_data.copy()
+            result[:3] -= self.calibration_offset[:3]
+            return result
     
     def get_position(self):
         """获取当前位置数据

@@ -9,7 +9,7 @@ from Lcode.global_variable import lock,task_start_sign
 DEBUG=False
 class Serial_fc(object):
     def __init__(self,port,baudrate):
-        self.ser=serial.Serial(port=port,baudrate=baudrate)
+        self.ser=serial.Serial(port=port,baudrate=baudrate,timeout=0.05)
         self.fclisten_running=False
         self.t265send_running=False
         self.cmdsend_running=False
@@ -65,17 +65,16 @@ class Serial_fc(object):
                              (vy_cm >> 8) & 0xFF, vy_cm & 0xFF,
                              (yaw_x100 >> 8) & 0xFF, yaw_x100 & 0xFF,
                              0xFF]
-                for b in t265_frame:
-                    self.ser.write(bytes([b]))
+                self.ser.write(bytes(t265_frame))
             time.sleep(sleep_time)
 
     def _send_command_loop(self, comlist, freq):
         """独立线程：发送指令帧 (0x02)"""
         sleep_time = 1.0 / freq
         while self.cmdsend_running:
-            for value in comlist:
-                hex_value = hex(int(value))[2:].zfill(2)
-                self.ser.write(bytes.fromhex(hex_value))
+            with lock:
+                values = list(comlist)
+            self.ser.write(bytes(values))
             time.sleep(sleep_time)
 
     def send_start(self, comlist=None, t265_obj=None, vel_freq=100, cmd_freq=50):
@@ -106,9 +105,14 @@ class Serial_fc(object):
         self.cmdsend_running = False
         logger.info("飞控串口发送线程关闭")
 
+    def close(self):
+        if self.ser.is_open:
+            self.ser.close()
+            logger.info("飞控串口已关闭")
+
 class Serial_dmz(object):
     def __init__(self,port,baudrate):
-        self.ser=serial.Serial(port=port,baudrate=baudrate)
+        self.ser=serial.Serial(port=port,baudrate=baudrate,timeout=0.05)
         self.dmzlisten_running=False
         self.dmzsend_running=False
         self.rate=115200
@@ -154,9 +158,7 @@ class Serial_dmz(object):
             time.sleep(0.05)
     def send_dmz(self,comlist:List[int]):
         while self.dmzsend_running==True:
-            for value in comlist:
-                hex_value = hex(int(value))[2:].zfill(2)  # 将数组中的每个值转换成16进制字符串
-                self.ser.write(bytes.fromhex(hex_value))  # 将16进制字符串转换为字节并发送到串口
+            self.ser.write(bytes(comlist))  # 单次发送整帧
             time.sleep(0.01)
     def send_start(self,comlist:List[int]):
         self.dmzsend_running=True
@@ -167,11 +169,15 @@ class Serial_dmz(object):
     def send_end(self):
         self.dmzsend_running=False
         logger.info("地面站串口发送线程关闭")
+    def close(self):
+        if self.ser.is_open:
+            self.ser.close()
+            logger.info("地面站串口已关闭")
 
 
 class Serial_gpio(object):
     def __init__(self,port,baudrate):
-        self.ser=serial.Serial(port=port,baudrate=baudrate)
+        self.ser=serial.Serial(port=port,baudrate=baudrate,timeout=0.05)
         self.gpiosend_running=False
         self.gpiolisten_running=False
         self.rate=460800
@@ -181,9 +187,7 @@ class Serial_gpio(object):
             logger.info("目前gpio串口状态：%s",self.ser.is_open)
     def send_gpio(self,comlist:List[int]):
         while self.gpiosend_running==True:
-            for value in comlist:
-                hex_value = hex(value)[2:].zfill(2)  # 将数组中的每个值转换成16进制字符串
-                self.ser.write(bytes.fromhex(hex_value))  # 将16进制字符串转换为字节并发送到串口
+            self.ser.write(bytes(comlist))  # 单次发送整帧
             time.sleep(0.02)
     def send_start(self,comlist:List[int]):
         self.gpiosend_running=True
@@ -194,6 +198,10 @@ class Serial_gpio(object):
     def send_end(self):
         self.gpiosend_running=False
         logger.info("gpio串口发送线程关闭")
+    def close(self):
+        if self.ser.is_open:
+            self.ser.close()
+            logger.info("GPIO串口已关闭")
     def listen_start(self,rxbuffer:List[int]):
         self.gpiolisten_running=True
         listen_thread=threading.Thread(target=Serial_gpio.listen_gpio,args=(self,rxbuffer))
@@ -242,7 +250,11 @@ class udp_terminal(object):
         while self.udp_listen_running==True:
             data, client_address = self.udp_socket.recvfrom(1024)
             #logger.info("接收到的数据是%s",data)
-            realdata=pickle.loads(data)
+            try:
+                realdata=pickle.loads(data)
+            except Exception:
+                logger.warning("udp_terminal: pickle���л�ʧ��")
+                continue
             if realdata[0]==170 and realdata[3]==255:
                 if realdata[1]==160 and realdata[2]==160:
                     self.task_number=1
