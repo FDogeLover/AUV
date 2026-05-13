@@ -14,7 +14,7 @@ re_dmz = [('A9', 'B1'),('A10', 'B2'),('A11', 'B3')]#地面站反传信息 三个
 
 # 双帧协议: AA 02 task_sta com_x+sp com_y+sp com_z com_yaw+sp next_task sp_side CK FF
 se_fc = [170, 2, 0, sp_side, sp_side, 120, sp_side, 0, sp_side, 0, 255]
-se_dmz = [170, 0, 0, 0, 255]  # 发送给地面站: AA idx cls cnt FF — 每航点只发一次
+se_dmz = [0, 0, 0, 0, 0]  # 0 0 0 0 0 — 初始静默，检测完成时点亮AA/FF/cls/cnt
 
 run_sign = False
 

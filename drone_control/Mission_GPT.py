@@ -229,11 +229,9 @@ class mission:
         # Z轴: 直接传航点高度（米→厘米），FC自主控高
         target_z = int(target[2] * 100)
 
-        # 每帧更新地面站数据: 实时进度 + cls/cnt抹零
+        # 每帧更新地面站进度序号（AA/FF/cls/cnt 由 _detect_accept 一次性写入后保持）
         lock.acquire()
         self.se_dmz[1] = self.target_index & 0xFF
-        self.se_dmz[2] = 0
-        self.se_dmz[3] = 0
         lock.release()
 
         # XY/Yaw: PID计算速度（检测期间也运行，维持悬停）
@@ -399,11 +397,13 @@ class mission:
         self.detected_grids.add(self.detect_grid)
         self.grid_results[self.detect_grid] = (cls_id, count)
 
-        # 发送地面站: AA idx cls cnt FF — 在target_index+1之前写，保证idx指向当前格
+        # 点亮地面站帧: AA idx cls cnt FF — 之后持续广播直到下个检测覆盖
         lock.acquire()
+        self.se_dmz[0] = 0xAA
         self.se_dmz[1] = self.target_index & 0xFF
         self.se_dmz[2] = cls_id if cls_id < 5 else 0xFF
         self.se_dmz[3] = max(count, 1)
+        self.se_dmz[4] = 0xFF
         lock.release()
 
         if self.k230:
