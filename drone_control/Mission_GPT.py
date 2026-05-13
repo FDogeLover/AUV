@@ -4,26 +4,31 @@ from typing import List
 from Lcode.Lpid import PID
 from Lcode.Logger import logger
 from Lcode.global_variable import sp_side, lock, fc_last_rx_time
+from Lcode.k230_client import K230Client
+from Lcode.coverage_planner import CoveragePlanner
 from t265 import t265_class
 
 put_height = 100
 fly_height = 100
-VEL_SCALE = 0.7  # XY/Yaw 速度缩放系数 (1.0=原速, 0.5=半速)
+VEL_SCALE = 0.7  # XY/Yaw 速度缩放系数 (1.0=原速, 0.7=七成)
 posthreshold_xy = 0.15  # XY 到达阈值（米）
 posthreshold_z = 0.20   # Z 到达阈值（米）
 arrival_confirm_need = 5  # XY 连续确认到达次数
 arrival_timeout_max = 10.0  # 单航点超时（秒）
+ANIMAL_LABELS = ["tiger", "wolf", "monkey", "peacock", "elephant"]
 
 realsense = t265_class()
 
 
 class mission:
 
-    def __init__(self, re_fc: List[int], se_fc: List[int], re_dmz: List[int], se_dmz: List[int], realsense_obj=None):
+    def __init__(self, re_fc: List[int], se_fc: List[int], re_dmz: List[int], se_dmz: List[int],
+                 realsense_obj=None, k230_client=None):
         self.re_fc = re_fc
         self.se_fc = se_fc
         self.re_dmz = re_dmz
         self.se_dmz = se_dmz
+        self.k230 = k230_client
 
         # 状态机
         self.state = "IDLE"
@@ -46,12 +51,21 @@ class mission:
         
         self.target_index = 0
         self.emergency_stop = False
-        self.detect_flag = False
 
         # 到达判断状态（进入航点时自动重置）
         self.arrival_confirm_count = 0
         self.arrival_start_time = 0.0
         self.last_target_index = -1
+
+        # === K230 检测相关 ===
+        self.detected_grids = set()          # 已检测的格子 (ix, iy)
+        self.detecting = False               # 是否在检测阶段
+        self.detect_start_time = 0.0         # 检测开始时刻
+        self.detect_triggered = False        # 是否已发 START
+        self.detect_result = None            # poll_result 缓存
+        self.detect_grid = None              # 当前检测的 (ix, iy)
+        self.detect_round = 1                # 轮次 1/2
+        self.grid_results = {}               # (ix,iy) → cls_id
 
     def load_waypoints(self):
         """从router.txt文件加载航点"""
@@ -86,6 +100,20 @@ class mission:
         logger.info(f"使用默认航点: {default_waypoints}")
         return default_waypoints
 
+    def _gs_data_valid(self):
+        """校验地面站数据：3个有效禁飞区坐标 (A1~A9, B1~B7)"""
+        if len(self.re_dmz) < 3:
+            return False
+        for a_str, b_str in self.re_dmz:
+            try:
+                a = int(a_str[1:])
+                b = int(b_str[1:])
+                if not (1 <= a <= 9 and 1 <= b <= 7):
+                    return False
+            except (ValueError, IndexError):
+                return False
+        return True
+
     # ================= 启动 =================
     def start(self):
 
@@ -96,8 +124,43 @@ class mission:
         else:
             logger.error("T265 FAILED")
 
+        # === 动态路径生成（优先用地面站禁飞区，失败则保留 load_waypoints 结果） ===
+        gs_ok = False
+        logger.info("等待地面站禁飞区数据...")
+        for _ in range(50):  # 5s 超时
+            lock.acquire()
+            gs_ok = self._gs_data_valid()
+            lock.release()
+            if gs_ok:
+                break
+            time.sleep(0.1)
+
+        if gs_ok:
+            lock.acquire()
+            forbidden = list(self.re_dmz)
+            lock.release()
+            logger.info(f"地面站禁飞区: {forbidden}")
+            planner = CoveragePlanner(forbidden)
+            name, full_path, steps = planner.plan()
+            self.targets = []
+            for xy in full_path:
+                rx, ry = planner.xy_to_real(xy)
+                self.targets.append([rx, ry, fly_height / 100])
+            self.target_index = 0
+            self.last_target_index = -1
+            logger.info(f"动态路径: 策略={name}, {len(self.targets)}航点")
+        else:
+            logger.warning("地面站数据不可用，使用 router.txt 静态路径")
+
         self.task_running = True
         self.state = "TAKEOFF"
+
+        # 预标记起飞格子为已检测（起点不检测）
+        pos = self.realsense.get_position()
+        ix = int(round(-pos[0] * 2))
+        iy = int(round( pos[1] * 2))
+        self.detected_grids.add((ix, iy))
+        logger.info(f"起飞格({ix},{iy}) 预标记已检测")
 
         threading.Thread(target=self.loop, daemon=True).start()
 
@@ -156,7 +219,6 @@ class mission:
         self.state = "NAVIGATE"
     
     def navigate(self, pos, yaw):
-
         if self.target_index >= len(self.targets):
             logger.info("所有航点完成")
             self.state = "LAND"
@@ -164,69 +226,66 @@ class mission:
 
         target = self.targets[self.target_index]
 
-        # Z轴: 直接传航点高度（米→厘米），FC自主控高，避免双级位置环震荡
+        # Z轴: 直接传航点高度（米→厘米），FC自主控高
         target_z = int(target[2] * 100)
 
-        # XY/Yaw: PID计算速度
+        # 每帧更新地面站数据: 实时进度 + cls/cnt抹零
+        lock.acquire()
+        self.se_dmz[1] = self.target_index & 0xFF
+        self.se_dmz[2] = 0
+        self.se_dmz[3] = 0
+        lock.release()
+
+        # XY/Yaw: PID计算速度（检测期间也运行，维持悬停）
         self.x_pid.set_target(target[0])
         self.y_pid.set_target(target[1])
-        # Yaw lock: 保持初始航向0°，不随航点转向
         self.yaw_pid.set_target(0)
         vx = self.x_pid.get_pid(pos[0])
         vy = self.y_pid.get_pid(pos[1])
         vyaw = self.yaw_pid.get_pid(yaw)
 
-        # === 转 cm ===
         vx *= 100 * VEL_SCALE
         vy *= 100 * VEL_SCALE
-
-        # === 限幅 ===
         vx = int(self.limit(vx, 40))
         vy = int(self.limit(vy, 40))
-        vyaw = int(self.limit(vyaw * VEL_SCALE, 30)) 
-        # === 发送 ===
+        vyaw = int(self.limit(vyaw * VEL_SCALE, 30))
         self.set_speed(vx, vy, -vyaw, target_z)
 
-        # === 到达判断（米）===
+        # === 检测阶段：推进状态机，跳过到达判断 ===
+        if self.detecting:
+            self._handle_detection()
+            return
+
+        # === 到达判断 ===
         dx = abs(pos[0] - target[0])
         dy = abs(pos[1] - target[1])
         dz = abs(pos[2] - target[2])
 
-        # 航点切换时重置所有状态（计数器 + PID 积分）
         if self.target_index != self.last_target_index:
             self.last_target_index = self.target_index
             self.arrival_confirm_count = 0
             self.arrival_start_time = time.time()
-            self.x_pid.reset()
-            self.y_pid.reset()
-            self.yaw_pid.reset()
 
-        # 远距离时清零积分防 windup（近距才启用 I 项消除静差）
         if dx > 0.3:
             self.x_pid.reset()
         if dy > 0.3:
             self.y_pid.reset()
 
-        # XY 到达条件（连续确认）
         xy_ok = dx < posthreshold_xy and dy < posthreshold_xy
-        # Z 到达条件（独立放松阈值，单次判定）
         z_ok = dz < posthreshold_z
 
         if xy_ok and z_ok:
             self.arrival_confirm_count += 1
             if self.arrival_confirm_count >= arrival_confirm_need:
                 logger.info(f"到达航点 {self.target_index}")
-                self.target_index += 1
+                self._on_arrival(target)
         else:
-            # 任一轴漂出阈值则重置确认计数
             self.arrival_confirm_count = 0
 
-        # 超时强制跳过
         if time.time() - self.arrival_start_time >= arrival_timeout_max:
             logger.warning(f"航点 {self.target_index} 超时，强制跳过")
             self.target_index += 1
 
-        # 获取 T265 实时速度用于打印
         if self.t265_ok:
             t265v = self.realsense.get_velocity()
             t265_str = f"| t265v=({t265v[0]:+.2f},{t265v[1]:+.2f})"
@@ -242,6 +301,120 @@ class mission:
             end="",
             flush=True
         )
+
+    # ================= 到达处理 =================
+    def _grid_from_real(self, rx, ry):
+        """实际坐标 → 内部格子 (ix, iy)，超出9x7返回 None"""
+        ix = int(round(-rx * 2))
+        iy = int(round( ry * 2))
+        if 0 <= ix < 9 and 0 <= iy < 7:
+            return (ix, iy)
+        return None
+
+    def _on_arrival(self, target):
+        """到达航点时判断：已检测→跳过，未检测→进入检测阶段"""
+        grid = self._grid_from_real(target[0], target[1])
+        if grid is None:
+            logger.info("非格子航点，直接跳过")
+            self.target_index += 1
+            return
+
+        if grid in self.detected_grids:
+            logger.info(f"格子{grid} 已检测，飞越")
+            self.target_index += 1
+            return
+
+        if self.k230 is None:
+            logger.info(f"格子{grid} 无K230，标记跳过")
+            self.detected_grids.add(grid)
+            self.target_index += 1
+            return
+
+        logger.info(f"格子{grid} 开始检测")
+        self.detecting = True
+        self.detect_grid = grid
+        self.detect_round = 1
+        self.detect_start_time = time.time()
+        self.detect_triggered = False
+        self.detect_result = None
+
+    # ================= 检测状态机 =================
+    def _handle_detection(self):
+        """每30Hz调用，推进检测流程"""
+        elapsed = time.time() - self.detect_start_time
+
+        # 阶段1: 等机身稳定0.5s → 发送 START
+        if not self.detect_triggered:
+            if elapsed > 0.5:
+                gidx = self.detect_grid[1] * 9 + self.detect_grid[0]
+                self.k230.send_start(gidx)
+                self.detect_triggered = True
+                self.detect_start_time = time.time()
+            return
+
+        # 阶段2: 等待 K230 结果（超时5s）
+        if self.detect_result is None:
+            if elapsed > 5.0:
+                logger.warning(f"格子{self.detect_grid} K230超时，跳过")
+                self._detect_accept(0xFF)  # 标记为无动物
+                return
+            result = self.k230.poll_result()
+            if result:
+                self.detect_result = result
+            return
+
+        # 阶段3: 判决
+        _, cls_id, best_cnt, total_dets, avg_conf = self.detect_result
+        ok = self._evaluate_detection(cls_id, best_cnt, total_dets, avg_conf)
+        if ok:
+            self._detect_accept(cls_id, best_cnt)
+        elif self.detect_round == 1:
+            logger.info(f"格子{self.detect_grid} 结果不稳，第2轮复测")
+            self.detect_round = 2
+            gidx = self.detect_grid[1] * 9 + self.detect_grid[0]
+            self.k230.send_start(gidx)
+            self.detect_triggered = True
+            self.detect_result = None
+            self.detect_start_time = time.time()
+        else:
+            logger.info(f"格子{self.detect_grid} 2轮仍不稳，强制接受")
+            self._detect_accept(cls_id, best_cnt)
+
+    def _evaluate_detection(self, cls_id, best_cnt, total_dets, avg_conf):
+        """判决：占比≥70% 且 置信≥50% 则接受；无动物也接受"""
+        if cls_id == 0xFF or best_cnt == 0:
+            return True
+        dominance = best_cnt / max(total_dets, 1)
+        confidence = avg_conf / 100.0
+        label = ANIMAL_LABELS[cls_id] if cls_id < 5 else "?"
+        logger.info(f"  判决: {label} cnt={best_cnt}/{total_dets} "
+                    f"占比={dominance:.0%} 置信={confidence:.0%}")
+        return dominance >= 0.7 and confidence >= 0.5
+
+    def _detect_accept(self, cls_id, best_cnt=0):
+        """接受检测结果，标记格子，发ACK + 地面站结果，推进航点"""
+        count = int(round(best_cnt / 30)) if cls_id != 0xFF else 0
+        label = ANIMAL_LABELS[cls_id] if cls_id < 5 else "无"
+        logger.info(f"格子{self.detect_grid} 确认: {label} x{count}")
+        self.detected_grids.add(self.detect_grid)
+        self.grid_results[self.detect_grid] = (cls_id, count)
+
+        # 发送地面站: AA idx cls cnt FF — 在target_index+1之前写，保证idx指向当前格
+        lock.acquire()
+        self.se_dmz[1] = self.target_index & 0xFF
+        self.se_dmz[2] = cls_id if cls_id < 5 else 0xFF
+        self.se_dmz[3] = max(count, 1)
+        lock.release()
+
+        if self.k230:
+            gidx = self.detect_grid[1] * 9 + self.detect_grid[0]
+            self.k230.send_ack(gidx)
+        self.detecting = False
+        self.detect_triggered = False
+        self.detect_result = None
+        self.detect_grid = None
+        self.detect_round = 1
+        self.target_index += 1
     
     # ================= 降落 =================
     def land(self):
@@ -265,6 +438,8 @@ class mission:
         lock.release()
 
         self.realsense.stop()
+        if self.k230:
+            self.k230.close()
         self.task_running = False
 
     # ================= 控制接口 =================
@@ -284,12 +459,3 @@ class mission:
     def emergency(self):
         logger.warning("紧急停止触发！")
         self.emergency_stop = True
-
-    def detect_loop(self):
-        """检测循环"""
-        if self.detect_flag:
-            return True
-        else:
-            return False
-
-        

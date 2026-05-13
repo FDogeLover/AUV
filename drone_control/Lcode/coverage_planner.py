@@ -49,6 +49,15 @@ class CoveragePlanner:
         x, y = xy
         return (-x * 0.5, y * 0.5)
 
+    @staticmethod
+    def real_to_xy(rx, ry):
+        """实际坐标(米) -> (ix, iy) 内部格子坐标，超出范围返回 None"""
+        ix = int(round(-rx * 2))
+        iy = int(round( ry * 2))
+        if 0 <= ix < CoveragePlanner.WIDTH and 0 <= iy < CoveragePlanner.HEIGHT:
+            return (ix, iy)
+        return None
+
     # ---- 初始化 ----
     def __init__(self, forbidden_zones_ab):
         """

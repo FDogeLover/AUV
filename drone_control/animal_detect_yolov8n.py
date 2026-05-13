@@ -1,0 +1,297 @@
+"""
+K230 动物识别推理代码 (YOLOv8n, 320×320) — Pi双向通信版
+==========================================================
+基于 K230 官方 yolov8n_obb.py 示例格式
+对齐官方示例：320×320 输入、不使用 ALIGN_UP、不覆写 preprocess()
+
+模型：YOLOv8n — 320×320 输入，5 类动物检测
+类别：tiger / wolf / monkey / peacock / elephant
+
+协议：
+  Pi→K230: AA 10 grid_idx          — 启动检测
+  K230→Pi: AA 20 grid_idx cls cnt total conf — 检测结果
+  Pi→K230: AA 11 grid_idx          — ACK确认停止
+
+使用方法：
+    将 animal_yolov8n_320.kmodel 放入 /sdcard/examples/mycode/
+    通过 CanMV IDE 运行本脚本
+"""
+
+from libs.PipeLine import PipeLine
+from libs.AIBase import AIBase
+from libs.AI2D import Ai2d
+from libs.Utils import *
+import os, sys, gc
+from media.media import *
+import nncase_runtime as nn
+import ulab.numpy as np
+import aidemo
+from media.sensor import *
+from machine import UART, FPIOA
+import _thread
+
+# ========== 协议常量 ==========
+FRAME_HEAD   = 0xAA
+CMD_START    = 0x10   # Pi→K230: 启动检测
+CMD_ACK      = 0x11   # Pi→K230: ACK确认
+CMD_RESULT   = 0x20   # K230→Pi: 检测结果
+NO_ANIMAL    = 0xFF   # 无动物
+FRAMES_PER_GRID = 30  # 每格采集帧数
+
+# ========== 共享状态（线程安全） ==========
+_state_lock = _thread.allocate_lock()
+_shared = {
+    "active": False,
+    "grid_idx": 0,
+    "tally": {},        # cls_id → 累加帧数
+    "conf_sum": {},     # cls_id → 置信度累加
+    "frame_cnt": 0,
+}
+
+
+def uart_rx_thread():
+    """守护线程：接收Pi的 START / ACK 指令"""
+    while True:
+        b = uart.read(1)
+        if not b or b[0] != FRAME_HEAD:
+            continue
+        cmd_byte = uart.read(1)
+        if not cmd_byte:
+            continue
+        cmd = cmd_byte[0]
+        idx_byte = uart.read(1)
+        if not idx_byte:
+            continue
+        idx = idx_byte[0]
+
+        with _state_lock:
+            if cmd == CMD_START:        # AA 10 grid_idx
+                _shared["active"] = True
+                _shared["grid_idx"] = idx
+                _shared["tally"] = {}
+                _shared["conf_sum"] = {}
+                _shared["frame_cnt"] = 0
+            elif cmd == CMD_ACK:        # AA 11 grid_idx
+                _shared["active"] = False
+                _shared["tally"] = {}
+                _shared["conf_sum"] = {}
+                _shared["frame_cnt"] = 0
+
+
+class AnimalDetectApp(AIBase):
+    def __init__(self, kmodel_path, labels, model_input_size, max_boxes_num,
+                 confidence_threshold=0.5, nms_threshold=0.2,
+                 rgb888p_size=[640, 480], display_size=[800, 480], debug_mode=0):
+        super().__init__(kmodel_path, model_input_size, rgb888p_size, debug_mode)
+        self.kmodel_path = kmodel_path
+        self.labels = labels
+        # 模型输入分辨率
+        self.model_input_size = model_input_size
+        # 阈值设置
+        self.confidence_threshold = confidence_threshold
+        self.nms_threshold = nms_threshold
+        self.max_boxes_num = max_boxes_num
+        # sensor 给到 AI 的图像分辨率（不对齐，对齐官方示例）
+        self.rgb888p_size = [rgb888p_size[0], rgb888p_size[1]]
+        # 显示分辨率
+        self.display_size = [display_size[0], display_size[1]]
+        self.debug_mode = debug_mode
+        # 检测框预置颜色值
+        self.color_four = get_colors(len(self.labels))
+        self.scale = 1.0
+        # Ai2d 实例，用于实现模型预处理
+        self.ai2d = Ai2d(debug_mode)
+        # 设置 Ai2d 的输入输出格式和类型
+        self.ai2d.set_ai2d_dtype(nn.ai2d_format.NCHW_FMT, nn.ai2d_format.NCHW_FMT, np.uint8, np.uint8)
+
+    # 配置预处理操作：letterbox pad + resize
+    def config_preprocess(self, input_image_size=None):
+        with ScopedTiming("set preprocess config", self.debug_mode > 0):
+            ai2d_input_size = input_image_size if input_image_size else self.rgb888p_size
+            top, bottom, left, right, self.scale = letterbox_pad_param(self.rgb888p_size, self.model_input_size)
+            self.ai2d.pad([0, 0, 0, 0, top, bottom, left, right], 0, [128, 128, 128])
+            self.ai2d.resize(nn.interp_method.tf_bilinear, nn.interp_mode.half_pixel)
+            self.ai2d.build([1, 3, ai2d_input_size[1], ai2d_input_size[0]],
+                            [1, 3, self.model_input_size[1], self.model_input_size[0]])
+
+    @staticmethod
+    def _parse_dets(dets):
+        """单次遍历检测结果，返回 (counts, max_conf)"""
+        counts = {}
+        max_conf = {}
+        if dets:
+            for i in range(len(dets[0])):
+                label_id = dets[1][i]
+                score = float(dets[2][i])
+                counts[label_id] = counts.get(label_id, 0) + 1
+                if label_id not in max_conf or score > max_conf[label_id]:
+                    max_conf[label_id] = score
+        return counts, max_conf
+
+    @staticmethod
+    def _resolve_best(counts, max_conf):
+        """多种类冲突时取最高置信度的类，返回 (best_id, show_counts)"""
+        if not counts:
+            return None, {}
+        if len(counts) > 1:
+            best_id = max(counts, key=lambda k: max_conf.get(k, 0))
+            return best_id, {best_id: sum(counts.values())}
+        best_id = next(iter(counts))
+        return best_id, dict(counts)
+
+    # 获取检测结果统计（用于 active 模式时累积）
+    def get_frame_data(self, dets):
+        """返回 (counts, max_conf) — counts=每类检测数, max_conf=每类最高置信度"""
+        return self._parse_dets(dets)
+
+    # 不覆写 preprocess()，使用 AIBase 基类默认实现
+
+    # YOLOv8 后处理
+    def postprocess(self, results):
+        with ScopedTiming("postprocess", self.debug_mode > 0):
+            new_result = results[0][0].transpose()
+            det_res = aidemo.yolov8_det_postprocess(
+                new_result.copy(),
+                [self.rgb888p_size[1], self.rgb888p_size[0]],
+                [self.model_input_size[1], self.model_input_size[0]],
+                [self.display_size[1], self.display_size[0]],
+                len(self.labels),
+                self.confidence_threshold,
+                self.nms_threshold,
+                self.max_boxes_num
+            )
+            return det_res
+
+
+if __name__ == "__main__":
+    # ========== 摄像头 AI 输入分辨率 ==========
+    rgb888p_size = [640, 480]
+
+    # ========== 模型路径 ==========
+    kmodel_path = "/sdcard/examples/mycode/animal_yolov8n_v2_best.kmodel"
+
+    # ========== 动物类别标签 ==========
+    labels = ["tiger", "wolf", "monkey", "peacock", "elephant"]
+
+    # ========== 检测参数 ==========
+    confidence_threshold = 0.3
+    nms_threshold = 0.5
+    max_boxes_num = 30
+
+    # ========== 模型输入尺寸 ==========
+    model_input_size = [320, 320]
+
+    # ========== 显示尺寸（推理用，不实际显示） ==========
+    display_size = [800, 480]
+
+    # ========== UART 配置 ==========
+    UART_ID = UART.UART2
+    UART_BAUD = 115200
+    UART_TX_PIN = 11
+    UART_RX_PIN = 12
+    _UART_FPIOA_MAP = {
+        UART.UART1: (FPIOA.UART1_TXD, FPIOA.UART1_RXD),
+        UART.UART2: (FPIOA.UART2_TXD, FPIOA.UART2_RXD),
+        UART.UART3: (FPIOA.UART3_TXD, FPIOA.UART3_RXD),
+        UART.UART4: (FPIOA.UART4_TXD, FPIOA.UART4_RXD),
+    }
+    fpioa = FPIOA()
+    tx_func, rx_func = _UART_FPIOA_MAP[UART_ID]
+    fpioa.set_function(UART_TX_PIN, tx_func)
+    fpioa.set_function(UART_RX_PIN, rx_func)
+    uart = UART(UART_ID, baudrate=UART_BAUD, bits=UART.EIGHTBITS,
+                parity=UART.PARITY_NONE, stop=UART.STOPBITS_ONE)
+
+    # ========== 初始化 PipeLine (无显示模式) ==========
+    pl = PipeLine(rgb888p_size=rgb888p_size, display_mode=None)
+    pl.create(sensor=Sensor(id=1, fps=30))
+
+    # ========== 初始化动物检测器 ==========
+    animal_det = AnimalDetectApp(
+        kmodel_path=kmodel_path,
+        labels=labels,
+        model_input_size=model_input_size,
+        max_boxes_num=max_boxes_num,
+        confidence_threshold=confidence_threshold,
+        nms_threshold=nms_threshold,
+        rgb888p_size=rgb888p_size,
+        display_size=display_size,
+        debug_mode=0
+    )
+    animal_det.config_preprocess()
+
+    print("=" * 50)
+    print("  K230 Animal Detection — Pi双向通信模式")
+    print("  Model:", kmodel_path.split("/")[-1])
+    print("  Classes:", labels)
+    print("  Confidence:", confidence_threshold, " NMS:", nms_threshold)
+    print("  Frames per grid:", FRAMES_PER_GRID)
+    print("  UART: UART{} @ {} baud".format(UART_ID, UART_BAUD))
+    print("  Waiting for Pi START command...")
+    print("=" * 50)
+
+    # ========== 启动 UART RX 守护线程 ==========
+    _thread.start_new_thread(uart_rx_thread, ())
+
+    frame_count = 0
+    try:
+        while True:
+            img = pl.get_frame()
+            res = animal_det.run(img)
+
+            # === Active 模式: 累积检测结果 ===
+            active = False
+            with _state_lock:
+                active = _shared["active"]
+
+            if active:
+                counts, max_conf = animal_det.get_frame_data(res)
+                with _state_lock:
+                    # 累加每类检测数
+                    for cls_id, cnt in counts.items():
+                        _shared["tally"][cls_id] = _shared["tally"].get(cls_id, 0) + cnt
+                    # 累加每类最高置信度
+                    for cls_id, conf in max_conf.items():
+                        _shared["conf_sum"][cls_id] = _shared["conf_sum"].get(cls_id, 0) + conf
+                    _shared["frame_cnt"] += 1
+
+                    # 满帧 → 聚合发送
+                    if _shared["frame_cnt"] >= FRAMES_PER_GRID:
+                        tally = _shared["tally"]
+                        conf_sum = _shared["conf_sum"]
+
+                        if tally:
+                            best_id = max(tally, key=tally.get)
+                            best_cnt = tally[best_id]
+                            total_dets = sum(tally.values())
+                            avg_conf = int(round(conf_sum.get(best_id, 0) / best_cnt))
+                            if avg_conf > 100:
+                                avg_conf = 100
+                        else:
+                            best_id = NO_ANIMAL
+                            best_cnt = 0
+                            total_dets = 0
+                            avg_conf = 0
+
+                        frame = bytes([FRAME_HEAD, CMD_RESULT,
+                                      _shared["grid_idx"],
+                                      best_id, best_cnt, total_dets, avg_conf])
+                        uart.write(frame)
+                        _shared["active"] = False
+
+            if frame_count % 60 == 0:
+                gc.collect()
+            frame_count = (frame_count + 1) & 0x7FFFFFFF
+    except KeyboardInterrupt:
+        print("\n[INFO] Stopped by user.")
+    except Exception as e:
+        print("[ERROR]", e)
+        import sys
+        sys.print_exception(e)
+    finally:
+        _shared["active"] = False
+        animal_det.deinit()
+        uart.deinit()
+        pl.destroy()
+        gc.collect()
+        print("[INFO] Resources released.")
