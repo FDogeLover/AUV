@@ -1,10 +1,10 @@
 #ifndef __LX_FC_STATE_H
 #define __LX_FC_STATE_H
 
-//==ï¿½ï¿½ï¿½ï¿½
+//==ÒıÓÃ
 #include "SysConfig.h"
 
-//==ï¿½ï¿½ï¿½ï¿½/ï¿½ï¿½ï¿½ï¿½
+//==¶¨Òå/ÉùÃ÷
 typedef struct
 {
 	u8 pre_locking;
@@ -18,18 +18,18 @@ typedef struct
 	u8 CMD_0;
 	u8 CMD_1;
 } _cmd_fun_st;
-//ï¿½É¿ï¿½×´Ì¬
+//·É¿Ø×´Ì¬
 typedef struct
 {
 	//Ä£Ê½
 	u8 fc_mode_cmd;
 	u8 fc_mode_sta;
 
-	//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+	//½âËøÉÏËø
 	u8 unlock_cmd;
 	u8 unlock_sta;
 
-	//Ö¸ï¿½î¹¦ï¿½ï¿½
+	//Ö¸Áî¹¦ÄÜ
 	_cmd_fun_st cmd_fun;
 
 	//state
@@ -40,10 +40,10 @@ typedef struct
 
 } _fc_state_st;
 
-//==ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+//==Êı¾İÉùÃ÷
 extern volatile _fc_state_st fc_sta;
 extern _sticks_fun_st sti_fun;
-//==ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+//==º¯ÊıÉùÃ÷
 //static
 
 //public
