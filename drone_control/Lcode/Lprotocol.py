@@ -142,34 +142,29 @@ class Serial_dmz(object):
     def listen_end(self):
         self.dmzlisten_running=False
         logger.info("地面站串口监听线程关闭")
-    def listen_dmz(self,rxbuffer:List[tuple]):
-        """
-        监听地面站反传信息
-        通信协议：AA + A1 + B1 + A2 + B2 + A3 + B3 + FF
-        其中A值范围1-9，B值范围1-7
-        解析后存入rxbuffer，格式为[('A9','B1'), ('A10','B2'), ('A11','B3')]
-        """
-        while self.dmzlisten_running ==True:
-            byte_data = self.ser.read() 
-            if byte_data == b'\xAA': 
-                # 读取接下来的8个字节数据 
-                recv = self.ser.read(8) # recv[0]=AA, recv[1]=A1, recv[2]=B1, recv[3]=A2, recv[4]=B2, recv[5]=A3, recv[6]=B3, recv[7]=FF
-                if len(recv) < 8:
+    def listen_dmz(self, rxbuffer: List[tuple]):
+        while self.dmzlisten_running == True:
+            byte_data = self.ser.read()
+            if byte_data == b'\xAA':
+                recv = self.ser.read(7)
+
+                if len(recv) < 7:
                     continue
-                
-                # 判断数据是否符合通信协议，即以0xFF结尾和以0xAA开头
-                if recv[7] == 0xFF:
+
+                if recv[6] == 0xFF:
                     with lock:
                         rxbuffer.clear()
-                        # 解析三个禁飞区坐标
                         for i in range(3):
-                            a_val = recv[1 + i*2]-0xA0      # A值 (1-9)减去0xA0得到1-9的整数
-                            b_val = recv[2 + i*2]-0xB0      # B值 (1-7)减去0xB0得到1-7的整数
+                            a_val = recv[i * 2] - 0xA0
+                            b_val = recv[i * 2 + 1] - 0xB0
+
                             a_str = f"A{a_val}"
                             b_str = f"B{b_val}"
                             rxbuffer.append((a_str, b_str))
+
                         if DEBUG:
                             logger.info("地面站反传禁飞区坐标: %s", rxbuffer)
+
             time.sleep(0.05)
     def send_dmz(self,comlist:List[int]):
         while self.dmzsend_running==True:

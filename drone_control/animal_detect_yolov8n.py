@@ -8,9 +8,9 @@ K230 动物识别推理代码 (YOLOv8n, 320×320) — Pi双向通信版
 类别：tiger / wolf / monkey / peacock / elephant
 
 协议：
-  Pi→K230: AA 10 grid_idx          — 启动检测
-  K230→Pi: AA 20 grid_idx cls cnt total conf — 检测结果
-  Pi→K230: AA 11 grid_idx          — ACK确认停止
+  Pi→K230: AA 10 grid_idx FF                       — 启动检测(4B, AA头+FF尾)
+  K230→Pi: AA 20 grid_idx cls cnt total conf FF    — 检测结果(8B, AA头+FF尾)
+  Pi→K230: AA 11 grid_idx FF                       — ACK确认(4B, AA头+FF尾)
 
 使用方法：
     将 animal_yolov8n_320.kmodel 放入 /sdcard/examples/mycode/
@@ -22,6 +22,7 @@ from libs.AIBase import AIBase
 from libs.AI2D import Ai2d
 from libs.Utils import *
 import os, sys, gc
+import time
 from media.media import *
 import nncase_runtime as nn
 import ulab.numpy as np
@@ -37,6 +38,7 @@ CMD_ACK      = 0x11   # Pi→K230: ACK确认
 CMD_RESULT   = 0x20   # K230→Pi: 检测结果
 NO_ANIMAL    = 0xFF   # 无动物
 FRAMES_PER_GRID = 30  # 每格采集帧数
+CMD_LEN      = 4      # START/ACK 帧长度 (AA CMD idx FF)
 
 # ========== 共享状态（线程安全） ==========
 _state_lock = _thread.allocate_lock()
@@ -46,36 +48,52 @@ _shared = {
     "tally": {},        # cls_id → 累加帧数
     "conf_sum": {},     # cls_id → 置信度累加
     "frame_cnt": 0,
+    "retry_count": 0,   # 内部重测次数
 }
 
 
 def uart_rx_thread():
-    """守护线程：接收Pi的 START / ACK 指令"""
+    """守护线程：接收Pi的 START / ACK 指令（AA...FF 对齐）"""
+    buf = b''
     while True:
-        b = uart.read(1)
-        if not b or b[0] != FRAME_HEAD:
-            continue
-        cmd_byte = uart.read(1)
-        if not cmd_byte:
-            continue
-        cmd = cmd_byte[0]
-        idx_byte = uart.read(1)
-        if not idx_byte:
-            continue
-        idx = idx_byte[0]
+        try:
+            chunk = uart.read()
+            time.sleep_ms(1)                # 避免独占UART硬件，让主线程有机会调用write
+            if chunk:
+                buf += chunk
+            while True:
+                p = buf.find(bytes([FRAME_HEAD]))
+                if p < 0:
+                    buf = buf[-1:]
+                    break
+                if p > 0:
+                    buf = buf[p:]
+                if len(buf) < CMD_LEN:
+                    break
+                if buf[CMD_LEN - 1] != 0xFF:
+                    buf = buf[1:]
+                    continue
+                cmd = buf[1]
+                idx = buf[2]
+                buf = buf[CMD_LEN:]
 
-        with _state_lock:
-            if cmd == CMD_START:        # AA 10 grid_idx
-                _shared["active"] = True
-                _shared["grid_idx"] = idx
-                _shared["tally"] = {}
-                _shared["conf_sum"] = {}
-                _shared["frame_cnt"] = 0
-            elif cmd == CMD_ACK:        # AA 11 grid_idx
-                _shared["active"] = False
-                _shared["tally"] = {}
-                _shared["conf_sum"] = {}
-                _shared["frame_cnt"] = 0
+                with _state_lock:
+                    if cmd == CMD_START:
+                        print("<< START idx=", idx)
+                        _shared["active"] = True
+                        _shared["grid_idx"] = idx
+                        _shared["tally"] = {}
+                        _shared["conf_sum"] = {}
+                        _shared["frame_cnt"] = 0
+                        _shared["retry_count"] = 0
+                    elif cmd == CMD_ACK:
+                        print("<< ACK idx=", idx)
+                        _shared["active"] = False
+                        _shared["tally"] = {}
+                        _shared["conf_sum"] = {}
+                        _shared["frame_cnt"] = 0
+        except OSError:
+            break
 
 
 class AnimalDetectApp(AIBase):
@@ -255,8 +273,9 @@ if __name__ == "__main__":
                         _shared["conf_sum"][cls_id] = _shared["conf_sum"].get(cls_id, 0) + conf
                     _shared["frame_cnt"] += 1
 
-                    # 满帧 → 聚合发送
+                    # 满帧 → 内部评估
                     if _shared["frame_cnt"] >= FRAMES_PER_GRID:
+                        print("  eval #", _shared["retry_count"], "tally:", _shared["tally"])
                         tally = _shared["tally"]
                         conf_sum = _shared["conf_sum"]
 
@@ -273,11 +292,28 @@ if __name__ == "__main__":
                             total_dets = 0
                             avg_conf = 0
 
-                        frame = bytes([FRAME_HEAD, CMD_RESULT,
-                                      _shared["grid_idx"],
-                                      best_id, best_cnt, total_dets, avg_conf])
-                        uart.write(frame)
-                        _shared["active"] = False
+                        # 评估: 占比>=70% 且 置信>=50%, 或无动物 → 通过
+                        dominance = best_cnt / max(total_dets, 1)
+                        ok = (best_id == NO_ANIMAL or best_cnt == 0
+                              or (dominance >= 0.7 and avg_conf >= 50))
+
+                        if ok or _shared["retry_count"] >= 1:
+                            # 发送 RESULT
+                            print(">> RESULT best=", best_id, "cnt=", best_cnt, "conf=", avg_conf)
+                            frame = bytes([FRAME_HEAD, CMD_RESULT,
+                                          _shared["grid_idx"],
+                                          best_id, best_cnt, total_dets, avg_conf,
+                                          0xFF])
+                            n = uart.write(frame)
+                            print("  WRITE returned n=", n, "frame len=", len(frame))
+                            _shared["active"] = False
+                        else:
+                            # 重试: 清空累加，retry_count++
+                            print("  RETRY #", _shared["retry_count"])
+                            _shared["tally"] = {}
+                            _shared["conf_sum"] = {}
+                            _shared["frame_cnt"] = 0
+                            _shared["retry_count"] += 1
 
             if frame_count % 60 == 0:
                 gc.collect()

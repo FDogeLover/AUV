@@ -65,7 +65,6 @@ class mission:
         self.detect_triggered = False        # 是否已发 START
         self.detect_result = None            # poll_result 缓存
         self.detect_grid = None              # 当前检测的 (ix, iy)
-        self.detect_round = 1                # 轮次 1/2
         self.grid_results = {}               # (ix,iy) → cls_id
 
     def load_waypoints(self):
@@ -307,8 +306,8 @@ class mission:
     # ================= 到达处理 =================
     def _grid_from_real(self, rx, ry):
         """实际坐标 → 内部格子 (ix, iy)，超出9x7返回 None"""
-        ix = int(round(-rx * 2))
-        iy = int(round( ry * 2))
+        ix = int(round( rx * 2))
+        iy = int(round( -ry * 2))
         if 0 <= ix < 9 and 0 <= iy < 7:
             return (ix, iy)
         return None
@@ -339,14 +338,13 @@ class mission:
         logger.info(f"格子{grid} 开始检测")
         self.detecting = True
         self.detect_grid = grid
-        self.detect_round = 1
         self.detect_start_time = time.time()
         self.detect_triggered = False
         self.detect_result = None
 
     # ================= 检测状态机 =================
     def _handle_detection(self):
-        """每30Hz调用，推进检测流程"""
+        """每30Hz调用，推进检测流程（评估已移至K230内部）"""
         elapsed = time.time() - self.detect_start_time
 
         # 阶段1: 等机身稳定0.5s → 发送 START
@@ -362,40 +360,16 @@ class mission:
         if self.detect_result is None:
             if elapsed > 5.0:
                 logger.warning(f"格子{self.detect_grid} K230超时，跳过")
-                self._detect_accept(0xFF)  # 标记为无动物
+                self._detect_accept(0xFF)
                 return
             result = self.k230.poll_result()
             if result:
                 self.detect_result = result
             return
 
-        # 阶段3: 判决
+        # 阶段3: 收到结果 → 直接接受（评估已在K230完成）
         _, cls_id, best_cnt, total_dets, avg_conf = self.detect_result
-        ok = self._evaluate_detection(cls_id, best_cnt, total_dets, avg_conf)
-        if ok:
-            self._detect_accept(cls_id, best_cnt)
-        elif self.detect_round == 1:
-            logger.info(f"格子{self.detect_grid} 结果不稳，第2轮复测")
-            self.detect_round = 2
-            gidx = self.detect_grid[1] * 9 + self.detect_grid[0]
-            self.k230.send_start(gidx)
-            self.detect_triggered = True
-            self.detect_result = None
-            self.detect_start_time = time.time()
-        else:
-            logger.info(f"格子{self.detect_grid} 2轮仍不稳，强制接受")
-            self._detect_accept(cls_id, best_cnt)
-
-    def _evaluate_detection(self, cls_id, best_cnt, total_dets, avg_conf):
-        """判决：占比≥70% 且 置信≥50% 则接受；无动物也接受"""
-        if cls_id == 0xFF or best_cnt == 0:
-            return True
-        dominance = best_cnt / max(total_dets, 1)
-        confidence = avg_conf / 100.0
-        label = ANIMAL_LABELS[cls_id] if cls_id < 5 else "?"
-        logger.info(f"  判决: {label} cnt={best_cnt}/{total_dets} "
-                    f"占比={dominance:.0%} 置信={confidence:.0%}")
-        return dominance >= 0.7 and confidence >= 0.5
+        self._detect_accept(cls_id, best_cnt)
 
     def _detect_accept(self, cls_id, best_cnt=0):
         """接受检测结果，标记格子，发ACK + 地面站结果，推进航点"""
@@ -418,7 +392,6 @@ class mission:
         self.detect_triggered = False
         self.detect_result = None
         self.detect_grid = None
-        self.detect_round = 1
         self.target_index += 1
     
     # ================= 降落 =================
