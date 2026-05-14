@@ -1,0 +1,23 @@
+# 编译产物
+build/
+*.o
+*.crf
+*.dep
+*.axf
+*.hex
+*.bin
+*.map
+*.htm
+*.uvguix.*
+
+# IDE
+.idea/
+
+# Python 缓存
+__pycache__/
+*.pyc
+
+# Claude Code 记忆/配置
+.claude/
+
+drone_control/test_dmz_protocol.py
