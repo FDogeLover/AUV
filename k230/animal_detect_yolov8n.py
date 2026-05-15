@@ -99,22 +99,25 @@ def uart_rx_thread():
 class AnimalDetectApp(AIBase):
     def __init__(self, kmodel_path, labels, model_input_size, max_boxes_num,
                  confidence_threshold=0.5, nms_threshold=0.2,
-                 rgb888p_size=[640, 480], display_size=[800, 480], debug_mode=0):
+                 rgb888p_size=[640, 480], display_size=[800, 480], debug_mode=0,
+                 detect_crop_enable=False, detect_crop_w_ratio=0.6, detect_crop_h_ratio=0.6):
         super().__init__(kmodel_path, model_input_size, rgb888p_size, debug_mode)
         self.kmodel_path = kmodel_path
         self.labels = labels
-        # 模型输入分辨率
         self.model_input_size = model_input_size
-        # 阈值设置
         self.confidence_threshold = confidence_threshold
         self.nms_threshold = nms_threshold
         self.max_boxes_num = max_boxes_num
-        # sensor 给到 AI 的图像分辨率（不对齐，对齐官方示例）
         self.rgb888p_size = [rgb888p_size[0], rgb888p_size[1]]
-        # 显示分辨率
         self.display_size = [display_size[0], display_size[1]]
         self.debug_mode = debug_mode
-        # 检测框预置颜色值
+        self.detect_crop_enable = detect_crop_enable
+        self._dmap_sx = 1.0
+        self._dmap_sy = 1.0
+        if detect_crop_enable:
+            sw, sh = rgb888p_size[0], rgb888p_size[1]
+            self._dmap_sx = int(sw * detect_crop_w_ratio) / sw
+            self._dmap_sy = int(sh * detect_crop_h_ratio) / sh
         self.color_four = get_colors(len(self.labels))
         self.scale = 1.0
         # Ai2d 实例，用于实现模型预处理
@@ -159,8 +162,28 @@ class AnimalDetectApp(AIBase):
 
     # 获取检测结果统计（用于 active 模式时累积）
     def get_frame_data(self, dets):
-        """返回 (counts, max_conf) — counts=每类检测数, max_conf=每类最高置信度"""
-        return self._parse_dets(dets)
+        counts = {}
+        max_conf = {}
+        if not dets:
+            return counts, max_conf
+        dw = self.display_size[0]
+        dh = self.display_size[1]
+        if self.detect_crop_enable:
+            margin_x = (dw - dw * self._dmap_sx) / 2.0
+            margin_y = (dh - dh * self._dmap_sy) / 2.0
+        for i in range(len(dets[0])):
+            if self.detect_crop_enable:
+                x, y, w, h = dets[0][i]
+                cx = x + w / 2.0
+                cy = y + h / 2.0
+                if cx < margin_x or cx > dw - margin_x or cy < margin_y or cy > dh - margin_y:
+                    continue
+            label_id = dets[1][i]
+            score = float(dets[2][i])
+            counts[label_id] = counts.get(label_id, 0) + 1
+            if label_id not in max_conf or score > max_conf[label_id]:
+                max_conf[label_id] = score
+        return counts, max_conf
 
     # 不覆写 preprocess()，使用 AIBase 基类默认实现
 
@@ -186,7 +209,7 @@ if __name__ == "__main__":
     rgb888p_size = [640, 480]
 
     # ========== 模型路径 ==========
-    kmodel_path = "/sdcard/examples/mycode/animal_yolov8n_v2_best.kmodel"
+    kmodel_path = "/sdcard/examples/mycode/new_animal_v2.kmodel"
 
     # ========== 动物类别标签 ==========
     labels = ["tiger", "wolf", "monkey", "peacock", "elephant"]
@@ -195,6 +218,11 @@ if __name__ == "__main__":
     confidence_threshold = 0.3
     nms_threshold = 0.5
     max_boxes_num = 30
+
+    # ========== 检测区域裁剪：只统计中心区域的检测框 ==========
+    DETECT_CROP_ENABLE = False
+    DETECT_CROP_W_RATIO = 0.6
+    DETECT_CROP_H_RATIO = 0.6
 
     # ========== 模型输入尺寸 ==========
     model_input_size = [320, 320]
@@ -234,7 +262,10 @@ if __name__ == "__main__":
         nms_threshold=nms_threshold,
         rgb888p_size=rgb888p_size,
         display_size=display_size,
-        debug_mode=0
+        debug_mode=0,
+        detect_crop_enable=DETECT_CROP_ENABLE,
+        detect_crop_w_ratio=DETECT_CROP_W_RATIO,
+        detect_crop_h_ratio=DETECT_CROP_H_RATIO,
     )
     animal_det.config_preprocess()
 

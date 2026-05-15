@@ -179,49 +179,64 @@ void PID_init()
 	xy_PID.err_last=0;
 	xy_PID.err_previous=0;
 }
+
 s16 height_set(u32 height,u16 height_set)
 {
 	s16 output=0;
-	// 倾斜补偿：将测距仪斜距转为垂直高度，避免水平移动时高度波动
-	{
-		float rol_deg = fc_att.st_data.rol_x100 / 100.0f;
-		float pit_deg = fc_att.st_data.pit_x100 / 100.0f;
-		float tilt_deg = my_sqrt(rol_deg * rol_deg + pit_deg * pit_deg);
-		if (tilt_deg > 45.0f) tilt_deg = 45.0f;
-		float tilt_rad = tilt_deg * 0.0174533f;
-		height = (u32)((float)height * my_cos(tilt_rad));
-	}
 	height_PID.actual=height;
-	height_PID.target=height_set;
+	height_PID.target=height_set; 
 	height_PID.err_current=height_PID.target-height_PID.actual;
-
-	// 积分分离 + 真积分累积
-	static s16 height_integral = 0;
-	s16 i_term;
-	if (height_PID.err_current > 200 || height_PID.err_current < -200)
-	{
-		i_term = 0;
-		height_integral = 0;  // 误差过大时清积分防饱和
-	}
-	else
-	{
-		height_integral += height_PID.err_current;
-		if (height_integral > 100) height_integral = 100;
-		if (height_integral < -100) height_integral = -100;
-		i_term = (s16)(height_PID.i * height_integral);
-	}
-
-	output = height_PID.p * height_PID.err_current
-	       + i_term
-	       + height_PID.d * (height_PID.err_current - height_PID.err_last);
-
-	height_PID.err_previous = height_PID.err_last;
-	height_PID.err_last = height_PID.err_current;
-
-	if (output > 30) output = 30;
-	else if (output < -30) output = -30;
+	output=height_PID.p*(height_PID.err_current-height_PID.err_last)+height_PID.i*height_PID.err_current+height_PID.d*(height_PID.err_current-2*height_PID.err_last+height_PID.err_previous);
+	height_PID.err_previous=height_PID.err_last;
+	height_PID.err_last=height_PID.err_current;
+	if (output>30 ) output=30;
+	else if(output<-30) output=-30;
 	return output;
 }
+
+//s16 height_set(u32 height,u16 height_set)
+//{
+//	s16 output=0;
+//	// 倾斜补偿：将测距仪斜距转为垂直高度，避免水平移动时高度波动
+//	{
+//		float rol_deg = fc_att.st_data.rol_x100 / 100.0f;
+//		float pit_deg = fc_att.st_data.pit_x100 / 100.0f;
+//		float tilt_deg = my_sqrt(rol_deg * rol_deg + pit_deg * pit_deg);
+//		if (tilt_deg > 45.0f) tilt_deg = 45.0f;
+//		float tilt_rad = tilt_deg * 0.0174533f;
+//		height = (u32)((float)height * my_cos(tilt_rad));
+//	}
+//	height_PID.actual=height;
+//	height_PID.target=height_set;
+//	height_PID.err_current=height_PID.target-height_PID.actual;
+
+//	// 积分分离 + 真积分累积
+//	static s16 height_integral = 0;
+//	s16 i_term;
+//	if (height_PID.err_current > 200 || height_PID.err_current < -200)
+//	{
+//		i_term = 0;
+//		height_integral = 0;  // 误差过大时清积分防饱和
+//	}
+//	else
+//	{
+//		height_integral += height_PID.err_current;
+//		if (height_integral > 100) height_integral = 100;
+//		if (height_integral < -100) height_integral = -100;
+//		i_term = (s16)(height_PID.i * height_integral);
+//	}
+
+//	output = height_PID.p * height_PID.err_current
+//	       + i_term
+//	       + height_PID.d * (height_PID.err_current - height_PID.err_last);
+
+//	height_PID.err_previous = height_PID.err_last;
+//	height_PID.err_last = height_PID.err_current;
+
+//	if (output > 30) output = 30;
+//	else if (output < -30) output = -30;
+//	return output;
+//}
 
 // 校验和：字节1~12累加
 static u8 calc_checksum(u8 *buf)

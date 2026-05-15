@@ -128,6 +128,7 @@ void UserTask_OneKeyCmd(void)// 一键功能
 			static s16 integ_x_base,integ_y_base;
 			static s32 pos_x_base,pos_y_base;
 			static u16 icount=0;
+			static u16 takeoff_h_cm = 0;
 			mission_stage=mission_step;
 			//
 			switch(mission_step)
@@ -144,8 +145,16 @@ void UserTask_OneKeyCmd(void)// 一键功能
 					case 1://解锁
 					{
 						PID_init();
-						if(FC_Unlock()) mission_step = 5;
+						if(FC_Unlock()) mission_step = 2;
 					}
+				break;
+
+					case 2://OneKey_Takeoff
+				{
+					takeoff_h_cm = received_data.com_z;
+					OneKey_Takeoff(received_data.com_z);
+					mission_step = 5;
+				}
 				break;
 
 					case 5://视觉控制阶段
@@ -153,6 +162,9 @@ void UserTask_OneKeyCmd(void)// 一键功能
 					if(received_data.next_task_sign==0)
 					{
 						// 高度：用视觉模块的高度 + 目标高度
+//						s16 vel_z = (received_data.com_z+10 < takeoff_h_cm)
+//							? height_set(ano_of.of_alt_cm, received_data.com_z)
+//							: 0;
 						tar_setdata(received_data.com_x,received_data.com_y,height_set(ano_of.of_alt_cm,received_data.com_z),received_data.com_yaw);
 					}
 					else if(received_data.next_task_sign==1)

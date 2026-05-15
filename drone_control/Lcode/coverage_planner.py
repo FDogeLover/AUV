@@ -302,7 +302,7 @@ class CoveragePlanner:
             for xy in full_path:
                 rx, ry = self.xy_to_real(xy)
                 f.write(f"{rx:.1f},{ry:.1f},1.0\n")
-            f.write(f"0.0,1.0,1.0\n")  # 沿y轴后退1m
+            f.write(f"0.0,-1.0,1.0\n")  # 沿-y轴后退1m
             f.write(f"0.0,0.0,0.2\n")  # 斜着回到起点
         print(f"router 指令已保存到 {filename} (共 {len(full_path)+2} 个航点)")
 
