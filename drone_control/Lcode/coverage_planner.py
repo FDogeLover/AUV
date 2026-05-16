@@ -325,8 +325,8 @@ if __name__ == "__main__":
     planner = CoveragePlanner(FORBIDDEN_ZONES)
     name, full_path, steps = planner.plan()
     planner.print_report()
-    planner.save_path_txt(".venv/2026-4-23/coverage_path.txt")
-    planner.save_router_txt(".venv/2026-4-23/router.txt")
+    # planner.save_path_txt("drone_control/coverage_path.txt")
+    planner.save_router_txt("drone_control/router.txt")
 
     print("\n" + "=" * 55)
     print("完成!")

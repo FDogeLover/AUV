@@ -28,7 +28,7 @@ import nncase_runtime as nn
 import ulab.numpy as np
 import aidemo
 from media.sensor import *
-from machine import UART, FPIOA
+from machine import UART
 import _thread
 
 # ========== 协议常量 ==========
@@ -220,8 +220,8 @@ if __name__ == "__main__":
     max_boxes_num = 30
 
     # ========== 检测区域裁剪：只统计中心区域的检测框 ==========
-    DETECT_CROP_ENABLE = False
-    DETECT_CROP_W_RATIO = 0.6
+    DETECT_CROP_ENABLE = True
+    DETECT_CROP_W_RATIO = 0.4
     DETECT_CROP_H_RATIO = 0.6
 
     # ========== 模型输入尺寸 ==========
@@ -231,26 +231,14 @@ if __name__ == "__main__":
     display_size = [800, 480]
 
     # ========== UART 配置 ==========
-    UART_ID = UART.UART2
+    UART_ID = UART.UART3
     UART_BAUD = 115200
-    UART_TX_PIN = 11
-    UART_RX_PIN = 12
-    _UART_FPIOA_MAP = {
-        UART.UART1: (FPIOA.UART1_TXD, FPIOA.UART1_RXD),
-        UART.UART2: (FPIOA.UART2_TXD, FPIOA.UART2_RXD),
-        UART.UART3: (FPIOA.UART3_TXD, FPIOA.UART3_RXD),
-        UART.UART4: (FPIOA.UART4_TXD, FPIOA.UART4_RXD),
-    }
-    fpioa = FPIOA()
-    tx_func, rx_func = _UART_FPIOA_MAP[UART_ID]
-    fpioa.set_function(UART_TX_PIN, tx_func)
-    fpioa.set_function(UART_RX_PIN, rx_func)
     uart = UART(UART_ID, baudrate=UART_BAUD, bits=UART.EIGHTBITS,
                 parity=UART.PARITY_NONE, stop=UART.STOPBITS_ONE)
 
     # ========== 初始化 PipeLine (无显示模式) ==========
     pl = PipeLine(rgb888p_size=rgb888p_size, display_mode=None)
-    pl.create(sensor=Sensor(id=1, fps=30))
+    pl.create(sensor=Sensor(id=0, fps=30))
 
     # ========== 初始化动物检测器 ==========
     animal_det = AnimalDetectApp(

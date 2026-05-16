@@ -3,11 +3,11 @@ import time
 from typing import List
 from Lcode.Lpid import PID
 from Lcode.Logger import logger
-from Lcode.global_variable import sp_side, lock, fc_last_rx_time
+from Lcode.global_variable import sp_side, lock
 from Lcode.k230_client import K230Client
 from Lcode.coverage_planner import CoveragePlanner
 from t265 import t265_class
-from rgb_led import rgb_led
+from Lcode.rgb_led import rgb_led
 
 put_height = 100
 fly_height = 100
@@ -16,7 +16,6 @@ posthreshold_xy = 0.15  # XY 到达阈值（米）
 posthreshold_z = 0.20   # Z 到达阈值（米）
 arrival_confirm_need = 5  # XY 连续确认到达次数
 arrival_timeout_max = 10.0  # 单航点超时（秒）
-ANIMAL_LABELS = ["tiger", "wolf", "monkey", "peacock", "elephant"]
 
 realsense = t265_class()
 
@@ -57,15 +56,6 @@ class mission:
         self.arrival_confirm_count = 0
         self.arrival_start_time = 0.0
         self.last_target_index = -1
-
-        # === K230 检测相关 ===
-        self.detected_grids = set()          # 已检测的格子 (ix, iy)
-        self.detecting = False               # 是否在检测阶段
-        self.detect_start_time = 0.0         # 检测开始时刻
-        self.detect_triggered = False        # 是否已发 START
-        self.detect_result = None            # poll_result 缓存
-        self.detect_grid = None              # 当前检测的 (ix, iy)
-        self.grid_results = {}               # (ix,iy) → cls_id
 
     def load_waypoints(self):
         """从router.txt文件加载航点"""
@@ -154,13 +144,6 @@ class mission:
 
         self.task_running = True
         self.state = "TAKEOFF"
-
-        # 预标记起飞格子为已检测（起点不检测）
-        pos = self.realsense.get_position()
-        ix = int(round(-pos[0] * 2))
-        iy = int(round( pos[1] * 2))
-        self.detected_grids.add((ix, iy))
-        logger.info(f"起飞格({ix},{iy}) 预标记已检测")
 
         threading.Thread(target=self.loop, daemon=True).start()
 
@@ -252,11 +235,6 @@ class mission:
         vyaw = int(self.limit(vyaw * VEL_SCALE, 30))
         self.set_speed(vx, vy, -vyaw, target_z)
 
-        # === 检测阶段：推进状态机，跳过到达判断 ===
-        if self.detecting:
-            self._handle_detection()
-            return
-        
         # === 到达判断 ===
         dx = abs(pos[0] - target[0])
         dy = abs(pos[1] - target[1])
@@ -304,96 +282,12 @@ class mission:
         )
 
     # ================= 到达处理 =================
-    def _grid_from_real(self, rx, ry):
-        """实际坐标 → 内部格子 (ix, iy)，超出9x7返回 None"""
-        ix = int(round( rx * 2))
-        iy = int(round( -ry * 2))
-        if 0 <= ix < 9 and 0 <= iy < 7:
-            return (ix, iy)
-        return None
-
     def _on_arrival(self, target):
-        """到达航点时判断：已检测→跳过，未检测→进入检测阶段"""
-        # 倒数第二个航点 → 亮红色LED 1秒
+        """到达航点后直接前往下一航点（检测已关闭）"""
         if self.target_index == len(self.targets) - 2:
             rgb_led('R', 1)
-
-        grid = self._grid_from_real(target[0], target[1])
-        if grid is None:
-            logger.info("非格子航点，直接跳过")
-            self.target_index += 1
-            return
-
-        if grid in self.detected_grids:
-            logger.info(f"格子{grid} 已检测，飞越")
-            self.target_index += 1
-            return
-
-        if self.k230 is None:
-            logger.info(f"格子{grid} 无K230，标记跳过")
-            self.detected_grids.add(grid)
-            self.target_index += 1
-            return
-
-        logger.info(f"格子{grid} 开始检测")
-        self.detecting = True
-        self.detect_grid = grid
-        self.detect_start_time = time.time()
-        self.detect_triggered = False
-        self.detect_result = None
-
-    # ================= 检测状态机 =================
-    def _handle_detection(self):
-        """每30Hz调用，推进检测流程（评估已移至K230内部）"""
-        elapsed = time.time() - self.detect_start_time
-
-        # 阶段1: 等机身稳定0.5s → 发送 START
-        if not self.detect_triggered:
-            if elapsed > 0.5:
-                gidx = self.detect_grid[1] * 9 + self.detect_grid[0]
-                self.k230.send_start(gidx)
-                self.detect_triggered = True
-                self.detect_start_time = time.time()
-            return
-
-        # 阶段2: 等待 K230 结果（超时5s）
-        if self.detect_result is None:
-            if elapsed > 5.0:
-                logger.warning(f"格子{self.detect_grid} K230超时，跳过")
-                self._detect_accept(0xFF)
-                return
-            result = self.k230.poll_result()
-            if result:
-                self.detect_result = result
-            return
-
-        # 阶段3: 收到结果 → 直接接受（评估已在K230完成）
-        _, cls_id, best_cnt, total_dets, avg_conf = self.detect_result
-        self._detect_accept(cls_id, best_cnt)
-
-    def _detect_accept(self, cls_id, best_cnt=0):
-        """接受检测结果，标记格子，发ACK + 地面站结果，推进航点"""
-        count = int(round(best_cnt / 30)) if cls_id != 0xFF else 0
-        label = ANIMAL_LABELS[cls_id] if cls_id < 5 else "无"
-        logger.info(f"格子{self.detect_grid} 确认: {label} x{count}")
-        self.detected_grids.add(self.detect_grid)
-        self.grid_results[self.detect_grid] = (cls_id, count)
-
-        # 写入地面站结果: 只改 cls/cnt，AA/FF/idx 由 navigate 维护
-        lock.acquire()
-        self.se_dmz[2] = cls_id if cls_id < 5 else 0xFF
-        self.se_dmz[3] = max(count, 1)
-        lock.release()
-
-        if self.k230:
-            gidx = self.detect_grid[1] * 9 + self.detect_grid[0]
-            self.k230.send_ack(gidx)
-        self.detecting = False
-        self.detect_triggered = False
-        self.detect_result = None
-        self.detect_grid = None
         self.target_index += 1
-    
+
     # ================= 降落 =================
     def land(self):
         logger.info("降落")

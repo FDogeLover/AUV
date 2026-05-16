@@ -169,7 +169,7 @@ class Serial_dmz(object):
     def send_dmz(self,comlist:List[int]):
         while self.dmzsend_running==True:
             self.ser.write(bytes(comlist))  # 单次发送整帧
-            time.sleep(0.01)
+            time.sleep(0.1)
     def send_start(self,comlist:List[int]):
         self.dmzsend_running=True
         dmzsend_thread=threading.Thread(target=Serial_dmz.send_dmz,args=(self,comlist))
