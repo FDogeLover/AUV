@@ -36,14 +36,14 @@ def get_logger():
         "[%(levelname)s] %(asctime)s\n%(message)s",
         "(%Y-%m-%d %H:%M:%S)",
     )
-    logger.fileHdl = logging.FileHandler(logFile, encoding="utf-8")
-    logger.consoleHdl = logging.StreamHandler()
-    logger.fileHdl.setLevel(logging.DEBUG)
-    logger.consoleHdl.setLevel(logging.INFO)
-    logger.fileHdl.setFormatter(fmtFile)
-    logger.consoleHdl.setFormatter(fmtConsole)
-    logger.addHandler(logger.fileHdl)
-    logger.addHandler(logger.consoleHdl)
+    fileHdl = logging.FileHandler(logFile, encoding="utf-8")
+    consoleHdl = logging.StreamHandler()
+    fileHdl.setLevel(logging.DEBUG)
+    consoleHdl.setLevel(logging.INFO)
+    fileHdl.setFormatter(fmtFile)
+    consoleHdl.setFormatter(fmtConsole)
+    logger.addHandler(fileHdl)
+    logger.addHandler(consoleHdl)
     return logger
 
 

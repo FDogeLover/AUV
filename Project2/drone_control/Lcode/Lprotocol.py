@@ -40,12 +40,11 @@ class Serial_fc(object):
                 if recv[5] == self.endbyte:
                     intergral_x = ((recv[1] << 8) | recv[2])-0x4000
                     intergral_y = ((recv[3] << 8) | recv[4])-0x4000
-                    lock.acquire()
-                    rxbuffer.clear()
-                    rxbuffer.append(recv[0])
-                    rxbuffer.append(intergral_x)
-                    rxbuffer.append(intergral_y)
-                    lock.release()
+                    with lock:
+                        rxbuffer.clear()
+                        rxbuffer.append(recv[0])
+                        rxbuffer.append(intergral_x)
+                        rxbuffer.append(intergral_y)
                     fc_last_rx_time = time.time()
                     if recv[0]==0x05:
                         task_start_sign.value=True

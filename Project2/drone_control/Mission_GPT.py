@@ -116,17 +116,15 @@ class mission:
         gs_ok = False
         logger.info("等待地面站禁飞区数据...")
         for _ in range(50):  # 5s 超时
-            lock.acquire()
-            gs_ok = self._gs_data_valid()
-            lock.release()
+            with lock:
+                gs_ok = self._gs_data_valid()
             if gs_ok:
                 break
             time.sleep(0.1)
 
         if gs_ok:
-            lock.acquire()
-            forbidden = list(self.re_dmz)
-            lock.release()
+            with lock:
+                forbidden = list(self.re_dmz)
             logger.info(f"地面站禁飞区: {forbidden}")
             planner = CoveragePlanner(forbidden)
             name, full_path, steps = planner.plan()
@@ -211,12 +209,11 @@ class mission:
         target_z = int(target[2] * 100)
 
         # 每帧更新地面站: idx=实时进度, cls/cnt=哨兵值(FF/0)
-        lock.acquire()
-        self.se_dmz[1] = self.target_index & 0xFF
-        if self.se_dmz[2] != 0xFF or self.se_dmz[3] != 0:
-            self.se_dmz[2] = 0xFF
-            self.se_dmz[3] = 0
-        lock.release()
+        with lock:
+            self.se_dmz[1] = self.target_index & 0xFF
+            if self.se_dmz[2] != 0xFF or self.se_dmz[3] != 0:
+                self.se_dmz[2] = 0xFF
+                self.se_dmz[3] = 0
 
         # XY/Yaw: PID计算速度（检测期间也运行，维持悬停）
         self.x_pid.set_target(target[0])
@@ -290,9 +287,8 @@ class mission:
     def land(self):
         logger.info("降落")
 
-        lock.acquire()
-        self.se_fc[2] = 0
-        lock.release()
+        with lock:
+            self.se_fc[2] = 0
 
         self.state = "END"
 
@@ -300,12 +296,11 @@ class mission:
     def stop_all(self):
         logger.info("任务结束")
 
-        lock.acquire()
-        self.se_fc[3] = sp_side
-        self.se_fc[4] = sp_side
-        self.se_fc[6] = sp_side
-        self.se_fc[7] = 101
-        lock.release()
+        with lock:
+            self.se_fc[3] = sp_side
+            self.se_fc[4] = sp_side
+            self.se_fc[6] = sp_side
+            self.se_fc[7] = 101
 
         self.realsense.stop()
         if self.k230:
@@ -314,12 +309,11 @@ class mission:
 
     # ================= 控制接口 =================
     def set_speed(self, x, y, yaw, z):
-        lock.acquire()
-        self.se_fc[3] = x + sp_side
-        self.se_fc[4] = y + sp_side
-        self.se_fc[5] = z
-        self.se_fc[6] = yaw + sp_side
-        lock.release()
+        with lock:
+            self.se_fc[3] = x + sp_side
+            self.se_fc[4] = y + sp_side
+            self.se_fc[5] = z
+            self.se_fc[6] = yaw + sp_side
         
     # ================= 工具 =================
     def limit(self, v, max_v=0.3):

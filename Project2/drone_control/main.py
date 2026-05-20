@@ -22,18 +22,18 @@ run_sign = False
 realsense = t265_class()
 
 # ===================== 串口初始化 =====================
-serial_fc = Lcode.Lprotocol.Serial_fc("/dev/ttyS6", 460800)
+serial_fc = Lcode.Lprotocol.Serial_fc(os.getenv("DRONE_FC_PORT", "/dev/ttyS6"), 460800)
 serial_fc.port_open()
 serial_fc.listen_start(re_fc)
 serial_fc.send_start(se_fc, realsense, vel_freq=100, cmd_freq=50)  # 速度帧100Hz + 指令帧50Hz
 
-serial_dmz = Lcode.Lprotocol.Serial_dmz("/dev/ttyS7", 115200)
+serial_dmz = Lcode.Lprotocol.Serial_dmz(os.getenv("DRONE_DMZ_PORT", "/dev/ttyS7"), 115200)
 serial_dmz.port_open()
 serial_dmz.listen_start(re_dmz)
 serial_dmz.send_start(se_dmz)
 
 # ===================== K230 视觉板通信 =====================
-k230 = K230Client("/dev/ttyS3", 115200)
+k230 = K230Client(os.getenv("DRONE_K230_PORT", "/dev/ttyS3"), 115200)
 
 # ==================== 只创建一次任务！====================
 mission1 = mission(re_fc, se_fc, re_dmz, se_dmz, realsense, k230)
