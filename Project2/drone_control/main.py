@@ -9,7 +9,7 @@ from Mission_GPT import mission
 from t265 import t265_class
 
 # ======================== 变量 ===========================
-re_fc = [0, 0, 0]  # 飞控反传信息 任务模式/x积分值/y积分值
+re_fc = [0, 0, 0, 0, 0]  # 飞控反传信息 roll/pitch/yaw/x的积分值/y的积分值
 re_dmz = [('A9', 'B1'),('A10', 'B2'),('A11', 'B3')]#地面站反传信息 三个禁飞区坐标/x/y
 
 # 双帧协议: AA 02 task_sta com_x+sp com_y+sp com_z com_yaw+sp next_task sp_side CK FF

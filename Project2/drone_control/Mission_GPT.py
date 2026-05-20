@@ -3,7 +3,7 @@ import time
 from typing import List
 from Lcode.Lpid import PID
 from Lcode.Logger import logger
-from Lcode.global_variable import sp_side, lock
+from Lcode.global_variable import sp_side, lock, fc_last_rx_time
 from Lcode.k230_client import K230Client
 from Lcode.coverage_planner import CoveragePlanner
 from t265 import t265_class
@@ -16,8 +16,6 @@ posthreshold_xy = 0.15  # XY 到达阈值（米）
 posthreshold_z = 0.20   # Z 到达阈值（米）
 arrival_confirm_need = 5  # XY 连续确认到达次数
 arrival_timeout_max = 10.0  # 单航点超时（秒）
-
-realsense = t265_class()
 
 
 class mission:
@@ -36,7 +34,7 @@ class mission:
         # 控制
         self.task_running = False
         self.t265_ok = False
-        self.realsense = realsense_obj or realsense
+        self.realsense = realsense_obj
 
         # PID控制器（常驻）
         self.x_pid = PID(0, 0)
@@ -156,10 +154,10 @@ class mission:
                 continue
 
             # 串口超时检测：超过2秒无飞控回传数据则急停
-            # if fc_last_rx_time > 0 and time.time() - fc_last_rx_time > 2.0:
-            #     logger.error("飞控串口超时无回传，触发紧急降落")
-            #     self.emergency_stop = True
-            #     continue
+            if fc_last_rx_time > 0 and time.time() - fc_last_rx_time > 2.0:
+                logger.error("飞控串口超时无回传，触发紧急降落")
+                self.emergency_stop = True
+                continue
 
             # T265存活检测：数据采集线程已停止则急停
             if self.t265_ok and not self.realsense.is_running():

@@ -1,43 +1,44 @@
 /******************** (C) COPYRIGHT 2017 ANO Tech ********************************
- * ×÷Õß    £ºÄäÃû¿Æ´´
- * ¹ÙÍø    £ºwww.anotc.com
- * ÌÔ±¦    £ºanotc.taobao.com
- * ¼¼ÊõQÈº £º190169595
- * ÃèÊö    £ºPWMÊä³ö
+ * ä½œè€…    ï¼šåŒ¿åç§‘åˆ›
+ * å®˜ç½‘    ï¼šwww.anotc.com
+ * æ·˜å®    ï¼šanotc.taobao.com
+ * æŠ€æœ¯Qç¾¤ ï¼š190169595
+ * æè¿°    ï¼šPWMè¾“å‡º
 **********************************************************************************/
 #include "Drv_PwmOut.h"
 #include "Ano_Math.h"
 
 #if (PWM_FRE_HZ == 466)
 
-//18·ÖÆµµ½ 84000000/18 = 4.666M   0.2142857us
-/*³õÊ¼»¯¸ßµçÆ½Ê±¼ä1000us*/
+///18åˆ†é¢‘åˆ° 84000000/18 = 4.666M   0.2142857us
+/*åˆå§‹åŒ–é«˜ç”µå¹³æ—¶é—´1000us*/
 #define INIT_DUTY 4667 //
-/*¾«¶È10000£¬Ã¿·Ý0.2142857us*/
-#define ACCURACY 10000 //×Ü¹²Îª2142.857us
-//µçµ÷¿ØÖÆÐ­ÒéÎª1000us-2000us¸ßµçÆ½Ê±¼ä
-/*ÉèÖÃ·É¿Ø¿ØÖÆÐÅºÅ×ª»»±ÈÀýÎª*/
+/*ç²¾åº¦10000ï¼Œæ¯ä»½0.2142857us*/
+#define ACCURACY 10000 //æ€»å…±ä¸º2142.857us
+//ç”µè°ƒæŽ§åˆ¶åè®®ä¸º1000us-2000usé«˜ç”µå¹³æ—¶é—´
+/*è®¾ç½®é£žæŽ§æŽ§åˆ¶ä¿¡å·è½¬æ¢æ¯”ä¾‹ä¸º*/
 #define PWM_RADIO 4.666f //(9333 - 4667)/1000.0
 
 #elif (PWM_FRE_HZ == 400)
 
-//21·ÖÆµµ½ 84000000/21 = 4M   0.25us
-/*³õÊ¼»¯¸ßµçÆ½Ê±¼ä1000us*/
+//21åˆ†é¢‘åˆ° 84000000/21 = 4M   0.25us
+/*åˆå§‹åŒ–é«˜ç”µå¹³æ—¶é—´1000us*/
 #define INIT_DUTY 4000 //u16(1000/0.25)
-/*¾«¶È10000£¬Ã¿·Ý0.25us*/
-#define ACCURACY 10000 //×Ü¹²Îª2500us
-//µçµ÷¿ØÖÆÐ­ÒéÎª1000us-2000us¸ßµçÆ½Ê±¼ä
-/*ÉèÖÃ·É¿Ø¿ØÖÆÐÅºÅ×ª»»±ÈÀýÎª4*/
+/*ç²¾åº¦10000ï¼Œæ¯ä»½0.25us*/
+#define ACCURACY 10000 //æ€»å…±ä¸º2500us
+//ç”µè°ƒæŽ§åˆ¶åè®®ä¸º1000us-2000usé«˜ç”µå¹³æ—¶é—´
+/*è®¾ç½®é£žæŽ§æŽ§åˆ¶ä¿¡å·è½¬æ¢æ¯”ä¾‹ä¸º4*/
 #define PWM_RADIO 4    //(8000 - 4000)/1000.0
 
+
 #elif (PWM_FRE_HZ == 350)
-//24·ÖÆµµ½ 84000000/24 = 3.5M   0.2739726us
-/*³õÊ¼»¯¸ßµçÆ½Ê±¼ä1000us*/
+//24åˆ†é¢‘åˆ° 84000000/24 = 3.5M   0.2739726us
+/*åˆå§‹åŒ–é«˜ç”µå¹³æ—¶é—´1000us*/
 #define INIT_DUTY 3500 //
-/*¾«¶È10000£¬Ã¿·Ý0.2739726us*/
-#define ACCURACY 10000 //×Ü¹²Îª2857.1429us
-//µçµ÷¿ØÖÆÐ­ÒéÎª1000us-2000us¸ßµçÆ½Ê±¼ä
-/*ÉèÖÃ·É¿Ø¿ØÖÆÐÅºÅ×ª»»±ÈÀýÎª3.65f*/
+/*ç²¾åº¦10000ï¼Œæ¯ä»½0.2739726us*/
+#define ACCURACY 10000 //æ€»å…±ä¸º2857.1429us
+//ç”µè°ƒæŽ§åˆ¶åè®®ä¸º1000us-2000usé«˜ç”µå¹³æ—¶é—´
+/*è®¾ç½®é£žæŽ§æŽ§åˆ¶ä¿¡å·è½¬æ¢æ¯”ä¾‹ä¸º3.65f*/
 #define PWM_RADIO 3.5f //(7300 - 3650)/1000.0
 
 #endif
@@ -202,20 +203,20 @@ void DrvPwmOutInit(void)
     //TIM_OCInitStructure.TIM_OutputState = TIM_OutputState_Enable;
     TIM_OCInitStructure.TIM_Pulse = INIT_DUTY;
     TIM_OC3Init(TIM8, &TIM_OCInitStructure);
-    TIM_OC3PreloadConfig(TIM1, TIM_OCPreload_Enable);
+    TIM_OC3PreloadConfig(TIM8, TIM_OCPreload_Enable);
 
     /* PWM1 Mode configuration: Channel4 */
     //TIM_OCInitStructure.TIM_OutputState = TIM_OutputState_Enable;
     TIM_OCInitStructure.TIM_Pulse = INIT_DUTY;
     TIM_OC4Init(TIM8, &TIM_OCInitStructure);
-    TIM_OC4PreloadConfig(TIM1, TIM_OCPreload_Enable);
+    TIM_OC4PreloadConfig(TIM8, TIM_OCPreload_Enable);
 
     TIM_CtrlPWMOutputs(TIM8, ENABLE);
     TIM_ARRPreloadConfig(TIM8, ENABLE);
     TIM_Cmd(TIM8, ENABLE);
 
 #if (ESC_CALI == 1)
-    //Ð£×¼Ê±ÏÈ¸ø×î´óÓÍÃÅ¡£
+    //æ ¡å‡†æ—¶å…ˆç»™æœ€å¤§æ²¹é—¨ã€‚
     TIM1->CCR4 = 2 * INIT_DUTY; //1
     TIM1->CCR3 = 2 * INIT_DUTY; //2
     TIM1->CCR2 = 2 * INIT_DUTY; //3
@@ -231,7 +232,7 @@ void DrvPwmOutInit(void)
 void DrvMotorPWMSet(int16_t pwm[8])
 {
 
-    //·¶Î§0-1000£¬×ª»»µ½4000-8000£¬ÕÛºÏ1000-2000us
+    //èŒƒå›´0-1000ï¼Œè½¬æ¢åˆ°4000-8000ï¼ŒæŠ˜åˆ1000-2000us
     TIM1->CCR4 = PWM_RADIO * (pwm[0]) + INIT_DUTY; //1
     TIM1->CCR3 = PWM_RADIO * (pwm[1]) + INIT_DUTY; //2
     TIM1->CCR2 = PWM_RADIO * (pwm[2]) + INIT_DUTY; //3

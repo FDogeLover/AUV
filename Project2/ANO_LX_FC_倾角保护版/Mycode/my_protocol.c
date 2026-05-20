@@ -246,99 +246,99 @@ static u8 calc_checksum(u8 *buf)
     return (u8)(sum & 0xFF);
 }
 
-//void pi_send(void)
-//{
-//    if(tx_stage == 0)
-//    {
-//        // ========== 打包发送帧 ==========
-//        tx_buf[0] = 0xAA;  // 帧头
-//        tx_buf[1] = mission_stage;
-
-//        // 姿态角
-//        tx_buf[2] = (fc_att.st_data.rol_x100 >> 0) & 0xFF;
-//        tx_buf[3] = (fc_att.st_data.rol_x100 >> 8) & 0xFF;
-//        tx_buf[4] = (fc_att.st_data.pit_x100 >> 0) & 0xFF;
-//        tx_buf[5] = (fc_att.st_data.pit_x100 >> 8) & 0xFF;
-//        tx_buf[6] = (fc_att.st_data.yaw_x100 >> 0) & 0xFF;
-//        tx_buf[7] = (fc_att.st_data.yaw_x100 >> 8) & 0xFF;
-//        tx_buf[8] = fc_att.st_data.state;
-
-//        // X/Y 积分
-//        s16 x = ano_of.intergral_x + 0x4000;
-//        s16 y = ano_of.intergral_y + 0x4000;
-//        tx_buf[9]  = (x >> 0) & 0xFF;
-//        tx_buf[10] = (x >> 8) & 0xFF;
-//        tx_buf[11] = (y >> 0) & 0xFF;
-//        tx_buf[12] = (y >> 8) & 0xFF;
-
-//        // 校验 + 帧尾
-//        tx_buf[13] = calc_checksum(tx_buf);
-//        tx_buf[14] = 0xFF;
-
-//        tx_stage = 1;
-//    }
-//    else if(tx_stage >= 1 && tx_stage <= 15)
-//    {
-//        // 分段发送，每次1字节
-//        USART_SendData(USART2, tx_buf[tx_stage - 1]);
-//        tx_stage++;
-//    }
-//    else
-//    {
-//        tx_stage = 0;  // 发送完成，复位
-//    }
-//}
-
-void pi_send()
+void pi_send(void)
 {
-	static u8 stage=0;
-	if(stage==0)
-	{
-		USART_SendData(USART2,0xAA);
-		stage=1;
-		s16 num = ano_of.intergral_x + 0x4000;
-		x_high=(num >> 8) & 0xFF;
-		x_low=num & 0xFF;
-		s16 ynum = ano_of.intergral_y + 0x4000;
-		y_high=(ynum >> 8) & 0xFF;
-		y_low=ynum & 0xFF;
-	}
-	else if(stage==1)
-	{
-		USART_SendData(USART2,mission_stage);
-		stage=2;
-	}
-	else if(stage==2)
-	{
+    if(tx_stage == 0)
+    {
+        // ========== 打包发送帧 ==========
+        tx_buf[0] = 0xAA;  // 帧头
+        tx_buf[1] = mission_stage;
 
-		USART_SendData(USART2,x_high);
-		//USART_SendData(USART2,0x05);
-		stage=3;
-	}
-	else if(stage==3)
-	{
-		USART_SendData(USART2,x_low);
-		stage=4;
-	}
-	else if(stage==4)
-	{
+        // 姿态角
+        tx_buf[2] = (fc_att.st_data.rol_x100 >> 0) & 0xFF;
+        tx_buf[3] = (fc_att.st_data.rol_x100 >> 8) & 0xFF;
+        tx_buf[4] = (fc_att.st_data.pit_x100 >> 0) & 0xFF;
+        tx_buf[5] = (fc_att.st_data.pit_x100 >> 8) & 0xFF;
+        tx_buf[6] = (fc_att.st_data.yaw_x100 >> 0) & 0xFF;
+        tx_buf[7] = (fc_att.st_data.yaw_x100 >> 8) & 0xFF;
+        tx_buf[8] = fc_att.st_data.state;
 
-		USART_SendData(USART2,y_high);
-		//USART_SendData(USART2,0x05);
-		stage=5;
-	}
-	else if(stage==5)
-	{
-		USART_SendData(USART2,y_low);
-		stage=6;
-	}
-	else if(stage==6)
-	{
-		USART_SendData(USART2,0xFF);
-		stage=0;
-	}
-	else stage=0;
+        // X/Y 积分
+        s16 x = ano_of.intergral_x + 0x4000;
+        s16 y = ano_of.intergral_y + 0x4000;
+        tx_buf[9]  = (x >> 0) & 0xFF;
+        tx_buf[10] = (x >> 8) & 0xFF;
+        tx_buf[11] = (y >> 0) & 0xFF;
+        tx_buf[12] = (y >> 8) & 0xFF;
+
+        // 校验 + 帧尾
+        tx_buf[13] = calc_checksum(tx_buf);
+        tx_buf[14] = 0xFF;
+
+        tx_stage = 1;
+    }
+    else if(tx_stage >= 1 && tx_stage <= 15)
+    {
+        // 分段发送，每次1字节
+        USART_SendData(USART2, tx_buf[tx_stage - 1]);
+        tx_stage++;
+    }
+    else
+    {
+        tx_stage = 0;  // 发送完成，复位
+    }
 }
+
+//void pi_send()
+//{
+//	static u8 stage=0;
+//	if(stage==0)
+//	{
+//		USART_SendData(USART2,0xAA);
+//		stage=1;
+//		s16 num = ano_of.intergral_x + 0x4000;
+//		x_high=(num >> 8) & 0xFF;
+//		x_low=num & 0xFF;
+//		s16 ynum = ano_of.intergral_y + 0x4000;
+//		y_high=(ynum >> 8) & 0xFF;
+//		y_low=ynum & 0xFF;
+//	}
+//	else if(stage==1)
+//	{
+//		USART_SendData(USART2,mission_stage);
+//		stage=2;
+//	}
+//	else if(stage==2)
+//	{
+
+//		USART_SendData(USART2,x_high);
+//		//USART_SendData(USART2,0x05);
+//		stage=3;
+//	}
+//	else if(stage==3)
+//	{
+//		USART_SendData(USART2,x_low);
+//		stage=4;
+//	}
+//	else if(stage==4)
+//	{
+
+//		USART_SendData(USART2,y_high);
+//		//USART_SendData(USART2,0x05);
+//		stage=5;
+//	}
+//	else if(stage==5)
+//	{
+//		USART_SendData(USART2,y_low);
+//		stage=6;
+//	}
+//	else if(stage==6)
+//	{
+//		USART_SendData(USART2,0xFF);
+//		stage=0;
+//	}
+//	else stage=0;
+//}
 
 void my_spcal(s16 x,s16 y)
 {

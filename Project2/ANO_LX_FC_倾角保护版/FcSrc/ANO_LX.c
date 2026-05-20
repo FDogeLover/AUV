@@ -205,14 +205,14 @@ static inline void ESC_Output(u8 unlocked)
 	static u8 esc_calibrated;
 	static s16 pwm[8];
 	//
-	pwm[0] = pwm_to_esc.pwm_m1 * 0.1f;
-	pwm[1] = pwm_to_esc.pwm_m2 * 0.1f;
-	pwm[2] = pwm_to_esc.pwm_m3 * 0.1f;
-	pwm[3] = pwm_to_esc.pwm_m4 * 0.1f;
-	pwm[4] = pwm_to_esc.pwm_m5 * 0.1f;
-	pwm[5] = pwm_to_esc.pwm_m6 * 0.1f;
-	pwm[6] = pwm_to_esc.pwm_m7 * 0.1f;
-	pwm[7] = pwm_to_esc.pwm_m8 * 0.1f;
+	pwm[0] = pwm_to_esc.pwm_m1 / 10;
+	pwm[1] = pwm_to_esc.pwm_m2 / 10;
+	pwm[2] = pwm_to_esc.pwm_m3 / 10;
+	pwm[3] = pwm_to_esc.pwm_m4 / 10;
+	pwm[4] = pwm_to_esc.pwm_m5 / 10;
+	pwm[5] = pwm_to_esc.pwm_m6 / 10;
+	pwm[6] = pwm_to_esc.pwm_m7 / 10;
+	pwm[7] = pwm_to_esc.pwm_m8 / 10;
 	//
 
 	if (esc_calibrated == 0)
