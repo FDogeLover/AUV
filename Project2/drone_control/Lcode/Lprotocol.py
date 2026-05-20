@@ -45,7 +45,7 @@ class Serial_fc(object):
                         rxbuffer.append(recv[0])
                         rxbuffer.append(intergral_x)
                         rxbuffer.append(intergral_y)
-                    fc_last_rx_time = time.time()
+                    fc_last_rx_time.value = time.time()
                     if recv[0]==0x05:
                         task_start_sign.value=True
                     else:

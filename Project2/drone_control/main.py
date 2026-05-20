@@ -22,6 +22,10 @@ run_sign = False
 realsense = t265_class()
 
 # ===================== 串口初始化 =====================
+# 环境变量覆盖（可选，不设置则使用默认值）：
+#   Linux/树莓派: export DRONE_FC_PORT=/dev/ttyS6   # 飞控
+#                 export DRONE_DMZ_PORT=/dev/ttyS7   # 地面站
+#                 export DRONE_K230_PORT=/dev/ttyS3  # K230视觉板
 serial_fc = Lcode.Lprotocol.Serial_fc(os.getenv("DRONE_FC_PORT", "/dev/ttyS6"), 460800)
 serial_fc.port_open()
 serial_fc.listen_start(re_fc)

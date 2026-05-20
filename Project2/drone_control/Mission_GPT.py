@@ -1,5 +1,8 @@
 import threading
 import time
+import json
+import os
+import sys
 from typing import List
 from Lcode.Lpid import PID
 from Lcode.Logger import logger
@@ -16,6 +19,7 @@ posthreshold_xy = 0.15  # XY 到达阈值（米）
 posthreshold_z = 0.20   # Z 到达阈值（米）
 arrival_confirm_need = 5  # XY 连续确认到达次数
 arrival_timeout_max = 10.0  # 单航点超时（秒）
+FLIGHT_LOG_INTERVAL = 1.0  # 飞行数据记录间隔（秒）
 
 
 class mission:
@@ -54,6 +58,10 @@ class mission:
         self.arrival_confirm_count = 0
         self.arrival_start_time = 0.0
         self.last_target_index = -1
+
+        # 飞行数据日志
+        self._log_file = None
+        self._last_log_time = 0.0
 
     def load_waypoints(self):
         """从router.txt文件加载航点"""
@@ -140,6 +148,15 @@ class mission:
 
         self.task_running = True
         self.state = "TAKEOFF"
+        # 打开飞行数据日志
+        try:
+            path = os.path.dirname(os.path.realpath(sys.argv[0]))
+            log_file = open(path + "/flight_data.jsonl", "a")
+            log_file.write(json.dumps({"event": "task_start"}) + "\n")
+            log_file.flush()
+            self._log_file = log_file
+        except Exception:
+            pass
 
         threading.Thread(target=self.loop, daemon=True).start()
 
@@ -152,7 +169,7 @@ class mission:
                 continue
 
             # 串口超时检测：超过2秒无飞控回传数据则急停
-            if fc_last_rx_time > 0 and time.time() - fc_last_rx_time > 2.0:
+            if fc_last_rx_time.value > 0 and time.time() - fc_last_rx_time.value > 2.0:
                 logger.error("飞控串口超时无回传，触发紧急降落")
                 self.emergency_stop = True
                 continue
@@ -260,6 +277,24 @@ class mission:
             logger.warning(f"航点 {self.target_index} 超时，强制跳过")
             self.target_index += 1
 
+        # === 飞行数据日志（每秒记录一次） ===
+        now = time.time()
+        if now - self._last_log_time >= FLIGHT_LOG_INTERVAL and self._log_file is not None:
+            try:
+                record = {
+                    "t": round(now, 3),
+                    "state": self.state,
+                    "target_idx": self.target_index,
+                    "pos": [round(pos[0], 4), round(pos[1], 4), round(pos[2], 4)],
+                    "target": [round(target[0], 4), round(target[1], 4), round(target[2], 4)],
+                    "vx": vx, "vy": vy, "vyaw": vyaw,
+                }
+                self._log_file.write(json.dumps(record) + "\n")
+                self._log_file.flush()
+            except Exception:
+                pass
+            self._last_log_time = now
+
         if self.t265_ok:
             t265v = self.realsense.get_velocity()
             t265_str = f"| t265v=({t265v[0]:+.2f},{t265v[1]:+.2f})"
@@ -295,6 +330,11 @@ class mission:
     # ================= 停止 =================
     def stop_all(self):
         logger.info("任务结束")
+
+        try:
+            self._log_file.close()
+        except Exception:
+            pass
 
         with lock:
             self.se_fc[3] = sp_side
