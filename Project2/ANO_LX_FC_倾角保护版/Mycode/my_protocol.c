@@ -23,8 +23,9 @@ u8 yaw_l=0;
 u8 att_state=0;
 
 // 发送缓冲区
-static u8 tx_buf[15];  // 发送缓存帧数组
+static u8 tx_buf[19];  // 发送缓存帧数组（扩展激光高度）
 static u8 tx_stage = 0;
+extern _ano_of_st ano_of; // 激光测距高度通过光流串口回传
 
 
 s16 integ_side=0x4000;
@@ -239,10 +240,10 @@ s16 height_set(u32 height,u16 height_set)
 //}
 
 // 校验和：字节1~12累加
-static u8 calc_checksum(u8 *buf)
+static u8 calc_checksum(u8 *buf, u8 count)
 {
     u16 sum = 0;
-    for(u8 i=1; i<=12; i++) sum += buf[i];
+    for(u8 i=1; i<=count; i++) sum += buf[i];
     return (u8)(sum & 0xFF);
 }
 
@@ -271,15 +272,22 @@ void pi_send(void)
         tx_buf[11] = (y >> 0) & 0xFF;
         tx_buf[12] = (y >> 8) & 0xFF;
 
-        // 校验 + 帧尾
-        tx_buf[13] = calc_checksum(tx_buf);
-        tx_buf[14] = 0xFF;
+        // 激光测距高度（cm），通过光流串口回传
+        u32 h = ano_of.of_alt_cm;
+        tx_buf[13] = (h >> 0) & 0xFF;
+        tx_buf[14] = (h >> 8) & 0xFF;
+        tx_buf[15] = (h >> 16) & 0xFF;
+        tx_buf[16] = (h >> 24) & 0xFF;
+
+        // 校验 + 帧尾（checksum覆盖buf[1]~buf[16]）
+        tx_buf[17] = calc_checksum(tx_buf, 16);
+        tx_buf[18] = 0xFF;
 
         tx_stage = 1;
     }
-    else if(tx_stage >= 1 && tx_stage <= 15)
+    else if(tx_stage >= 1 && tx_stage <= 19)
     {
-        // 分段发送，每次1字节
+        // 分段发送，每次1字节（帧从15字节扩展为19字节）
         USART_SendData(USART2, tx_buf[tx_stage - 1]);
         tx_stage++;
     }

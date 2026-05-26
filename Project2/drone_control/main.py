@@ -40,7 +40,8 @@ serial_dmz.send_start(se_dmz)
 k230 = K230Client(os.getenv("DRONE_K230_PORT", "/dev/ttyS3"), 115200)
 
 # ==================== 只创建一次任务！====================
-mission1 = mission(re_fc, se_fc, re_dmz, se_dmz, realsense, k230)
+# 传递 serial_fc 引用，让 mission 可查询激光高度
+mission1 = mission(re_fc, se_fc, re_dmz, se_dmz, realsense, k230, serial_fc)
 
 while(1):
     if not run_sign:

@@ -28,6 +28,7 @@ class t265_class:
         self.error_count = 0
         self.max_error_count = 10
         self.calibration_offset = np.array([0.0, 0.0, 0.0])  # 校准偏移量
+        self.last_confidence = 3  # 最后已知追踪置信度 (0=失败,1=低,2=中,3=高)
         self.pipe = None
         self.cfg = None
         self.use_simulation = rs is None
@@ -80,13 +81,13 @@ class t265_class:
             logger.error(f"T265相机启动失败: {str(e)}")
             return False
     
-    def low_pass_filter(self, new_val, prev_val, alpha=0.3):
+    def low_pass_filter(self, new_val, prev_val, alpha=0.15):
         """低通滤波器
-        
+
         Args:
             new_val: 新值
             prev_val:  previous value
-            alpha: 滤波系数 (0-1)
+            alpha: 滤波系数 (0-1)，0.15≈8Hz截止频率，平衡噪声抑制和相位滞后
             
         Returns:
             滤波后的值
@@ -107,8 +108,12 @@ class t265_class:
                         # 检查追踪置信度（0=失败, 1=低, 2=中, 3=高）
                         # 飞行振动时置信度会下降，此时位置数据不可靠
                         tracking_confidence = getattr(data, 'tracker_confidence', 3)
+                        # 追踪置信度缓存（供外部读取）
+                        with self.lock:
+                            self.last_confidence = tracking_confidence
+
                         if tracking_confidence < 2:
-                            # 置信度过低，跳过此帧数据，保持上一帧有效值
+                            # 置信度过低，保持上一帧有效值不变（位置冻结）
                             # 以较低频率输出警告，避免刷屏
                             if not hasattr(self, '_last_conf_warn') or time.time() - self._last_conf_warn > 2.0:
                                 logger.warning(f"T265追踪置信度过低({tracking_confidence})，位置数据冻结")
@@ -303,12 +308,21 @@ class t265_class:
     
     def get_velocity(self):
         """获取当前速度数据
-        
+
         Returns:
             np.array: [vx, vy, vz] 单位：米/秒
         """
         with self.lock:
             return self.velocity_data.copy()
+
+    def get_tracking_confidence(self):
+        """获取最后已知的T265追踪置信度
+
+        Returns:
+            int: 0=失败, 1=低, 2=中, 3=高
+        """
+        with self.lock:
+            return int(self.last_confidence)
     
     def autoset(self):
         """自动设置初始位置为原点"""

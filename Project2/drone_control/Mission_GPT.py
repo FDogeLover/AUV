@@ -15,22 +15,23 @@ from Lcode.rgb_led import rgb_led
 put_height = 100
 fly_height = 100
 VEL_SCALE = 0.7  # XY/Yaw 速度缩放系数 (1.0=原速, 0.7=七成)
-posthreshold_xy = 0.15  # XY 到达阈值（米）
+posthreshold_xy = 0.15  # XY 到达阈值（米），置信度高时使用，低置信度时动态增大
 posthreshold_z = 0.20   # Z 到达阈值（米）
-arrival_confirm_need = 5  # XY 连续确认到达次数
-arrival_timeout_max = 10.0  # 单航点超时（秒）
+arrival_confirm_need = 15  # XY 连续确认到达次数 (~450ms)
+arrival_timeout_max = 5.0  # 单航点超时（秒）
 FLIGHT_LOG_INTERVAL = 1.0  # 飞行数据记录间隔（秒）
 
 
 class mission:
 
     def __init__(self, re_fc: List[int], se_fc: List[int], re_dmz: List[int], se_dmz: List[int],
-                 realsense_obj=None, k230_client=None):
+                 realsense_obj=None, k230_client=None, serial_fc_ref=None):
         self.re_fc = re_fc
         self.se_fc = se_fc
         self.re_dmz = re_dmz
         self.se_dmz = se_dmz
         self.k230 = k230_client
+        self.serial_fc_ref = serial_fc_ref  # 用于查询激光高度
 
         # 状态机
         self.state = "IDLE"
@@ -188,6 +189,14 @@ class mission:
                 logger.error("T265 ERROR")
                 continue
 
+            # P1a: 用飞控回传的激光测距高度覆盖 Z 轴（替代 T265 伪 Z 数据）
+            if self.serial_fc_ref is not None:
+                # 注意: _last_laser_height_cm 需要在 listen_fc 的 lock 中写入，保持一致
+                with lock:
+                    laser_h = self.serial_fc_ref._last_laser_height_cm
+                if laser_h > 0.05:  # 有效值 > 5cm
+                    pos[2] = laser_h
+
             # 状态机调度
             if self.state == "TAKEOFF":
                 self.takeoff()
@@ -233,6 +242,13 @@ class mission:
                 self.se_dmz[3] = 0
 
         # XY/Yaw: PID计算速度（检测期间也运行，维持悬停）
+        confidence = self.realsense.get_tracking_confidence() if self.t265_ok else 0
+
+        # P1c: 置信度==0 → 悬停不飞
+        if confidence == 0:
+            logger.warning("T265追踪完全丢失，悬停等待恢复")
+            self.set_speed(0, 0, 0, target_z)
+            return
         self.x_pid.set_target(target[0])
         self.y_pid.set_target(target[1])
         self.yaw_pid.set_target(0)
@@ -248,6 +264,13 @@ class mission:
         self.set_speed(vx, vy, -vyaw, target_z)
 
         # === 到达判断 ===
+        # P0b: 动态阈值 - 按追踪置信度自适应调整XY阈值
+        if confidence >= 3:
+            xy_thresh = 0.10   # 高置信度: 严格阈值
+        elif confidence == 2:
+            xy_thresh = posthreshold_xy  # 中置信度: 默认
+        else:
+            xy_thresh = 0.30   # 低置信度(1): 宽松阈值，避免噪声误判
         dx = abs(pos[0] - target[0])
         dy = abs(pos[1] - target[1])
         dz = abs(pos[2] - target[2])
@@ -262,7 +285,7 @@ class mission:
         if dy > 0.3:
             self.y_pid.reset()
 
-        xy_ok = dx < posthreshold_xy and dy < posthreshold_xy
+        xy_ok = dx < xy_thresh and dy < xy_thresh
         z_ok = dz < posthreshold_z
 
         if xy_ok and z_ok:

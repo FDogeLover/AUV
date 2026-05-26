@@ -14,6 +14,7 @@ class Serial_fc(object):
         self.rate=460800
         self.startbyte=b'\xAA'
         self.endbyte=0xFF
+        self._last_laser_height_cm = 0.0  # 最后已知激光高度(cm)
     def port_open(self):
         if not self.ser.is_open:
             self.ser.open()
@@ -30,21 +31,29 @@ class Serial_fc(object):
     def listen_fc(self,rxbuffer:List[int]):
         global fc_last_rx_time
         while self.fclisten_running ==True:
-            byte_data = self.ser.read() 
+            byte_data = self.ser.read()
             if byte_data == self.startbyte:
-                # 读取接下来的6个字节数据
-                recv = self.ser.read(6) #recv[0]是任务模式，recv[1]和recv[2]是x积分值，recv[3]和recv[4]是y积分值，recv[5]是帧尾
-                if len(recv) < 6:
+                # 读取接下来的10个字节数据
+                # 新帧格式: AA | task_sta | x_h x_l | y_h y_l | h_b0 b1 b2 b3 | CK FF
+                recv = self.ser.read(10)
+                if len(recv) < 10:
                     continue
                 # 判断数据是否符合通信协议，即以0xFF结尾
-                if recv[5] == self.endbyte:
+                if recv[9] == self.endbyte:
                     intergral_x = ((recv[1] << 8) | recv[2])-0x4000
                     intergral_y = ((recv[3] << 8) | recv[4])-0x4000
+                    # 激光测距高度(cm)，4字节小端序
+                    laser_height_cm = (recv[5]) | (recv[6] << 8) | (recv[7] << 16) | (recv[8] << 24)
                     with lock:
                         rxbuffer.clear()
                         rxbuffer.append(recv[0])
                         rxbuffer.append(intergral_x)
                         rxbuffer.append(intergral_y)
+                        rxbuffer.append(laser_height_cm)
+                    # 缓存激光高度供外部查询（有效值 > 10cm）
+                    if laser_height_cm > 50:
+                        with lock:
+                            self._last_laser_height_cm = float(laser_height_cm) / 100.0
                     fc_last_rx_time.value = time.time()
                     if recv[0]==0x05:
                         task_start_sign.value=True
