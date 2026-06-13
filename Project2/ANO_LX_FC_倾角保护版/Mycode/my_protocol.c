@@ -2,6 +2,10 @@
 #include "User_Task.h"
 #include "Ano_Math.h"
 #include "ANO_LX.h"
+
+/* Height positional PID state */
+static s16 s_height_integral = 0;
+static s16 s_height_err_last  = 0;
 volatile struct sdata received_data={0,0,140,0,0,0};
 struct PID_inc height_PID;
 struct PID_inc xy_PID;
@@ -179,19 +183,43 @@ void PID_init()
 	xy_PID.err_current=0;
 	xy_PID.err_last=0;
 	xy_PID.err_previous=0;
+	/* Reset height PID state */
+	s_height_integral = 0;
+	s_height_err_last  = 0;
 }
 
-s16 height_set(u32 height,u16 height_set)
+s16 height_set(u32 height, u16 height_target)
 {
-	s16 output=0;
-	height_PID.actual=height;
-	height_PID.target=height_set; 
-	height_PID.err_current=height_PID.target-height_PID.actual;
-	output=height_PID.p*(height_PID.err_current-height_PID.err_last)+height_PID.i*height_PID.err_current+height_PID.d*(height_PID.err_current-2*height_PID.err_last+height_PID.err_previous);
-	height_PID.err_previous=height_PID.err_last;
-	height_PID.err_last=height_PID.err_current;
-	if (output>30 ) output=30;
-	else if(output<-30) output=-30;
+	float rol_deg, pit_deg, tilt_deg, tilt_rad;
+	s16 err, i_term, output;
+
+	/* Tilt compensation: convert slant range to vertical height */
+	rol_deg = fc_att.st_data.rol_x100 / 100.0f;
+	pit_deg = fc_att.st_data.pit_x100 / 100.0f;
+	tilt_deg = my_sqrt(rol_deg * rol_deg + pit_deg * pit_deg);
+	if (tilt_deg > 45.0f) tilt_deg = 45.0f;
+	tilt_rad = tilt_deg * 0.0174533f;
+	height = (u32)((float)height * my_cos(tilt_rad));
+
+	err = (s16)height_target - (s16)height;
+
+	/* Integral separation: disable integral when |err| > 200 cm */
+	if (err > 200 || err < -200) {
+		i_term = 0;
+		s_height_integral = 0;
+	} else {
+		s_height_integral += err;
+		if (s_height_integral >  100) s_height_integral =  100;
+		if (s_height_integral < -100) s_height_integral = -100;
+		i_term = (s16)(0.05f * s_height_integral);
+	}
+
+	/* Positional PID: Kp=0.8, Ki=0.05, Kd=0.2 */
+	output = (s16)(0.8f * err + i_term + 0.2f * (err - s_height_err_last));
+	s_height_err_last = err;
+
+	if (output >  30) output =  30;
+	if (output < -30) output = -30;
 	return output;
 }
 

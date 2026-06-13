@@ -62,7 +62,7 @@ void pi_receive( u8 );
 void pi_send();
 void Send_str_by_len(USART_TypeDef * USARTx,u8 *s,u16 len);
 void PID_init();
-s16 height_set(u32 height,u16 height_set);
+s16 height_set(u32 height, u16 height_target);
 s16 xypid_set(s32 ,s16 ,u16 );
 // ========== 灵活帧 API ==========
 void flex_send(u8 id, const u8 *data, u8 len);
