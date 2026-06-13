@@ -21,6 +21,8 @@ arrival_confirm_need = 15  # XY 连续确认到达次数 (~450ms)
 arrival_timeout_max = 5.0  # 单航点超时（秒）
 FLIGHT_LOG_INTERVAL = 1.0  # 飞行数据记录间隔（秒）
 RAMP_STEP = 1.5        # cm per frame at 30 ms cycle ≈ 50 cm/s climb/descent rate
+TAKEOFF_CONFIRM_NEED = 10     # consecutive frames within ±10 cm of target
+TAKEOFF_TIMEOUT_S    = 15.0   # force transition to NAVIGATE after this
 
 
 class mission:
@@ -218,13 +220,51 @@ class mission:
 
     # ================= 起飞 =================
     def takeoff(self):
-        logger.info("起飞")
+        logger.info("takeoff: started")
 
-        lock.acquire()
-        self.se_fc[2] = 1  # 触发飞控任务（解锁→模式切换→进入指令接收）
-        lock.release()
+        with lock:
+            self.se_fc[2] = 1  # trigger FC: unlock + mode switch
 
-        time.sleep(1)  # 等待飞控完成 unlock + mode switch
+        target_h_cm = float(self.targets[0][2] * 100)
+        confirm_count = 0
+        t_start = time.time()
+
+        while True:
+            elapsed = time.time() - t_start
+
+            # Yaw stabilization during climb
+            if self.t265_ok:
+                try:
+                    yaw = self.realsense.get_orientation()[2]
+                    vyaw = int(self.limit(self.yaw_pid.get_pid(yaw) * VEL_SCALE, 30))
+                    with lock:
+                        self.se_fc[6] = vyaw + sp_side
+                except Exception:
+                    pass
+
+            # Height confirmation (note: _last_laser_height_cm is in metres)
+            with lock:
+                laser_m = self.serial_fc_ref._last_laser_height_cm \
+                          if self.serial_fc_ref else 0.0
+            laser_cm = laser_m * 100.0
+
+            if laser_cm > 5.0 and abs(laser_cm - target_h_cm) <= 10.0:
+                confirm_count += 1
+            else:
+                confirm_count = 0
+
+            if confirm_count >= TAKEOFF_CONFIRM_NEED:
+                logger.info(f"takeoff: height confirmed {laser_cm:.0f} cm")
+                break
+
+            if elapsed >= TAKEOFF_TIMEOUT_S:
+                logger.warning("takeoff: timeout, proceeding anyway")
+                break
+
+            time.sleep(0.03)
+
+        # Seed ramp at first waypoint height so navigate() starts smooth
+        self._ramp_z_cm = target_h_cm
         self.state = "NAVIGATE"
     
     def navigate(self, pos, yaw):

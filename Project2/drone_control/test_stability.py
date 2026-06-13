@@ -111,3 +111,77 @@ class TestMissionRamp:
 
         # se_fc[5] must reflect ramp value (91), not direct target_z (100)
         assert m.se_fc[5] == 91
+
+
+# ════════════════════ Takeoff tests ════════════════════
+
+class TestTakeoff:
+    def test_takeoff_sets_task_sta_to_1(self):
+        """se_fc[2] must be set to 1 immediately."""
+        m = make_mission()
+        m.t265_ok = False
+
+        tick = [0.0]
+        def fake_time():
+            tick[0] += 2.0          # advance 2 s per call → timeout in ~8 calls
+            return tick[0]
+
+        with patch('Mission_GPT.time.sleep', lambda _: None), \
+             patch('Mission_GPT.time.time', fake_time):
+            m.takeoff()
+
+        assert m.se_fc[2] == 1
+
+    def test_takeoff_transitions_to_navigate(self):
+        """State must be NAVIGATE after takeoff() returns."""
+        m = make_mission()
+        m.t265_ok = False
+
+        tick = [0.0]
+        def fake_time():
+            tick[0] += 2.0
+            return tick[0]
+
+        with patch('Mission_GPT.time.sleep', lambda _: None), \
+             patch('Mission_GPT.time.time', fake_time):
+            m.takeoff()
+
+        assert m.state == "NAVIGATE"
+
+    def test_takeoff_initializes_ramp_z_to_first_waypoint(self):
+        """_ramp_z_cm must equal targets[0][2]*100 when takeoff exits."""
+        m = make_mission()
+        m.t265_ok = False
+
+        tick = [0.0]
+        def fake_time():
+            tick[0] += 2.0
+            return tick[0]
+
+        with patch('Mission_GPT.time.sleep', lambda _: None), \
+             patch('Mission_GPT.time.time', fake_time):
+            m.takeoff()
+
+        assert m._ramp_z_cm == pytest.approx(100.0)   # targets[0][2]=1.0 m → 100 cm
+
+    def test_takeoff_exits_early_on_height_confirmed(self):
+        """If laser height matches target for 10 frames, exit before timeout."""
+        m = make_mission()
+        m.t265_ok = False
+        m.serial_fc_ref._last_laser_height_cm = 1.0   # 1.0 m = 100 cm (target)
+
+        call_count = [0]
+        tick = [0.0]
+        def fake_time():
+            tick[0] += 0.03        # realistic 30 ms per frame — stays well within 15 s
+            return tick[0]
+
+        def fake_sleep(t):
+            call_count[0] += 1
+
+        with patch('Mission_GPT.time.sleep', fake_sleep), \
+             patch('Mission_GPT.time.time', fake_time):
+            m.takeoff()
+
+        assert m.state == "NAVIGATE"
+        assert call_count[0] <= 20   # must exit in ≤ 20 frames (10 confirm + margin)
