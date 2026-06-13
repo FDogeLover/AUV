@@ -20,6 +20,7 @@ posthreshold_z = 0.20   # Z 到达阈值（米）
 arrival_confirm_need = 15  # XY 连续确认到达次数 (~450ms)
 arrival_timeout_max = 5.0  # 单航点超时（秒）
 FLIGHT_LOG_INTERVAL = 1.0  # 飞行数据记录间隔（秒）
+RAMP_STEP = 1.5        # cm per frame at 30 ms cycle ≈ 50 cm/s climb/descent rate
 
 
 class mission:
@@ -59,6 +60,9 @@ class mission:
         self.arrival_confirm_count = 0
         self.arrival_start_time = 0.0
         self.last_target_index = -1
+
+        # Height ramp state (cm); steps toward target each navigate() frame
+        self._ramp_z_cm = 0.0
 
         # 飞行数据日志
         self._log_file = None
@@ -247,7 +251,8 @@ class mission:
         # P1c: 置信度==0 → 悬停不飞
         if confidence == 0:
             logger.warning("T265追踪完全丢失，悬停等待恢复")
-            self.set_speed(0, 0, 0, target_z)
+            # Hold current ramp height during hover; avoid a Z jump on lost tracking
+            self.set_speed(0, 0, 0, int(self._ramp_z_cm))
             return
         self.x_pid.set_target(target[0])
         self.y_pid.set_target(target[1])
@@ -261,7 +266,9 @@ class mission:
         vx = int(self.limit(vx, 40))
         vy = int(self.limit(vy, 40))
         vyaw = int(self.limit(vyaw * VEL_SCALE, 30))
-        self.set_speed(vx, vy, -vyaw, target_z)
+        # Smooth height: step the ramp toward target_z, send ramped value (no jumps)
+        self._step_ramp_z(target_z)
+        self.set_speed(vx, vy, -vyaw, int(self._ramp_z_cm))
 
         # === 到达判断 ===
         # P0b: 动态阈值 - 按追踪置信度自适应调整XY阈值
@@ -381,6 +388,15 @@ class mission:
     # ================= 工具 =================
     def limit(self, v, max_v=0.3):
         return max(min(v, max_v), -max_v)
+
+    def _step_ramp_z(self, target_z_cm: float):
+        """Step the ramped Z command one frame toward target_z_cm (no jumps)."""
+        if self._ramp_z_cm < target_z_cm - RAMP_STEP:
+            self._ramp_z_cm += RAMP_STEP
+        elif self._ramp_z_cm > target_z_cm + RAMP_STEP:
+            self._ramp_z_cm -= RAMP_STEP
+        else:
+            self._ramp_z_cm = target_z_cm
 
     # ================= 急停 =================
     def emergency(self):
