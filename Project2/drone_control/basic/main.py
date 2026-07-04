@@ -26,7 +26,7 @@ from t265 import t265_class
 
 
 # ======================== 变量 ========================
-re_fc = [0, 0, 0, 0, 0, 0, 0, 0]  # [mission_stage, roll_x100, pitch_x100, yaw_x100, state, integral_x, integral_y, laser_cm]
+re_fc = [0] * 14  # [mission_stage, roll_x100, pitch_x100, yaw_x100, fusion_state, unlock_sta, integral_x, integral_y, laser_cm, of1_dx, of1_dy, of_quality, of_link_sta, of_work_sta]
 
 # AA 02 task_sta com_x+sp com_y+sp com_z com_yaw+sp next_task sp_side CK FF
 se_fc = [170, 2, 0, sp_side, sp_side, 120, sp_side, 0, sp_side, 0, 255]

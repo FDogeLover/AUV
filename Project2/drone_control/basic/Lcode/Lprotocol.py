@@ -4,7 +4,9 @@
 帧协议:
   AA 01: T265 速度帧 (vx, vy, yaw)  @100Hz
   AA 02: 指令帧 (task_sta, com_x/y/z/yaw)  @50Hz
-  AA..FF: 飞控下行遥测 (mission_stage, 姿态, 激光高度)
+  AA frame_id len DATA CK FF: 飞控下行遥测
+    frame_id=0x01 飞行关键帧 @50Hz（姿态/解锁状态/激光高度/光流速度）
+    frame_id=0x02 调试扩展帧 @2Hz（飞控速度估计/光流IMU原始数据）
 """
 import serial
 import threading
@@ -16,11 +18,14 @@ from Lcode.global_variable import lock, fc_last_rx_time
 
 class Serial_fc(object):
     def __init__(self, port, baudrate):
-        self.ser = serial.Serial(port=port, baudrate=baudrate, timeout=0.05)
+        # 帧1(29字节)按1字节/20ms分段发送，最长约需0.6秒才能收全，
+        # 超时必须覆盖这个耗时，否则 read() 会提前返回不完整数据
+        self.ser = serial.Serial(port=port, baudrate=baudrate, timeout=1.0)
         self.fclisten_running = False
         self.t265send_running = False
         self.cmdsend_running = False
         self._last_laser_height_cm = 0.0  # 最后已知激光高度 (m)
+        self.debug_data = {}  # 调试扩展帧(0x02)最新数据: fc_vel/of_acc/of_gyr
 
     def listen_start(self, rxbuffer: List[int]):
         self.fclisten_running = True
@@ -34,43 +39,84 @@ class Serial_fc(object):
         logger.info("飞控串口监听线程关闭")
 
     def listen_fc(self, rxbuffer: List[int]):
-        """接收下行帧 (19字节): AA mission_stage rol_l/h pit_l/h yaw_l/h state x_int_l/h y_int_l/h laser(4B) CK FF"""
+        """接收下行帧: AA | frame_id | len | DATA[len] | checksum | 0xFF
+        frame_id=0x01 飞行关键帧(24B, 50Hz): mission_stage/rol/pit/yaw/fusion_state/unlock_sta/x_int/y_int/laser/of1_dx/of1_dy/of_quality/of_link_sta/of_work_sta
+        frame_id=0x02 调试扩展帧(18B, 2Hz):  fc_vel_xyz / of_acc_xyz / of_gyr_xyz
+        """
         while self.fclisten_running:
             byte_data = self.ser.read()
             if byte_data == b'\xAA':
-                recv = self.ser.read(18)
-                if len(recv) < 18:
+                header = self.ser.read(2)
+                if len(header) < 2:
                     continue
-                if recv[17] == 0xFF:
-                    checksum = sum(recv[0:16]) & 0xFF
-                    if checksum != recv[16]:
-                        continue
+                frame_id, length = header[0], header[1]
+                body = self.ser.read(length + 2)
+                if len(body) < length + 2:
+                    continue
+                data = body[:length]
+                checksum_recv = body[length]
+                end_byte = body[length + 1]
+                if end_byte != 0xFF:
+                    continue
+                checksum = (sum(header) + sum(data)) & 0xFF
+                if checksum != checksum_recv:
+                    continue
 
-                    def to_signed16(v):
-                        return v - 0x10000 if v >= 0x8000 else v
+                def to_signed16(v):
+                    return v - 0x10000 if v >= 0x8000 else v
 
-                    mission_stage = recv[0]
-                    roll_x100 = to_signed16(recv[1] | (recv[2] << 8))
-                    pitch_x100 = to_signed16(recv[3] | (recv[4] << 8))
-                    yaw_x100 = to_signed16(recv[5] | (recv[6] << 8))
-                    state = recv[7]
-                    integral_x = (recv[8] | (recv[9] << 8)) - 0x4000
-                    integral_y = (recv[10] | (recv[11] << 8)) - 0x4000
-                    laser_height_cm = recv[12] | (recv[13] << 8) | (recv[14] << 16) | (recv[15] << 24)
+                if frame_id == 0x01 and length == 24:
+                    mission_stage = data[0]
+                    roll_x100 = to_signed16(data[1] | (data[2] << 8))
+                    pitch_x100 = to_signed16(data[3] | (data[4] << 8))
+                    yaw_x100 = to_signed16(data[5] | (data[6] << 8))
+                    fusion_state = data[7]
+                    unlock_sta = data[8]
+                    integral_x = (data[9] | (data[10] << 8)) - 0x4000
+                    integral_y = (data[11] | (data[12] << 8)) - 0x4000
+                    laser_height_cm = data[13] | (data[14] << 8) | (data[15] << 16) | (data[16] << 24)
+                    of1_dx = to_signed16(data[17] | (data[18] << 8))
+                    of1_dy = to_signed16(data[19] | (data[20] << 8))
+                    of_quality = data[21]
+                    of_link_sta = data[22]
+                    of_work_sta = data[23]
                     with lock:
                         rxbuffer.clear()
                         rxbuffer.append(mission_stage)
                         rxbuffer.append(roll_x100)
                         rxbuffer.append(pitch_x100)
                         rxbuffer.append(yaw_x100)
-                        rxbuffer.append(state)
+                        rxbuffer.append(fusion_state)
+                        rxbuffer.append(unlock_sta)
                         rxbuffer.append(integral_x)
                         rxbuffer.append(integral_y)
                         rxbuffer.append(laser_height_cm)
+                        rxbuffer.append(of1_dx)
+                        rxbuffer.append(of1_dy)
+                        rxbuffer.append(of_quality)
+                        rxbuffer.append(of_link_sta)
+                        rxbuffer.append(of_work_sta)
                     if laser_height_cm > 50:
                         with lock:
                             self._last_laser_height_cm = float(laser_height_cm) / 100.0
                     fc_last_rx_time.value = time.time()
+
+                elif frame_id == 0x02 and length == 18:
+                    fc_vel_x = to_signed16(data[0] | (data[1] << 8))
+                    fc_vel_y = to_signed16(data[2] | (data[3] << 8))
+                    fc_vel_z = to_signed16(data[4] | (data[5] << 8))
+                    of_acc_x = to_signed16(data[6] | (data[7] << 8))
+                    of_acc_y = to_signed16(data[8] | (data[9] << 8))
+                    of_acc_z = to_signed16(data[10] | (data[11] << 8))
+                    of_gyr_x = to_signed16(data[12] | (data[13] << 8))
+                    of_gyr_y = to_signed16(data[14] | (data[15] << 8))
+                    of_gyr_z = to_signed16(data[16] | (data[17] << 8))
+                    with lock:
+                        self.debug_data = {
+                            "fc_vel": (fc_vel_x, fc_vel_y, fc_vel_z),
+                            "of_acc": (of_acc_x, of_acc_y, of_acc_z),
+                            "of_gyr": (of_gyr_x, of_gyr_y, of_gyr_z),
+                        }
             time.sleep(0.05)
 
     def _send_t265_loop(self, t265_obj, freq):

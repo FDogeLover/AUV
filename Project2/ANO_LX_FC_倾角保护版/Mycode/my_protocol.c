@@ -26,9 +26,11 @@ u8 yaw_h=0;
 u8 yaw_l=0;
 u8 att_state=0;
 
-// 发送缓冲区
-static u8 tx_buf[19];  // 发送缓存帧数组（扩展激光高度）
-static u8 tx_stage = 0;
+// 发送控制
+// 帧1/帧2整帧一次性阻塞发送(Send_str_by_len)，不再逐字节跨tick分段，
+// 29字节@460800波特率实际传输仅需约0.6ms，相对20ms调度周期可忽略不计，
+// 避免了"分段发送状态机互相抢占USART2导致数据交织"以及"完整帧实际到达率远低于调度频率"两个问题
+static u8 tx_debug_pending = 0; // 帧2发送请求标志，由 pi_send_debug() 置位
 extern _ano_of_st ano_of; // 激光测距高度通过光流串口回传
 
 
@@ -277,51 +279,112 @@ static u8 calc_checksum(u8 *buf, u8 count)
 
 void pi_send(void)
 {
-    if(tx_stage == 0)
+    // 帧1/帧2共用同一条USART2，整帧一次性阻塞发送(Send_str_by_len)，
+    // 任意时刻只会有一个完整帧在发送，不存在两帧交织的问题；
+    // 29字节@460800波特率实际传输约0.6ms，对20ms调度周期可忽略不计。
+    if(tx_debug_pending)
     {
-        // ========== 打包发送帧 ==========
-        tx_buf[0] = 0xAA;  // 帧头
-        tx_buf[1] = mission_stage;
+        // ========== 打包并整帧发送 (ID=0x02: 调试扩展帧) ==========
+        u8 buf2[23];
+        tx_debug_pending = 0;
 
-        // 姿态角
-        tx_buf[2] = (fc_att.st_data.rol_x100 >> 0) & 0xFF;
-        tx_buf[3] = (fc_att.st_data.rol_x100 >> 8) & 0xFF;
-        tx_buf[4] = (fc_att.st_data.pit_x100 >> 0) & 0xFF;
-        tx_buf[5] = (fc_att.st_data.pit_x100 >> 8) & 0xFF;
-        tx_buf[6] = (fc_att.st_data.yaw_x100 >> 0) & 0xFF;
-        tx_buf[7] = (fc_att.st_data.yaw_x100 >> 8) & 0xFF;
-        tx_buf[8] = fc_att.st_data.state;
+        buf2[0] = 0xAA;
+        buf2[1] = 0x02;  // 帧类型: 调试扩展帧
+        buf2[2] = 18;    // 数据长度
 
-        // X/Y 积分
-        s16 x = ano_of.intergral_x + 0x4000;
-        s16 y = ano_of.intergral_y + 0x4000;
-        tx_buf[9]  = (x >> 0) & 0xFF;
-        tx_buf[10] = (x >> 8) & 0xFF;
-        tx_buf[11] = (y >> 0) & 0xFF;
-        tx_buf[12] = (y >> 8) & 0xFF;
+        // 飞控（凌霄IMU）速度估计
+        buf2[3] = (fc_vel.st_data.vel_x >> 0) & 0xFF;
+        buf2[4] = (fc_vel.st_data.vel_x >> 8) & 0xFF;
+        buf2[5] = (fc_vel.st_data.vel_y >> 0) & 0xFF;
+        buf2[6] = (fc_vel.st_data.vel_y >> 8) & 0xFF;
+        buf2[7] = (fc_vel.st_data.vel_z >> 0) & 0xFF;
+        buf2[8] = (fc_vel.st_data.vel_z >> 8) & 0xFF;
 
-        // 激光测距高度（cm），通过光流串口回传
-        u32 h = ano_of.of_alt_cm;
-        tx_buf[13] = (h >> 0) & 0xFF;
-        tx_buf[14] = (h >> 8) & 0xFF;
-        tx_buf[15] = (h >> 16) & 0xFF;
-        tx_buf[16] = (h >> 24) & 0xFF;
+        // 光流模块自带 IMU 原始数据（振动/交叉验证诊断用）
+        buf2[9]  = (ano_of.acc_data_x >> 0) & 0xFF;
+        buf2[10] = (ano_of.acc_data_x >> 8) & 0xFF;
+        buf2[11] = (ano_of.acc_data_y >> 0) & 0xFF;
+        buf2[12] = (ano_of.acc_data_y >> 8) & 0xFF;
+        buf2[13] = (ano_of.acc_data_z >> 0) & 0xFF;
+        buf2[14] = (ano_of.acc_data_z >> 8) & 0xFF;
+        buf2[15] = (ano_of.gyr_data_x >> 0) & 0xFF;
+        buf2[16] = (ano_of.gyr_data_x >> 8) & 0xFF;
+        buf2[17] = (ano_of.gyr_data_y >> 0) & 0xFF;
+        buf2[18] = (ano_of.gyr_data_y >> 8) & 0xFF;
+        buf2[19] = (ano_of.gyr_data_z >> 0) & 0xFF;
+        buf2[20] = (ano_of.gyr_data_z >> 8) & 0xFF;
 
-        // 校验 + 帧尾（checksum覆盖buf[1]~buf[16]）
-        tx_buf[17] = calc_checksum(tx_buf, 16);
-        tx_buf[18] = 0xFF;
+        // 校验 + 帧尾（checksum覆盖buf2[1]~buf2[20]）
+        buf2[21] = calc_checksum(buf2, 20);
+        buf2[22] = 0xFF;
 
-        tx_stage = 1;
+        Send_str_by_len(USART2, buf2, 23);
+        return;
     }
-    else if(tx_stage >= 1 && tx_stage <= 19)
+
+    // ========== 打包并整帧发送 (ID=0x01: 飞行关键帧) ==========
+    u8 buf[29];
+
+    buf[0] = 0xAA;  // 帧头
+    buf[1] = 0x01;  // 帧类型: 飞行关键帧
+    buf[2] = 24;    // 数据长度
+
+    buf[3] = mission_stage;
+
+    // 姿态角
+    buf[4] = (fc_att.st_data.rol_x100 >> 0) & 0xFF;
+    buf[5] = (fc_att.st_data.rol_x100 >> 8) & 0xFF;
+    buf[6] = (fc_att.st_data.pit_x100 >> 0) & 0xFF;
+    buf[7] = (fc_att.st_data.pit_x100 >> 8) & 0xFF;
+    buf[8] = (fc_att.st_data.yaw_x100 >> 0) & 0xFF;
+    buf[9] = (fc_att.st_data.yaw_x100 >> 8) & 0xFF;
+    buf[10] = fc_att.st_data.state;   // 姿态融合状态
+
+    buf[11] = fc_sta.unlock_sta;      // 解锁状态（真实值，来自凌霄IMU CMD 0x06）
+
+    // X/Y 积分（光流）
+    s16 x = ano_of.intergral_x + 0x4000;
+    s16 y = ano_of.intergral_y + 0x4000;
+    buf[12] = (x >> 0) & 0xFF;
+    buf[13] = (x >> 8) & 0xFF;
+    buf[14] = (y >> 0) & 0xFF;
+    buf[15] = (y >> 8) & 0xFF;
+
+    // 激光测距高度（cm），通过光流串口回传
+    u32 h = ano_of.of_alt_cm;
+    buf[16] = (h >> 0) & 0xFF;
+    buf[17] = (h >> 8) & 0xFF;
+    buf[18] = (h >> 16) & 0xFF;
+    buf[19] = (h >> 24) & 0xFF;
+
+    // 光流融合速度 (of1_dx/dy)
+    buf[20] = (ano_of.of1_dx >> 0) & 0xFF;
+    buf[21] = (ano_of.of1_dx >> 8) & 0xFF;
+    buf[22] = (ano_of.of1_dy >> 0) & 0xFF;
+    buf[23] = (ano_of.of1_dy >> 8) & 0xFF;
+
+    // 光流质量/连接状态/工作状态
+    buf[24] = ano_of.of_quality;
+    buf[25] = ano_of.link_sta;
+    buf[26] = ano_of.work_sta;
+
+    // 校验 + 帧尾（checksum覆盖buf[1]~buf[26]）
+    buf[27] = calc_checksum(buf, 26);
+    buf[28] = 0xFF;
+
+    Send_str_by_len(USART2, buf, 29);
+}
+
+void pi_send_debug(void)
+{
+    // 帧2(23字节)整帧发送耗时约0.4ms(可忽略)，但仍不宜太频繁触发调试数据，
+    // 这里做降频：每调用5次才真正触发一次(约2.5秒一次)。
+    static u8 div_cnt = 0;
+    div_cnt++;
+    if (div_cnt >= 5)
     {
-        // 分段发送，每次1字节（帧从15字节扩展为19字节）
-        USART_SendData(USART2, tx_buf[tx_stage - 1]);
-        tx_stage++;
-    }
-    else
-    {
-        tx_stage = 0;  // 发送完成，复位
+        div_cnt = 0;
+        tx_debug_pending = 1;
     }
 }
 

@@ -352,6 +352,17 @@ class mission:
             logger.warning(f"航点 {self.target_index} 超时，强制跳过")
             self.target_index += 1
 
+        # T265 速度（日志和终端输出共用，避免重复取值）
+        if self.t265_ok:
+            t265v = self.realsense.get_velocity()
+        else:
+            t265v = (0.0, 0.0, 0.0)
+
+        # 光流融合速度（帧1 of1_dx/dy，用于跟 T265 速度交叉对比）
+        with lock:
+            of1_dx = self.re_fc[9] if len(self.re_fc) > 9 else 0
+            of1_dy = self.re_fc[10] if len(self.re_fc) > 10 else 0
+
         # === 飞行数据日志（每秒记录一次） ===
         now = time.time()
         if now - self._last_log_time >= FLIGHT_LOG_INTERVAL and self._log_file is not None:
@@ -363,6 +374,8 @@ class mission:
                     "pos": [round(pos[0], 4), round(pos[1], 4), round(pos[2], 4)],
                     "target": [round(target[0], 4), round(target[1], 4), round(target[2], 4)],
                     "vx": vx, "vy": vy, "vyaw": vyaw,
+                    "t265_vel": [round(t265v[0], 4), round(t265v[1], 4)],
+                    "of1_vel_cms": [of1_dx, of1_dy],
                 }
                 self._log_file.write(json.dumps(record) + "\n")
                 self._log_file.flush()
@@ -371,8 +384,7 @@ class mission:
             self._last_log_time = now
 
         if self.t265_ok:
-            t265v = self.realsense.get_velocity()
-            t265_str = f"| t265v=({t265v[0]:+.2f},{t265v[1]:+.2f})"
+            t265_str = f"| t265v=({t265v[0]:+.2f},{t265v[1]:+.2f}) | of1=({of1_dx:+d},{of1_dy:+d})"
         else:
             t265_str = ""
 

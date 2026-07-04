@@ -2,6 +2,7 @@
 #include "stm32f4xx.h"
 #include "Drv_AnoOf.h"
 #include "angle_protect.h"
+#include "LX_FC_State.h"
 #ifndef _MY_PROTOCOL_H_
 #define _MY_PROTOCOL_H_
 
@@ -60,6 +61,7 @@ struct lidar_data
 void my_spcal(s16,s16);
 void pi_receive( u8 );
 void pi_send();
+void pi_send_debug();
 void Send_str_by_len(USART_TypeDef * USARTx,u8 *s,u16 len);
 void PID_init();
 s16 height_set(u32 height, u16 height_target);
