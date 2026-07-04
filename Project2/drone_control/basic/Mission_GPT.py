@@ -17,6 +17,7 @@ from Lcode.global_variable import sp_side, lock, fc_last_rx_time
 from t265 import t265_class
 
 # ---------- 常量 ----------
+DRY_RUN = os.getenv("DRONE_DRY_RUN", "0") == "1"  # 桌面测试: 不解锁飞控，电机不会转
 put_height = 100
 fly_height = 100
 VEL_SCALE = 0.7
@@ -102,12 +103,22 @@ class mission:
 
     # ================= 启动 =================
     def start(self):
+        if DRY_RUN:
+            logger.warning("=" * 40)
+            logger.warning("DRY_RUN 模式已启用 — 飞控不会解锁，电机不会转")
+            logger.warning("=" * 40)
+
         if self.realsense and self.realsense.start():
             self.realsense.autoset()
             self.t265_ok = True
             logger.info("T265 OK")
         else:
-            logger.error("T265 FAILED — 仅高度模式可用")
+            logger.error("T265 FAILED — 无水平位置反馈，仅高度模式起飞有失控风险")
+            confirm = input("T265 未连接，输入 YES 强制以仅高度模式起飞，其他任意键取消任务: ")
+            if confirm.strip() != "YES":
+                logger.error("任务已取消（T265 未确认）")
+                return
+            logger.warning("已人工确认，强制以仅高度模式起飞")
 
         logger.info(f"任务启动, {len(self.targets)} 个航点")
 
@@ -177,10 +188,13 @@ class mission:
 
     # ================= 起飞 =================
     def takeoff(self):
-        logger.info("takeoff: started")
+        if DRY_RUN:
+            logger.warning("takeoff: DRY_RUN 模式，不发送解锁指令，电机不会转")
+        else:
+            logger.info("takeoff: started")
 
         with lock:
-            self.se_fc[2] = 1
+            self.se_fc[2] = 0 if DRY_RUN else 1
 
         target_h_cm = float(self.targets[0][2] * 100) if self.targets else 100.0
         confirm_count = 0

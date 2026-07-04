@@ -33,20 +33,35 @@ class Serial_fc(object):
         while self.fclisten_running ==True:
             byte_data = self.ser.read()
             if byte_data == self.startbyte:
-                # 读取接下来的10个字节数据
-                # 新帧格式: AA | task_sta | x_h x_l | y_h y_l | h_b0 b1 b2 b3 | CK FF
-                recv = self.ser.read(10)
-                if len(recv) < 10:
+                # 读取接下来的18个字节数据
+                # 新帧格式: AA | mission_stage | rol_l/h | pit_l/h | yaw_l/h | state | x_int_l/h | y_int_l/h | h_b0 b1 b2 b3 | CK FF
+                recv = self.ser.read(18)
+                if len(recv) < 18:
                     continue
                 # 判断数据是否符合通信协议，即以0xFF结尾
-                if recv[9] == self.endbyte:
-                    intergral_x = ((recv[1] << 8) | recv[2])-0x4000
-                    intergral_y = ((recv[3] << 8) | recv[4])-0x4000
+                if recv[17] == self.endbyte:
+                    checksum = sum(recv[0:16]) & 0xFF
+                    if checksum != recv[16]:
+                        continue
+
+                    def to_signed16(v):
+                        return v - 0x10000 if v >= 0x8000 else v
+
+                    roll_x100 = to_signed16(recv[1] | (recv[2] << 8))
+                    pitch_x100 = to_signed16(recv[3] | (recv[4] << 8))
+                    yaw_x100 = to_signed16(recv[5] | (recv[6] << 8))
+                    state = recv[7]
+                    intergral_x = (recv[8] | (recv[9] << 8))-0x4000
+                    intergral_y = (recv[10] | (recv[11] << 8))-0x4000
                     # 激光测距高度(cm)，4字节小端序
-                    laser_height_cm = (recv[5]) | (recv[6] << 8) | (recv[7] << 16) | (recv[8] << 24)
+                    laser_height_cm = (recv[12]) | (recv[13] << 8) | (recv[14] << 16) | (recv[15] << 24)
                     with lock:
                         rxbuffer.clear()
                         rxbuffer.append(recv[0])
+                        rxbuffer.append(roll_x100)
+                        rxbuffer.append(pitch_x100)
+                        rxbuffer.append(yaw_x100)
+                        rxbuffer.append(state)
                         rxbuffer.append(intergral_x)
                         rxbuffer.append(intergral_y)
                         rxbuffer.append(laser_height_cm)

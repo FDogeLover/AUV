@@ -125,7 +125,12 @@ class mission:
             self.t265_ok = True
             logger.info("T265 OK")
         else:
-            logger.error("T265 FAILED")
+            logger.error("T265 FAILED — 无水平位置反馈，仅高度模式起飞有失控风险")
+            confirm = input("T265 未连接，输入 YES 强制以仅高度模式起飞，其他任意键取消任务: ")
+            if confirm.strip() != "YES":
+                logger.error("任务已取消（T265 未确认）")
+                return
+            logger.warning("已人工确认，强制以仅高度模式起飞")
 
         # === 动态路径生成（优先用地面站禁飞区，失败则保留 load_waypoints 结果） ===
         gs_ok = False
