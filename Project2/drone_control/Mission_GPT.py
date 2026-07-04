@@ -23,6 +23,8 @@ FLIGHT_LOG_INTERVAL = 1.0  # 飞行数据记录间隔（秒）
 RAMP_STEP = 1.5        # cm per frame at 30 ms cycle ≈ 50 cm/s climb/descent rate
 TAKEOFF_CONFIRM_NEED = 10     # consecutive frames within ±10 cm of target
 TAKEOFF_TIMEOUT_S    = 15.0   # force transition to NAVIGATE after this
+T265_CONFIDENCE_MIN = 2       # 定点所需最低追踪置信度 (0=失败,1=低,2=中,3=高)
+T265_CONFIDENCE_WAIT_S = 8.0  # 等待置信度达标的超时时间
 
 
 class mission:
@@ -124,6 +126,23 @@ class mission:
             self.realsense.autoset()
             self.t265_ok = True
             logger.info("T265 OK")
+
+            # 等待追踪置信度稳定，避免T265刚连上、置信度还没起来就进入定点模式
+            t_wait_start = time.time()
+            confidence = self.realsense.get_tracking_confidence()
+            while confidence < T265_CONFIDENCE_MIN and time.time() - t_wait_start < T265_CONFIDENCE_WAIT_S:
+                time.sleep(0.2)
+                confidence = self.realsense.get_tracking_confidence()
+
+            if confidence < T265_CONFIDENCE_MIN:
+                logger.error(f"T265 置信度 {T265_CONFIDENCE_WAIT_S:.0f} 秒内仍偏低(confidence={confidence})，定点可能不稳定")
+                confirm = input(f"T265置信度过低(confidence={confidence})，输入 YES 强制起飞，其他任意键取消任务: ")
+                if confirm.strip() != "YES":
+                    logger.error("任务已取消（T265置信度未确认）")
+                    return
+                logger.warning("已人工确认，强制以低置信度T265数据起飞")
+            else:
+                logger.info(f"T265 追踪置信度已稳定 (confidence={confidence})")
         else:
             logger.error("T265 FAILED — 无水平位置反馈，仅高度模式起飞有失控风险")
             confirm = input("T265 未连接，输入 YES 强制以仅高度模式起飞，其他任意键取消任务: ")

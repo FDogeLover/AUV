@@ -46,6 +46,7 @@ extern u8 task_mode;
 extern s16 CSPX,CSPY;
 extern volatile s16 t265_vel_x, t265_vel_y;
 extern volatile s16 t265_yaw_angle; // T265 偏航角，单位 0.01°，范围 [-18000,18000]
+extern volatile s32 t265_pos_x, t265_pos_y, t265_pos_z; // T265 位置，单位cm（简化版：未做解锁时机头对齐）
 ///////////////////////////////////////结构体
 struct lidar_data
 {

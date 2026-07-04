@@ -37,6 +37,7 @@ extern _ano_of_st ano_of; // 激光测距高度通过光流串口回传
 s16 integ_side=0x4000;
 volatile s16 t265_vel_x = 0, t265_vel_y = 0;
 volatile s16 t265_yaw_angle = 0; // T265 偏航角，单位 0.01°
+volatile s32 t265_pos_x = 0, t265_pos_y = 0, t265_pos_z = 0; // T265 位置，单位cm（简化版：未做解锁时机头对齐）
 
 // ========== 灵活帧协议 ==========
 // 帧格式: AA FF | ID(0xF1~0xFA) | LEN(1~40) | DATA[LEN] | SC | AC
@@ -111,6 +112,8 @@ void pi_receive(u8 data)//树莓派接收协议 串口2
 			state_1 = 2;
 		else if(data == 0x02)	//飞行指令帧: AA 02 task_sta com_x com_y com_z com_yaw next_task sp_side CK FF
 			state_1 = 10;
+		else if(data == 0x03)	//T265位置帧: AA 03 x0..x3 y0..y3 z0..z3 CK FF (小端序，单位cm)
+			state_1 = 30;
 		else
 			state_1 = 0;		//未知帧放弃
 	}
@@ -159,6 +162,33 @@ void pi_receive(u8 data)//树莓派接收协议 串口2
 			received_data.com_yaw   = RxBuffer[6] - received_data.sp_side;
 			received_data.next_task_sign = RxBuffer[7];
 			pi_receive_done_sign    = 1;
+		}
+		state_1 = 0;
+	}
+	//--- T265位置帧 (0x03) ---
+	else if(state_1==30)	{RxBuffer[2]=data; state_1=31;}	// x0
+	else if(state_1==31)	{RxBuffer[3]=data; state_1=32;}	// x1
+	else if(state_1==32)	{RxBuffer[4]=data; state_1=33;}	// x2
+	else if(state_1==33)	{RxBuffer[5]=data; state_1=34;}	// x3
+	else if(state_1==34)	{RxBuffer[6]=data; state_1=35;}	// y0
+	else if(state_1==35)	{RxBuffer[7]=data; state_1=36;}	// y1
+	else if(state_1==36)	{RxBuffer[8]=data; state_1=37;}	// y2
+	else if(state_1==37)	{RxBuffer[9]=data; state_1=38;}	// y3
+	else if(state_1==38)	{RxBuffer[10]=data; state_1=39;}	// z0
+	else if(state_1==39)	{RxBuffer[11]=data; state_1=40;}	// z1
+	else if(state_1==40)	{RxBuffer[12]=data; state_1=41;}	// z2
+	else if(state_1==41)	{RxBuffer[13]=data; state_1=42;}	// z3
+	else if(state_1==42)	{RxBuffer[14]=data; state_1=43;}	// CK
+	else if(state_1==43&&data==0xFF)	//帧尾
+	{
+		RxBuffer[15]=data;
+		u8 ck = 0;
+		for(u8 i=1; i<14; i++) ck ^= RxBuffer[i];
+		if(ck == RxBuffer[14])
+		{
+			t265_pos_x = ((s32)RxBuffer[2]) | ((s32)RxBuffer[3]<<8) | ((s32)RxBuffer[4]<<16) | ((s32)RxBuffer[5]<<24);
+			t265_pos_y = ((s32)RxBuffer[6]) | ((s32)RxBuffer[7]<<8) | ((s32)RxBuffer[8]<<16) | ((s32)RxBuffer[9]<<24);
+			t265_pos_z = ((s32)RxBuffer[10]) | ((s32)RxBuffer[11]<<8) | ((s32)RxBuffer[12]<<16) | ((s32)RxBuffer[13]<<24);
 		}
 		state_1 = 0;
 	}

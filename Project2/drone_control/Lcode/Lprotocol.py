@@ -138,6 +138,22 @@ class Serial_fc(object):
                 t265_frame.append(ck)
                 t265_frame.append(0xFF)
                 self.ser.write(bytes(t265_frame))
+
+                # T265 位置帧 (AA 03)，简化版：直接发送 T265 自身坐标系下的位置(cm)，
+                # 未做"解锁时机头方向对齐"的旋转变换
+                x, y, z = t265_obj.get_position()
+                x_cm = int(x * 100)
+                y_cm = int(y * 100)
+                z_cm = int(z * 100)
+                pos_frame = [0xAA, 0x03]
+                for v in (x_cm, y_cm, z_cm):
+                    pos_frame += [v & 0xFF, (v >> 8) & 0xFF, (v >> 16) & 0xFF, (v >> 24) & 0xFF]
+                ck2 = 0
+                for b in pos_frame[1:]:
+                    ck2 ^= b
+                pos_frame.append(ck2)
+                pos_frame.append(0xFF)
+                self.ser.write(bytes(pos_frame))
             time.sleep(sleep_time)
 
     def _send_command_loop(self, comlist, freq):
