@@ -29,6 +29,7 @@ class Serial_fc(object):
 
     def listen_start(self, rxbuffer: List[int]):
         self.fclisten_running = True
+        self.ser.reset_input_buffer()  # 丢弃启动前残留在缓冲区里的陈旧字节
         t = threading.Thread(target=Serial_fc.listen_fc, args=(self, rxbuffer))
         t.daemon = True
         t.start()
@@ -44,7 +45,14 @@ class Serial_fc(object):
         frame_id=0x02 调试扩展帧(18B, 2Hz):  fc_vel_xyz / of_acc_xyz / of_gyr_xyz
         """
         while self.fclisten_running:
-            byte_data = self.ser.read()
+            try:
+                byte_data = self.ser.read()
+            except serial.SerialException as e:
+                logger.error(f"飞控串口读取失败: {e}")
+                break
+            if not byte_data:
+                time.sleep(0.01)  # 真正空闲(超时无数据)才睡，避免忙等
+                continue
             if byte_data == b'\xAA':
                 header = self.ser.read(2)
                 if len(header) < 2:
@@ -117,7 +125,6 @@ class Serial_fc(object):
                             "of_acc": (of_acc_x, of_acc_y, of_acc_z),
                             "of_gyr": (of_gyr_x, of_gyr_y, of_gyr_z),
                         }
-            time.sleep(0.05)
 
     def _send_t265_loop(self, t265_obj, freq):
         """独立线程：发送 T265 速度帧 (AA 01)"""
@@ -137,7 +144,6 @@ class Serial_fc(object):
                     ck ^= b
                 frame.append(ck)
                 frame.append(0xFF)
-                self.ser.write(bytes(frame))
 
                 # T265 位置帧 (AA 03)，简化版：直接发送 T265 自身坐标系下的位置(cm)，
                 # 未做"解锁时机头方向对齐"的旋转变换
@@ -153,7 +159,12 @@ class Serial_fc(object):
                     ck2 ^= b
                 pos_frame.append(ck2)
                 pos_frame.append(0xFF)
-                self.ser.write(bytes(pos_frame))
+                try:
+                    self.ser.write(bytes(frame))
+                    self.ser.write(bytes(pos_frame))
+                except serial.SerialException as e:
+                    logger.error(f"T265速度/位置帧发送失败，发送线程退出: {e}")
+                    break
             time.sleep(sleep_time)
 
     def _send_command_loop(self, comlist, freq):
@@ -166,7 +177,11 @@ class Serial_fc(object):
             for b in values[1:-2]:
                 ck ^= b
             values[-2] = ck
-            self.ser.write(bytes(values))
+            try:
+                self.ser.write(bytes(values))
+            except serial.SerialException as e:
+                logger.error(f"指令帧发送失败，发送线程退出: {e}")
+                break
             time.sleep(sleep_time)
 
     def send_start(self, comlist=None, t265_obj=None, vel_freq=100, cmd_freq=50):
