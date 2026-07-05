@@ -27,7 +27,7 @@ arrival_confirm_need = 15
 arrival_timeout_max = 5.0
 T265_CONFIDENCE_MIN = 2       # 定点所需最低追踪置信度 (0=失败,1=低,2=中,3=高)
 T265_CONFIDENCE_WAIT_S = 8.0  # 等待置信度达标的超时时间
-FLIGHT_LOG_INTERVAL = 1.0
+FLIGHT_LOG_INTERVAL = 0.05
 RAMP_STEP = 1.5
 TAKEOFF_CONFIRM_NEED = 10
 TAKEOFF_TIMEOUT_S = 15.0
@@ -322,9 +322,16 @@ class mission:
             tv = (0.0, 0.0, 0.0)
 
         # 光流融合速度（帧1 of1_dx/dy，用于跟 T265 速度交叉对比）
+        # + roll/pitch（帧1 已回传，用于排查高度控制异常是否跟倾角同步，见 CLAUDE.md 已知问题6）
+        # + 光流质量/状态（排查异常是否由光流信号本身变差导致）
         with lock:
             of1_dx = self.re_fc[9] if len(self.re_fc) > 9 else 0
             of1_dy = self.re_fc[10] if len(self.re_fc) > 10 else 0
+            roll_deg = self.re_fc[1] / 100.0 if len(self.re_fc) > 1 else 0.0
+            pitch_deg = self.re_fc[2] / 100.0 if len(self.re_fc) > 2 else 0.0
+            of_quality = self.re_fc[11] if len(self.re_fc) > 11 else 0
+            of_link_sta = self.re_fc[12] if len(self.re_fc) > 12 else 0
+            of_work_sta = self.re_fc[13] if len(self.re_fc) > 13 else 0
 
         # 日志
         now = time.time()
@@ -339,6 +346,9 @@ class mission:
                     "vx": vx, "vy": vy, "vyaw": vyaw,
                     "t265_vel": [round(tv[0], 4), round(tv[1], 4)],
                     "of1_vel_cms": [of1_dx, of1_dy],
+                    "roll_pitch": [round(roll_deg, 2), round(pitch_deg, 2)],
+                    "height_setpoint_cm": round(self._ramp_z_cm, 1),
+                    "of_status": [of_quality, of_link_sta, of_work_sta],
                 }) + "\n")
                 self._log_file.flush()
             except Exception:
@@ -350,6 +360,7 @@ class mission:
             t265_str = f"| t265v=({tv[0]:+.2f},{tv[1]:+.2f}) | of1=({of1_dx:+d},{of1_dy:+d})"
         else:
             t265_str = ""
+        t265_str += f" | att=({roll_deg:+.1f},{pitch_deg:+.1f})"
         print(
             f"\rpos=({pos[0]:+.3f},{pos[1]:+.3f},{pos[2]:+.3f}) "
             f"| tgt=({target[0]:+.2f},{target[1]:+.2f},{target[2]:+.2f}) "

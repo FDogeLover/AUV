@@ -53,13 +53,15 @@ def main():
     # 4. 启动
     mission1.start()
 
-    # 5. 保持
+    # 5. 保持（任务自然结束或 Ctrl+C 都会退出）
     try:
-        while True:
+        while mission1.task_running:
             time.sleep(0.1)
+        logger.info("任务已结束，程序退出")
     except KeyboardInterrupt:
         logger.info("用户中断")
         mission1.emergency()
+    finally:
         serial_fc.send_end()
         serial_fc.close()
 
