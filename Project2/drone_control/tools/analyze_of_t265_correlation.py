@@ -60,7 +60,8 @@ def shifted_correlations(samples, shift):
     of_dy = [s[3] for s in samples]
 
     if shift >= 0:
-        t_vx, t_vy = t265_vx[: n - shift or None], t265_vy[: n - shift or None]
+        t_vx = t265_vx[: n - shift] if shift < n else []
+        t_vy = t265_vy[: n - shift] if shift < n else []
         o_dx, o_dy = of_dx[shift:], of_dy[shift:]
     else:
         s = -shift
