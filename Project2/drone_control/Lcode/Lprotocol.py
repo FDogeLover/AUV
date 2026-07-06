@@ -7,9 +7,10 @@ from Lcode.global_variable import lock,task_start_sign,fc_last_rx_time
 DEBUG=False
 class Serial_fc(object):
     def __init__(self,port,baudrate):
-        # 帧1(29字节)按1字节/20ms分段发送，最长约需0.6秒才能收全，
-        # 超时必须覆盖这个耗时，否则 read() 会提前返回不完整数据
-        self.ser=serial.Serial(port=port,baudrate=baudrate,timeout=1.0)
+        # 帧1/帧2均为整帧一次性阻塞发送(飞控侧 Send_str_by_len)，不再逐字节分段，
+        # read()超时1.0s留了充足余量；write_timeout同样必须设置，否则串口写缓冲区
+        # 写不出去时 ser.write() 会无限阻塞且不抛异常，两个发送线程会静默卡死
+        self.ser=serial.Serial(port=port,baudrate=baudrate,timeout=1.0,write_timeout=1.0)
         self.fclisten_running=False
         self.t265send_running=False
         self.cmdsend_running=False

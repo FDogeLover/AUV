@@ -8,6 +8,7 @@
 import threading
 import time
 import json
+import math
 import os
 import sys
 from typing import List, Optional
@@ -227,6 +228,8 @@ class mission:
         while True:
             elapsed = time.time() - t_start
 
+            yaw = 0.0
+            vyaw = 0
             if self.t265_ok and self.realsense:
                 try:
                     yaw = self.realsense.get_orientation()[2]
@@ -239,6 +242,25 @@ class mission:
             with lock:
                 laser_m = self.serial_fc_ref._last_laser_height_cm if self.serial_fc_ref else 0.0
             laser_cm = laser_m * 100.0
+
+            # 排查起飞离地阶段yaw自稳是否正确（2026-07-06 15cm离地测试观察到水平旋转，
+            # 怀疑本函数的vyaw符号跟navigate()相反）：记录T265原始yaw、飞控自己融合的yaw(re_fc[3])、
+            # 算出来的修正指令，两路yaw互相交叉验证谁的读数有问题
+            with lock:
+                fc_yaw_deg = self.re_fc[3] / 100.0 if len(self.re_fc) > 3 else 0.0
+            if self._log_file:
+                try:
+                    self._log_file.write(json.dumps({
+                        "t": round(time.time(), 3),
+                        "state": "TAKEOFF",
+                        "t265_yaw_deg": round(math.degrees(yaw), 2),
+                        "fc_yaw_deg": round(fc_yaw_deg, 2),
+                        "vyaw": vyaw,
+                        "laser_cm": round(laser_cm, 1),
+                    }) + "\n")
+                    self._log_file.flush()
+                except Exception:
+                    pass
 
             if laser_cm > 5.0 and abs(laser_cm - target_h_cm) <= 10.0:
                 confirm_count += 1
@@ -340,6 +362,7 @@ class mission:
             of1_dy = self.re_fc[10] if len(self.re_fc) > 10 else 0
             roll_deg = self.re_fc[1] / 100.0 if len(self.re_fc) > 1 else 0.0
             pitch_deg = self.re_fc[2] / 100.0 if len(self.re_fc) > 2 else 0.0
+            fc_yaw_deg = self.re_fc[3] / 100.0 if len(self.re_fc) > 3 else 0.0
             of_quality = self.re_fc[11] if len(self.re_fc) > 11 else 0
             of_link_sta = self.re_fc[12] if len(self.re_fc) > 12 else 0
             of_work_sta = self.re_fc[13] if len(self.re_fc) > 13 else 0
@@ -355,6 +378,8 @@ class mission:
                     "pos": [round(pos[0], 4), round(pos[1], 4), round(pos[2], 4)],
                     "target": [round(target[0], 4), round(target[1], 4), round(target[2], 4)],
                     "vx": vx, "vy": vy, "vyaw": vyaw,
+                    "t265_yaw_deg": round(math.degrees(yaw), 2),
+                    "fc_yaw_deg": round(fc_yaw_deg, 2),
                     "t265_vel": [round(tv[0], 4), round(tv[1], 4)],
                     "of1_vel_cms": [of1_dx, of1_dy],
                     "roll_pitch": [round(roll_deg, 2), round(pitch_deg, 2)],

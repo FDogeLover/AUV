@@ -13,7 +13,9 @@ re_fc = [0] * 14  # [mission_stage, roll_x100, pitch_x100, yaw_x100, fusion_stat
 re_dmz = [('A9', 'B1'),('A10', 'B2'),('A11', 'B3')]#地面站反传信息 三个禁飞区坐标/x/y
 
 # 双帧协议: AA 02 task_sta com_x+sp com_y+sp com_z com_yaw+sp next_task sp_side CK FF
-se_fc = [170, 2, 0, sp_side, sp_side, 120, sp_side, 0, sp_side, 0, 255]
+# com_z(索引5)占位为0：takeoff()会在触发task_sta前覆写为本次真正的目标高度，
+# 这里绝不能填非0默认值——2026-07-06 曾因这里写死120导致一键起飞冲到1.2m（见CLAUDE.md已知问题6）
+se_fc = [170, 2, 0, sp_side, sp_side, 0, sp_side, 0, sp_side, 0, 255]
 se_dmz = [0xAA, 0, 0xFF, 0, 0xFF]  # AA idx cls cnt FF — AA/FF始终有效，cls=FF+cnt=0=飞行中
 
 run_sign = False
