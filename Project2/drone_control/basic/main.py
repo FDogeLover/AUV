@@ -29,7 +29,9 @@ from t265 import t265_class
 re_fc = [0] * 14  # [mission_stage, roll_x100, pitch_x100, yaw_x100, fusion_state, unlock_sta, integral_x, integral_y, laser_cm, of1_dx, of1_dy, of_quality, of_link_sta, of_work_sta]
 
 # AA 02 task_sta com_x+sp com_y+sp com_z com_yaw+sp next_task sp_side CK FF
-se_fc = [170, 2, 0, sp_side, sp_side, 120, sp_side, 0, sp_side, 0, 255]
+# com_z(索引5)占位为0：takeoff()会在触发task_sta前覆写为本次真正的目标高度，
+# 这里绝不能填非0默认值——2026-07-06 曾因这里写死120导致一键起飞冲到1.2m（见CLAUDE.md已知问题6）
+se_fc = [170, 2, 0, sp_side, sp_side, 0, sp_side, 0, sp_side, 0, 255]
 
 
 # ===================== 入口 =====================

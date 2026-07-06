@@ -104,7 +104,7 @@ class Serial_fc(object):
                         rxbuffer.append(of_quality)
                         rxbuffer.append(of_link_sta)
                         rxbuffer.append(of_work_sta)
-                    if laser_height_cm > 50:
+                    if laser_height_cm > 5:
                         with lock:
                             self._last_laser_height_cm = float(laser_height_cm) / 100.0
                     fc_last_rx_time.value = time.time()

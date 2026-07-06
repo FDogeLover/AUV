@@ -19,18 +19,21 @@ from t265 import t265_class
 # ---------- 常量 ----------
 DRY_RUN = os.getenv("DRONE_DRY_RUN", "0") == "1"  # 桌面测试: 不解锁飞控，电机不会转
 put_height = 100
-fly_height = 100
 VEL_SCALE = 0.7
 posthreshold_xy = 0.15
 posthreshold_z = 0.20
 arrival_confirm_need = 15
-arrival_timeout_max = 5.0
+arrival_hold_s = 1.5   # 到达判定满足后，在原地强制停留观察的时长（阶跃响应测试用）
+arrival_timeout_max = 5.0 + arrival_hold_s
 T265_CONFIDENCE_MIN = 2       # 定点所需最低追踪置信度 (0=失败,1=低,2=中,3=高)
 T265_CONFIDENCE_WAIT_S = 8.0  # 等待置信度达标的超时时间
 FLIGHT_LOG_INTERVAL = 0.05
 RAMP_STEP = 1.5
 TAKEOFF_CONFIRM_NEED = 10
 TAKEOFF_TIMEOUT_S = 15.0
+TAKEOFF_LIFTOFF_CM = 35.0  # 一键起飞只负责盲飞离地这一小段，其余交给navigate()的x/y PID+高度ramp爬升到真正目标高度
+                            # 不能设太低：2026-07-06实测15cm时T265/激光近地面定位质量下降，起飞confirm超时+机体水平旋转
+LAND_CONFIRM_TIMEOUT_S = 10.0  # 降落触发后最多等待多久确认unlock_sta==0(已上锁)，超时也强制退出，避免卡死
 
 
 class mission:
@@ -58,12 +61,12 @@ class mission:
         # 航点
         self.targets = self.load_waypoints()
         self.target_index = 0
-        self.current_target = None
         self.emergency_stop = False
 
         # 到达判断
         self.arrival_confirm_count = 0
         self.arrival_start_time = 0.0
+        self.arrival_confirmed_time: Optional[float] = None
         self.last_target_index = -1
 
         # 高度 ramp
@@ -212,10 +215,12 @@ class mission:
         else:
             logger.info("takeoff: started")
 
-        with lock:
-            self.se_fc[2] = 0 if DRY_RUN else 1
+        target_h_cm = TAKEOFF_LIFTOFF_CM  # 一键起飞只爬升到离地高度，真正目标高度交给 navigate() 闭环爬升
 
-        target_h_cm = float(self.targets[0][2] * 100) if self.targets else 100.0
+        with lock:
+            self.se_fc[5] = int(target_h_cm)  # com_z：一键起飞目标高度，必须在 task_sta 触发前写入，
+            self.se_fc[2] = 0 if DRY_RUN else 1  # 否则飞控读到的是 se_fc 初始默认值(120cm)而非本次航点高度
+
         confirm_count = 0
         t_start = time.time()
 
@@ -296,6 +301,7 @@ class mission:
             if self.target_index != self.last_target_index:
                 self.last_target_index = self.target_index
                 self.arrival_confirm_count = 0
+                self.arrival_confirmed_time = None
                 self.arrival_start_time = time.time()
 
             if dx > 0.3:
@@ -306,10 +312,15 @@ class mission:
             if dx < xy_thresh and dy < xy_thresh and dz < posthreshold_z:
                 self.arrival_confirm_count += 1
                 if self.arrival_confirm_count >= arrival_confirm_need:
-                    logger.info(f"到达航点 {self.target_index}")
-                    self._on_arrival(target)
+                    if self.arrival_confirmed_time is None:
+                        self.arrival_confirmed_time = time.time()
+                        logger.info(f"到达航点 {self.target_index}，停留 {arrival_hold_s:.0f}s 观察")
+                    elif time.time() - self.arrival_confirmed_time >= arrival_hold_s:
+                        logger.info(f"航点 {self.target_index} 停留完成")
+                        self._on_arrival(target)
             else:
                 self.arrival_confirm_count = 0
+                self.arrival_confirmed_time = None
 
             if time.time() - self.arrival_start_time >= arrival_timeout_max:
                 logger.warning(f"航点 {self.target_index} 超时，强制跳过")
@@ -381,6 +392,23 @@ class mission:
         logger.info("降落")
         with lock:
             self.se_fc[2] = 0
+
+        # 不能一触发就关串口退出：凌霄IMU定点悬停依赖Pi持续喂T265速度参考(CMD 0x33)，
+        # 串口一关这个参考直接断流，而OneKey_Land()的物理下降通常要持续数秒。
+        # 这里继续跑主循环(保持串口/T265速度帧不断)，轮询真实解锁状态(unlock_sta)，
+        # 确认真的上锁了(或超时兜底)才真正进入END关闭退出。
+        t_start = time.time()
+        while True:
+            with lock:
+                unlock_sta = self.re_fc[5] if len(self.re_fc) > 5 else 0
+            if unlock_sta == 0:
+                logger.info("降落确认：已上锁")
+                break
+            if time.time() - t_start >= LAND_CONFIRM_TIMEOUT_S:
+                logger.warning("降落确认超时，强制退出")
+                break
+            time.sleep(0.03)
+
         self.state = "END"
 
     # ================= 停止 =================

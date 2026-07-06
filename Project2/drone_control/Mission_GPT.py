@@ -23,8 +23,11 @@ FLIGHT_LOG_INTERVAL = 1.0  # 飞行数据记录间隔（秒）
 RAMP_STEP = 1.5        # cm per frame at 30 ms cycle ≈ 50 cm/s climb/descent rate
 TAKEOFF_CONFIRM_NEED = 10     # consecutive frames within ±10 cm of target
 TAKEOFF_TIMEOUT_S    = 15.0   # force transition to NAVIGATE after this
+TAKEOFF_LIFTOFF_CM = 35.0  # 一键起飞只负责盲飞离地这一小段，其余交给navigate()的x/y PID+高度ramp爬升到真正目标高度
+                            # 不能设太低：2026-07-06实测15cm时T265/激光近地面定位质量下降，起飞confirm超时+机体水平旋转
 T265_CONFIDENCE_MIN = 2       # 定点所需最低追踪置信度 (0=失败,1=低,2=中,3=高)
 T265_CONFIDENCE_WAIT_S = 8.0  # 等待置信度达标的超时时间
+LAND_CONFIRM_TIMEOUT_S = 10.0  # 降落触发后最多等待多久确认unlock_sta==0(已上锁)，超时也强制退出，避免卡死
 
 
 class mission:
@@ -246,10 +249,12 @@ class mission:
     def takeoff(self):
         logger.info("takeoff: started")
 
-        with lock:
-            self.se_fc[2] = 1  # trigger FC: unlock + mode switch
+        target_h_cm = TAKEOFF_LIFTOFF_CM  # 一键起飞只爬升到离地高度，真正目标高度交给 navigate() 闭环爬升
 
-        target_h_cm = float(self.targets[0][2] * 100)
+        with lock:
+            self.se_fc[5] = int(target_h_cm)  # com_z：一键起飞目标高度，必须在 task_sta 触发前写入，
+            self.se_fc[2] = 1  # trigger FC: unlock + mode switch  否则飞控读到的是 se_fc 初始默认值(120cm)而非本次航点高度
+
         confirm_count = 0
         t_start = time.time()
 
@@ -430,6 +435,22 @@ class mission:
 
         with lock:
             self.se_fc[2] = 0
+
+        # 不能一触发就关串口退出：凌霄IMU定点悬停依赖Pi持续喂T265速度参考(CMD 0x33)，
+        # 串口一关这个参考直接断流，而OneKey_Land()的物理下降通常要持续数秒。
+        # 这里继续跑主循环(保持串口/T265速度帧不断)，轮询真实解锁状态(unlock_sta)，
+        # 确认真的上锁了(或超时兜底)才真正进入END关闭退出。
+        t_start = time.time()
+        while True:
+            with lock:
+                unlock_sta = self.re_fc[5] if len(self.re_fc) > 5 else 0
+            if unlock_sta == 0:
+                logger.info("降落确认：已上锁")
+                break
+            if time.time() - t_start >= LAND_CONFIRM_TIMEOUT_S:
+                logger.warning("降落确认超时，强制退出")
+                break
+            time.sleep(0.03)
 
         self.state = "END"
 

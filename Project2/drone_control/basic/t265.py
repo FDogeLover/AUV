@@ -195,10 +195,6 @@ class t265_class:
                     logger.warning(f"T265 采集异常: {e}")
                 time.sleep(0.1)
 
-    def get_pose(self):
-        with self.lock:
-            return self.pose_data.copy() - np.append(self.calibration_offset, [0, 0, 0])
-
     def get_position(self):
         with self.lock:
             return self.pose_data[:3].copy() - self.calibration_offset[:3]

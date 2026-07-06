@@ -90,7 +90,7 @@ class Serial_fc(object):
                         rxbuffer.append(of_link_sta)
                         rxbuffer.append(of_work_sta)
                     # 缓存激光高度供外部查询（有效值 > 10cm）
-                    if laser_height_cm > 50:
+                    if laser_height_cm > 10:
                         with lock:
                             self._last_laser_height_cm = float(laser_height_cm) / 100.0
                     fc_last_rx_time.value = time.time()
