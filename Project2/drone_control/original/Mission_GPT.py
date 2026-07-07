@@ -1,6 +1,7 @@
 import threading
 import time
 import json
+import math
 import os
 import sys
 from typing import List
@@ -28,6 +29,7 @@ TAKEOFF_LIFTOFF_CM = 35.0  # 一键起飞只负责盲飞离地这一小段，其
 T265_CONFIDENCE_MIN = 2       # 定点所需最低追踪置信度 (0=失败,1=低,2=中,3=高)
 T265_CONFIDENCE_WAIT_S = 8.0  # 等待置信度达标的超时时间
 LAND_CONFIRM_TIMEOUT_S = 10.0  # 降落触发后最多等待多久确认unlock_sta==0(已上锁)，超时也强制退出，避免卡死
+ARRIVAL_VEL_THRESH = 0.05  # 到达判定除了位置阈值外，还要求T265速度模长小于此值(m/s)，避免带着残余速度就触发land()盲降
 
 
 class mission:
@@ -339,6 +341,12 @@ class mission:
         self._step_ramp_z(target_z)
         self.set_speed(vx, vy, -vyaw, int(self._ramp_z_cm))
 
+        # T265 速度（到达检测的速度门槛 + 后面日志/终端输出共用，避免重复取值）
+        if self.t265_ok:
+            t265v = self.realsense.get_velocity()
+        else:
+            t265v = (0.0, 0.0, 0.0)
+
         # === 到达判断 ===
         # P0b: 动态阈值 - 按追踪置信度自适应调整XY阈值
         if confidence >= 3:
@@ -350,6 +358,7 @@ class mission:
         dx = abs(pos[0] - target[0])
         dy = abs(pos[1] - target[1])
         dz = abs(pos[2] - target[2])
+        speed = math.hypot(t265v[0], t265v[1])
 
         if self.target_index != self.last_target_index:
             self.last_target_index = self.target_index
@@ -363,8 +372,9 @@ class mission:
 
         xy_ok = dx < xy_thresh and dy < xy_thresh
         z_ok = dz < posthreshold_z
+        vel_ok = speed < ARRIVAL_VEL_THRESH
 
-        if xy_ok and z_ok:
+        if xy_ok and z_ok and vel_ok:
             self.arrival_confirm_count += 1
             if self.arrival_confirm_count >= arrival_confirm_need:
                 logger.info(f"到达航点 {self.target_index}")
@@ -375,12 +385,6 @@ class mission:
         if time.time() - self.arrival_start_time >= arrival_timeout_max:
             logger.warning(f"航点 {self.target_index} 超时，强制跳过")
             self.target_index += 1
-
-        # T265 速度（日志和终端输出共用，避免重复取值）
-        if self.t265_ok:
-            t265v = self.realsense.get_velocity()
-        else:
-            t265v = (0.0, 0.0, 0.0)
 
         # 光流融合速度（帧1 of1_dx/dy，用于跟 T265 速度交叉对比）
         with lock:

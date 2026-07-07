@@ -35,6 +35,7 @@ TAKEOFF_TIMEOUT_S = 15.0
 TAKEOFF_LIFTOFF_CM = 35.0  # 一键起飞只负责盲飞离地这一小段，其余交给navigate()的x/y PID+高度ramp爬升到真正目标高度
                             # 不能设太低：2026-07-06实测15cm时T265/激光近地面定位质量下降，起飞confirm超时+机体水平旋转
 LAND_CONFIRM_TIMEOUT_S = 10.0  # 降落触发后最多等待多久确认unlock_sta==0(已上锁)，超时也强制退出，避免卡死
+ARRIVAL_VEL_THRESH = 0.05  # 到达判定除了位置阈值外，还要求T265速度模长小于此值(m/s)，避免带着残余速度就触发land()盲降
 
 
 class mission:
@@ -313,12 +314,19 @@ class mission:
         self._step_ramp_z(target_z)
         self.set_speed(vx, vy, -vyaw, int(self._ramp_z_cm))
 
+        # T265 速度（到达检测的速度门槛 + 后面日志/终端输出共用，避免重复取值）
+        if self.t265_ok and self.realsense:
+            tv = self.realsense.get_velocity()
+        else:
+            tv = (0.0, 0.0, 0.0)
+
         # 到达检测
         if self.t265_ok and self.realsense:
             xy_thresh = 0.10 if confidence >= 3 else (posthreshold_xy if confidence == 2 else 0.30)
             dx = abs(pos[0] - target[0])
             dy = abs(pos[1] - target[1])
             dz = abs(pos[2] - target[2])
+            speed = math.hypot(tv[0], tv[1])
 
             if self.target_index != self.last_target_index:
                 self.last_target_index = self.target_index
@@ -331,7 +339,7 @@ class mission:
             if dy > 0.3:
                 self.y_pid.reset()
 
-            if dx < xy_thresh and dy < xy_thresh and dz < posthreshold_z:
+            if dx < xy_thresh and dy < xy_thresh and dz < posthreshold_z and speed < ARRIVAL_VEL_THRESH:
                 self.arrival_confirm_count += 1
                 if self.arrival_confirm_count >= arrival_confirm_need:
                     if self.arrival_confirmed_time is None:
@@ -347,12 +355,6 @@ class mission:
             if time.time() - self.arrival_start_time >= arrival_timeout_max:
                 logger.warning(f"航点 {self.target_index} 超时，强制跳过")
                 self.target_index += 1
-
-        # T265 速度（日志和终端输出共用，避免重复取值）
-        if self.t265_ok and self.realsense:
-            tv = self.realsense.get_velocity()
-        else:
-            tv = (0.0, 0.0, 0.0)
 
         # 光流融合速度（帧1 of1_dx/dy，用于跟 T265 速度交叉对比）
         # + roll/pitch（帧1 已回传，用于排查高度控制异常是否跟倾角同步，见 CLAUDE.md 已知问题6）
