@@ -4,6 +4,7 @@ import json
 import math
 import os
 import sys
+from collections import deque
 from typing import List
 from Lcode.Lpid import PID
 from Lcode.Logger import logger
@@ -30,6 +31,8 @@ T265_CONFIDENCE_MIN = 2       # 定点所需最低追踪置信度 (0=失败,1=�
 T265_CONFIDENCE_WAIT_S = 8.0  # 等待置信度达标的超时时间
 LAND_CONFIRM_TIMEOUT_S = 10.0  # 降落触发后最多等待多久确认unlock_sta==0(已上锁)，超时也强制退出，避免卡死
 ARRIVAL_VEL_THRESH = 0.05  # 到达判定除了位置阈值外，还要求T265速度模长小于此值(m/s)，避免带着残余速度就触发land()盲降
+ARRIVAL_VEL_WINDOW = 5  # 到达判定用的速度取最近N帧均值而非单帧瞬时值，平滑T265速度噪声尖峰
+                         # (2026-07-07实测: 单帧瞬时速度噪声可达0.07m/s，用瞬时值+连续N次达标会导致到达确认永远凑不齐、超时强制跳过)
 
 
 class mission:
@@ -69,6 +72,7 @@ class mission:
         self.arrival_confirm_count = 0
         self.arrival_start_time = 0.0
         self.last_target_index = -1
+        self._vel_window = deque(maxlen=ARRIVAL_VEL_WINDOW)
 
         # Height ramp state (cm); steps toward target each navigate() frame
         self._ramp_z_cm = 0.0
@@ -358,7 +362,11 @@ class mission:
         dx = abs(pos[0] - target[0])
         dy = abs(pos[1] - target[1])
         dz = abs(pos[2] - target[2])
-        speed = math.hypot(t265v[0], t265v[1])
+        # 速度用最近N帧均值而非瞬时值，平滑T265速度噪声尖峰(见 ARRIVAL_VEL_WINDOW 注释)
+        self._vel_window.append((t265v[0], t265v[1]))
+        avg_vx = sum(v[0] for v in self._vel_window) / len(self._vel_window)
+        avg_vy = sum(v[1] for v in self._vel_window) / len(self._vel_window)
+        speed = math.hypot(avg_vx, avg_vy)
 
         if self.target_index != self.last_target_index:
             self.last_target_index = self.target_index
