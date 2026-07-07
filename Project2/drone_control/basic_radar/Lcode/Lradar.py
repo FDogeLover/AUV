@@ -11,15 +11,61 @@
   Byte105-106 Stop_angle_H/L，结束角度*100
   Byte107   校验：byte0..byte106 字节和 & 0xFF
 """
+import math
 import serial
 import threading
 import time
+from collections import deque
 from Lcode.Logger import logger
 from Lcode.global_variable import lock
 
 FRAME_LEN = 108        # 整帧长度（含帧头）
 BODY_LEN = FRAME_LEN - 3  # 去掉 A5 5A Length 之后剩余字节数
 POINTS_PER_FRAME = 32
+
+# 雷达角度 -> 机体坐标系映射（2026-07-07 现场核对当前安装位置得出，不是手册通用值，
+# 换了安装位置/朝向需要重新核对）：0度对应机体 +X 方向，90度对应机体 -Y 方向。
+def radar_angle_to_body_xy(angle_deg, distance_mm):
+    """雷达(角度,距离mm) -> 机体坐标系(x_m, y_m)"""
+    rad = math.radians(angle_deg)
+    distance_m = distance_mm / 1000.0
+    x = distance_m * math.cos(rad)
+    y = -distance_m * math.sin(rad)
+    return x, y
+
+
+def _cluster_points(points, eps_m=0.15, min_samples=3):
+    """按角度顺序对点聚类（仿镭神官方SLAM包 obstacle_detector.py 的 simple_clustering 思路）。
+
+    points: [(angle_deg, distance_mm), ...]，需按角度升序排列，覆盖0~359。
+    相邻两点的机体坐标系直线距离 < eps_m 则归为同一聚类；聚类点数 < min_samples 的整体丢弃
+    （孤立的单点大概率是噪声/边缘效应导致的幻影，不是真实障碍物——这是2026-07-07台架测试
+    里"细杆子命中率低、常出现孤立幽灵点"这个问题的应对方案）。
+    首尾（359°与0°）相邻做环绕合并。
+    """
+    if not points:
+        return []
+    clusters = []
+    current = [points[0]]
+    for i in range(1, len(points)):
+        x1, y1 = radar_angle_to_body_xy(*points[i - 1])
+        x2, y2 = radar_angle_to_body_xy(*points[i])
+        if math.hypot(x2 - x1, y2 - y1) < eps_m:
+            current.append(points[i])
+        else:
+            if len(current) >= min_samples:
+                clusters.append(current)
+            current = [points[i]]
+    if len(current) >= min_samples:
+        clusters.append(current)
+
+    if len(clusters) >= 2:
+        x1, y1 = radar_angle_to_body_xy(*clusters[-1][-1])
+        x2, y2 = radar_angle_to_body_xy(*clusters[0][0])
+        if math.hypot(x2 - x1, y2 - y1) < eps_m:
+            clusters[0] = clusters[-1] + clusters[0]
+            clusters.pop()
+    return clusters
 
 
 class Serial_radar(object):
@@ -119,6 +165,46 @@ class Serial_radar(object):
                 best = (angle, distance_mm)
         return best
 
+    def get_nearest_xy(self, min_intensity=0):
+        """返回当前缓存点云里距离最近的点，换算成机体坐标系(x_m, y_m)；无有效点返回 None。"""
+        nearest = self.get_nearest(min_intensity)
+        if nearest is None:
+            return None
+        angle, distance_mm = nearest
+        return radar_angle_to_body_xy(angle, distance_mm)
+
+    def get_obstacles(self, eps_m=0.15, min_samples=3, min_intensity=80):
+        """对当前扫描做角度维度聚类，过滤孤立噪声点，返回障碍物列表：
+        [{'angle_deg', 'distance_mm', 'x', 'y', 'num_points'}, ...]，按距离升序。"""
+        with lock:
+            scan = dict(self._scan)
+        points = []
+        for angle in sorted(scan.keys()):
+            distance_mm, intensity = scan[angle]
+            if distance_mm <= 0 or intensity < min_intensity:
+                continue
+            points.append((angle, distance_mm))
+
+        clusters = _cluster_points(points, eps_m, min_samples)
+        obstacles = []
+        for cluster in clusters:
+            angle, distance_mm = min(cluster, key=lambda p: p[1])
+            x, y = radar_angle_to_body_xy(angle, distance_mm)
+            obstacles.append({
+                "angle_deg": angle,
+                "distance_mm": distance_mm,
+                "x": x,
+                "y": y,
+                "num_points": len(cluster),
+            })
+        obstacles.sort(key=lambda o: o["distance_mm"])
+        return obstacles
+
+    def get_nearest_obstacle(self, eps_m=0.15, min_samples=3, min_intensity=80):
+        """聚类过滤后的最近障碍物，无有效聚类返回 None。"""
+        obstacles = self.get_obstacles(eps_m, min_samples, min_intensity)
+        return obstacles[0] if obstacles else None
+
     def is_alive(self, timeout=1.0):
         return (time.time() - self._last_frame_time) < timeout
 
@@ -126,3 +212,89 @@ class Serial_radar(object):
         if self.ser.is_open:
             self.ser.close()
             logger.info("雷达串口已关闭")
+
+
+class PoleTracker(object):
+    """细杆子(绕障目标)探测器 — 空间聚类 + 多帧时间持续性组合。
+
+    背景(2026-07-07台架测试结论)：细杆子单帧扫描通常只产生1个孤立点，跟真正的噪声在
+    空间特征上无法区分，`Serial_radar.get_obstacles()`(min_samples>=2起)会把它和噪声一起
+    过滤掉。真正能把两者分开的是时间维度——噪声不会重复出现在同一角度附近，杆子会。
+
+    用法：只关心 max_range_mm 以内的目标(默认1.2m，留一点余量，实际工作距离约1m)，导航/
+    搜寻循环里周期性调用 update(radar)，累计到 min_hits 次命中就能从 confirmed_poles() 里
+    读到确认的杆子。命中率参考2026-07-07实测：70cm~90%，1m~70%，1.55m~10%——在1m以内工作，
+    min_hits=3 通常几次调用内就能确认。
+    """
+    def __init__(self, max_range_mm=1200, angle_tol_deg=4, dist_tol_mm=150,
+                 window=6, min_hits=3, min_intensity=60,
+                 cluster_eps_m=0.15, cluster_min_samples=3):
+        self.max_range_mm = max_range_mm
+        self.angle_tol_deg = angle_tol_deg
+        self.dist_tol_mm = dist_tol_mm
+        self.min_hits = min_hits
+        self.min_intensity = min_intensity
+        self.cluster_eps_m = cluster_eps_m
+        self.cluster_min_samples = cluster_min_samples
+        self._history = deque(maxlen=window)  # 每项: 本次poll识别到的候选点列表 [(angle,distance_mm), ...]
+
+    def update(self, radar):
+        """拉一次雷达当前scan，剔除"够格当大障碍物"的聚类，剩下的孤立/小聚类点作为候选记入历史窗口。
+        返回本次识别到的候选点列表。"""
+        scan = radar.get_scan()
+        points = []
+        for angle in sorted(scan.keys()):
+            distance_mm, intensity = scan[angle]
+            if distance_mm <= 0 or distance_mm > self.max_range_mm or intensity < self.min_intensity:
+                continue
+            points.append((angle, distance_mm))
+
+        # min_samples=1：先不设门槛聚类，拿到包括孤立点在内的所有分组，
+        # 再按点数区分"大障碍物"(>=cluster_min_samples，不是我们要找的细目标) 和"候选细目标"
+        all_clusters = _cluster_points(points, eps_m=self.cluster_eps_m, min_samples=1)
+        candidates = []
+        for cluster in all_clusters:
+            if len(cluster) >= self.cluster_min_samples:
+                continue  # 大障碍物，交给 get_obstacles() 处理，不算细目标候选
+            angle, distance_mm = min(cluster, key=lambda p: p[1])
+            candidates.append((angle, distance_mm))
+
+        self._history.append(candidates)
+        return candidates
+
+    def confirmed_poles(self):
+        """在滑动窗口内、角度/距离都在容差范围内重复出现次数 >= min_hits 的候选，判定为确认的杆子。
+        返回 [{'angle_deg','distance_mm','x','y','hits'}, ...]，按距离升序。"""
+        all_candidates = [c for frame in self._history for c in frame]
+        n = len(all_candidates)
+        used = [False] * n
+        confirmed = []
+        for i in range(n):
+            if used[i]:
+                continue
+            a1, d1 = all_candidates[i]
+            group = [(a1, d1)]
+            used[i] = True
+            for j in range(i + 1, n):
+                if used[j]:
+                    continue
+                a2, d2 = all_candidates[j]
+                if abs(a2 - a1) <= self.angle_tol_deg and abs(d2 - d1) <= self.dist_tol_mm:
+                    group.append((a2, d2))
+                    used[j] = True
+            if len(group) >= self.min_hits:
+                avg_angle = sum(a for a, _ in group) / len(group)
+                avg_dist = sum(d for _, d in group) / len(group)
+                x, y = radar_angle_to_body_xy(avg_angle, avg_dist)
+                confirmed.append({
+                    "angle_deg": avg_angle,
+                    "distance_mm": avg_dist,
+                    "x": x,
+                    "y": y,
+                    "hits": len(group),
+                })
+        confirmed.sort(key=lambda o: o["distance_mm"])
+        return confirmed
+
+    def reset(self):
+        self._history.clear()
