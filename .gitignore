@@ -21,3 +21,6 @@ __pycache__/
 .claude/
 
 drone_control/test_dmz_protocol.py
+
+# Git worktrees (临时隔离工作区)
+.worktrees/
