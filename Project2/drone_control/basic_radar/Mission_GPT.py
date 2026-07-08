@@ -437,6 +437,7 @@ class mission:
                     "height_setpoint_cm": round(self._ramp_z_cm, 1),
                     "of_status": [of_quality, of_link_sta, of_work_sta],
                     "pole_hover": self._pole_hovering,
+                    "pole_dist": round(pole_dist, 3) if pole_dist is not None else None,
                 }) + "\n")
                 self._log_file.flush()
             except Exception:
@@ -449,12 +450,13 @@ class mission:
         else:
             t265_str = ""
         t265_str += f" | att=({roll_deg:+.1f},{pitch_deg:+.1f})"
+        pole_str = f" | pole_dist={pole_dist:.2f}m" if pole_dist is not None else ""
         print(
             f"\rpos=({pos[0]:+.3f},{pos[1]:+.3f},{pos[2]:+.3f}) "
             f"| tgt=({target[0]:+.2f},{target[1]:+.2f},{target[2]:+.2f}) "
             f"| v=({vx:>3},{vy:>3}) "
             f"| send=({self.se_fc[3]:>3},{self.se_fc[4]:>3},{self.se_fc[5]:>3})"
-            f"{t265_str}",
+            f"{t265_str}{pole_str}",
             end="", flush=True
         )
 
