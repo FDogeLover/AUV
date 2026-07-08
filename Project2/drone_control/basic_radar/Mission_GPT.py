@@ -331,6 +331,33 @@ class mission:
                 logger.warning(f"检测到杆子距离{pole_dist:.2f}m，悬停等待")
                 self._pole_hovering = True
             self.set_speed(0, 0, 0, int(self._ramp_z_cm))
+            # 2026-07-08修复：这里原本直接return，会跳过下面的飞行日志写入，
+            # 导致悬停期间完全没有位置数据被记录(真机测试发现日志时间戳有秒级空白)。
+            # 悬停期间没有PID可复用的vx/vy/vyaw(都是0)，也不需要到达检测，
+            # 这里单独写一份简化日志(不含光流/姿态遥测，避免为了几个字段重复读锁)。
+            now = time.time()
+            if self._log_file and now - self._last_log_time >= FLIGHT_LOG_INTERVAL:
+                tv = self.realsense.get_velocity() if (self.t265_ok and self.realsense) else (0.0, 0.0, 0.0)
+                try:
+                    self._log_file.write(json.dumps({
+                        "t": round(now, 3),
+                        "state": self.state,
+                        "target_idx": self.target_index,
+                        "pos": [round(pos[0], 4), round(pos[1], 4), round(pos[2], 4)],
+                        "target": [round(target[0], 4), round(target[1], 4), round(target[2], 4)],
+                        "vx": 0, "vy": 0, "vyaw": 0,
+                        "t265_yaw_deg": round(math.degrees(yaw), 2),
+                        "t265_vel": [round(tv[0], 4), round(tv[1], 4)],
+                        "height_setpoint_cm": round(self._ramp_z_cm, 1),
+                        "pole_hover": self._pole_hovering,
+                        "pole_dist": round(pole_dist, 3) if pole_dist is not None else None,
+                    }) + "\n")
+                    self._log_file.flush()
+                except Exception:
+                    pass
+                self._last_log_time = now
+            print(f"\rpos=({pos[0]:+.3f},{pos[1]:+.3f},{pos[2]:+.3f}) "
+                  f"| 悬停中(杆子距离{pole_dist:.2f}m)", end="", flush=True)
             return
         elif self._pole_hovering:
             logger.info("杆子确认已消失，恢复导航")
@@ -341,6 +368,28 @@ class mission:
         if confidence == 0 and self.t265_ok:
             logger.warning("T265 追踪丢失，悬停等待")
             self.set_speed(0, 0, 0, int(self._ramp_z_cm))
+            # 2026-07-08修复：同pole_hover分支一样，这里原本直接return会跳过日志写入，
+            # 导致T265追踪丢失期间也是日志空白(此处pos/yaw本身可能是丢失前的最后已知值，
+            # 只是留个"发生过丢失"的记录，不代表这段时间位置真的没变)。
+            now = time.time()
+            if self._log_file and now - self._last_log_time >= FLIGHT_LOG_INTERVAL:
+                try:
+                    self._log_file.write(json.dumps({
+                        "t": round(now, 3),
+                        "state": self.state,
+                        "target_idx": self.target_index,
+                        "pos": [round(pos[0], 4), round(pos[1], 4), round(pos[2], 4)],
+                        "target": [round(target[0], 4), round(target[1], 4), round(target[2], 4)],
+                        "vx": 0, "vy": 0, "vyaw": 0,
+                        "t265_yaw_deg": round(math.degrees(yaw), 2),
+                        "height_setpoint_cm": round(self._ramp_z_cm, 1),
+                        "t265_confidence_lost": True,
+                    }) + "\n")
+                    self._log_file.flush()
+                except Exception:
+                    pass
+                self._last_log_time = now
+            print(f"\rpos=({pos[0]:+.3f},{pos[1]:+.3f},{pos[2]:+.3f}) | T265追踪丢失，悬停等待", end="", flush=True)
             return
 
         if self.t265_ok and self.realsense:
