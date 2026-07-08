@@ -21,6 +21,7 @@ import time
 from Lcode.global_variable import sp_side, lock
 import Lcode.Lprotocol
 from Lcode.Logger import logger
+from Lcode.Lradar import Serial_radar
 from Mission_GPT import mission
 from t265 import t265_class
 
@@ -49,8 +50,18 @@ def main():
     serial_fc.listen_start(re_fc)
     serial_fc.send_start(se_fc, realsense, vel_freq=100, cmd_freq=50)
 
+    # 2.5 雷达(可选，DRONE_RADAR_ENABLED=1 才启用，默认关闭不影响不接雷达的测试)
+    radar = None
+    if os.getenv("DRONE_RADAR_ENABLED", "0") == "1":
+        radar_port = os.getenv("DRONE_RADAR_PORT", "/dev/ttyUSB0")
+        radar_baud = int(os.getenv("DRONE_RADAR_BAUD", "460800"))
+        radar = Serial_radar(radar_port, radar_baud)
+        radar.port_open()
+        radar.listen_start()
+        logger.info(f"雷达避障已启用，端口={radar_port}，波特率={radar_baud}")
+
     # 3. 创建任务
-    mission1 = mission(re_fc, se_fc, realsense, serial_fc)
+    mission1 = mission(re_fc, se_fc, realsense, serial_fc, radar_obj=radar)
 
     # 4. 启动
     mission1.start()
