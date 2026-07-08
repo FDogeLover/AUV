@@ -26,6 +26,11 @@ FLIGHT_LOG = os.path.join(
 POLE_WORLD = (-1.0, 0.0)  # 起飞点180°方向1m处，见问题13笔记
 YAW_SIGN = 1  # 尚未标定，合成数据生成和新版tracker用同一个假设值，见spec"该脚本不验证的内容"
 
+# 真实飞行日志采样间隔约65ms(~15Hz)，但2026-07-07真机测试时PoleTracker实际轮询是0.5s一次
+# (跟真实雷达帧率无关，是当时台架/飞行测试脚本自己的轮询节奏)。不按这个间隔重采样的话，
+# window=6的历史窗口只覆盖零点几秒，飞机移动量太小，测不出真实场景里的方位角摆动。
+POLL_INTERVAL_S = 0.5
+
 # 2026-07-07台架实测命中率(distance_m, hit_probability)，线性插值，范围外钳位到端点值
 HIT_RATE_TABLE = [(0.70, 0.90), (1.00, 0.70), (1.55, 0.10)]
 
@@ -63,6 +68,21 @@ def load_trajectory(path):
             yaw_deg = rec.get("t265_yaw_deg", 0.0)
             traj.append((rec["t"], x, y, math.radians(yaw_deg)))
     return traj
+
+
+def resample_trajectory(traj, interval_s=POLL_INTERVAL_S):
+    """贪心重采样：只保留距离上一个保留帧的时间差 >= interval_s 的帧，模拟真机测试
+    时PoleTracker实际的轮询节奏(而不是飞行日志本身高得多的记录频率)。第一帧总是保留。"""
+    if not traj:
+        return []
+    resampled = [traj[0]]
+    last_t = traj[0][0]
+    for frame in traj[1:]:
+        t = frame[0]
+        if t - last_t >= interval_s:
+            resampled.append(frame)
+            last_t = t
+    return resampled
 
 
 def synthesize_candidate(x, y, yaw_rad, rng):
@@ -128,45 +148,64 @@ class OldPoleTrackerSim:
 
 def run_replay(seed=42):
     rng = random.Random(seed)
-    traj = load_trajectory(FLIGHT_LOG)
+    traj = resample_trajectory(load_trajectory(FLIGHT_LOG))
 
     old_tracker = OldPoleTrackerSim()
     new_tracker = PoleTracker(yaw_sign=YAW_SIGN)
 
-    old_confirmed_at = None
-    new_confirmed_at = None
-    new_confirmed_result = None
+    old_confirmed_timeline = []   # 每帧True/False，是否处于confirmed状态
+    new_confirmed_timeline = []
+    new_last_result = None
 
     for idx, (t, x, y, yaw_rad) in enumerate(traj):
         candidate = synthesize_candidate(x, y, yaw_rad, rng)
 
         old_tracker.update(candidate)
-        if old_confirmed_at is None:
-            ok, hits = old_tracker.confirmed()
-            if ok:
-                old_confirmed_at = idx
+        ok, hits = old_tracker.confirmed()
+        old_confirmed_timeline.append(ok)
 
         new_tracker.update(_FrameRadar(candidate), x, y, yaw_rad)
-        if new_confirmed_at is None:
-            confirmed = new_tracker.confirmed_poles()
-            if confirmed:
-                new_confirmed_at = idx
-                new_confirmed_result = confirmed[0]
+        confirmed = new_tracker.confirmed_poles()
+        new_confirmed_timeline.append(bool(confirmed))
+        if confirmed:
+            new_last_result = confirmed[0]
 
-    print(f"轨迹总帧数(含pos): {len(traj)}")
+    def first_true_idx(timeline):
+        for i, v in enumerate(timeline):
+            if v:
+                return i
+        return None
+
+    def dropout_count(timeline, first_idx):
+        """首次确认之后，又变回"未确认"的帧数——衡量确认状态稳不稳，
+        不是只看"有没有确认过"。"""
+        if first_idx is None:
+            return None
+        return sum(1 for v in timeline[first_idx:] if not v)
+
+    old_first = first_true_idx(old_confirmed_timeline)
+    new_first = first_true_idx(new_confirmed_timeline)
+    old_dropouts = dropout_count(old_confirmed_timeline, old_first)
+    new_dropouts = dropout_count(new_confirmed_timeline, new_first)
+
+    print(f"重采样后帧数(轮询间隔{POLL_INTERVAL_S}s): {len(traj)}（原始日志帧数: "
+          f"{len(load_trajectory(FLIGHT_LOG))}）")
     print(f"已知杆子世界坐标(假设): {POLE_WORLD}")
     print("-" * 60)
     print(f"旧版(机体系角度/距离容差): "
-          f"{'第'+str(old_confirmed_at)+'帧确认' if old_confirmed_at is not None else '全程未确认'}")
-    print(f"新版(世界系位置聚类): ", end="")
-    if new_confirmed_at is not None:
-        err_x = new_confirmed_result["x"] - POLE_WORLD[0]
-        err_y = new_confirmed_result["y"] - POLE_WORLD[1]
+          f"首次确认={'第'+str(old_first)+'帧' if old_first is not None else '全程未确认'}, "
+          f"首次确认后又丢失确认的帧数={old_dropouts}")
+    print(f"新版(世界系位置聚类): "
+          f"首次确认={'第'+str(new_first)+'帧' if new_first is not None else '全程未确认'}, "
+          f"首次确认后又丢失确认的帧数={new_dropouts}", end="")
+    if new_last_result is not None:
+        err_x = new_last_result["x"] - POLE_WORLD[0]
+        err_y = new_last_result["y"] - POLE_WORLD[1]
         err_m = math.hypot(err_x, err_y)
-        print(f"第{new_confirmed_at}帧确认，坐标=({new_confirmed_result['x']:.3f}, "
-              f"{new_confirmed_result['y']:.3f})，误差={err_m*100:.1f}cm")
+        print(f"，最后一次确认坐标=({new_last_result['x']:.3f}, {new_last_result['y']:.3f})，"
+              f"误差={err_m*100:.1f}cm")
     else:
-        print("全程未确认")
+        print()
 
 
 if __name__ == "__main__":
