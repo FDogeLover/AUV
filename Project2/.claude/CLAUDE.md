@@ -100,7 +100,7 @@ cd drone_control/original && python main.py
 ### 下行帧协议（飞控 → Pi，`my_protocol.c` `pi_send()`）— 2026-07-04 已重构并真机验证通过
 - 拆成两种帧，格式统一为 `AA | frame_id | len | DATA | checksum | 0xFF`：
   - **帧1（0x01，飞行关键帧，24字节数据）**：`Loop_50Hz` 调用，`mission_stage`/`roll,pitch,yaw`/`fusion_state`/`unlock_sta`(真实解锁状态)/`x_int,y_int`(光流积分)/`laser_height_cm`/`of1_dx,dy`(光流融合速度)/`of_quality,link_sta,work_sta`
-  - **帧2（0x02，调试扩展帧，18字节数据）**：`Loop_2Hz` 触发但内部降频到约2.5秒一次，`fc_vel_xyz`(凌霄IMU速度估计)/`of_acc_xyz,of_gyr_xyz`(光流模块自带IMU原始数据)
+  - **帧2（0x02，调试扩展帧，19字节数据，2026-07-08从18字节扩展）**：`Loop_2Hz` 触发但内部降频到约2.5秒一次，`fc_vel_xyz`(凌霄IMU速度估计)/`of_acc_xyz,of_gyr_xyz`(光流模块自带IMU原始数据)/`motor_pwm_mask`(新增，电机PWM非零位掩码bit0~3=m1~m4，诊断unlock_sta假阳性用，见问题17)
   - 两帧共用 USART2，`pi_send()` 统一驱动发送（`Send_str_by_len` 整帧阻塞发送，不再逐字节跨tick分段），避免了帧交织 bug，帧1实际到达率约 50Hz（之前分段发送方式只有 ~1.7Hz）
 - Python 侧 `Lprotocol.py` `listen_fc()` 按 `frame_id` 分发解析，`Serial_fc` 串口超时从 0.05s 改成 1.0s（帧变长后需要更长超时才能收全）
 - `re_fc`/`rxbuffer` 现在是 14 个字段（見 `main.py` 里 `re_fc` 注释的字段顺序）
@@ -345,6 +345,13 @@ cd drone_control/original && python main.py
     **根因（已用实际代码+真实增益复现验证，非猜测）**：`self.yaw_pid = PID(1, 0)` 用的是 `Lcode/Lpid.py` 里 `yawp=1.5, yawi=0.0, yawd=0.3` 这组按"角度"量级设计的增益，但 `navigate()` 里喂给它的 `yaw` 参数是T265原始朝向，单位是**弧度**不是角度。几度的误差换算成弧度只有0.05-0.1量级，PID输出乘 `VEL_SCALE=0.7` 后还是远小于1，最后 `vyaw = int(...)` 直接截断成0。用今天飞行实测过的yaw角度(-6.12°~+4.57°)复现验证：连续跑几帧模拟稳态后，PID输出最大也只有约0.16(截断前)，离能截断出±1需要的量级还差约6倍——意味着现实飞行里几度的yaw漂移几乎不可能触发这条回路发出任何指令，不是偶发失效，是正常范围内的常态失效。
 
     **2026-07-08 已修复**：`navigate()`和`takeoff()`里所有`self.yaw_pid.get_pid(yaw)`调用都改成`self.yaw_pid.get_pid(math.degrees(yaw))`，喂角度而非弧度，增益(Kp=1.5等)本身不动。`int()`截断本身没改动(修复后正常几度误差的PID输出量级已经远大于1，截断不再是主要问题)。`basic/`、`basic_radar/`补了2个TDD单元测试(用今天实测过的-6.12°误差验证能产生非零修正指令、小误差~0.05°仍可能是0属于合理死区)，`original/`同样只做代码修改+`ast.parse`语法检查(依赖`wiringpi`，本机/板子当前环境都跑不了它的测试)。三份已同步板子、单元测试通过、提交，**真机验证待做**——需要专门飞一次观察yaw漂移是否比修复前收敛更快/更小。
+
+17. **给下行协议加了电机PWM诊断字段，用于确认问题7"unlock_sta假阳性"的根因 — 固件源码已改，待Keil重新编译+烧录，真机验证待做**：问题7记录了2026-07-08 Y轴步长测试里`unlock_sta`读到0(已上锁)、脚本正常退出，但用户确认电机实际没有自动停转的假阳性现象。为了下次能直接确认(而不是只能推测)，查了协议链路：
+
+    - **`unlock_sta`的真实来源已确认，不是飞控本地随手置位的软件标志**：`my_protocol.c:373`注释"解锁状态（真实值，来自凌霄IMU CMD 0x06）"，追到`ANO_DT_LX.c:184-190`确认`fc_sta.unlock_sta = *(data+5)`——是凌霄IMU自己通过USART5上报的状态(对应官方上位机"飞控状态"面板的`FC_STA_SFlag`)，飞控只是转发，没有在这一步撒谎。
+    - **但飞控转发给电调的实际PWM值是完全独立的另一路信号**：`ANO_DT_LX.c:164-173`确认`pwm_to_esc.pwm_m1~m8`来自凌霄IMU的CMD 0x20帧(与CMD 0x06完全独立)，`ANO_LX.c:203-215`的`ESC_Output()`直接用这些值驱动电调——如果凌霄IMU的CMD 0x06说"已解锁"但同一时刻CMD 0x20还在发非零PWM，就会出现"确认已上锁但电机没停"这种现象，这是可以直接验证的假设。
+    - **已加诊断字段**：下行帧2(0x02调试扩展帧)从18字节扩展到19字节，新增1字节`motor_pwm_mask`(bit0~3对应m1~m4电机PWM是否非零，`my_protocol.c`用`edit_firmware.py`安全编辑，编码验证通过)。Python侧`Lcode/Lprotocol.py`（`basic/`、`basic_radar/`、`original/`三份都改）解析帧2时`length`判断从18改成19，新增字段存进`debug_data["motor_pwm_mask"]`；`land()`等待循环里把这个字段也写进飞行日志(`basic/`、`basic_radar/`补了2个TDD单元测试，`original/`仅代码修改)。下次一键降落确认异常时，直接对比日志里`unlock_sta`和`motor_pwm_mask`就能看出矛盾：如果`unlock_sta==0`但`motor_pwm_mask!=0`，就实锤是IMU自己的CMD0x06和CMD0x20不同步；如果两者一致(`motor_pwm_mask`也是0)，那问题出在别处(比如硬件本身没响应0 PWM)，需要重新排查方向。
+    - **仍待做**：这次只改了固件**源码**，飞控是STM32F407，需要用Keil重新编译工程并通过烧录器(ST-Link等)刷进板子才能生效——纯改源码文件不会让物理板子上跑的固件发生任何变化。Python侧改动已同步板子、单元测试通过，但在固件重新烧录之前，实际收到的帧2仍然是旧的18字节格式，新代码的`length==19`判断会不匹配，导致`debug_data`(含`fc_vel`/`of_acc`/`of_gyr`这些原有字段)**全部停止更新**，直到固件更新为止——这是本次改动引入的一个真实的、有意为之的过渡期行为(倒逼固件必须同步升级，而不是留旧协议悄悄继续用只是新字段读不到)，需要提醒用户先烧录固件再用这些遥测字段。
 
     **2026-07-08 反向复测(大步长→小步长)：扰动幅度随步长增大的趋势复现了，但"到达确认在0.4m附近有硬阈值"这个结论没有复现，说明之前那条结论下早了**：同样的4个步长，这次顺序倒过来`0,0,1.0/0.6,0,1.0/0,0,1.0/0.4,0,1.0/0,0,1.0/0.2,0,1.0/0,0,1.0/0.1,0,1.0/0,0,1.0/0,0,0.2`。
 

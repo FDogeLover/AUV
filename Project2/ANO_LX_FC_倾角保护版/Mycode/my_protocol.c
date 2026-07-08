@@ -315,12 +315,12 @@ void pi_send(void)
     if(tx_debug_pending)
     {
         // ========== 打包并整帧发送 (ID=0x02: 调试扩展帧) ==========
-        u8 buf2[23];
+        u8 buf2[24];
         tx_debug_pending = 0;
 
         buf2[0] = 0xAA;
         buf2[1] = 0x02;  // 帧类型: 调试扩展帧
-        buf2[2] = 18;    // 数据长度
+        buf2[2] = 19;    // 数据长度
 
         // 飞控（凌霄IMU）速度估计
         buf2[3] = (fc_vel.st_data.vel_x >> 0) & 0xFF;
@@ -344,11 +344,18 @@ void pi_send(void)
         buf2[19] = (ano_of.gyr_data_z >> 0) & 0xFF;
         buf2[20] = (ano_of.gyr_data_z >> 8) & 0xFF;
 
-        // 校验 + 帧尾（checksum覆盖buf2[1]~buf2[20]）
-        buf2[21] = calc_checksum(buf2, 20);
-        buf2[22] = 0xFF;
+        // 电机PWM非零位掩码(bit0~3=m1~m4)：诊断unlock_sta(来自凌霄IMU CMD0x06)
+        // 与实际PWM输出(来自CMD0x20，pwm_to_esc)是否同步，排查"确认已上锁但电机未停转"问题
+        buf2[21] = (pwm_to_esc.pwm_m1 != 0 ? 0x01 : 0) |
+                   (pwm_to_esc.pwm_m2 != 0 ? 0x02 : 0) |
+                   (pwm_to_esc.pwm_m3 != 0 ? 0x04 : 0) |
+                   (pwm_to_esc.pwm_m4 != 0 ? 0x08 : 0);
 
-        Send_str_by_len(USART2, buf2, 23);
+        // 校验 + 帧尾（checksum覆盖buf2[1]~buf2[21]）
+        buf2[22] = calc_checksum(buf2, 21);
+        buf2[23] = 0xFF;
+
+        Send_str_by_len(USART2, buf2, 24);
         return;
     }
 

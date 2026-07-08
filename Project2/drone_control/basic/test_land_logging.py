@@ -42,8 +42,9 @@ def _make_mission_for_land():
 
 class FakeSerialFcRef:
     """伪造串口对象，只提供 land() 需要读取的激光高度属性。"""
-    def __init__(self, laser_height_m):
+    def __init__(self, laser_height_m, motor_pwm_mask=None):
         self._last_laser_height_cm = laser_height_m
+        self.debug_data = {"motor_pwm_mask": motor_pwm_mask} if motor_pwm_mask is not None else {}
 
 
 class TestLandLogging:
@@ -96,3 +97,32 @@ class TestLandLogging:
         m._log_file.seek(0)
         entry = json.loads([l for l in m._log_file.readlines() if l.strip()][-1])
         assert entry["unlock_sta"] == 0
+
+    def test_land_logs_motor_pwm_mask(self):
+        """问题7 2026-07-08发现unlock_sta可能假阳性(读到已上锁但电机实际未停转)。
+        固件新增了电机PWM非零位掩码字段(帧2)，land()应该把它也记进日志，方便
+        下次复现时直接对比unlock_sta和这个掩码是否矛盾。"""
+        m = _make_mission_for_land()
+        m._log_file = io.StringIO()
+        m.re_fc[5] = 0
+        m.serial_fc_ref = FakeSerialFcRef(laser_height_m=0.07, motor_pwm_mask=0x0F)  # 4个电机都还在转
+
+        m.land()
+
+        m._log_file.seek(0)
+        entry = json.loads([l for l in m._log_file.readlines() if l.strip()][-1])
+        assert entry["motor_pwm_mask"] == 0x0F
+
+    def test_land_logs_motor_pwm_mask_none_when_unavailable(self):
+        """serial_fc_ref没有debug_data(比如刚连上还没收到过帧2)时，字段应该是
+        None而不是抛异常。"""
+        m = _make_mission_for_land()
+        m._log_file = io.StringIO()
+        m.re_fc[5] = 0
+        m.serial_fc_ref = FakeSerialFcRef(laser_height_m=0.07)  # 没传motor_pwm_mask
+
+        m.land()
+
+        m._log_file.seek(0)
+        entry = json.loads([l for l in m._log_file.readlines() if l.strip()][-1])
+        assert entry["motor_pwm_mask"] is None

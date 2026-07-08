@@ -6,7 +6,7 @@
   AA 02: 指令帧 (task_sta, com_x/y/z/yaw)  @50Hz
   AA frame_id len DATA CK FF: 飞控下行遥测
     frame_id=0x01 飞行关键帧 @50Hz（姿态/解锁状态/激光高度/光流速度）
-    frame_id=0x02 调试扩展帧 @2Hz（飞控速度估计/光流IMU原始数据）
+    frame_id=0x02 调试扩展帧 @2Hz（飞控速度估计/光流IMU原始数据/电机PWM非零掩码）
 """
 import serial
 import threading
@@ -43,7 +43,7 @@ class Serial_fc(object):
     def listen_fc(self, rxbuffer: List[int]):
         """接收下行帧: AA | frame_id | len | DATA[len] | checksum | 0xFF
         frame_id=0x01 飞行关键帧(24B, 50Hz): mission_stage/rol/pit/yaw/fusion_state/unlock_sta/x_int/y_int/laser/of1_dx/of1_dy/of_quality/of_link_sta/of_work_sta
-        frame_id=0x02 调试扩展帧(18B, 2Hz):  fc_vel_xyz / of_acc_xyz / of_gyr_xyz
+        frame_id=0x02 调试扩展帧(19B, 2Hz):  fc_vel_xyz / of_acc_xyz / of_gyr_xyz
         """
         while self.fclisten_running:
             try:
@@ -110,7 +110,7 @@ class Serial_fc(object):
                             self._last_laser_height_cm = float(laser_height_cm) / 100.0
                     fc_last_rx_time.value = time.time()
 
-                elif frame_id == 0x02 and length == 18:
+                elif frame_id == 0x02 and length == 19:
                     fc_vel_x = to_signed16(data[0] | (data[1] << 8))
                     fc_vel_y = to_signed16(data[2] | (data[3] << 8))
                     fc_vel_z = to_signed16(data[4] | (data[5] << 8))
@@ -120,11 +120,15 @@ class Serial_fc(object):
                     of_gyr_x = to_signed16(data[12] | (data[13] << 8))
                     of_gyr_y = to_signed16(data[14] | (data[15] << 8))
                     of_gyr_z = to_signed16(data[16] | (data[17] << 8))
+                    # 电机PWM非零位掩码(bit0~3=m1~m4)：诊断unlock_sta是否假阳性
+                    # (问题7 2026-07-08：unlock_sta读到0但电机实际未停转)
+                    motor_pwm_mask = data[18]
                     with lock:
                         self.debug_data = {
                             "fc_vel": (fc_vel_x, fc_vel_y, fc_vel_z),
                             "of_acc": (of_acc_x, of_acc_y, of_acc_z),
                             "of_gyr": (of_gyr_x, of_gyr_y, of_gyr_z),
+                            "motor_pwm_mask": motor_pwm_mask,
                         }
 
     def _send_t265_loop(self, t265_obj, freq):
