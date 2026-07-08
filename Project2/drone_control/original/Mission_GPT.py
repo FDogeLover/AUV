@@ -282,7 +282,8 @@ class mission:
             if self.t265_ok:
                 try:
                     yaw = self.realsense.get_orientation()[2]
-                    vyaw = int(self.limit(self.yaw_pid.get_pid(yaw) * VEL_SCALE, 30))
+                    # yaw_pid增益按角度量级设计，必须喂角度而非T265原始弧度(问题16)
+                    vyaw = int(self.limit(self.yaw_pid.get_pid(math.degrees(yaw)) * VEL_SCALE, 30))
                     with lock:
                         self.se_fc[6] = vyaw + sp_side
                 except Exception:
@@ -345,7 +346,8 @@ class mission:
         self.yaw_pid.set_target(0)
         vx = self.x_pid.get_pid(pos[0])
         vy = self.y_pid.get_pid(pos[1])
-        vyaw = self.yaw_pid.get_pid(yaw)
+        # yaw_pid增益按角度量级设计，必须喂角度而非T265原始弧度(问题16)
+        vyaw = self.yaw_pid.get_pid(math.degrees(yaw))
 
         vx *= 100 * VEL_SCALE
         vy *= 100 * VEL_SCALE
