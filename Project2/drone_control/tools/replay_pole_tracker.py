@@ -148,7 +148,8 @@ class OldPoleTrackerSim:
 
 def run_replay(seed=42):
     rng = random.Random(seed)
-    traj = resample_trajectory(load_trajectory(FLIGHT_LOG))
+    raw_traj = load_trajectory(FLIGHT_LOG)
+    traj = resample_trajectory(raw_traj)
 
     old_tracker = OldPoleTrackerSim()
     new_tracker = PoleTracker(yaw_sign=YAW_SIGN)
@@ -189,7 +190,7 @@ def run_replay(seed=42):
     new_dropouts = dropout_count(new_confirmed_timeline, new_first)
 
     print(f"重采样后帧数(轮询间隔{POLL_INTERVAL_S}s): {len(traj)}（原始日志帧数: "
-          f"{len(load_trajectory(FLIGHT_LOG))}）")
+          f"{len(raw_traj)}）")
     print(f"已知杆子世界坐标(假设): {POLE_WORLD}")
     print("-" * 60)
     print(f"旧版(机体系角度/距离容差): "
