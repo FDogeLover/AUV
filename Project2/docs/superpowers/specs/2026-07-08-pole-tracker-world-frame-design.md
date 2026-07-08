@@ -41,9 +41,12 @@ class PoleTracker:
 ### 2. 机体系 → 世界系转换
 
 ```python
-wx = x_m + yaw_sign * (bx * cos(yaw_rad) - by * sin(yaw_rad))
-wy = y_m + yaw_sign * (bx * sin(yaw_rad) + by * cos(yaw_rad))
+yaw = yaw_sign * yaw_rad
+wx = x_m + bx * cos(yaw) - by * sin(yaw)
+wy = y_m + bx * sin(yaw) + by * cos(yaw)
 ```
+
+（这版跟本文最初讨论时随口写的"`yaw_sign` 乘在旋转结果上"不是一回事——`yaw_sign` 应该乘在角度本身上再旋转，等价于用旋转矩阵的转置/逆，这才是"翻转旋转方向"的正确数学表示；两者只在 yaw=90°/270° 时刚好重合，其余角度不等价。已在 Task 1 代码评审中发现并订正，以代码实现为准。）
 
 其中 `(bx, by) = radar_angle_to_body_xy(angle, distance)`（沿用现有函数，机体系0°=+X机体方向）。`update()` 内部照旧先做"聚类过滤大障碍物、留下孤立候选"这一步（不变），拿到候选点后立刻做这个坐标转换，历史窗口（`self._history`，`deque(maxlen=window)`）存的是世界系 `(wx, wy)` 而不是机体系 `(angle, distance)`。
 
