@@ -42,6 +42,9 @@ ARRIVAL_VEL_WINDOW = 5  # 到达判定用的速度取最近N帧均值而非单�
                          # (2026-07-07实测: 单帧瞬时速度噪声可达0.07m/s，用瞬时值+连续N次达标会导致到达确认永远凑不齐、超时强制跳过)
 POLE_POLL_INTERVAL_S = 0.5   # PoleTracker轮询间隔，跟07-07真机测试/回放验证用的节奏一致
 POLE_DANGER_DIST_M = 0.6     # 确认的杆子距飞机当前位置小于此值就悬停(初步经验值，待真机调优)
+POLE_RESUME_DIST_M = 0.75    # 已经在悬停时，距离要超过这个值(比POLE_DANGER_DIST_M更远)才恢复导航——
+                              # 滞回区间，避免距离刚好卡在POLE_DANGER_DIST_M附近抖动时悬停状态反复
+                              # 触发/取消(2026-07-08真机0.1m步进接近测试观察到这个问题)
 POLE_YAW_SIGN = 1            # 未标定！CLAUDE.md已知问题13——真机/台架标定前只是假设值，
                               # 标定结果可能是+1也可能是-1，标定前这个避障功能的世界坐标可能是错的
 
@@ -314,7 +317,9 @@ class mission:
         target = self.targets[self.target_index]
         target_z = int(target[2] * 100)
 
-        # 雷达避障：检测到确认的杆子且距离过近就悬停，不绕行
+        # 雷达避障：检测到确认的杆子且距离过近就悬停，不绕行。
+        # 触发(POLE_DANGER_DIST_M)和恢复(POLE_RESUME_DIST_M)用两个不同阈值(滞回)，
+        # 避免距离刚好卡在阈值附近抖动时悬停状态反复触发/取消。
         pole_hover = False
         pole_dist = None
         if self.pole_tracker is not None:
@@ -323,8 +328,10 @@ class mission:
                 self._last_pole_poll_time = now
                 self.pole_tracker.update(self.radar, pos[0], pos[1], yaw)
             pole_dist = nearest_confirmed_pole_dist(self.pole_tracker.confirmed_poles(), pos[0], pos[1])
-            if pole_dist is not None and pole_dist < POLE_DANGER_DIST_M:
-                pole_hover = True
+            if self._pole_hovering:
+                pole_hover = pole_dist is not None and pole_dist < POLE_RESUME_DIST_M
+            else:
+                pole_hover = pole_dist is not None and pole_dist < POLE_DANGER_DIST_M
 
         if pole_hover:
             if not self._pole_hovering:

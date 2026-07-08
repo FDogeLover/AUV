@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 import pytest
 
-from Mission_GPT import mission, nearest_confirmed_pole_dist, POLE_DANGER_DIST_M
+from Mission_GPT import mission, nearest_confirmed_pole_dist, POLE_DANGER_DIST_M, POLE_RESUME_DIST_M
 
 
 # ════════════════════ nearest_confirmed_pole_dist ════════════════════
@@ -80,6 +80,41 @@ class TestMissionPoleHover:
         assert m._pole_hovering is True
 
         m.pole_tracker.reset()
+        m._last_pole_poll_time = time.time()
+        m.navigate([0.0, 0.0, 1.0], 0.0)
+        assert m._pole_hovering is False
+
+    def test_navigate_keeps_hovering_within_resume_hysteresis_band(self):
+        """已经悬停时，杆子距离哪怕超过了触发阈值(POLE_DANGER_DIST_M)，只要还没到
+        恢复阈值(POLE_RESUME_DIST_M)，应该继续悬停——避免距离刚好卡在触发阈值附近
+        抖动时悬停状态跟着反复横跳(2026-07-08真机测试观察到的问题)。"""
+        m = _make_mission(radar_obj=object())
+        m._last_pole_poll_time = time.time()
+        for _ in range(3):
+            m.pole_tracker._history.append([(0.3, 0.0)])
+        m.navigate([0.0, 0.0, 1.0], 0.0)
+        assert m._pole_hovering is True
+
+        # 距离变成 0.65m：超过触发阈值(0.6)但还没到恢复阈值(0.75)，应该继续悬停
+        m.pole_tracker.reset()
+        for _ in range(3):
+            m.pole_tracker._history.append([(0.65, 0.0)])
+        m._last_pole_poll_time = time.time()
+        m.navigate([0.0, 0.0, 1.0], 0.0)
+        assert m._pole_hovering is True
+
+    def test_navigate_resumes_once_pole_dist_exceeds_resume_threshold(self):
+        m = _make_mission(radar_obj=object())
+        m._last_pole_poll_time = time.time()
+        for _ in range(3):
+            m.pole_tracker._history.append([(0.3, 0.0)])
+        m.navigate([0.0, 0.0, 1.0], 0.0)
+        assert m._pole_hovering is True
+
+        # 距离变成 0.8m：超过恢复阈值(0.75)，应该恢复导航
+        m.pole_tracker.reset()
+        for _ in range(3):
+            m.pole_tracker._history.append([(0.8, 0.0)])
         m._last_pole_poll_time = time.time()
         m.navigate([0.0, 0.0, 1.0], 0.0)
         assert m._pole_hovering is False
