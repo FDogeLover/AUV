@@ -303,7 +303,9 @@ class PoleTracker(object):
 
     def confirmed_poles(self):
         """在滑动窗口内、世界系距离在 world_eps_m 以内重复出现次数 >= min_hits 的候选，
-        判定为确认的杆子。返回 [{'x','y','hits'}, ...]，按距离原点由近到远排序。"""
+        判定为确认的杆子。返回 [{'x','y','hits'}, ...]，按距离世界系原点(通常是起飞点，
+        不是飞机当前位置)由近到远排序——以后接入导航要找"离飞机当前最近的杆子"，调用方
+        需要自己用飞机当前位置重新排序，这里不做。"""
         all_candidates = [c for frame in self._history for c in frame]
         n = len(all_candidates)
         used = [False] * n

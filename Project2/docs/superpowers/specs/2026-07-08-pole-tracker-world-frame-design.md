@@ -70,7 +70,7 @@ math.hypot(wx2 - wx1, wy2 - wy1) <= world_eps_m
 {"x": avg_wx, "y": avg_wy, "hits": len(group)}
 ```
 
-（不再需要 `angle_deg`/`distance_mm` 字段本身用于确认逻辑，但可以从平均世界坐标反算等效角度/距离供日志展示——保留字段名，值改成由平均世界坐标反推。）
+（实际实现里直接去掉了 `angle_deg`/`distance_mm` 字段，只返回 `{"x","y","hits"}`——比这里最初设想的"保留字段名、值反算"更简单，跟最终计划文档保持一致。以后要展示等效角度/距离，调用方自己拿 `x,y` 传给 `world_to_body_angle_dist()` 换算即可。）
 
 ### 4. 离线回放验证脚本
 
