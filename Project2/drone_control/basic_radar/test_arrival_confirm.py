@@ -34,13 +34,13 @@ class TestArrivalWindowConfirmed:
         assert arrival_window_confirmed(window, arrival_confirm_need, ARRIVAL_CONFIRM_RATIO) is True
 
     def test_full_window_below_ratio_does_not_confirm(self):
-        # 15帧里只有9帧达标(60%) < 80%阈值
-        window = deque([True] * 9 + [False] * 6, maxlen=arrival_confirm_need)
+        # 15帧里只有8帧达标(53.3%) < 60%阈值
+        window = deque([True] * 8 + [False] * 7, maxlen=arrival_confirm_need)
         assert arrival_window_confirmed(window, arrival_confirm_need, ARRIVAL_CONFIRM_RATIO) is False
 
     def test_full_window_at_ratio_confirms(self):
-        # 15帧里12帧达标(80%) == 阈值，应该确认
-        window = deque([True] * 12 + [False] * 3, maxlen=arrival_confirm_need)
+        # 15帧里9帧达标(60%) == 阈值，应该确认
+        window = deque([True] * 9 + [False] * 6, maxlen=arrival_confirm_need)
         assert arrival_window_confirmed(window, arrival_confirm_need, ARRIVAL_CONFIRM_RATIO) is True
 
     def test_single_noisy_frame_does_not_reset_progress(self):
