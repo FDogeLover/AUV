@@ -474,8 +474,16 @@ class mission:
         # 串口一关这个参考直接断流，而OneKey_Land()的物理下降通常要持续数秒。
         # 这里继续跑主循环(保持串口/T265速度帧不断)，轮询真实解锁状态(unlock_sta)，
         # 确认真的上锁了(或超时兜底)才真正进入END关闭退出。
+        #
+        # 2026-07-08修复：这个循环原本只轮询unlock_sta，没有主动清零速度指令——
+        # se_fc[3]/[4]/[6]会停留在navigate()最后一次set_speed()的值上，被发送线程原样
+        # 重复发送，且没有PID再持续修正，真机测试观察到一键降落无响应时飞机会明显
+        # 偏离原位置。这里持续调用set_speed(0,0,0,ramp)清零水平速度、保持高度，
+        # 避免过期指令导致失控漂移。
         t_start = time.time()
         while True:
+            self.set_speed(0, 0, 0, int(self._ramp_z_cm))
+
             with lock:
                 unlock_sta = self.re_fc[5] if len(self.re_fc) > 5 else 0
             if unlock_sta == 0:
