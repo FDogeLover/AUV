@@ -458,9 +458,38 @@ class mission:
         # 重复发送，且没有PID再持续修正，真机测试观察到一键降落无响应时飞机会明显
         # 偏离原位置。这里持续调用set_speed(0,0,0,ramp)清零水平速度、保持高度，
         # 避免过期指令导致失控漂移。
+        # 2026-07-08修复：land()原本从触发到确认/超时全程不写任何飞行日志，导致
+        # 降落物理下降过程完全没有位置数据(真机测试想验证"降落时有没有额外偏移"
+        # 但发现日志是空的)。这里跟takeoff()一样，自己在循环里直接采样T265(不依赖
+        # loop()调用时传入的旧值，那个值在整个等待期间不会更新)。
         t_start = time.time()
         while True:
             self.set_speed(0, 0, 0, int(self._ramp_z_cm))
+
+            if self.t265_ok and self.realsense:
+                try:
+                    land_pos = list(self.realsense.get_position())
+                    land_yaw = self.realsense.get_orientation()[2]
+                    land_tv = self.realsense.get_velocity()
+                except Exception:
+                    land_pos, land_yaw, land_tv = [0.0, 0.0, 0.0], 0.0, (0.0, 0.0, 0.0)
+            else:
+                land_pos, land_yaw, land_tv = [0.0, 0.0, 0.0], 0.0, (0.0, 0.0, 0.0)
+
+            now = time.time()
+            if self._log_file and now - self._last_log_time >= FLIGHT_LOG_INTERVAL:
+                try:
+                    self._log_file.write(json.dumps({
+                        "t": round(now, 3),
+                        "state": self.state,
+                        "pos": [round(land_pos[0], 4), round(land_pos[1], 4), round(land_pos[2], 4)],
+                        "t265_yaw_deg": round(math.degrees(land_yaw), 2),
+                        "t265_vel": [round(land_tv[0], 4), round(land_tv[1], 4)],
+                    }) + "\n")
+                    self._log_file.flush()
+                except Exception:
+                    pass
+                self._last_log_time = now
 
             with lock:
                 unlock_sta = self.re_fc[5] if len(self.re_fc) > 5 else 0
