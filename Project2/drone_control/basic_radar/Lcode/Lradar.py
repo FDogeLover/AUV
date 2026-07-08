@@ -34,8 +34,8 @@ def radar_angle_to_body_xy(angle_deg, distance_mm):
     return x, y
 
 
-def body_to_world_xy(x_m, y_m, yaw_rad, bx_m, by_m, yaw_sign=1):
-    """机体系坐标(bx_m, by_m) -> 世界系坐标(x_m, y_m 为飞机当前世界系位置)。
+def body_to_world_xy(drone_x_m, drone_y_m, yaw_rad, bx_m, by_m, yaw_sign=1):
+    """机体系坐标(bx_m, by_m) -> 世界系坐标(drone_x_m, drone_y_m 为飞机当前世界系位置)。
 
     yaw_rad 约定：跟 t265.py 的 get_orientation()[2] / pose_data[5] 同一个量，
     符号尚未标定（t265.py 内部经过轴重映射+取反+欧拉角提取，不是标准数学CCW正角度）。
@@ -44,17 +44,17 @@ def body_to_world_xy(x_m, y_m, yaw_rad, bx_m, by_m, yaw_sign=1):
     """
     yaw = yaw_sign * yaw_rad
     cy, sy = math.cos(yaw), math.sin(yaw)
-    wx = x_m + bx_m * cy - by_m * sy
-    wy = y_m + bx_m * sy + by_m * cy
+    wx = drone_x_m + bx_m * cy - by_m * sy
+    wy = drone_y_m + bx_m * sy + by_m * cy
     return wx, wy
 
 
-def world_to_body_angle_dist(world_x, world_y, x_m, y_m, yaw_rad, yaw_sign=1):
+def world_to_body_angle_dist(world_x, world_y, drone_x_m, drone_y_m, yaw_rad, yaw_sign=1):
     """body_to_world_xy 的逆变换：已知一个世界系点和飞机当前位姿，反推该点在机体系
     的雷达(角度,距离mm)读数——只在离线合成测试数据时用，不是雷达驱动本身需要的功能。
     """
-    dx = world_x - x_m
-    dy = world_y - y_m
+    dx = world_x - drone_x_m
+    dy = world_y - drone_y_m
     yaw = yaw_sign * yaw_rad
     cy, sy = math.cos(yaw), math.sin(yaw)
     bx = dx * cy + dy * sy
