@@ -40,6 +40,12 @@ def _make_mission_for_land():
     return m
 
 
+class FakeSerialFcRef:
+    """伪造串口对象，只提供 land() 需要读取的激光高度属性。"""
+    def __init__(self, laser_height_m):
+        self._last_laser_height_cm = laser_height_m
+
+
 class TestLandLogging:
     def test_land_logs_position_when_immediately_unlocked(self):
         """land()原本从触发到确认/超时全程不写任何飞行日志，导致降落物理下降过程
@@ -56,4 +62,37 @@ class TestLandLogging:
         assert len(lines) >= 1
         entry = json.loads(lines[-1])
         assert entry["state"] == "LAND"
-        assert entry["pos"] == [0.12, -0.05, 0.03]
+        assert entry["pos"][0] == 0.12
+        assert entry["pos"][1] == -0.05
+
+    def test_land_logs_laser_height_not_raw_t265_z(self):
+        """land()原本自采样时直接用realsense.get_position()的原始Z轴——但loop()
+        正常流程里Z轴其实是被激光高度覆盖过的(T265自身Z轴未标定，不是真实高度，
+        见 takeoff() 同样直接读 _last_laser_height_cm 而不用T265 Z)。land()这里
+        如果继续用原始T265 Z，降落阶段记录的"高度"数据是假的，没法用来验证物理
+        降落过程，这正是加这份日志的初衷。"""
+        m = _make_mission_for_land()
+        m._log_file = io.StringIO()
+        m.re_fc[5] = 0  # 立刻确认退出，只需要一条日志
+        m.serial_fc_ref = FakeSerialFcRef(laser_height_m=0.07)  # 激光真实高度7cm
+        # T265原始Z(FakeRealsense pos[2]=0.03)明显不同于激光高度，用来验证没有被误用
+
+        m.land()
+
+        m._log_file.seek(0)
+        entry = json.loads([l for l in m._log_file.readlines() if l.strip()][-1])
+        assert entry["pos"][2] == 0.07
+
+    def test_land_logs_unlock_sta(self):
+        """降落确认依赖的unlock_sta字段本身原来没有写进日志，事后只能靠高度曲线
+        间接推断"确认超时"到底是物理没执行还是确认通道滞后。直接记录这个字段能让
+        排查更直接。"""
+        m = _make_mission_for_land()
+        m._log_file = io.StringIO()
+        m.re_fc[5] = 0  # 已上锁
+
+        m.land()
+
+        m._log_file.seek(0)
+        entry = json.loads([l for l in m._log_file.readlines() if l.strip()][-1])
+        assert entry["unlock_sta"] == 0
