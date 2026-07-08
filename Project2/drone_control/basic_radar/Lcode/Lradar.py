@@ -34,6 +34,36 @@ def radar_angle_to_body_xy(angle_deg, distance_mm):
     return x, y
 
 
+def body_to_world_xy(drone_x_m, drone_y_m, yaw_rad, bx_m, by_m, yaw_sign=1):
+    """机体系坐标(bx_m, by_m) -> 世界系坐标(drone_x_m, drone_y_m 为飞机当前世界系位置)。
+
+    yaw_rad 约定：跟 t265.py 的 get_orientation()[2] / pose_data[5] 同一个量，
+    符号尚未标定（t265.py 内部经过轴重映射+取反+欧拉角提取，不是标准数学CCW正角度）。
+    yaw_sign 用于以后真机标定时切换旋转方向，本次实现先固定不管调用方传几都能跑，
+    具体该用 +1 还是 -1 留给下次真机/台架测试确定。
+    """
+    yaw = yaw_sign * yaw_rad
+    cy, sy = math.cos(yaw), math.sin(yaw)
+    wx = drone_x_m + bx_m * cy - by_m * sy
+    wy = drone_y_m + bx_m * sy + by_m * cy
+    return wx, wy
+
+
+def world_to_body_angle_dist(world_x, world_y, drone_x_m, drone_y_m, yaw_rad, yaw_sign=1):
+    """body_to_world_xy 的逆变换：已知一个世界系点和飞机当前位姿，反推该点在机体系
+    的雷达(角度,距离mm)读数——只在离线合成测试数据时用，不是雷达驱动本身需要的功能。
+    """
+    dx = world_x - drone_x_m
+    dy = world_y - drone_y_m
+    yaw = yaw_sign * yaw_rad
+    cy, sy = math.cos(yaw), math.sin(yaw)
+    bx = dx * cy + dy * sy
+    by = -dx * sy + dy * cy
+    angle_deg = math.degrees(math.atan2(-by, bx)) % 360.0
+    distance_mm = math.hypot(bx, by) * 1000.0
+    return angle_deg, distance_mm
+
+
 def _cluster_points(points, eps_m=0.15, min_samples=3):
     """按角度顺序对点聚类（仿镭神官方SLAM包 obstacle_detector.py 的 simple_clustering 思路）。
 
@@ -215,32 +245,41 @@ class Serial_radar(object):
 
 
 class PoleTracker(object):
-    """细杆子(绕障目标)探测器 — 空间聚类 + 多帧时间持续性组合。
+    """细杆子(绕障目标)探测器 — 空间聚类 + 多帧时间持续性组合，世界系匹配。
 
     背景(2026-07-07台架测试结论)：细杆子单帧扫描通常只产生1个孤立点，跟真正的噪声在
     空间特征上无法区分，`Serial_radar.get_obstacles()`(min_samples>=2起)会把它和噪声一起
     过滤掉。真正能把两者分开的是时间维度——噪声不会重复出现在同一角度附近，杆子会。
 
+    2026-07-07真机验证发现：早期版本用机体系角度/距离容差匹配历史候选，飞机接近一个不严格
+    在正前方的目标时，视线方位角会随飞机位置摆动(实测19°)，远超固定容差，导致匹配失败——
+    这是纯几何效应，跟传感器/算法实现无关。本版本改成把每次轮询的候选点转换到世界系坐标
+    (需要调用方传入飞机当前位置+朝向)，历史匹配比较世界系距离而不是机体系角度/距离，静止的
+    杆子在世界系里位置不变，不受飞机自身运动影响。
+
     用法：只关心 max_range_mm 以内的目标(默认1.2m，留一点余量，实际工作距离约1m)，导航/
-    搜寻循环里周期性调用 update(radar)，累计到 min_hits 次命中就能从 confirmed_poles() 里
-    读到确认的杆子。命中率参考2026-07-07实测：70cm~90%，1m~70%，1.55m~10%——在1m以内工作，
-    min_hits=3 通常几次调用内就能确认。
+    搜寻循环里周期性调用 update(radar, x_m, y_m, yaw_rad)，累计到 min_hits 次命中就能从
+    confirmed_poles() 里读到确认的杆子(世界系坐标)。命中率参考2026-07-07实测：70cm~90%，
+    1m~70%，1.55m~10%——在1m以内工作，min_hits=3 通常几次调用内就能确认。
     """
-    def __init__(self, max_range_mm=1200, angle_tol_deg=4, dist_tol_mm=150,
+    def __init__(self, max_range_mm=1200,
                  window=6, min_hits=3, min_intensity=60,
-                 cluster_eps_m=0.15, cluster_min_samples=3):
+                 cluster_eps_m=0.15, cluster_min_samples=3,
+                 world_eps_m=0.2, yaw_sign=1):
         self.max_range_mm = max_range_mm
-        self.angle_tol_deg = angle_tol_deg
-        self.dist_tol_mm = dist_tol_mm
         self.min_hits = min_hits
         self.min_intensity = min_intensity
         self.cluster_eps_m = cluster_eps_m
         self.cluster_min_samples = cluster_min_samples
-        self._history = deque(maxlen=window)  # 每项: 本次poll识别到的候选点列表 [(angle,distance_mm), ...]
+        self.world_eps_m = world_eps_m
+        self.yaw_sign = yaw_sign
+        self._history = deque(maxlen=window)  # 每项: 本次poll识别到的候选点世界坐标列表 [(wx,wy), ...]
 
-    def update(self, radar):
-        """拉一次雷达当前scan，剔除"够格当大障碍物"的聚类，剩下的孤立/小聚类点作为候选记入历史窗口。
-        返回本次识别到的候选点列表。"""
+    def update(self, radar, x_m, y_m, yaw_rad):
+        """拉一次雷达当前scan，剔除"够格当大障碍物"的聚类，剩下的孤立/小聚类点转换成
+        世界系坐标记入历史窗口。x_m/y_m/yaw_rad 是飞机当前位姿(同 Mission_GPT 里
+        pos[0]/pos[1]/yaw，来自 t265 的世界系位置+朝向)。返回本次识别到的候选点世界坐标列表。
+        """
         scan = radar.get_scan()
         points = []
         for angle in sorted(scan.keys()):
@@ -249,22 +288,24 @@ class PoleTracker(object):
                 continue
             points.append((angle, distance_mm))
 
-        # min_samples=1：先不设门槛聚类，拿到包括孤立点在内的所有分组，
-        # 再按点数区分"大障碍物"(>=cluster_min_samples，不是我们要找的细目标) 和"候选细目标"
         all_clusters = _cluster_points(points, eps_m=self.cluster_eps_m, min_samples=1)
         candidates = []
         for cluster in all_clusters:
             if len(cluster) >= self.cluster_min_samples:
                 continue  # 大障碍物，交给 get_obstacles() 处理，不算细目标候选
             angle, distance_mm = min(cluster, key=lambda p: p[1])
-            candidates.append((angle, distance_mm))
+            bx, by = radar_angle_to_body_xy(angle, distance_mm)
+            wx, wy = body_to_world_xy(x_m, y_m, yaw_rad, bx, by, yaw_sign=self.yaw_sign)
+            candidates.append((wx, wy))
 
         self._history.append(candidates)
         return candidates
 
     def confirmed_poles(self):
-        """在滑动窗口内、角度/距离都在容差范围内重复出现次数 >= min_hits 的候选，判定为确认的杆子。
-        返回 [{'angle_deg','distance_mm','x','y','hits'}, ...]，按距离升序。"""
+        """在滑动窗口内、世界系距离在 world_eps_m 以内重复出现次数 >= min_hits 的候选，
+        判定为确认的杆子。返回 [{'x','y','hits'}, ...]，按距离世界系原点(通常是起飞点，
+        不是飞机当前位置)由近到远排序——以后接入导航要找"离飞机当前最近的杆子"，调用方
+        需要自己用飞机当前位置重新排序，这里不做。"""
         all_candidates = [c for frame in self._history for c in frame]
         n = len(all_candidates)
         used = [False] * n
@@ -272,28 +313,21 @@ class PoleTracker(object):
         for i in range(n):
             if used[i]:
                 continue
-            a1, d1 = all_candidates[i]
-            group = [(a1, d1)]
+            x1, y1 = all_candidates[i]
+            group = [(x1, y1)]
             used[i] = True
             for j in range(i + 1, n):
                 if used[j]:
                     continue
-                a2, d2 = all_candidates[j]
-                if abs(a2 - a1) <= self.angle_tol_deg and abs(d2 - d1) <= self.dist_tol_mm:
-                    group.append((a2, d2))
+                x2, y2 = all_candidates[j]
+                if math.hypot(x2 - x1, y2 - y1) <= self.world_eps_m:
+                    group.append((x2, y2))
                     used[j] = True
             if len(group) >= self.min_hits:
-                avg_angle = sum(a for a, _ in group) / len(group)
-                avg_dist = sum(d for _, d in group) / len(group)
-                x, y = radar_angle_to_body_xy(avg_angle, avg_dist)
-                confirmed.append({
-                    "angle_deg": avg_angle,
-                    "distance_mm": avg_dist,
-                    "x": x,
-                    "y": y,
-                    "hits": len(group),
-                })
-        confirmed.sort(key=lambda o: o["distance_mm"])
+                avg_x = sum(x for x, _ in group) / len(group)
+                avg_y = sum(y for _, y in group) / len(group)
+                confirmed.append({"x": avg_x, "y": avg_y, "hits": len(group)})
+        confirmed.sort(key=lambda o: math.hypot(o["x"], o["y"]))
         return confirmed
 
     def reset(self):
