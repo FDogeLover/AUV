@@ -33,6 +33,16 @@ LAND_CONFIRM_TIMEOUT_S = 10.0  # 降落触发后最多等待多久确认unlock_s
 ARRIVAL_VEL_THRESH = 0.05  # 到达判定除了位置阈值外，还要求T265速度模长小于此值(m/s)，避免带着残余速度就触发land()盲降
 ARRIVAL_VEL_WINDOW = 5  # 到达判定用的速度取最近N帧均值而非单帧瞬时值，平滑T265速度噪声尖峰
                          # (2026-07-07实测: 单帧瞬时速度噪声可达0.07m/s，用瞬时值+连续N次达标会导致到达确认永远凑不齐、超时强制跳过)
+ARRIVAL_CONFIRM_RATIO = 0.8  # 到达确认改用滑动窗口比例制而非严格连续帧数：旧逻辑下任意一帧不达标就把
+                              # 计数器清零重来，2026-07-08矩形路径测试实测达标帧占比只有30-40%，几乎不可能
+                              # 连续凑够arrival_confirm_need帧，导致大多数航点靠超时兜底而非真正确认到达
+
+
+def arrival_window_confirmed(window, need, ratio):
+    """window: 最近若干帧"位置+速度是否同时达标"的布尔值(deque)。
+    窗口填满(len>=need)且达标帧占比>=ratio才算确认到达——替代旧的"严格连续N帧"
+    逻辑，单帧噪声不会让已经积累的进度清零(见 ARRIVAL_CONFIRM_RATIO 常量注释)。"""
+    return len(window) >= need and (sum(window) / len(window)) >= ratio
 
 
 class mission:
@@ -69,7 +79,7 @@ class mission:
         self.emergency_stop = False
 
         # 到达判断状态（进入航点时自动重置）
-        self.arrival_confirm_count = 0
+        self._arrival_window = deque(maxlen=arrival_confirm_need)
         self.arrival_start_time = 0.0
         self.last_target_index = -1
         self._vel_window = deque(maxlen=ARRIVAL_VEL_WINDOW)
@@ -370,7 +380,7 @@ class mission:
 
         if self.target_index != self.last_target_index:
             self.last_target_index = self.target_index
-            self.arrival_confirm_count = 0
+            self._arrival_window.clear()
             self.arrival_start_time = time.time()
 
         if dx > 0.3:
@@ -382,13 +392,10 @@ class mission:
         z_ok = dz < posthreshold_z
         vel_ok = speed < ARRIVAL_VEL_THRESH
 
-        if xy_ok and z_ok and vel_ok:
-            self.arrival_confirm_count += 1
-            if self.arrival_confirm_count >= arrival_confirm_need:
-                logger.info(f"到达航点 {self.target_index}")
-                self._on_arrival(target)
-        else:
-            self.arrival_confirm_count = 0
+        self._arrival_window.append(xy_ok and z_ok and vel_ok)
+        if arrival_window_confirmed(self._arrival_window, arrival_confirm_need, ARRIVAL_CONFIRM_RATIO):
+            logger.info(f"到达航点 {self.target_index}")
+            self._on_arrival(target)
 
         if time.time() - self.arrival_start_time >= arrival_timeout_max:
             logger.warning(f"航点 {self.target_index} 超时，强制跳过")
