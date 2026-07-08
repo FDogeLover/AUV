@@ -17,8 +17,8 @@ build/
 __pycache__/
 *.pyc
 
-# Claude Code 记忆/配置
-.claude/
+# Claude Code 本地专属配置(权限白名单等，因机器而异，不共享)
+.claude/settings.local.json
 
 drone_control/test_dmz_protocol.py
 
