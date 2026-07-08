@@ -16,6 +16,7 @@ from typing import List, Optional
 from Lcode.Lpid import PID
 from Lcode.Logger import logger
 from Lcode.global_variable import sp_side, lock, fc_last_rx_time
+from Lcode.Lradar import PoleTracker
 from t265 import t265_class
 
 # ---------- 常量 ----------
@@ -39,13 +40,25 @@ LAND_CONFIRM_TIMEOUT_S = 10.0  # 降落触发后最多等待多久确认unlock_s
 ARRIVAL_VEL_THRESH = 0.05  # 到达判定除了位置阈值外，还要求T265速度模长小于此值(m/s)，避免带着残余速度就触发land()盲降
 ARRIVAL_VEL_WINDOW = 5  # 到达判定用的速度取最近N帧均值而非单帧瞬时值，平滑T265速度噪声尖峰
                          # (2026-07-07实测: 单帧瞬时速度噪声可达0.07m/s，用瞬时值+连续N次达标会导致到达确认永远凑不齐、超时强制跳过)
+POLE_POLL_INTERVAL_S = 0.5   # PoleTracker轮询间隔，跟07-07真机测试/回放验证用的节奏一致
+POLE_DANGER_DIST_M = 0.6     # 确认的杆子距飞机当前位置小于此值就悬停(初步经验值，待真机调优)
+POLE_YAW_SIGN = 1            # 未标定！CLAUDE.md已知问题13——真机/台架标定前只是假设值，
+                              # 标定结果可能是+1也可能是-1，标定前这个避障功能的世界坐标可能是错的
+
+
+def nearest_confirmed_pole_dist(confirmed_poles, x, y):
+    """confirmed_poles: PoleTracker.confirmed_poles()的返回值(list of {'x','y','hits'})。
+    返回离(x,y)最近的确认杆子的距离(m)；没有杆子返回None。"""
+    if not confirmed_poles:
+        return None
+    return min(math.hypot(p["x"] - x, p["y"] - y) for p in confirmed_poles)
 
 
 class mission:
 
     def __init__(self, re_fc: List[int], se_fc: List[int],
                  realsense_obj: Optional[t265_class] = None,
-                 serial_fc_ref=None):
+                 serial_fc_ref=None, radar_obj=None):
         self.re_fc = re_fc
         self.se_fc = se_fc
         self.serial_fc_ref = serial_fc_ref
@@ -81,6 +94,12 @@ class mission:
         # 飞行数据日志
         self._log_file = None
         self._last_log_time = 0.0
+
+        # 雷达避障(可选)
+        self.radar = radar_obj
+        self.pole_tracker = PoleTracker(yaw_sign=POLE_YAW_SIGN) if radar_obj is not None else None
+        self._last_pole_poll_time = 0.0
+        self._pole_hovering = False  # 只在悬停状态切换时打日志，不是每帧刷屏
 
     def load_waypoints(self):
         try:
@@ -295,6 +314,28 @@ class mission:
         target = self.targets[self.target_index]
         target_z = int(target[2] * 100)
 
+        # 雷达避障：检测到确认的杆子且距离过近就悬停，不绕行
+        pole_hover = False
+        pole_dist = None
+        if self.pole_tracker is not None:
+            now = time.time()
+            if now - self._last_pole_poll_time >= POLE_POLL_INTERVAL_S:
+                self._last_pole_poll_time = now
+                self.pole_tracker.update(self.radar, pos[0], pos[1], yaw)
+            pole_dist = nearest_confirmed_pole_dist(self.pole_tracker.confirmed_poles(), pos[0], pos[1])
+            if pole_dist is not None and pole_dist < POLE_DANGER_DIST_M:
+                pole_hover = True
+
+        if pole_hover:
+            if not self._pole_hovering:
+                logger.warning(f"检测到杆子距离{pole_dist:.2f}m，悬停等待")
+                self._pole_hovering = True
+            self.set_speed(0, 0, 0, int(self._ramp_z_cm))
+            return
+        elif self._pole_hovering:
+            logger.info("杆子确认已消失，恢复导航")
+            self._pole_hovering = False
+
         confidence = self.realsense.get_tracking_confidence() if (self.t265_ok and self.realsense) else 0
 
         if confidence == 0 and self.t265_ok:
@@ -395,6 +436,7 @@ class mission:
                     "roll_pitch": [round(roll_deg, 2), round(pitch_deg, 2)],
                     "height_setpoint_cm": round(self._ramp_z_cm, 1),
                     "of_status": [of_quality, of_link_sta, of_work_sta],
+                    "pole_hover": self._pole_hovering,
                 }) + "\n")
                 self._log_file.flush()
             except Exception:
