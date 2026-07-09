@@ -50,6 +50,11 @@ POLE_POLL_INTERVAL_S = 0.5   # PoleTracker轮询间隔，跟07-07真机测试/�
 POLE_DANGER_DIST_M = 0.6     # 确认的杆子距飞机当前位置小于此值就悬停(初步经验值，待真机调优)
 POLE_RESUME_DIST_M = 0.75    # 已经在悬停时，距离要超过这个值(比POLE_DANGER_DIST_M更远)才恢复导航——
                               # 滞回区间，避免距离刚好卡在POLE_DANGER_DIST_M附近抖动时悬停状态反复
+POLE_HOVER_TIMEOUT_S = 15.0   # 2026-07-09新增：悬停位置修正生效后，杆子如果一直不移开会一直悬停
+                              # 下去(此前版本靠位置漂移bug"意外"带出安全区域才结束悬停，修复漂移后
+                              # 暴露出这个问题)。超时后没有绕行能力，直接原地触发降落，不冒险恢复
+                              # 导航飞向原目标(可能正对着障碍物)。绕行是后续单独设计的功能，这里只是
+                              # 兜底超时。
                               # 触发/取消(2026-07-08真机0.1m步进接近测试观察到这个问题)
 POLE_YAW_SIGN = 1            # 未标定！CLAUDE.md已知问题13——真机/台架标定前只是假设值，
                               # 标定结果可能是+1也可能是-1，标定前这个避障功能的世界坐标可能是错的
@@ -116,6 +121,8 @@ class mission:
         self.pole_tracker = PoleTracker(yaw_sign=POLE_YAW_SIGN) if radar_obj is not None else None
         self._last_pole_poll_time = 0.0
         self._pole_hovering = False  # 只在悬停状态切换时打日志，不是每帧刷屏
+        self._hover_hold_pos = None  # 悬停期间用x_pid/y_pid锁定的位置(进入悬停那一刻的pos)
+        self._hover_start_time = None  # 悬停开始时间，用于POLE_HOVER_TIMEOUT_S超时判断
 
     def load_waypoints(self):
         try:
@@ -354,10 +361,28 @@ class mission:
             if not self._pole_hovering:
                 logger.warning(f"检测到杆子距离{pole_dist:.2f}m，悬停等待")
                 self._pole_hovering = True
-            self.set_speed(0, 0, 0, int(self._ramp_z_cm))
+                # 2026-07-09修复：进入悬停时记住当前位置，用x_pid/y_pid持续锁定，
+                # 而不是常量发送(0,0,0)速度——后者只是"目标速度为0"，不修正实际位置
+                # 漂移，真机测试发现~23秒悬停里飞机在没有任何指令的情况下真实漂移
+                # 了约0.5m(t265_vel持续非零、位置连续平滑漂移，不是数据毛刺)。
+                self._hover_hold_pos = (pos[0], pos[1])
+                self._hover_start_time = time.time()
+                self.x_pid.set_target(self._hover_hold_pos[0])
+                self.y_pid.set_target(self._hover_hold_pos[1])
+            elif time.time() - self._hover_start_time >= POLE_HOVER_TIMEOUT_S:
+                # 悬停超时：没有绕行能力，不冒险恢复导航飞向原目标(可能正对着障碍物)，
+                # 直接原地触发降落。
+                logger.warning(f"悬停超过{POLE_HOVER_TIMEOUT_S:.0f}秒仍未恢复导航，原地触发降落")
+                self._pole_hovering = False
+                self._hover_hold_pos = None
+                self._hover_start_time = None
+                self.state = "LAND"
+                return
+            vx = int(self.limit(self.x_pid.get_pid(pos[0]) * 100 * VEL_SCALE, 40))
+            vy = int(self.limit(self.y_pid.get_pid(pos[1]) * 100 * VEL_SCALE, 40))
+            self.set_speed(vx, vy, 0, int(self._ramp_z_cm))
             # 2026-07-08修复：这里原本直接return，会跳过下面的飞行日志写入，
             # 导致悬停期间完全没有位置数据被记录(真机测试发现日志时间戳有秒级空白)。
-            # 悬停期间没有PID可复用的vx/vy/vyaw(都是0)，也不需要到达检测，
             # 这里单独写一份简化日志(不含光流/姿态遥测，避免为了几个字段重复读锁)。
             now = time.time()
             if self._log_file and now - self._last_log_time >= FLIGHT_LOG_INTERVAL:
@@ -369,23 +394,26 @@ class mission:
                         "target_idx": self.target_index,
                         "pos": [round(pos[0], 4), round(pos[1], 4), round(pos[2], 4)],
                         "target": [round(target[0], 4), round(target[1], 4), round(target[2], 4)],
-                        "vx": 0, "vy": 0, "vyaw": 0,
+                        "vx": vx, "vy": vy, "vyaw": 0,
                         "t265_yaw_deg": round(math.degrees(yaw), 2),
                         "t265_vel": [round(tv[0], 4), round(tv[1], 4)],
                         "height_setpoint_cm": round(self._ramp_z_cm, 1),
                         "pole_hover": self._pole_hovering,
                         "pole_dist": round(pole_dist, 3) if pole_dist is not None else None,
+                        "hover_hold_pos": list(self._hover_hold_pos),
                     }) + "\n")
                     self._log_file.flush()
                 except Exception:
                     pass
                 self._last_log_time = now
             print(f"\rpos=({pos[0]:+.3f},{pos[1]:+.3f},{pos[2]:+.3f}) "
-                  f"| 悬停中(杆子距离{pole_dist:.2f}m)", end="", flush=True)
+                  f"| 悬停中(杆子距离{pole_dist:.2f}m) v=({vx},{vy})", end="", flush=True)
             return
         elif self._pole_hovering:
             logger.info("杆子确认已消失，恢复导航")
             self._pole_hovering = False
+            self._hover_hold_pos = None
+            self._hover_start_time = None
 
         confidence = self.realsense.get_tracking_confidence() if (self.t265_ok and self.realsense) else 0
 
