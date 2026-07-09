@@ -47,6 +47,14 @@ ARRIVAL_CONFIRM_RATIO = 0.6  # 到达确认改用滑动窗口比例制而非严�
                               # 连续凑够arrival_confirm_need帧，导致大多数航点靠超时兜底而非真正确认到达
                               # (2026-07-08复测: 0.8比例下仍有部分航点(占比26-34%)无法确认，下调到0.6)
 
+# 2026-07-09新增：yaw方向验证专用——问题16事故后yaw修正回路已回退，但符号问题
+# 尚未定位。这里加一个非闭环、短时、固定输出的yaw脉冲测试，绕开PID，直接验证
+# 凌霄IMU执行vyaw的真实物理方向，跟转盘验证过的T265测量方向做对比。
+# 默认关闭，不会影响正常飞行；显式设DRONE_YAW_TEST_BURST=1才会触发。
+YAW_TEST_BURST_ENABLED = os.getenv("DRONE_YAW_TEST_BURST", "0") == "1"
+YAW_TEST_BURST_VALUE = int(os.getenv("DRONE_YAW_TEST_BURST_VALUE", "-8"))
+YAW_TEST_BURST_DURATION_S = float(os.getenv("DRONE_YAW_TEST_BURST_DURATION_S", "1.5"))
+
 
 def arrival_window_confirmed(window, need, ratio):
     """window: 最近若干帧"位置+速度是否同时达标"的布尔值(deque)。
@@ -95,6 +103,9 @@ class mission:
         # 飞行数据日志
         self._log_file = None
         self._last_log_time = 0.0
+
+        # yaw方向测试(问题16)
+        self._yaw_burst_done = False
 
     def load_waypoints(self):
         try:
@@ -457,9 +468,37 @@ class mission:
 
     # ================= 到达处理 =================
     def _on_arrival(self, target):
+        if YAW_TEST_BURST_ENABLED and self.target_index == 0 and not self._yaw_burst_done:
+            self._yaw_burst_done = True
+            self._do_yaw_test_burst()
         if self.target_index == len(self.targets) - 2:
             pass  # 到达倒数第二个航点 (原 rgb_led 逻辑已移除)
         self.target_index += 1
+
+    def _do_yaw_test_burst(self):
+        """非闭环yaw方向验证：直接发固定vyaw一小段时间后归零，不经过yaw_pid。
+        阻塞调用线程(navigate()所在的主循环线程)，但发送线程独立运行在另一个
+        线程，se_fc当前值会持续以100Hz/50Hz发出，不受阻塞影响，是安全的。"""
+        if not (self.t265_ok and self.realsense):
+            logger.warning("[YAW测试] T265不可用，跳过")
+            return
+        yaw0 = math.degrees(self.realsense.get_orientation()[2])
+        logger.warning(
+            f"[YAW测试] 脉冲前yaw={yaw0:.1f}° 发送固定vyaw={YAW_TEST_BURST_VALUE}"
+            f"持续{YAW_TEST_BURST_DURATION_S:.1f}秒(非闭环，不经过yaw_pid)"
+        )
+        t_start = time.time()
+        with lock:
+            self.se_fc[6] = YAW_TEST_BURST_VALUE + sp_side
+        while time.time() - t_start < YAW_TEST_BURST_DURATION_S:
+            time.sleep(0.05)
+        with lock:
+            self.se_fc[6] = 0 + sp_side
+        yaw1 = math.degrees(self.realsense.get_orientation()[2])
+        logger.warning(
+            f"[YAW测试] 脉冲后yaw={yaw1:.1f}° 变化={yaw1 - yaw0:+.1f}°"
+            f"（vyaw为负，若变化为负=方向符合固件'逆时针为正'约定；若变化为正=方向相反，疑似正反馈根因）"
+        )
 
     # ================= 降落 =================
     def land(self):
