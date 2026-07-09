@@ -346,12 +346,20 @@ class mission:
         # 避免距离刚好卡在阈值附近抖动时悬停状态反复触发/取消。
         pole_hover = False
         pole_dist = None
+        confirmed_poles_list = []  # 2026-07-09新增：记录全部确认杆子(不只是最近的一个)，
+                                    # 用于验证多障碍物场景下是否真的同时跟踪了多个目标
         if self.pole_tracker is not None:
             now = time.time()
             if now - self._last_pole_poll_time >= POLE_POLL_INTERVAL_S:
                 self._last_pole_poll_time = now
                 self.pole_tracker.update(self.radar, pos[0], pos[1], yaw)
-            pole_dist = nearest_confirmed_pole_dist(self.pole_tracker.confirmed_poles(), pos[0], pos[1])
+            confirmed = self.pole_tracker.confirmed_poles()
+            confirmed_poles_list = [
+                {"x": round(p["x"], 3), "y": round(p["y"], 3), "hits": p["hits"],
+                 "dist": round(math.hypot(p["x"] - pos[0], p["y"] - pos[1]), 3)}
+                for p in confirmed
+            ]
+            pole_dist = nearest_confirmed_pole_dist(confirmed, pos[0], pos[1])
             if self._pole_hovering:
                 pole_hover = pole_dist is not None and pole_dist < POLE_RESUME_DIST_M
             else:
@@ -401,6 +409,7 @@ class mission:
                         "pole_hover": self._pole_hovering,
                         "pole_dist": round(pole_dist, 3) if pole_dist is not None else None,
                         "hover_hold_pos": list(self._hover_hold_pos),
+                        "confirmed_poles": confirmed_poles_list,
                     }) + "\n")
                     self._log_file.flush()
                 except Exception:
@@ -540,6 +549,7 @@ class mission:
                     "of_status": [of_quality, of_link_sta, of_work_sta],
                     "pole_hover": self._pole_hovering,
                     "pole_dist": round(pole_dist, 3) if pole_dist is not None else None,
+                    "confirmed_poles": confirmed_poles_list,
                 }) + "\n")
                 self._log_file.flush()
             except Exception:
