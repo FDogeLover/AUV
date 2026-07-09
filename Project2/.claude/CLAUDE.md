@@ -452,6 +452,8 @@ cd drone_control/original && python main.py
 
     **日志增强+复测确认同时跟踪**：飞行日志原本只记录`pole_dist`(最近杆子距离)，看不出是否同时跟踪多个目标，`Mission_GPT.py`新增`confirmed_poles`字段(记录`confirmed_poles()`返回的完整列表，含每个目标的x/y/hits/dist)。原地悬停复测(离两根杆子都在0.6-0.8m内)：130个NAVIGATE采样点里**91个(70%)同时确认了2根杆子**，16个0根，23个1根——直接证明真实飞行中`PoleTracker`确实能同时稳定跟踪两个独立障碍物，不只是静态测试时才行。原始数据：`drone_control/tools/test_data_20260709/flight_data_two_poles_far_search.jsonl`(X轴搜索，只测到杆子A)、`flight_data_two_poles_inplace_hover_v2.jsonl`(原地悬停，同时确认2根)。
 
+    **2026-07-09 用户现场观察发现：`POLE_DANGER_DIST_M`未计入机身物理半径，实际间隙比数值显示的更紧张 — 已上调阈值**：小范围移动触发悬停后(`pole_dist=0.59m`)，用户目视确认桨叶到杆子的实际间隙只有约20cm，远小于0.59m这个数字给人的印象。根因：`pole_dist`算的是T265参考点(机体中心附近)到杆子的距离，没有减去机身自身半径(中心到桨叶尖)——按20cm实际间隙倒推，机身有效半径约35-40cm。**已修复**：`POLE_DANGER_DIST_M`从0.6上调到0.9，`POLE_RESUME_DIST_M`从0.75上调到1.05(滞回区间保持0.15m不变)，`basic_radar/Mission_GPT.py`已同步板子并在板载`FJJ/.git`提交(commit `287e149`)。真机验证待做——上调后需要重新走一遍问题14/20的悬停触发流程，确认新阈值下悬停位置的真实桨叶间隙是否达到预期(~50-60cm)。
+
 ## 远程设备操作规范（SSH 到板载设备）
 
 ### 主机别名
