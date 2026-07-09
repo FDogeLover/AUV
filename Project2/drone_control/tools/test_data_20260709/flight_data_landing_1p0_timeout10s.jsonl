@@ -1,0 +1,321 @@
+{"event": "task_start"}
+{"t": 1783575459.879, "state": "TAKEOFF", "t265_yaw_deg": 0.0, "fc_yaw_deg": -65.69, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575459.909, "state": "TAKEOFF", "t265_yaw_deg": 0.0, "fc_yaw_deg": -65.69, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575459.94, "state": "TAKEOFF", "t265_yaw_deg": 0.0, "fc_yaw_deg": -65.69, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575459.97, "state": "TAKEOFF", "t265_yaw_deg": 0.0, "fc_yaw_deg": -65.69, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575460.001, "state": "TAKEOFF", "t265_yaw_deg": 0.0, "fc_yaw_deg": -63.72, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575460.032, "state": "TAKEOFF", "t265_yaw_deg": 0.0, "fc_yaw_deg": -63.72, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575460.062, "state": "TAKEOFF", "t265_yaw_deg": 0.0, "fc_yaw_deg": -63.72, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575460.093, "state": "TAKEOFF", "t265_yaw_deg": 0.0, "fc_yaw_deg": -63.72, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575460.125, "state": "TAKEOFF", "t265_yaw_deg": 0.0, "fc_yaw_deg": -63.72, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575460.156, "state": "TAKEOFF", "t265_yaw_deg": 0.0, "fc_yaw_deg": -63.72, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575460.187, "state": "TAKEOFF", "t265_yaw_deg": 0.0, "fc_yaw_deg": -63.72, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575460.217, "state": "TAKEOFF", "t265_yaw_deg": 0.0, "fc_yaw_deg": -63.72, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575460.248, "state": "TAKEOFF", "t265_yaw_deg": 0.0, "fc_yaw_deg": -63.72, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575460.28, "state": "TAKEOFF", "t265_yaw_deg": 0.0, "fc_yaw_deg": -63.72, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575460.311, "state": "TAKEOFF", "t265_yaw_deg": 0.0, "fc_yaw_deg": -65.7, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575460.342, "state": "TAKEOFF", "t265_yaw_deg": 0.0, "fc_yaw_deg": -65.7, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575460.373, "state": "TAKEOFF", "t265_yaw_deg": 0.0, "fc_yaw_deg": -65.7, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575460.404, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -65.7, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575460.435, "state": "TAKEOFF", "t265_yaw_deg": -0.01, "fc_yaw_deg": -65.7, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575460.465, "state": "TAKEOFF", "t265_yaw_deg": -0.01, "fc_yaw_deg": -65.7, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575460.498, "state": "TAKEOFF", "t265_yaw_deg": -0.04, "fc_yaw_deg": -65.7, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575460.529, "state": "TAKEOFF", "t265_yaw_deg": -0.06, "fc_yaw_deg": -63.73, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575460.561, "state": "TAKEOFF", "t265_yaw_deg": -0.02, "fc_yaw_deg": -63.73, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575460.593, "state": "TAKEOFF", "t265_yaw_deg": -0.01, "fc_yaw_deg": -63.73, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575460.623, "state": "TAKEOFF", "t265_yaw_deg": -0.01, "fc_yaw_deg": -63.73, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575460.654, "state": "TAKEOFF", "t265_yaw_deg": -0.05, "fc_yaw_deg": -63.73, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575460.685, "state": "TAKEOFF", "t265_yaw_deg": -0.05, "fc_yaw_deg": -63.73, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575460.717, "state": "TAKEOFF", "t265_yaw_deg": -0.01, "fc_yaw_deg": -63.73, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575460.748, "state": "TAKEOFF", "t265_yaw_deg": 0.04, "fc_yaw_deg": -63.73, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575460.779, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -63.73, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575460.81, "state": "TAKEOFF", "t265_yaw_deg": -0.01, "fc_yaw_deg": -65.75, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575460.842, "state": "TAKEOFF", "t265_yaw_deg": -0.05, "fc_yaw_deg": -65.75, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575460.873, "state": "TAKEOFF", "t265_yaw_deg": -0.04, "fc_yaw_deg": -65.75, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575460.904, "state": "TAKEOFF", "t265_yaw_deg": -0.04, "fc_yaw_deg": -65.75, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575460.935, "state": "TAKEOFF", "t265_yaw_deg": -0.05, "fc_yaw_deg": -65.75, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575460.966, "state": "TAKEOFF", "t265_yaw_deg": -0.0, "fc_yaw_deg": -65.75, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575460.996, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -65.75, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575461.027, "state": "TAKEOFF", "t265_yaw_deg": -0.03, "fc_yaw_deg": -63.78, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575461.058, "state": "TAKEOFF", "t265_yaw_deg": -0.04, "fc_yaw_deg": -63.78, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575461.089, "state": "TAKEOFF", "t265_yaw_deg": -0.0, "fc_yaw_deg": -63.78, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575461.12, "state": "TAKEOFF", "t265_yaw_deg": -0.04, "fc_yaw_deg": -63.78, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575461.15, "state": "TAKEOFF", "t265_yaw_deg": -0.06, "fc_yaw_deg": -63.78, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575461.182, "state": "TAKEOFF", "t265_yaw_deg": -0.04, "fc_yaw_deg": -63.78, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575461.213, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -63.78, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575461.244, "state": "TAKEOFF", "t265_yaw_deg": 0.0, "fc_yaw_deg": -63.78, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575461.275, "state": "TAKEOFF", "t265_yaw_deg": 0.04, "fc_yaw_deg": -63.78, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575461.307, "state": "TAKEOFF", "t265_yaw_deg": -0.02, "fc_yaw_deg": -65.68, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575461.339, "state": "TAKEOFF", "t265_yaw_deg": -0.01, "fc_yaw_deg": -65.68, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575461.37, "state": "TAKEOFF", "t265_yaw_deg": -0.09, "fc_yaw_deg": -65.68, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575461.402, "state": "TAKEOFF", "t265_yaw_deg": -0.04, "fc_yaw_deg": -63.72, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575461.432, "state": "TAKEOFF", "t265_yaw_deg": -0.05, "fc_yaw_deg": -63.72, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575461.463, "state": "TAKEOFF", "t265_yaw_deg": -0.12, "fc_yaw_deg": -63.72, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575461.494, "state": "TAKEOFF", "t265_yaw_deg": -0.23, "fc_yaw_deg": -63.72, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575461.525, "state": "TAKEOFF", "t265_yaw_deg": -0.32, "fc_yaw_deg": -63.72, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575461.556, "state": "TAKEOFF", "t265_yaw_deg": -0.36, "fc_yaw_deg": -63.72, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575461.587, "state": "TAKEOFF", "t265_yaw_deg": -0.24, "fc_yaw_deg": -63.72, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575461.618, "state": "TAKEOFF", "t265_yaw_deg": -0.26, "fc_yaw_deg": -63.72, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575461.649, "state": "TAKEOFF", "t265_yaw_deg": -0.1, "fc_yaw_deg": -63.72, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575461.679, "state": "TAKEOFF", "t265_yaw_deg": -0.0, "fc_yaw_deg": -63.72, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575461.712, "state": "TAKEOFF", "t265_yaw_deg": 0.2, "fc_yaw_deg": -63.72, "vyaw": -1, "laser_cm": 0.0}
+{"t": 1783575461.743, "state": "TAKEOFF", "t265_yaw_deg": 0.24, "fc_yaw_deg": -63.72, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575461.774, "state": "TAKEOFF", "t265_yaw_deg": 0.52, "fc_yaw_deg": -63.72, "vyaw": -2, "laser_cm": 0.0}
+{"t": 1783575461.804, "state": "TAKEOFF", "t265_yaw_deg": 0.53, "fc_yaw_deg": -64.14, "vyaw": 0, "laser_cm": 0.0}
+{"t": 1783575461.835, "state": "TAKEOFF", "t265_yaw_deg": 0.81, "fc_yaw_deg": -64.14, "vyaw": -2, "laser_cm": 0.0}
+{"t": 1783575461.866, "state": "TAKEOFF", "t265_yaw_deg": 0.92, "fc_yaw_deg": -64.14, "vyaw": -1, "laser_cm": 0.0}
+{"t": 1783575461.897, "state": "TAKEOFF", "t265_yaw_deg": 1.13, "fc_yaw_deg": -64.14, "vyaw": -2, "laser_cm": 7.0}
+{"t": 1783575461.928, "state": "TAKEOFF", "t265_yaw_deg": 1.39, "fc_yaw_deg": -64.14, "vyaw": -3, "laser_cm": 7.0}
+{"t": 1783575461.959, "state": "TAKEOFF", "t265_yaw_deg": 1.41, "fc_yaw_deg": -64.14, "vyaw": -1, "laser_cm": 9.0}
+{"t": 1783575461.992, "state": "TAKEOFF", "t265_yaw_deg": 1.68, "fc_yaw_deg": -64.14, "vyaw": -3, "laser_cm": 10.0}
+{"t": 1783575462.024, "state": "TAKEOFF", "t265_yaw_deg": 1.88, "fc_yaw_deg": -64.14, "vyaw": -3, "laser_cm": 10.0}
+{"t": 1783575462.055, "state": "TAKEOFF", "t265_yaw_deg": 2.02, "fc_yaw_deg": -64.14, "vyaw": -3, "laser_cm": 10.0}
+{"t": 1783575462.086, "state": "TAKEOFF", "t265_yaw_deg": 2.16, "fc_yaw_deg": -64.14, "vyaw": -3, "laser_cm": 11.0}
+{"t": 1783575462.117, "state": "TAKEOFF", "t265_yaw_deg": 2.18, "fc_yaw_deg": -64.14, "vyaw": -2, "laser_cm": 11.0}
+{"t": 1783575462.148, "state": "TAKEOFF", "t265_yaw_deg": 2.37, "fc_yaw_deg": -64.14, "vyaw": -3, "laser_cm": 11.0}
+{"t": 1783575462.181, "state": "TAKEOFF", "t265_yaw_deg": 2.45, "fc_yaw_deg": -62.15, "vyaw": -3, "laser_cm": 16.0}
+{"t": 1783575462.212, "state": "TAKEOFF", "t265_yaw_deg": 2.62, "fc_yaw_deg": -62.15, "vyaw": -3, "laser_cm": 16.0}
+{"t": 1783575462.243, "state": "TAKEOFF", "t265_yaw_deg": 2.64, "fc_yaw_deg": -62.15, "vyaw": -2, "laser_cm": 17.0}
+{"t": 1783575462.274, "state": "TAKEOFF", "t265_yaw_deg": 2.72, "fc_yaw_deg": -68.46, "vyaw": -3, "laser_cm": 18.0}
+{"t": 1783575462.306, "state": "TAKEOFF", "t265_yaw_deg": 2.65, "fc_yaw_deg": -68.46, "vyaw": -2, "laser_cm": 18.0}
+{"t": 1783575462.337, "state": "TAKEOFF", "t265_yaw_deg": 2.73, "fc_yaw_deg": -68.46, "vyaw": -3, "laser_cm": 20.0}
+{"t": 1783575462.368, "state": "TAKEOFF", "t265_yaw_deg": 2.7, "fc_yaw_deg": -68.46, "vyaw": -2, "laser_cm": 20.0}
+{"t": 1783575462.399, "state": "TAKEOFF", "t265_yaw_deg": 2.71, "fc_yaw_deg": -68.46, "vyaw": -2, "laser_cm": 21.0}
+{"t": 1783575462.431, "state": "TAKEOFF", "t265_yaw_deg": 2.79, "fc_yaw_deg": -68.46, "vyaw": -3, "laser_cm": 21.0}
+{"t": 1783575462.462, "state": "TAKEOFF", "t265_yaw_deg": 2.8, "fc_yaw_deg": -68.46, "vyaw": -3, "laser_cm": 22.0}
+{"t": 1783575462.495, "state": "TAKEOFF", "t265_yaw_deg": 2.7, "fc_yaw_deg": -68.46, "vyaw": -2, "laser_cm": 23.0}
+{"t": 1783575462.527, "state": "TAKEOFF", "t265_yaw_deg": 2.67, "fc_yaw_deg": -66.33, "vyaw": -2, "laser_cm": 23.0}
+{"t": 1783575462.558, "state": "TAKEOFF", "t265_yaw_deg": 2.65, "fc_yaw_deg": -66.33, "vyaw": -2, "laser_cm": 24.0}
+{"t": 1783575462.589, "state": "TAKEOFF", "t265_yaw_deg": 2.67, "fc_yaw_deg": -66.33, "vyaw": -2, "laser_cm": 24.0}
+{"t": 1783575462.621, "state": "TAKEOFF", "t265_yaw_deg": 2.63, "fc_yaw_deg": -66.33, "vyaw": -2, "laser_cm": 25.0}
+{"t": 1783575462.652, "state": "TAKEOFF", "t265_yaw_deg": 2.63, "fc_yaw_deg": -66.33, "vyaw": -2, "laser_cm": 25.0}
+{"t": 1783575462.683, "state": "TAKEOFF", "t265_yaw_deg": 2.56, "fc_yaw_deg": -66.33, "vyaw": -2, "laser_cm": 25.0}
+{"t": 1783575462.713, "state": "TAKEOFF", "t265_yaw_deg": 2.53, "fc_yaw_deg": -66.33, "vyaw": -2, "laser_cm": 26.0}
+{"t": 1783575462.744, "state": "TAKEOFF", "t265_yaw_deg": 2.46, "fc_yaw_deg": -66.33, "vyaw": -2, "laser_cm": 26.0}
+{"t": 1783575462.775, "state": "TAKEOFF", "t265_yaw_deg": 2.51, "fc_yaw_deg": -68.42, "vyaw": -2, "laser_cm": 27.0}
+{"t": 1783575462.805, "state": "TAKEOFF", "t265_yaw_deg": 2.51, "fc_yaw_deg": -68.42, "vyaw": -2, "laser_cm": 27.0}
+{"t": 1783575462.836, "state": "TAKEOFF", "t265_yaw_deg": 2.42, "fc_yaw_deg": -66.3, "vyaw": -1, "laser_cm": 27.0}
+{"t": 1783575462.866, "state": "TAKEOFF", "t265_yaw_deg": 2.44, "fc_yaw_deg": -66.3, "vyaw": -2, "laser_cm": 27.0}
+{"t": 1783575462.897, "state": "TAKEOFF", "t265_yaw_deg": 2.41, "fc_yaw_deg": -66.3, "vyaw": -2, "laser_cm": 27.0}
+{"t": 1783575462.932, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0132, -0.0853, 0.28], "target": [0.0, 0.0, 1.0], "vx": 0, "vy": 4, "vyaw": -3, "t265_yaw_deg": 2.48, "fc_yaw_deg": -66.3, "t265_vel": [-0.0202, -0.082], "of1_vel_cms": [2, -6], "roll_pitch": [-0.14, 0.81], "height_setpoint_cm": 36.5, "of_status": [255, 0, 1]}
+{"t": 1783575462.999, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.013, -0.0908, 0.29], "target": [0.0, 0.0, 1.0], "vx": 0, "vy": 4, "vyaw": -2, "t265_yaw_deg": 2.4, "fc_yaw_deg": -66.3, "t265_vel": [-0.0069, -0.0784], "of1_vel_cms": [1, -6], "roll_pitch": [-0.14, 0.81], "height_setpoint_cm": 39.5, "of_status": [255, 0, 1]}
+{"t": 1783575463.063, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0132, -0.0955, 0.29], "target": [0.0, 0.0, 1.0], "vx": 0, "vy": 4, "vyaw": -1, "t265_yaw_deg": 2.26, "fc_yaw_deg": -66.3, "t265_vel": [0.0137, -0.08], "of1_vel_cms": [0, -5], "roll_pitch": [-0.14, 0.81], "height_setpoint_cm": 42.5, "of_status": [255, 0, 1]}
+{"t": 1783575463.128, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0138, -0.0996, 0.29], "target": [0.0, 0.0, 1.0], "vx": 0, "vy": 5, "vyaw": -2, "t265_yaw_deg": 2.4, "fc_yaw_deg": -66.3, "t265_vel": [-0.0054, -0.0653], "of1_vel_cms": [3, -7], "roll_pitch": [-0.14, 0.81], "height_setpoint_cm": 45.5, "of_status": [255, 0, 1]}
+{"t": 1783575463.196, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0138, -0.1037, 0.3], "target": [0.0, 0.0, 1.0], "vx": 0, "vy": 5, "vyaw": -2, "t265_yaw_deg": 2.38, "fc_yaw_deg": -64.24, "t265_vel": [-0.0221, -0.0528], "of1_vel_cms": [0, -6], "roll_pitch": [-0.14, 0.81], "height_setpoint_cm": 48.5, "of_status": [255, 0, 1]}
+{"t": 1783575463.258, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0142, -0.1073, 0.31], "target": [0.0, 0.0, 1.0], "vx": 0, "vy": 5, "vyaw": -2, "t265_yaw_deg": 2.39, "fc_yaw_deg": -64.24, "t265_vel": [-0.0204, -0.0451], "of1_vel_cms": [-4, -6], "roll_pitch": [-0.14, 0.81], "height_setpoint_cm": 51.5, "of_status": [255, 0, 1]}
+{"t": 1783575463.325, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.013, -0.1089, 0.32], "target": [0.0, 0.0, 1.0], "vx": 0, "vy": 5, "vyaw": -3, "t265_yaw_deg": 2.47, "fc_yaw_deg": -68.33, "t265_vel": [0.0123, -0.0276], "of1_vel_cms": [0, -1], "roll_pitch": [-0.81, 1.11], "height_setpoint_cm": 54.5, "of_status": [255, 0, 1]}
+{"t": 1783575463.389, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0128, -0.1114, 0.33], "target": [0.0, 0.0, 1.0], "vx": 0, "vy": 5, "vyaw": -2, "t265_yaw_deg": 2.37, "fc_yaw_deg": -68.33, "t265_vel": [-0.0117, -0.0263], "of1_vel_cms": [0, 0], "roll_pitch": [-0.81, 1.11], "height_setpoint_cm": 57.5, "of_status": [255, 0, 1]}
+{"t": 1783575463.456, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0129, -0.1124, 0.34], "target": [0.0, 0.0, 1.0], "vx": 0, "vy": 5, "vyaw": -2, "t265_yaw_deg": 2.39, "fc_yaw_deg": -66.21, "t265_vel": [0.0029, -0.0153], "of1_vel_cms": [0, 0], "roll_pitch": [-0.81, 1.11], "height_setpoint_cm": 60.5, "of_status": [250, 0, 1]}
+{"t": 1783575463.52, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0142, -0.1123, 0.35], "target": [0.0, 0.0, 1.0], "vx": 0, "vy": 5, "vyaw": -2, "t265_yaw_deg": 2.47, "fc_yaw_deg": -66.21, "t265_vel": [0.0144, 0.0014], "of1_vel_cms": [0, -2], "roll_pitch": [-0.81, 1.11], "height_setpoint_cm": 63.5, "of_status": [255, 0, 1]}
+{"t": 1783575463.583, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0154, -0.1133, 0.36], "target": [0.0, 0.0, 1.0], "vx": 0, "vy": 5, "vyaw": -3, "t265_yaw_deg": 2.59, "fc_yaw_deg": -66.21, "t265_vel": [-0.0112, 0.0012], "of1_vel_cms": [6, 3], "roll_pitch": [-0.81, 1.11], "height_setpoint_cm": 66.5, "of_status": [255, 0, 1]}
+{"t": 1783575463.649, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0177, -0.1137, 0.39], "target": [0.0, 0.0, 1.0], "vx": 0, "vy": 5, "vyaw": -2, "t265_yaw_deg": 2.58, "fc_yaw_deg": -66.21, "t265_vel": [-0.016, 0.0013], "of1_vel_cms": [0, 1], "roll_pitch": [-0.81, 1.11], "height_setpoint_cm": 69.5, "of_status": [255, 0, 1]}
+{"t": 1783575463.714, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0195, -0.1137, 0.39], "target": [0.0, 0.0, 1.0], "vx": 1, "vy": 5, "vyaw": -2, "t265_yaw_deg": 2.71, "fc_yaw_deg": -66.21, "t265_vel": [-0.062, -0.0023], "of1_vel_cms": [-19, 5], "roll_pitch": [-0.81, 1.11], "height_setpoint_cm": 72.5, "of_status": [255, 0, 1]}
+{"t": 1783575463.765, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0196, -0.1135, 0.41], "target": [0.0, 0.0, 1.0], "vx": 0, "vy": 5, "vyaw": -3, "t265_yaw_deg": 2.75, "fc_yaw_deg": -64.15, "t265_vel": [-0.0396, 0.0039], "of1_vel_cms": [15, 3], "roll_pitch": [-0.81, 1.11], "height_setpoint_cm": 74.0, "of_status": [255, 0, 1]}
+{"t": 1783575463.832, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0191, -0.1127, 0.44], "target": [0.0, 0.0, 1.0], "vx": 0, "vy": 5, "vyaw": -3, "t265_yaw_deg": 3.0, "fc_yaw_deg": -68.81, "t265_vel": [0.0091, 0.009], "of1_vel_cms": [2, 0], "roll_pitch": [-0.21, 0.9], "height_setpoint_cm": 77.0, "of_status": [255, 0, 1]}
+{"t": 1783575463.894, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0213, -0.1118, 0.45], "target": [0.0, 0.0, 1.0], "vx": 1, "vy": 5, "vyaw": -3, "t265_yaw_deg": 3.06, "fc_yaw_deg": -68.81, "t265_vel": [-0.038, 0.012], "of1_vel_cms": [-1, 0], "roll_pitch": [-0.21, 0.9], "height_setpoint_cm": 80.0, "of_status": [255, 0, 1]}
+{"t": 1783575463.956, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0206, -0.1106, 0.45], "target": [0.0, 0.0, 1.0], "vx": 0, "vy": 5, "vyaw": -3, "t265_yaw_deg": 3.2, "fc_yaw_deg": -68.81, "t265_vel": [-0.0138, 0.0181], "of1_vel_cms": [-1, 0], "roll_pitch": [-0.21, 0.9], "height_setpoint_cm": 83.0, "of_status": [255, 0, 1]}
+{"t": 1783575464.019, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0212, -0.109, 0.48], "target": [0.0, 0.0, 1.0], "vx": 1, "vy": 5, "vyaw": -4, "t265_yaw_deg": 3.43, "fc_yaw_deg": -66.65, "t265_vel": [0.0031, 0.023], "of1_vel_cms": [2, 2], "roll_pitch": [-0.21, 0.9], "height_setpoint_cm": 86.0, "of_status": [255, 0, 1]}
+{"t": 1783575464.083, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0224, -0.1082, 0.49], "target": [0.0, 0.0, 1.0], "vx": 1, "vy": 5, "vyaw": -4, "t265_yaw_deg": 3.55, "fc_yaw_deg": -66.65, "t265_vel": [-0.022, 0.0178], "of1_vel_cms": [-1, 2], "roll_pitch": [-0.21, 0.9], "height_setpoint_cm": 89.0, "of_status": [255, 0, 1]}
+{"t": 1783575464.147, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0221, -0.1075, 0.53], "target": [0.0, 0.0, 1.0], "vx": 1, "vy": 5, "vyaw": -4, "t265_yaw_deg": 3.68, "fc_yaw_deg": -66.65, "t265_vel": [-0.0086, 0.0157], "of1_vel_cms": [-14, 8], "roll_pitch": [-0.21, 0.9], "height_setpoint_cm": 92.0, "of_status": [255, 0, 1]}
+{"t": 1783575464.21, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0215, -0.1057, 0.54], "target": [0.0, 0.0, 1.0], "vx": 1, "vy": 5, "vyaw": -4, "t265_yaw_deg": 3.84, "fc_yaw_deg": -66.65, "t265_vel": [0.0275, 0.0234], "of1_vel_cms": [-12, 1], "roll_pitch": [-0.21, 0.9], "height_setpoint_cm": 95.0, "of_status": [255, 0, 1]}
+{"t": 1783575464.276, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0205, -0.1045, 0.56], "target": [0.0, 0.0, 1.0], "vx": 1, "vy": 5, "vyaw": -4, "t265_yaw_deg": 3.98, "fc_yaw_deg": -69.97, "t265_vel": [0.0238, 0.0219], "of1_vel_cms": [0, 0], "roll_pitch": [-0.08, 0.9], "height_setpoint_cm": 98.0, "of_status": [250, 0, 1]}
+{"t": 1783575464.341, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0219, -0.1024, 0.59], "target": [0.0, 0.0, 1.0], "vx": 1, "vy": 4, "vyaw": -4, "t265_yaw_deg": 4.07, "fc_yaw_deg": -69.97, "t265_vel": [-0.0266, 0.0269], "of1_vel_cms": [1, 2], "roll_pitch": [-0.08, 0.9], "height_setpoint_cm": 100, "of_status": [255, 0, 1]}
+{"t": 1783575464.407, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0221, -0.1011, 0.61], "target": [0.0, 0.0, 1.0], "vx": 1, "vy": 4, "vyaw": -5, "t265_yaw_deg": 4.3, "fc_yaw_deg": -69.97, "t265_vel": [0.0176, 0.0227], "of1_vel_cms": [-3, 3], "roll_pitch": [-0.08, 0.9], "height_setpoint_cm": 100, "of_status": [255, 0, 1]}
+{"t": 1783575464.471, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0222, -0.1001, 0.63], "target": [0.0, 0.0, 1.0], "vx": 1, "vy": 4, "vyaw": -4, "t265_yaw_deg": 4.4, "fc_yaw_deg": -69.97, "t265_vel": [-0.007, 0.0242], "of1_vel_cms": [6, 14], "roll_pitch": [-0.08, 0.9], "height_setpoint_cm": 100, "of_status": [255, 0, 1]}
+{"t": 1783575464.536, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0187, -0.0985, 0.65], "target": [0.0, 0.0, 1.0], "vx": 0, "vy": 4, "vyaw": -4, "t265_yaw_deg": 4.51, "fc_yaw_deg": -67.74, "t265_vel": [-0.0177, 0.02], "of1_vel_cms": [1, 1], "roll_pitch": [-0.08, 0.9], "height_setpoint_cm": 100, "of_status": [255, 0, 1]}
+{"t": 1783575464.6, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0176, -0.0968, 0.67], "target": [0.0, 0.0, 1.0], "vx": 0, "vy": 4, "vyaw": -5, "t265_yaw_deg": 4.74, "fc_yaw_deg": -67.74, "t265_vel": [0.0161, 0.0253], "of1_vel_cms": [0, 0], "roll_pitch": [-0.08, 0.9], "height_setpoint_cm": 100, "of_status": [250, 0, 1]}
+{"t": 1783575464.665, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0209, -0.0949, 0.68], "target": [0.0, 0.0, 1.0], "vx": 1, "vy": 4, "vyaw": -6, "t265_yaw_deg": 4.91, "fc_yaw_deg": -67.74, "t265_vel": [0.0003, 0.0307], "of1_vel_cms": [4, -1], "roll_pitch": [-0.08, 0.9], "height_setpoint_cm": 100, "of_status": [255, 0, 1]}
+{"t": 1783575464.731, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0193, -0.0935, 0.7], "target": [0.0, 0.0, 1.0], "vx": 0, "vy": 4, "vyaw": -5, "t265_yaw_deg": 5.02, "fc_yaw_deg": -67.74, "t265_vel": [0.0042, 0.0277], "of1_vel_cms": [0, 0], "roll_pitch": [-0.08, 0.9], "height_setpoint_cm": 100, "of_status": [250, 0, 1]}
+{"t": 1783575464.796, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0166, -0.0919, 0.73], "target": [0.0, 0.0, 1.0], "vx": 0, "vy": 4, "vyaw": -6, "t265_yaw_deg": 5.2, "fc_yaw_deg": -71.17, "t265_vel": [0.003, 0.0239], "of1_vel_cms": [-10, 8], "roll_pitch": [-0.04, 1.07], "height_setpoint_cm": 100, "of_status": [255, 0, 1]}
+{"t": 1783575464.861, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0147, -0.0905, 0.75], "target": [0.0, 0.0, 1.0], "vx": 0, "vy": 4, "vyaw": -6, "t265_yaw_deg": 5.32, "fc_yaw_deg": -71.17, "t265_vel": [0.0294, 0.0201], "of1_vel_cms": [-1, 3], "roll_pitch": [-0.04, 1.07], "height_setpoint_cm": 100, "of_status": [255, 0, 1]}
+{"t": 1783575464.929, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0166, -0.0888, 0.77], "target": [0.0, 0.0, 1.0], "vx": 1, "vy": 4, "vyaw": -6, "t265_yaw_deg": 5.47, "fc_yaw_deg": -71.17, "t265_vel": [0.0255, 0.0224], "of1_vel_cms": [1, 2], "roll_pitch": [-0.04, 1.07], "height_setpoint_cm": 100, "of_status": [250, 0, 1]}
+{"t": 1783575464.996, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0188, -0.0878, 0.79], "target": [0.0, 0.0, 1.0], "vx": 1, "vy": 4, "vyaw": -6, "t265_yaw_deg": 5.64, "fc_yaw_deg": -71.17, "t265_vel": [-0.0346, 0.0191], "of1_vel_cms": [-12, 1], "roll_pitch": [-0.04, 1.07], "height_setpoint_cm": 100, "of_status": [255, 0, 1]}
+{"t": 1783575465.058, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0138, -0.0853, 0.81], "target": [0.0, 0.0, 1.0], "vx": 0, "vy": 4, "vyaw": -6, "t265_yaw_deg": 5.75, "fc_yaw_deg": -68.87, "t265_vel": [-0.0161, 0.0281], "of1_vel_cms": [6, -2], "roll_pitch": [-0.04, 1.07], "height_setpoint_cm": 100, "of_status": [255, 0, 1]}
+{"t": 1783575465.122, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0077, -0.0838, 0.82], "target": [0.0, 0.0, 1.0], "vx": 0, "vy": 4, "vyaw": -6, "t265_yaw_deg": 5.93, "fc_yaw_deg": -68.87, "t265_vel": [0.0404, 0.0301], "of1_vel_cms": [9, 13], "roll_pitch": [-0.04, 1.07], "height_setpoint_cm": 100, "of_status": [255, 0, 1]}
+{"t": 1783575465.184, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0068, -0.0823, 0.84], "target": [0.0, 0.0, 1.0], "vx": 0, "vy": 4, "vyaw": -6, "t265_yaw_deg": 6.0, "fc_yaw_deg": -68.87, "t265_vel": [0.0301, 0.0296], "of1_vel_cms": [12, 10], "roll_pitch": [-0.04, 1.07], "height_setpoint_cm": 100, "of_status": [255, 0, 1]}
+{"t": 1783575465.252, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0137, -0.0815, 0.85], "target": [0.0, 0.0, 1.0], "vx": 1, "vy": 3, "vyaw": -6, "t265_yaw_deg": 6.09, "fc_yaw_deg": -66.63, "t265_vel": [0.0018, 0.0255], "of1_vel_cms": [-17, 0], "roll_pitch": [-0.04, 1.07], "height_setpoint_cm": 100, "of_status": [255, 0, 1]}
+{"t": 1783575465.317, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0138, -0.0782, 0.86], "target": [0.0, 0.0, 1.0], "vx": 0, "vy": 3, "vyaw": -7, "t265_yaw_deg": 6.23, "fc_yaw_deg": -72.22, "t265_vel": [-0.0124, 0.0319], "of1_vel_cms": [-4, -1], "roll_pitch": [-0.24, 1.1], "height_setpoint_cm": 100, "of_status": [255, 0, 1]}
+{"t": 1783575465.382, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0093, -0.0755, 0.89], "target": [0.0, 0.0, 1.0], "vx": 0, "vy": 3, "vyaw": -6, "t265_yaw_deg": 6.32, "fc_yaw_deg": -72.22, "t265_vel": [-0.0161, 0.0379], "of1_vel_cms": [9, -4], "roll_pitch": [-0.24, 1.1], "height_setpoint_cm": 100, "of_status": [255, 0, 1]}
+{"t": 1783575465.447, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0042, -0.0711, 0.89], "target": [0.0, 0.0, 1.0], "vx": 0, "vy": 3, "vyaw": -7, "t265_yaw_deg": 6.49, "fc_yaw_deg": -72.22, "t265_vel": [0.0299, 0.0554], "of1_vel_cms": [-4, 0], "roll_pitch": [-0.24, 1.1], "height_setpoint_cm": 100, "of_status": [255, 0, 1]}
+{"t": 1783575465.512, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0042, -0.0689, 0.91], "target": [0.0, 0.0, 1.0], "vx": 0, "vy": 3, "vyaw": -7, "t265_yaw_deg": 6.59, "fc_yaw_deg": -69.87, "t265_vel": [0.0531, 0.0508], "of1_vel_cms": [1, 6], "roll_pitch": [-0.24, 1.1], "height_setpoint_cm": 100, "of_status": [255, 0, 1]}
+{"t": 1783575465.579, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0072, -0.0667, 0.93], "target": [0.0, 0.0, 1.0], "vx": 0, "vy": 3, "vyaw": -8, "t265_yaw_deg": 6.75, "fc_yaw_deg": -69.87, "t265_vel": [0.031, 0.0427], "of1_vel_cms": [6, 4], "roll_pitch": [-0.24, 1.1], "height_setpoint_cm": 100, "of_status": [255, 0, 1]}
+{"t": 1783575465.644, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0052, -0.0656, 0.93], "target": [0.0, 0.0, 1.0], "vx": 0, "vy": 3, "vyaw": -7, "t265_yaw_deg": 6.8, "fc_yaw_deg": -69.87, "t265_vel": [0.0011, 0.0236], "of1_vel_cms": [1, 5], "roll_pitch": [-0.24, 1.1], "height_setpoint_cm": 100, "of_status": [255, 0, 1]}
+{"t": 1783575465.708, "state": "NAVIGATE", "target_idx": 0, "pos": [0.0007, -0.0633, 0.94], "target": [0.0, 0.0, 1.0], "vx": 0, "vy": 3, "vyaw": -7, "t265_yaw_deg": 6.91, "fc_yaw_deg": -67.57, "t265_vel": [0.0314, 0.0302], "of1_vel_cms": [19, 1], "roll_pitch": [-0.24, 1.1], "height_setpoint_cm": 100, "of_status": [255, 0, 1]}
+{"t": 1783575465.773, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0001, -0.0598, 0.95], "target": [0.0, 0.0, 1.0], "vx": 0, "vy": 2, "vyaw": -8, "t265_yaw_deg": 7.05, "fc_yaw_deg": -73.1, "t265_vel": [0.0152, 0.0379], "of1_vel_cms": [-2, 2], "roll_pitch": [-0.14, 1.03], "height_setpoint_cm": 100, "of_status": [255, 0, 1]}
+{"t": 1783575465.836, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0026, -0.0576, 0.97], "target": [0.0, 0.0, 1.0], "vx": 0, "vy": 2, "vyaw": -7, "t265_yaw_deg": 7.16, "fc_yaw_deg": -73.1, "t265_vel": [-0.0132, 0.035], "of1_vel_cms": [4, 4], "roll_pitch": [-0.14, 1.03], "height_setpoint_cm": 100, "of_status": [255, 0, 1]}
+{"t": 1783575465.902, "state": "NAVIGATE", "target_idx": 0, "pos": [0.0025, -0.0544, 0.98], "target": [0.0, 0.0, 1.0], "vx": 0, "vy": 2, "vyaw": -8, "t265_yaw_deg": 7.37, "fc_yaw_deg": -70.69, "t265_vel": [0.019, 0.0386], "of1_vel_cms": [44, 5], "roll_pitch": [-0.14, 1.03], "height_setpoint_cm": 100, "of_status": [255, 0, 1]}
+{"t": 1783575465.964, "state": "NAVIGATE", "target_idx": 0, "pos": [0.0094, -0.0512, 0.98], "target": [0.0, 0.0, 1.0], "vx": 0, "vy": 2, "vyaw": -8, "t265_yaw_deg": 7.46, "fc_yaw_deg": -70.69, "t265_vel": [0.0666, 0.0524], "of1_vel_cms": [-1, 1], "roll_pitch": [-0.14, 1.03], "height_setpoint_cm": 100, "of_status": [255, 0, 1]}
+{"t": 1783575466.029, "state": "NAVIGATE", "target_idx": 0, "pos": [0.0059, -0.0481, 1.0], "target": [0.0, 0.0, 1.0], "vx": 0, "vy": 2, "vyaw": -8, "t265_yaw_deg": 7.64, "fc_yaw_deg": -70.69, "t265_vel": [0.0064, 0.0427], "of1_vel_cms": [22, 1], "roll_pitch": [-0.14, 1.03], "height_setpoint_cm": 100, "of_status": [255, 0, 1]}
+{"t": 1783575466.094, "state": "NAVIGATE", "target_idx": 0, "pos": [0.0061, -0.0455, 1.0], "target": [0.0, 0.0, 1.0], "vx": 0, "vy": 2, "vyaw": -9, "t265_yaw_deg": 7.93, "fc_yaw_deg": -70.69, "t265_vel": [-0.0016, 0.0385], "of1_vel_cms": [-9, 9], "roll_pitch": [-0.14, 1.03], "height_setpoint_cm": 100, "of_status": [255, 0, 1]}
+{"t": 1783575466.159, "state": "NAVIGATE", "target_idx": 0, "pos": [0.0104, -0.0422, 1.0], "target": [0.0, 0.0, 1.0], "vx": 0, "vy": 1, "vyaw": -8, "t265_yaw_deg": 8.04, "fc_yaw_deg": -70.69, "t265_vel": [0.0392, 0.0417], "of1_vel_cms": [5, 0], "roll_pitch": [-0.14, 1.03], "height_setpoint_cm": 100, "of_status": [255, 0, 1]}
+{"t": 1783575466.223, "state": "NAVIGATE", "target_idx": 0, "pos": [0.0146, -0.0396, 1.02], "target": [0.0, 0.0, 1.0], "vx": 0, "vy": 1, "vyaw": -9, "t265_yaw_deg": 8.2, "fc_yaw_deg": -70.69, "t265_vel": [0.04, 0.0344], "of1_vel_cms": [15, 6], "roll_pitch": [-0.14, 1.03], "height_setpoint_cm": 100, "of_status": [255, 0, 1]}
+{"t": 1783575466.287, "state": "NAVIGATE", "target_idx": 0, "pos": [0.0139, -0.0373, 1.01], "target": [0.0, 0.0, 1.0], "vx": 0, "vy": 1, "vyaw": -9, "t265_yaw_deg": 8.32, "fc_yaw_deg": -74.34, "t265_vel": [0.0095, 0.0316], "of1_vel_cms": [48, 8], "roll_pitch": [-0.07, 1.56], "height_setpoint_cm": 100, "of_status": [255, 0, 1]}
+{"t": 1783575466.351, "state": "NAVIGATE", "target_idx": 0, "pos": [0.0094, -0.0359, 1.03], "target": [0.0, 0.0, 1.0], "vx": 0, "vy": 1, "vyaw": -8, "t265_yaw_deg": 8.35, "fc_yaw_deg": -74.34, "t265_vel": [-0.0288, 0.0212], "of1_vel_cms": [-14, -2], "roll_pitch": [-0.07, 1.56], "height_setpoint_cm": 100, "of_status": [255, 0, 1]}
+{"t": 1783575466.416, "state": "NAVIGATE", "target_idx": 0, "pos": [0.0124, -0.0327, 1.02], "target": [0.0, 0.0, 1.0], "vx": 0, "vy": 1, "vyaw": -9, "t265_yaw_deg": 8.45, "fc_yaw_deg": -74.34, "t265_vel": [0.0033, 0.0312], "of1_vel_cms": [19, 4], "roll_pitch": [-0.07, 1.56], "height_setpoint_cm": 100, "of_status": [255, 0, 1]}
+{"t": 1783575466.482, "state": "NAVIGATE", "target_idx": 0, "pos": [0.018, -0.0297, 1.03], "target": [0.0, 0.0, 1.0], "vx": 0, "vy": 1, "vyaw": -8, "t265_yaw_deg": 8.46, "fc_yaw_deg": -74.34, "t265_vel": [0.0675, 0.0347], "of1_vel_cms": [-19, 15], "roll_pitch": [-0.07, 1.56], "height_setpoint_cm": 100, "of_status": [255, 0, 1]}
+{"t": 1783575466.546, "state": "NAVIGATE", "target_idx": 0, "pos": [0.02, -0.0271, 1.04], "target": [0.0, 0.0, 1.0], "vx": -1, "vy": 1, "vyaw": -9, "t265_yaw_deg": 8.56, "fc_yaw_deg": -74.34, "t265_vel": [0.0429, 0.03], "of1_vel_cms": [0, -1], "roll_pitch": [-0.07, 1.56], "height_setpoint_cm": 100, "of_status": [255, 0, 1]}
+{"t": 1783575466.612, "state": "NAVIGATE", "target_idx": 0, "pos": [0.0153, -0.0267, 1.04], "target": [0.0, 0.0, 1.0], "vx": 0, "vy": 1, "vyaw": -9, "t265_yaw_deg": 8.57, "fc_yaw_deg": -74.34, "t265_vel": [-0.0117, 0.0144], "of1_vel_cms": [-1, -2], "roll_pitch": [-0.07, 1.56], "height_setpoint_cm": 100, "of_status": [255, 0, 1]}
+{"t": 1783575466.677, "state": "NAVIGATE", "target_idx": 0, "pos": [0.012, -0.0253, 1.04], "target": [0.0, 0.0, 1.0], "vx": 0, "vy": 1, "vyaw": -9, "t265_yaw_deg": 8.55, "fc_yaw_deg": -74.34, "t265_vel": [-0.0641, 0.0082], "of1_vel_cms": [12, 0], "roll_pitch": [-0.07, 1.56], "height_setpoint_cm": 100, "of_status": [255, 0, 1]}
+{"t": 1783575466.744, "state": "NAVIGATE", "target_idx": 0, "pos": [0.0175, -0.0228, 1.05], "target": [0.0, 0.0, 1.0], "vx": -1, "vy": 1, "vyaw": -8, "t265_yaw_deg": 8.48, "fc_yaw_deg": -74.34, "t265_vel": [0.0437, 0.021], "of1_vel_cms": [-4, 11], "roll_pitch": [-0.07, 1.56], "height_setpoint_cm": 100, "of_status": [255, 0, 1]}
+{"t": 1783575466.808, "state": "NAVIGATE", "target_idx": 1, "pos": [0.0187, -0.0193, 1.05], "target": [0.0, 0.0, 1.0], "vx": -1, "vy": 0, "vyaw": -7, "t265_yaw_deg": 8.33, "fc_yaw_deg": -74.69, "t265_vel": [0.0551, 0.0273], "of1_vel_cms": [9, 8], "roll_pitch": [-0.04, 1.65], "height_setpoint_cm": 100, "of_status": [255, 0, 1]}
+{"t": 1783575466.874, "state": "LAND", "pos": [0.0188, -0.0171, 1.05], "t265_yaw_deg": 8.4, "t265_vel": [0.0253, 0.0265], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575466.935, "state": "LAND", "pos": [0.0072, -0.0166, 1.06], "t265_yaw_deg": 8.33, "t265_vel": [-0.096, 0.0106], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575466.999, "state": "LAND", "pos": [0.0074, -0.0151, 1.05], "t265_yaw_deg": 8.38, "t265_vel": [-0.0897, 0.0058], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575467.062, "state": "LAND", "pos": [0.012, -0.0125, 1.05], "t265_yaw_deg": 8.3, "t265_vel": [-0.0112, 0.0154], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575467.125, "state": "LAND", "pos": [0.0173, -0.0098, 1.06], "t265_yaw_deg": 8.33, "t265_vel": [0.0366, 0.0247], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575467.189, "state": "LAND", "pos": [0.016, -0.0079, 1.05], "t265_yaw_deg": 8.14, "t265_vel": [0.0268, 0.0212], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575467.253, "state": "LAND", "pos": [0.0143, -0.0057, 1.04], "t265_yaw_deg": 8.19, "t265_vel": [-0.0112, 0.0202], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575467.316, "state": "LAND", "pos": [0.01, -0.0054, 1.02], "t265_yaw_deg": 8.07, "t265_vel": [0.011, 0.0181], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575467.379, "state": "LAND", "pos": [0.0055, -0.0047, 1.02], "t265_yaw_deg": 8.12, "t265_vel": [-0.0069, 0.0169], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575467.443, "state": "LAND", "pos": [-0.0031, -0.0043, 1.02], "t265_yaw_deg": 8.02, "t265_vel": [-0.0903, 0.0096], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575467.506, "state": "LAND", "pos": [0.0007, -0.0021, 0.99], "t265_yaw_deg": 8.05, "t265_vel": [-0.0159, 0.0249], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575467.569, "state": "LAND", "pos": [0.0036, 0.0005, 0.99], "t265_yaw_deg": 7.96, "t265_vel": [0.0253, 0.0316], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575467.632, "state": "LAND", "pos": [-0.0052, 0.0015, 0.98], "t265_yaw_deg": 7.85, "t265_vel": [-0.0503, 0.0198], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575467.696, "state": "LAND", "pos": [-0.0088, 0.0025, 0.97], "t265_yaw_deg": 7.91, "t265_vel": [-0.0741, 0.0125], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575467.758, "state": "LAND", "pos": [-0.0062, 0.0046, 0.96], "t265_yaw_deg": 7.87, "t265_vel": [-0.0195, 0.0243], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575467.82, "state": "LAND", "pos": [-0.0027, 0.0071, 0.95], "t265_yaw_deg": 7.77, "t265_vel": [0.0314, 0.0319], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575467.882, "state": "LAND", "pos": [-0.0048, 0.0084, 0.94], "t265_yaw_deg": 7.79, "t265_vel": [0.0203, 0.0254], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575467.943, "state": "LAND", "pos": [-0.0101, 0.0091, 0.92], "t265_yaw_deg": 7.66, "t265_vel": [-0.0376, 0.0144], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575468.004, "state": "LAND", "pos": [-0.0056, 0.0111, 0.92], "t265_yaw_deg": 7.74, "t265_vel": [-0.0115, 0.017], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575468.067, "state": "LAND", "pos": [-0.0015, 0.0138, 0.91], "t265_yaw_deg": 7.64, "t265_vel": [0.0537, 0.0314], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575468.129, "state": "LAND", "pos": [-0.0104, 0.0142, 0.9], "t265_yaw_deg": 7.54, "t265_vel": [-0.0367, 0.0207], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575468.192, "state": "LAND", "pos": [-0.0096, 0.0159, 0.88], "t265_yaw_deg": 7.57, "t265_vel": [-0.0353, 0.017], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575468.254, "state": "LAND", "pos": [-0.0028, 0.019, 0.88], "t265_yaw_deg": 7.52, "t265_vel": [0.03, 0.0306], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575468.317, "state": "LAND", "pos": [-0.0056, 0.0209, 0.85], "t265_yaw_deg": 7.51, "t265_vel": [0.0169, 0.0275], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575468.379, "state": "LAND", "pos": [-0.0114, 0.0216, 0.84], "t265_yaw_deg": 7.55, "t265_vel": [-0.0703, 0.0155], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575468.443, "state": "LAND", "pos": [-0.0069, 0.0246, 0.83], "t265_yaw_deg": 7.52, "t265_vel": [0.0104, 0.0305], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575468.505, "state": "LAND", "pos": [-0.0061, 0.0267, 0.82], "t265_yaw_deg": 7.49, "t265_vel": [0.032, 0.0305], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575468.568, "state": "LAND", "pos": [-0.009, 0.0283, 0.8], "t265_yaw_deg": 7.52, "t265_vel": [-0.0114, 0.0258], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575468.632, "state": "LAND", "pos": [-0.0116, 0.0297, 0.8], "t265_yaw_deg": 7.55, "t265_vel": [-0.0029, 0.0256], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575468.695, "state": "LAND", "pos": [-0.008, 0.0319, 0.78], "t265_yaw_deg": 7.47, "t265_vel": [0.031, 0.0307], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575468.758, "state": "LAND", "pos": [-0.0054, 0.0339, 0.77], "t265_yaw_deg": 7.52, "t265_vel": [0.039, 0.0295], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575468.819, "state": "LAND", "pos": [-0.0094, 0.0347, 0.76], "t265_yaw_deg": 7.53, "t265_vel": [-0.0204, 0.018], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575468.88, "state": "LAND", "pos": [-0.0103, 0.0353, 0.74], "t265_yaw_deg": 7.45, "t265_vel": [-0.0281, 0.0085], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575468.942, "state": "LAND", "pos": [-0.0041, 0.0366, 0.73], "t265_yaw_deg": 7.48, "t265_vel": [0.0789, 0.0172], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575469.003, "state": "LAND", "pos": [-0.0055, 0.037, 0.72], "t265_yaw_deg": 7.45, "t265_vel": [0.0218, 0.0131], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575469.064, "state": "LAND", "pos": [-0.0082, 0.038, 0.7], "t265_yaw_deg": 7.46, "t265_vel": [0.0008, 0.0143], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575469.127, "state": "LAND", "pos": [-0.0064, 0.0393, 0.69], "t265_yaw_deg": 7.48, "t265_vel": [0.0223, 0.0162], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575469.189, "state": "LAND", "pos": [-0.0026, 0.0416, 0.68], "t265_yaw_deg": 7.38, "t265_vel": [0.0611, 0.0293], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575469.252, "state": "LAND", "pos": [-0.005, 0.0428, 0.68], "t265_yaw_deg": 7.42, "t265_vel": [-0.0044, 0.0189], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575469.316, "state": "LAND", "pos": [-0.0101, 0.0425, 0.68], "t265_yaw_deg": 7.42, "t265_vel": [-0.0433, 0.007], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575469.381, "state": "LAND", "pos": [-0.0072, 0.0439, 0.64], "t265_yaw_deg": 7.42, "t265_vel": [0.0035, 0.0122], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575469.449, "state": "LAND", "pos": [-0.004, 0.0452, 0.64], "t265_yaw_deg": 7.31, "t265_vel": [0.0103, 0.0115], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575469.511, "state": "LAND", "pos": [-0.007, 0.0461, 0.63], "t265_yaw_deg": 7.33, "t265_vel": [-0.0406, 0.0137], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575469.572, "state": "LAND", "pos": [-0.0058, 0.047, 0.61], "t265_yaw_deg": 7.25, "t265_vel": [-0.0129, 0.0163], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575469.633, "state": "LAND", "pos": [-0.0019, 0.0484, 0.59], "t265_yaw_deg": 7.23, "t265_vel": [0.0303, 0.0174], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575469.695, "state": "LAND", "pos": [-0.0024, 0.0498, 0.59], "t265_yaw_deg": 7.22, "t265_vel": [-0.012, 0.0126], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575469.756, "state": "LAND", "pos": [-0.0037, 0.0506, 0.57], "t265_yaw_deg": 7.18, "t265_vel": [0.0, 0.0194], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575469.818, "state": "LAND", "pos": [-0.0039, 0.051, 0.56], "t265_yaw_deg": 7.13, "t265_vel": [-0.0151, 0.0129], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575469.882, "state": "LAND", "pos": [-0.0017, 0.0532, 0.56], "t265_yaw_deg": 7.13, "t265_vel": [0.0265, 0.0195], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575469.946, "state": "LAND", "pos": [-0.0029, 0.0537, 0.54], "t265_yaw_deg": 7.01, "t265_vel": [-0.014, 0.0063], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575470.007, "state": "LAND", "pos": [-0.0047, 0.0542, 0.53], "t265_yaw_deg": 7.05, "t265_vel": [-0.0447, 0.0076], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575470.069, "state": "LAND", "pos": [-0.0013, 0.0556, 0.52], "t265_yaw_deg": 6.88, "t265_vel": [0.0087, 0.0096], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575470.13, "state": "LAND", "pos": [0.001, 0.0568, 0.5], "t265_yaw_deg": 6.78, "t265_vel": [-0.0022, 0.0096], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575470.193, "state": "LAND", "pos": [-0.0021, 0.0571, 0.49], "t265_yaw_deg": 6.73, "t265_vel": [-0.027, 0.0089], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575470.257, "state": "LAND", "pos": [-0.0018, 0.0586, 0.47], "t265_yaw_deg": 6.7, "t265_vel": [-0.0172, 0.0143], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575470.318, "state": "LAND", "pos": [0.0037, 0.0607, 0.46], "t265_yaw_deg": 6.61, "t265_vel": [0.0305, 0.028], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575470.381, "state": "LAND", "pos": [0.0005, 0.0617, 0.45], "t265_yaw_deg": 6.59, "t265_vel": [-0.0238, 0.0205], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575470.444, "state": "LAND", "pos": [-0.001, 0.0631, 0.44], "t265_yaw_deg": 6.6, "t265_vel": [-0.002, 0.0226], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575470.507, "state": "LAND", "pos": [0.0037, 0.0645, 0.42], "t265_yaw_deg": 6.51, "t265_vel": [0.0588, 0.0288], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575470.57, "state": "LAND", "pos": [0.0028, 0.0656, 0.42], "t265_yaw_deg": 6.59, "t265_vel": [-0.0087, 0.0209], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575470.633, "state": "LAND", "pos": [0.0013, 0.0671, 0.4], "t265_yaw_deg": 6.58, "t265_vel": [-0.0329, 0.0205], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575470.697, "state": "LAND", "pos": [0.0011, 0.0695, 0.39], "t265_yaw_deg": 6.65, "t265_vel": [-0.0238, 0.0269], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575470.759, "state": "LAND", "pos": [0.0028, 0.0707, 0.37], "t265_yaw_deg": 6.72, "t265_vel": [-0.0072, 0.0225], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575470.821, "state": "LAND", "pos": [0.0063, 0.0719, 0.37], "t265_yaw_deg": 6.65, "t265_vel": [0.0143, 0.0264], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575470.885, "state": "LAND", "pos": [0.0044, 0.0738, 0.35], "t265_yaw_deg": 6.6, "t265_vel": [-0.0162, 0.0191], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575470.947, "state": "LAND", "pos": [0.0044, 0.0762, 0.34], "t265_yaw_deg": 6.63, "t265_vel": [0.0187, 0.0271], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575471.01, "state": "LAND", "pos": [0.0032, 0.0767, 0.33], "t265_yaw_deg": 6.61, "t265_vel": [-0.0229, 0.0093], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575471.073, "state": "LAND", "pos": [0.0058, 0.0771, 0.33], "t265_yaw_deg": 6.61, "t265_vel": [-0.0066, 0.0075], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575471.136, "state": "LAND", "pos": [0.0082, 0.078, 0.31], "t265_yaw_deg": 6.46, "t265_vel": [-0.0018, 0.0078], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575471.199, "state": "LAND", "pos": [0.01, 0.0788, 0.3], "t265_yaw_deg": 6.45, "t265_vel": [0.0291, 0.0119], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575471.262, "state": "LAND", "pos": [0.01, 0.0799, 0.28], "t265_yaw_deg": 6.35, "t265_vel": [0.0096, 0.0145], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575471.323, "state": "LAND", "pos": [0.009, 0.0807, 0.28], "t265_yaw_deg": 6.3, "t265_vel": [0.0166, 0.0177], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575471.384, "state": "LAND", "pos": [0.0101, 0.0816, 0.27], "t265_yaw_deg": 6.26, "t265_vel": [0.0162, 0.0205], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575471.445, "state": "LAND", "pos": [0.0102, 0.0825, 0.25], "t265_yaw_deg": 6.21, "t265_vel": [-0.0101, 0.0167], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575471.506, "state": "LAND", "pos": [0.0104, 0.0836, 0.25], "t265_yaw_deg": 6.18, "t265_vel": [-0.0228, 0.0148], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575471.569, "state": "LAND", "pos": [0.0125, 0.0866, 0.23], "t265_yaw_deg": 6.03, "t265_vel": [-0.0236, 0.0318], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575471.632, "state": "LAND", "pos": [0.013, 0.0882, 0.22], "t265_yaw_deg": 5.96, "t265_vel": [0.0051, 0.0304], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575471.695, "state": "LAND", "pos": [0.0131, 0.0896, 0.21], "t265_yaw_deg": 5.78, "t265_vel": [0.0164, 0.0269], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575471.756, "state": "LAND", "pos": [0.0123, 0.0917, 0.18], "t265_yaw_deg": 5.69, "t265_vel": [0.0233, 0.0397], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575471.82, "state": "LAND", "pos": [0.0105, 0.094, 0.18], "t265_yaw_deg": 5.59, "t265_vel": [-0.0051, 0.0418], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575471.883, "state": "LAND", "pos": [0.009, 0.0965, 0.17], "t265_yaw_deg": 5.5, "t265_vel": [-0.0244, 0.0438], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575471.944, "state": "LAND", "pos": [0.0063, 0.0989, 0.15], "t265_yaw_deg": 5.5, "t265_vel": [-0.0494, 0.0407], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575472.006, "state": "LAND", "pos": [0.0066, 0.1009, 0.13], "t265_yaw_deg": 5.35, "t265_vel": [-0.0389, 0.04], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575472.068, "state": "LAND", "pos": [0.0071, 0.102, 0.12], "t265_yaw_deg": 5.3, "t265_vel": [-0.0516, 0.0263], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575472.129, "state": "LAND", "pos": [0.0079, 0.1038, 0.11], "t265_yaw_deg": 5.19, "t265_vel": [-0.0145, 0.0263], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575472.191, "state": "LAND", "pos": [0.0077, 0.1054, 0.09], "t265_yaw_deg": 5.14, "t265_vel": [-0.0013, 0.0235], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575472.254, "state": "LAND", "pos": [0.005, 0.1087, 0.08], "t265_yaw_deg": 5.02, "t265_vel": [-0.0457, 0.0253], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575472.317, "state": "LAND", "pos": [0.0041, 0.1111, 0.08], "t265_yaw_deg": 5.06, "t265_vel": [-0.0262, 0.0309], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575472.379, "state": "LAND", "pos": [0.0036, 0.1132, 0.08], "t265_yaw_deg": 5.1, "t265_vel": [0.0187, 0.0364], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575472.443, "state": "LAND", "pos": [0.0025, 0.1184, 0.08], "t265_yaw_deg": 5.51, "t265_vel": [0.0297, 0.1372], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575472.509, "state": "LAND", "pos": [0.0027, 0.1223, 0.08], "t265_yaw_deg": 6.26, "t265_vel": [-0.0067, 0.0911], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575472.571, "state": "LAND", "pos": [0.0052, 0.1318, 0.08], "t265_yaw_deg": 6.64, "t265_vel": [-0.0345, 0.0903], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575472.634, "state": "LAND", "pos": [0.0066, 0.1333, 0.08], "t265_yaw_deg": 7.41, "t265_vel": [-0.0824, 0.0083], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575472.697, "state": "LAND", "pos": [0.0102, 0.1364, 0.08], "t265_yaw_deg": 7.61, "t265_vel": [-0.0286, 0.0849], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575472.759, "state": "LAND", "pos": [0.0134, 0.1392, 0.08], "t265_yaw_deg": 7.77, "t265_vel": [-0.0093, 0.0064], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575472.821, "state": "LAND", "pos": [0.0157, 0.1417, 0.08], "t265_yaw_deg": 7.68, "t265_vel": [0.0001, -0.0088], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575472.884, "state": "LAND", "pos": [0.0172, 0.142, 0.08], "t265_yaw_deg": 7.48, "t265_vel": [-0.0121, -0.0043], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575472.948, "state": "LAND", "pos": [0.0183, 0.1435, 0.08], "t265_yaw_deg": 7.47, "t265_vel": [0.0111, 0.026], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575473.01, "state": "LAND", "pos": [0.0177, 0.1446, 0.08], "t265_yaw_deg": 7.48, "t265_vel": [0.0108, 0.0041], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575473.073, "state": "LAND", "pos": [0.0171, 0.1432, 0.08], "t265_yaw_deg": 7.48, "t265_vel": [0.0142, -0.0079], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575473.136, "state": "LAND", "pos": [0.0167, 0.1422, 0.08], "t265_yaw_deg": 7.51, "t265_vel": [0.0002, -0.0161], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575473.2, "state": "LAND", "pos": [0.016, 0.1425, 0.08], "t265_yaw_deg": 7.46, "t265_vel": [-0.0156, -0.0134], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575473.262, "state": "LAND", "pos": [0.0169, 0.1444, 0.08], "t265_yaw_deg": 7.5, "t265_vel": [0.0081, 0.0071], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575473.324, "state": "LAND", "pos": [0.0165, 0.1437, 0.08], "t265_yaw_deg": 7.5, "t265_vel": [-0.0095, 0.0028], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575473.388, "state": "LAND", "pos": [0.0173, 0.143, 0.08], "t265_yaw_deg": 7.52, "t265_vel": [0.0042, 0.0038], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575473.45, "state": "LAND", "pos": [0.0173, 0.143, 0.08], "t265_yaw_deg": 7.47, "t265_vel": [-0.0135, -0.0008], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575473.512, "state": "LAND", "pos": [0.0172, 0.1439, 0.08], "t265_yaw_deg": 7.53, "t265_vel": [0.0009, 0.0049], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575473.575, "state": "LAND", "pos": [0.016, 0.1439, 0.08], "t265_yaw_deg": 7.54, "t265_vel": [-0.0148, 0.0052], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575473.638, "state": "LAND", "pos": [0.0167, 0.1427, 0.08], "t265_yaw_deg": 7.56, "t265_vel": [-0.0231, -0.0101], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575473.699, "state": "LAND", "pos": [0.0176, 0.1428, 0.08], "t265_yaw_deg": 7.53, "t265_vel": [-0.0096, 0.0003], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575473.762, "state": "LAND", "pos": [0.018, 0.1432, 0.08], "t265_yaw_deg": 7.54, "t265_vel": [0.0109, 0.0049], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575473.824, "state": "LAND", "pos": [0.0164, 0.1437, 0.08], "t265_yaw_deg": 7.56, "t265_vel": [-0.0117, 0.0061], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575473.887, "state": "LAND", "pos": [0.0172, 0.1438, 0.08], "t265_yaw_deg": 7.56, "t265_vel": [0.0013, 0.0136], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575473.949, "state": "LAND", "pos": [0.0177, 0.1447, 0.08], "t265_yaw_deg": 7.55, "t265_vel": [-0.0041, 0.0158], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575474.012, "state": "LAND", "pos": [0.0189, 0.144, 0.08], "t265_yaw_deg": 7.58, "t265_vel": [0.0283, 0.0058], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575474.076, "state": "LAND", "pos": [0.0174, 0.1437, 0.08], "t265_yaw_deg": 7.6, "t265_vel": [0.0032, 0.0031], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575474.138, "state": "LAND", "pos": [0.0183, 0.1434, 0.08], "t265_yaw_deg": 7.62, "t265_vel": [0.0065, -0.005], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575474.199, "state": "LAND", "pos": [0.0192, 0.1429, 0.08], "t265_yaw_deg": 7.6, "t265_vel": [0.0092, -0.0033], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575474.263, "state": "LAND", "pos": [0.019, 0.143, 0.08], "t265_yaw_deg": 7.57, "t265_vel": [-0.0035, -0.0026], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575474.326, "state": "LAND", "pos": [0.0178, 0.1434, 0.08], "t265_yaw_deg": 7.63, "t265_vel": [-0.0027, 0.0009], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575474.388, "state": "LAND", "pos": [0.0166, 0.1437, 0.08], "t265_yaw_deg": 7.61, "t265_vel": [-0.0189, 0.0039], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575474.452, "state": "LAND", "pos": [0.0169, 0.1436, 0.08], "t265_yaw_deg": 7.64, "t265_vel": [-0.0054, -0.0038], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575474.514, "state": "LAND", "pos": [0.017, 0.1432, 0.08], "t265_yaw_deg": 7.61, "t265_vel": [-0.004, -0.0031], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575474.577, "state": "LAND", "pos": [0.0175, 0.1432, 0.08], "t265_yaw_deg": 7.65, "t265_vel": [-0.0016, -0.0], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575474.638, "state": "LAND", "pos": [0.0178, 0.1433, 0.08], "t265_yaw_deg": 7.65, "t265_vel": [0.0037, 0.0028], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575474.701, "state": "LAND", "pos": [0.0177, 0.143, 0.08], "t265_yaw_deg": 7.66, "t265_vel": [0.0087, -0.0003], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575474.764, "state": "LAND", "pos": [0.0185, 0.1428, 0.08], "t265_yaw_deg": 7.68, "t265_vel": [0.0136, -0.0013], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575474.829, "state": "LAND", "pos": [0.0176, 0.1435, 0.08], "t265_yaw_deg": 7.61, "t265_vel": [-0.0043, 0.0045], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575474.892, "state": "LAND", "pos": [0.0172, 0.1431, 0.08], "t265_yaw_deg": 7.67, "t265_vel": [-0.0179, -0.0035], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575474.955, "state": "LAND", "pos": [0.0168, 0.1433, 0.08], "t265_yaw_deg": 7.63, "t265_vel": [-0.0165, -0.0021], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575475.017, "state": "LAND", "pos": [0.017, 0.1431, 0.08], "t265_yaw_deg": 7.58, "t265_vel": [-0.001, 0.0006], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575475.079, "state": "LAND", "pos": [0.0168, 0.1439, 0.08], "t265_yaw_deg": 7.73, "t265_vel": [-0.0081, 0.0063], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575475.142, "state": "LAND", "pos": [0.0162, 0.1427, 0.08], "t265_yaw_deg": 7.69, "t265_vel": [-0.0289, -0.0059], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575475.205, "state": "LAND", "pos": [0.0169, 0.1431, 0.08], "t265_yaw_deg": 7.61, "t265_vel": [-0.0198, -0.0008], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575475.268, "state": "LAND", "pos": [0.0175, 0.1429, 0.08], "t265_yaw_deg": 7.7, "t265_vel": [0.0058, -0.0036], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575475.331, "state": "LAND", "pos": [0.0172, 0.1432, 0.08], "t265_yaw_deg": 7.65, "t265_vel": [0.0051, 0.0015], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575475.394, "state": "LAND", "pos": [0.0166, 0.143, 0.08], "t265_yaw_deg": 7.68, "t265_vel": [-0.0117, -0.0034], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575475.457, "state": "LAND", "pos": [0.0165, 0.1431, 0.08], "t265_yaw_deg": 7.65, "t265_vel": [-0.0124, -0.0007], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575475.519, "state": "LAND", "pos": [0.0168, 0.1433, 0.08], "t265_yaw_deg": 7.63, "t265_vel": [0.0051, 0.0021], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575475.584, "state": "LAND", "pos": [0.0165, 0.1438, 0.08], "t265_yaw_deg": 7.74, "t265_vel": [-0.0033, 0.0053], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575475.647, "state": "LAND", "pos": [0.0165, 0.1429, 0.08], "t265_yaw_deg": 7.64, "t265_vel": [-0.0333, -0.0083], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575475.71, "state": "LAND", "pos": [0.0172, 0.1434, 0.08], "t265_yaw_deg": 7.64, "t265_vel": [-0.0166, 0.0002], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575475.773, "state": "LAND", "pos": [0.0176, 0.1426, 0.08], "t265_yaw_deg": 7.71, "t265_vel": [0.0012, -0.0068], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575475.837, "state": "LAND", "pos": [0.0174, 0.1431, 0.08], "t265_yaw_deg": 7.65, "t265_vel": [0.009, 0.0002], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575475.899, "state": "LAND", "pos": [0.0164, 0.1433, 0.08], "t265_yaw_deg": 7.68, "t265_vel": [-0.0044, 0.0014], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575475.964, "state": "LAND", "pos": [0.0164, 0.1432, 0.08], "t265_yaw_deg": 7.64, "t265_vel": [-0.0082, 0.0006], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575476.026, "state": "LAND", "pos": [0.0171, 0.1432, 0.08], "t265_yaw_deg": 7.71, "t265_vel": [0.003, 0.001], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575476.088, "state": "LAND", "pos": [0.0168, 0.1433, 0.08], "t265_yaw_deg": 7.71, "t265_vel": [-0.0003, 0.0019], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575476.151, "state": "LAND", "pos": [0.0176, 0.1428, 0.08], "t265_yaw_deg": 7.64, "t265_vel": [0.0123, -0.0], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575476.212, "state": "LAND", "pos": [0.0173, 0.1436, 0.08], "t265_yaw_deg": 7.73, "t265_vel": [-0.0148, 0.004], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575476.273, "state": "LAND", "pos": [0.0181, 0.1431, 0.08], "t265_yaw_deg": 7.77, "t265_vel": [0.0005, -0.0027], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575476.337, "state": "LAND", "pos": [0.0199, 0.1436, 0.08], "t265_yaw_deg": 7.61, "t265_vel": [0.0589, 0.0127], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575476.4, "state": "LAND", "pos": [0.0195, 0.1427, 0.08], "t265_yaw_deg": 7.75, "t265_vel": [0.0319, -0.0028], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575476.461, "state": "LAND", "pos": [0.0185, 0.1429, 0.08], "t265_yaw_deg": 7.69, "t265_vel": [0.003, 0.0012], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575476.525, "state": "LAND", "pos": [0.0171, 0.1431, 0.08], "t265_yaw_deg": 7.67, "t265_vel": [-0.0127, 0.0006], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575476.588, "state": "LAND", "pos": [0.0172, 0.1433, 0.08], "t265_yaw_deg": 7.67, "t265_vel": [-0.003, -0.0004], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575476.651, "state": "LAND", "pos": [0.0167, 0.1435, 0.08], "t265_yaw_deg": 7.67, "t265_vel": [-0.0063, -0.0002], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575476.713, "state": "LAND", "pos": [0.0162, 0.1434, 0.08], "t265_yaw_deg": 7.71, "t265_vel": [-0.0161, 0.0001], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575476.775, "state": "LAND", "pos": [0.0172, 0.1433, 0.08], "t265_yaw_deg": 7.66, "t265_vel": [0.0022, -0.0015], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575476.837, "state": "LAND", "pos": [0.0167, 0.1434, 0.08], "t265_yaw_deg": 7.63, "t265_vel": [-0.0031, 0.0008], "unlock_sta": 1, "motor_pwm_mask": 15}
+{"t": 1783575476.901, "state": "LAND", "pos": [0.0168, 0.1434, 0.08], "t265_yaw_deg": 7.72, "t265_vel": [0.0113, 0.0008], "unlock_sta": 1, "motor_pwm_mask": 15}
