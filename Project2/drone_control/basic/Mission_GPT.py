@@ -252,8 +252,11 @@ class mission:
             if self.t265_ok and self.realsense:
                 try:
                     yaw = self.realsense.get_orientation()[2]
-                    # yaw_pid增益按角度量级设计，必须喂角度而非T265原始弧度(问题16)
-                    vyaw = int(self.limit(self.yaw_pid.get_pid(math.degrees(yaw)) * VEL_SCALE, 30))
+                    # 2026-07-09临时回退问题16的角度修复：真机验证发现yaw修正回路一旦真正
+                    # 输出非零指令会导致yaw持续发散(疑似固件/协议层符号约定与Python假设不一致，
+                    # 形成正反馈而非负反馈)，触发一次~90°失控需人工介入。喂弧度让PID输出重新
+                    # 恒近似为0，回到"修正回路事实上不生效"的已知安全状态，直到符号问题查清。
+                    vyaw = int(self.limit(self.yaw_pid.get_pid(yaw) * VEL_SCALE, 30))
                     with lock:
                         self.se_fc[6] = vyaw + sp_side
                 except Exception:
@@ -323,8 +326,8 @@ class mission:
             self.yaw_pid.set_target(0)
             vx = self.x_pid.get_pid(pos[0]) * 100 * VEL_SCALE
             vy = self.y_pid.get_pid(pos[1]) * 100 * VEL_SCALE
-            # yaw_pid增益按角度量级设计，必须喂角度而非T265原始弧度(问题16)
-            vyaw = self.yaw_pid.get_pid(math.degrees(yaw)) * VEL_SCALE
+            # 2026-07-09临时回退问题16的角度修复，理由同上(navigate()同一个符号问题)
+            vyaw = self.yaw_pid.get_pid(yaw) * VEL_SCALE
             vx = int(self.limit(vx, 40))
             vy = int(self.limit(vy, 40))
             vyaw = int(self.limit(vyaw, 30))
