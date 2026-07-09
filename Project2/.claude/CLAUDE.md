@@ -90,10 +90,10 @@ cd drone_control/original && python main.py
 
 ## Git 约定
 
-- 当前分支: `refactor/stability-v1`
+- 当前分支: `main`（`refactor/stability-v1`已合并/废弃，之前记录已过期）
 - 主分支: `main`
 - 提交格式：`模块: 改动简述`
-- 不自动推送，等待用户明确要求
+- 2026-07-09起：本机提交后主动push到远程，不用等用户每次要求；板子(`ubuntu-pi`)`FJJ/.git`独立历史，本地commit要及时但依然不push（跟本机仓库无push/pull关联）
 
 ## 关键设计决策
 
