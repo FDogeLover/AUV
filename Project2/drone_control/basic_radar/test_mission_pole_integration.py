@@ -95,10 +95,11 @@ class TestMissionPoleHover:
         m.navigate([0.0, 0.0, 1.0], 0.0)
         assert m._pole_hovering is True
 
-        # 距离变成 0.65m：超过触发阈值(0.6)但还没到恢复阈值(0.75)，应该继续悬停
+        # 距离变成 0.95m：超过触发阈值(0.9)但还没到恢复阈值(1.05)，应该继续悬停
+        # (2026-07-09阈值从0.6/0.75上调到0.9/1.05，补偿机身物理半径，见CLAUDE.md问题20)
         m.pole_tracker.reset()
         for _ in range(3):
-            m.pole_tracker._history.append([(0.65, 0.0)])
+            m.pole_tracker._history.append([(0.95, 0.0)])
         m._last_pole_poll_time = time.time()
         m.navigate([0.0, 0.0, 1.0], 0.0)
         assert m._pole_hovering is True
@@ -111,10 +112,10 @@ class TestMissionPoleHover:
         m.navigate([0.0, 0.0, 1.0], 0.0)
         assert m._pole_hovering is True
 
-        # 距离变成 0.8m：超过恢复阈值(0.75)，应该恢复导航
+        # 距离变成 1.1m：超过恢复阈值(1.05)，应该恢复导航
         m.pole_tracker.reset()
         for _ in range(3):
-            m.pole_tracker._history.append([(0.8, 0.0)])
+            m.pole_tracker._history.append([(1.1, 0.0)])
         m._last_pole_poll_time = time.time()
         m.navigate([0.0, 0.0, 1.0], 0.0)
         assert m._pole_hovering is False

@@ -126,3 +126,60 @@ class TestLandLogging:
         m._log_file.seek(0)
         entry = json.loads([l for l in m._log_file.readlines() if l.strip()][-1])
         assert entry["motor_pwm_mask"] is None
+
+
+class TransientUnlockList(list):
+    """模拟re_fc[5](unlock_sta)按预设序列变化，序列用完后保持最后一个值不变。
+    用于测试降落确认去抖逻辑，不依赖真实串口数据。"""
+    def __init__(self, base, seq):
+        super().__init__(base)
+        self._seq = seq
+        self._calls = 0
+
+    def __getitem__(self, idx):
+        if idx == 5:
+            call = self._calls
+            self._calls += 1
+            if call < len(self._seq):
+                return self._seq[call]
+            return self._seq[-1]
+        return super().__getitem__(idx)
+
+
+class TestLandUnlockDebounce:
+    """2026-07-09大范围20点网格测试真机观察到疑似假阳性：终端打印"降落确认：
+    已上锁"并退出，但用户确认电机实际没有停转/没有真正降落；飞行日志显示确认
+    发生前unlock_sta全程是1，从未记录到0。原逻辑单次读到0就立刻确认退出，容易
+    被单帧通信噪声/校验巧合触发误判。这里改成要求连续LAND_UNLOCK_CONFIRM_COUNT
+    次都读到0才真正确认。"""
+
+    def test_single_glitch_does_not_confirm(self, monkeypatch):
+        import Mission_GPT as mg
+        monkeypatch.setattr(mg, "LAND_CONFIRM_TIMEOUT_S", 0.3)  # 加速测试，不用等25秒真实超时
+        m = _make_mission_for_land()
+        m._log_file = io.StringIO()
+        # 第3次读到0(瞬间glitch)，之后恢复为1一直到超时
+        m.re_fc = TransientUnlockList([0] * 14, seq=[1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1])
+
+        logged = []
+        monkeypatch.setattr(mg.logger, "info", lambda msg, *a, **k: logged.append(("info", msg)))
+        monkeypatch.setattr(mg.logger, "warning", lambda msg, *a, **k: logged.append(("warning", msg)))
+
+        m.land()
+
+        assert ("info", "降落确认：已上锁") not in logged
+        assert ("warning", "降落确认超时，强制退出") in logged
+
+    def test_confirms_after_consecutive_unlock_reads(self, monkeypatch):
+        import Mission_GPT as mg
+        m = _make_mission_for_land()
+        m._log_file = io.StringIO()
+        # 前2次还是1(未上锁)，之后持续读到0(真实持续上锁)
+        m.re_fc = TransientUnlockList([0] * 14, seq=[1, 1, 0, 0, 0, 0, 0, 0])
+
+        logged = []
+        monkeypatch.setattr(mg.logger, "info", lambda msg, *a, **k: logged.append(("info", msg)))
+
+        m.land()
+
+        assert ("info", "降落确认：已上锁") in logged

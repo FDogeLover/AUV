@@ -39,6 +39,10 @@ LAND_CONFIRM_TIMEOUT_S = 25.0  # 降落触发后最多等待多久确认unlock_s
                                 # 2026-07-09从10.0改为25.0：1.0m高度门槛测试发现10秒内unlock_sta/motor_pwm_mask
                                 # 全程未变但用户确认物理已自动降落成功，怀疑是超时定太短、真实上锁发生在
                                 # 断开串口之后——调长验证这个假设，同时避免后续测试的"超时"结果继续有歧义
+LAND_UNLOCK_CONFIRM_COUNT = 5  # 降落确认去抖：要连续读到N次unlock_sta==0才真正确认已上锁，不是单次就退出。
+                                # 2026-07-09真机观察到疑似假阳性——终端打印"已上锁"退出，但用户确认电机实际
+                                # 未停转/没有真正降落；飞行日志显示确认发生的那一刻之前unlock_sta全程是1，
+                                # 说明原逻辑单次读到0就退出，容易被单帧通信噪声/校验巧合触发误判
 ARRIVAL_VEL_THRESH = 0.05  # 到达判定除了位置阈值外，还要求T265速度模长小于此值(m/s)，避免带着残余速度就触发land()盲降
 ARRIVAL_VEL_WINDOW = 5  # 到达判定用的速度取最近N帧均值而非单帧瞬时值，平滑T265速度噪声尖峰
                          # (2026-07-07实测: 单帧瞬时速度噪声可达0.07m/s，用瞬时值+连续N次达标会导致到达确认永远凑不齐、超时强制跳过)
@@ -521,6 +525,7 @@ class mission:
         # 但发现日志是空的)。这里跟takeoff()一样，自己在循环里直接采样T265(不依赖
         # loop()调用时传入的旧值，那个值在整个等待期间不会更新)。
         t_start = time.time()
+        unlock_confirm_count = 0
         while True:
             self.set_speed(0, 0, 0, int(self._ramp_z_cm))
 
@@ -569,8 +574,12 @@ class mission:
                 self._last_log_time = now
 
             if unlock_sta == 0:
-                logger.info("降落确认：已上锁")
-                break
+                unlock_confirm_count += 1
+                if unlock_confirm_count >= LAND_UNLOCK_CONFIRM_COUNT:
+                    logger.info("降落确认：已上锁")
+                    break
+            else:
+                unlock_confirm_count = 0
             if time.time() - t_start >= LAND_CONFIRM_TIMEOUT_S:
                 logger.warning("降落确认超时，强制退出")
                 break
