@@ -345,6 +345,25 @@ class mission:
             logger.warning("T265追踪完全丢失，悬停等待恢复")
             # Hold current ramp height during hover; avoid a Z jump on lost tracking
             self.set_speed(0, 0, 0, int(self._ramp_z_cm))
+            # 2026-07-09从basic_radar/补同步(2026-07-08已在那边修复)：这里原本直接return
+            # 会跳过日志写入，导致T265追踪丢失期间完全没有数据记录。
+            now = time.time()
+            if now - self._last_log_time >= FLIGHT_LOG_INTERVAL and self._log_file is not None:
+                try:
+                    record = {
+                        "t": round(now, 3),
+                        "state": self.state,
+                        "target_idx": self.target_index,
+                        "pos": [round(pos[0], 4), round(pos[1], 4), round(pos[2], 4)],
+                        "target": [round(target[0], 4), round(target[1], 4), round(target[2], 4)],
+                        "vx": 0, "vy": 0, "vyaw": 0,
+                        "t265_confidence_lost": True,
+                    }
+                    self._log_file.write(json.dumps(record) + "\n")
+                    self._log_file.flush()
+                except Exception:
+                    pass
+                self._last_log_time = now
             return
         self.x_pid.set_target(target[0])
         self.y_pid.set_target(target[1])

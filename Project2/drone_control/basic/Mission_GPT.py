@@ -318,6 +318,26 @@ class mission:
         if confidence == 0 and self.t265_ok:
             logger.warning("T265 追踪丢失，悬停等待")
             self.set_speed(0, 0, 0, int(self._ramp_z_cm))
+            # 2026-07-09从basic_radar/补同步(2026-07-08已在那边修复)：这里原本直接return
+            # 会跳过日志写入，导致T265追踪丢失期间完全没有数据记录。
+            now = time.time()
+            if self._log_file and now - self._last_log_time >= FLIGHT_LOG_INTERVAL:
+                try:
+                    self._log_file.write(json.dumps({
+                        "t": round(now, 3),
+                        "state": self.state,
+                        "target_idx": self.target_index,
+                        "pos": [round(pos[0], 4), round(pos[1], 4), round(pos[2], 4)],
+                        "target": [round(target[0], 4), round(target[1], 4), round(target[2], 4)],
+                        "vx": 0, "vy": 0, "vyaw": 0,
+                        "t265_yaw_deg": round(math.degrees(yaw), 2),
+                        "height_setpoint_cm": round(self._ramp_z_cm, 1),
+                        "t265_confidence_lost": True,
+                    }) + "\n")
+                    self._log_file.flush()
+                except Exception:
+                    pass
+                self._last_log_time = now
             return
 
         if self.t265_ok and self.realsense:
