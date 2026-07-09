@@ -6,6 +6,12 @@ T265 自身位置理论上应该精确落在一个以转轴为圆心、半径为
 残差小且均匀 = T265 在纯旋转下位置追踪内部自洽；残差大或和转动速度相关 = 旋转时
 VIO 追踪本身有问题（这对真实飞行中任何带 yaw 的动作都有参考意义）。
 
+如果日志里带 raw_x/raw_y（2026-07-09起新增，t265.py低通滤波前的原始位置），
+还会额外拟合一个"滤波前"的圆，把两者在同一个残差异常窗口内的表现对比：
+如果滤波前残差明显更小，说明异常主要是低通滤波(alpha=0.15)滞后造成的；
+如果滤波前残差同样偏大，说明T265的VIO在快速旋转时本身就有追踪误差，
+不是我们自己滤波引入的。
+
 用法:
   python analyze_turntable_rotation.py <turntable_log_xxx.jsonl> [--min-confidence 2]
 """
@@ -75,6 +81,29 @@ def fit_circle_kasa(points):
     return cx, cy, r
 
 
+def residuals_for(samples, cx, cy, r, xkey="x", ykey="y"):
+    return [math.hypot(s[xkey] - cx, s[ykey] - cy) - r for s in samples]
+
+
+def find_anomaly_windows(samples, abs_res_cm, thresh_cm):
+    """把连续的"|残差|>thresh_cm"采样点合并成时间窗口，返回[(t_start, t_end), ...]。"""
+    windows = []
+    cur = None
+    for s, res in zip(samples, abs_res_cm):
+        if res > thresh_cm:
+            if cur is None:
+                cur = [s["t"], s["t"]]
+            else:
+                cur[1] = s["t"]
+        else:
+            if cur is not None:
+                windows.append(tuple(cur))
+                cur = None
+    if cur is not None:
+        windows.append(tuple(cur))
+    return windows
+
+
 def pearson(xs, ys):
     n = len(xs)
     if n < 2:
@@ -113,11 +142,15 @@ def main():
     cx, cy, r = fit_circle_kasa(points)
     print(f"拟合圆心=({cx:.4f}, {cy:.4f})m，半径={r:.4f}m")
 
-    residuals = [math.hypot(s["x"] - cx, s["y"] - cy) - r for s in samples]
+    residuals = residuals_for(samples, cx, cy, r)
     abs_res = [abs(v) for v in residuals]
+    abs_res_cm = [v * 100 for v in abs_res]
     mean_res = sum(abs_res) / len(abs_res)
     max_res = max(abs_res)
     print(f"残差(离拟合圆的距离)：均值={mean_res*100:.2f}cm，最大={max_res*100:.2f}cm")
+
+    ANOMALY_THRESH_CM = 3.0
+    windows = find_anomaly_windows(samples, abs_res_cm, ANOMALY_THRESH_CM)
 
     # 角速度只在相邻样本间有定义，长度天然比 residuals 少1；
     # 用 samples[i]/residuals[i] (i>=1) 和 samples[i-1] 的差分配对，
@@ -142,6 +175,44 @@ def main():
               f"较高=转得快时追踪误差更大，暗示动态追踪滞后）")
     else:
         print("有效角速度样本不足(<2)，跳过残差-转速相关性分析")
+
+    if windows:
+        print()
+        print(f"残差异常窗口(>{ANOMALY_THRESH_CM:.0f}cm)，共{len(windows)}个：")
+        has_raw = all("raw_x" in s and "raw_y" in s for s in samples)
+        raw_cx = raw_cy = raw_r = None
+        raw_abs_res_cm = None
+        if has_raw:
+            raw_points = [(s["raw_x"], s["raw_y"]) for s in samples]
+            try:
+                raw_cx, raw_cy, raw_r = fit_circle_kasa(raw_points)
+                raw_residuals = residuals_for(samples, raw_cx, raw_cy, raw_r,
+                                               xkey="raw_x", ykey="raw_y")
+                raw_abs_res_cm = [abs(v) * 100 for v in raw_residuals]
+                print(f"（同时拟合了滤波前原始位置的圆：圆心=({raw_cx:.4f}, {raw_cy:.4f})m，"
+                      f"半径={raw_r:.4f}m，用于跟滤波后残差对比）")
+            except ValueError as e:
+                has_raw = False
+                print(f"（滤波前原始位置拟合圆失败：{e}，跳过滤波前/后对比）")
+
+        for t0, t1 in windows:
+            idxs = [i for i, s in enumerate(samples) if t0 <= s["t"] <= t1]
+            seg_max_filtered = max(abs_res_cm[i] for i in idxs)
+            line = f"  t={t0:.2f}-{t1:.2f}s  滤波后最大残差={seg_max_filtered:.2f}cm"
+            if has_raw:
+                seg_max_raw = max(raw_abs_res_cm[i] for i in idxs)
+                ratio = seg_max_raw / seg_max_filtered if seg_max_filtered > 1e-9 else float("nan")
+                line += f"  滤波前最大残差={seg_max_raw:.2f}cm  比值(滤波前/滤波后)={ratio:.2f}"
+            print(line)
+
+        if has_raw:
+            print()
+            print("解读：比值明显小于1(比如<0.3) -> 这个窗口的异常主要是低通滤波(alpha=0.15)"
+                  "滞后造成的，原始信号本身是自洽的；比值接近1 -> 滤波前后同样异常，"
+                  "说明T265的VIO在这段快速旋转里本身就有追踪误差，不是我们自己滤波引入的；"
+                  "比值大于1属于反常，需要单独核查那个窗口。")
+    else:
+        print(f"\n没有残差超过{ANOMALY_THRESH_CM:.0f}cm的异常窗口")
 
     print()
     print("解读参考：")

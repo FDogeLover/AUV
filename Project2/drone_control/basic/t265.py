@@ -53,6 +53,10 @@ class t265_class:
         self.prev_velocity_y = 0.0
         self.prev_velocity_z = 0.0
 
+        # 低通滤波前的原始值（诊断用，不参与飞控闭环，不影响 get_position()/get_velocity() 的既有行为）
+        self.raw_pose_data = np.array([0.0, 0.0, 0.0])
+        self.raw_velocity_data = np.array([0.0, 0.0, 0.0])
+
     def low_pass_filter(self, new_val, prev_val, alpha=0.15):
         return alpha * new_val + (1 - alpha) * prev_val
 
@@ -144,6 +148,8 @@ class t265_class:
                         with self.lock:
                             self.pose_data[:] = [px, py, pz, rpy_rad[0], rpy_rad[1], yawerr]
                             self.velocity_data[:] = [vx, vy, vz]
+                            self.raw_pose_data[:] = [raw_x, raw_y, raw_z]
+                            self.raw_velocity_data[:] = [rvx, rvy, rvz]
                 else:
                     # 模拟模式
                     time.sleep(0.03)
@@ -179,6 +185,8 @@ class t265_class:
                     with self.lock:
                         self.pose_data[:] = [px, py, pz, roll, pitch, yawerr]
                         self.velocity_data[:] = [vx, vy, vz]
+                        self.raw_pose_data[:] = [rx, ry, rz]
+                        self.raw_velocity_data[:] = [rvx, rvy, rvz]
 
                 self.error_count = 0
             except Exception as e:
@@ -210,6 +218,16 @@ class t265_class:
     def get_velocity(self):
         with self.lock:
             return self.velocity_data.copy()
+
+    def get_raw_position(self):
+        """诊断用：低通滤波前的原始位置(未做calibration_offset校准)。不用于飞控闭环。"""
+        with self.lock:
+            return self.raw_pose_data.copy()
+
+    def get_raw_velocity(self):
+        """诊断用：低通滤波前的原始速度(T265 SDK直接输出)。不用于飞控闭环。"""
+        with self.lock:
+            return self.raw_velocity_data.copy()
 
     def get_tracking_confidence(self):
         with self.lock:
