@@ -75,6 +75,13 @@ POLE_HOVER_TIMEOUT_S = 15.0   # 2026-07-09新增：悬停位置修正生效后�
 POLE_YAW_SIGN = 1            # 未标定！CLAUDE.md已知问题13——真机/台架标定前只是假设值，
                               # 标定结果可能是+1也可能是-1，标定前这个避障功能的世界坐标可能是错的
 
+YAW_TEST_KP = float(os.getenv("DRONE_YAW_TEST_KP", "0"))
+# 问题16排查专用开关：默认0，此时yaw_pid保持喂弧度的已知安全回退状态(恒输出≈0)不变。
+# >0时才切换成喂角度(math.degrees)+这个低增益闭环，用于递进式真机复测——
+# 2026-07-09用原始Kp=1.5闭环触发过近90°失控事故，根因(疑似vyaw符号在物理执行层
+# 面跟Python假设不一致，或跟持续闭环的动态特性有关)未定位，转盘测试+开环脉冲测试
+# 只排除了"简单符号反了"。启用前必须先看CLAUDE.md已知问题16的四个前置条件。
+
 
 def nearest_confirmed_pole_dist(confirmed_poles, x, y):
     """confirmed_poles: PoleTracker.confirmed_poles()的返回值(list of {'x','y','hits'})。
@@ -117,7 +124,13 @@ class mission:
         # PID
         self.x_pid = PID(0, 0)
         self.y_pid = PID(0, 0)
-        self.yaw_pid = PID(1, 0)
+        self._yaw_test_enabled = YAW_TEST_KP > 0
+        if self._yaw_test_enabled:
+            self.yaw_pid = PID(1, 0, p=YAW_TEST_KP, i=0, d=0.05)
+            logger.warning(f"问题16排查：yaw修正回路以低增益Kp={YAW_TEST_KP}闭环启用(喂角度)，"
+                            f"非默认安全回退状态，需人工全程监控")
+        else:
+            self.yaw_pid = PID(1, 0)
 
         # 航点
         self.targets = self.load_waypoints()
@@ -302,11 +315,10 @@ class mission:
             if self.t265_ok and self.realsense:
                 try:
                     yaw = self.realsense.get_orientation()[2]
-                    # 2026-07-09临时回退问题16的角度修复：basic/真机验证发现yaw修正回路一旦
-                    # 真正输出非零指令会导致yaw持续发散(疑似固件/协议层符号约定与Python假设
-                    # 不一致，形成正反馈)，触发一次~90°失控需人工介入。喂弧度让PID输出重新
-                    # 恒近似为0，回到已知安全状态，直到符号问题查清。
-                    vyaw = int(self.limit(self.yaw_pid.get_pid(yaw) * VEL_SCALE, 30))
+                    # 默认喂弧度(问题16已知安全回退状态，恒输出≈0)；YAW_TEST_KP>0时才喂角度，
+                    # 用于问题16的低增益递进式复测，见 YAW_TEST_KP 常量注释
+                    yaw_input = math.degrees(yaw) if self._yaw_test_enabled else yaw
+                    vyaw = int(self.limit(self.yaw_pid.get_pid(yaw_input) * VEL_SCALE, 30))
                     with lock:
                         self.se_fc[6] = vyaw + sp_side
                 except Exception:
@@ -481,8 +493,9 @@ class mission:
             self.yaw_pid.set_target(0)
             vx = self.x_pid.get_pid(pos[0]) * 100 * VEL_SCALE
             vy = self.y_pid.get_pid(pos[1]) * 100 * VEL_SCALE
-            # 2026-07-09临时回退问题16的角度修复，理由同上(navigate()同一个符号问题)
-            vyaw = self.yaw_pid.get_pid(yaw) * VEL_SCALE
+            # 默认喂弧度(问题16已知安全回退状态)；YAW_TEST_KP>0时喂角度，理由同上(takeoff())
+            yaw_input = math.degrees(yaw) if self._yaw_test_enabled else yaw
+            vyaw = self.yaw_pid.get_pid(yaw_input) * VEL_SCALE
             vx = int(self.limit(vx, 40))
             vy = int(self.limit(vy, 40))
             vyaw = int(self.limit(vyaw, 30))
