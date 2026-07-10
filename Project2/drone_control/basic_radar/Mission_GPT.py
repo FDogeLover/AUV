@@ -26,7 +26,10 @@ VEL_SCALE = 0.7
 posthreshold_xy = 0.15
 posthreshold_z = 0.20
 arrival_confirm_need = 15
-arrival_hold_s = 1.5   # 到达判定满足后，在原地强制停留观察的时长（阶跃响应测试用）
+arrival_hold_s = 1.5   # 2026-07-10尝试降到1.0(-33%)想提速，真机测试反而更慢(22.62s vs 19.69s，
+                        # 2/4航点超时)——因为arrival_timeout_max=5.0+arrival_hold_s联动缩短了超时
+                        # 上限，滑动窗口攒不够确认帧数就被更早截断，超时本身比真正确认更耗时。已回退。
+                        # 到达判定满足后，在原地强制停留观察的时长（阶跃响应测试用）
 arrival_timeout_max = 5.0 + arrival_hold_s
 T265_CONFIDENCE_MIN = 2       # 定点所需最低追踪置信度 (0=失败,1=低,2=中,3=高)
 T265_CONFIDENCE_WAIT_S = 8.0  # 等待置信度达标的超时时间
