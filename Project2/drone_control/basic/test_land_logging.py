@@ -183,3 +183,56 @@ class TestLandUnlockDebounce:
         m.land()
 
         assert ("info", "降落确认：已上锁") in logged
+
+
+class TestLandUnlockPwmConfirm:
+    """2026-07-10矩形路径到达确认耗时基线测试(basic_radar)复现了问题7描述的假阳性：
+    终端打印"降落确认：已上锁"、用户确认是人工接管完成的降落。核对飞行日志发现
+    `unlock_sta`确实连续读到0满足了去抖要求，但同一时刻`motor_pwm_mask`全程稳定为15
+    (四电机都还在出PWM)，两个字段直接矛盾——说明只看`unlock_sta`的去抖不够，需要
+    同时要求`motor_pwm_mask==0`才能真正确认已上锁。`motor_pwm_mask`不可用(None，
+    比如还没收到过帧2)时不应阻塞确认，退化成只看`unlock_sta`的旧行为。"""
+
+    def test_unlock_confirmed_but_motor_pwm_nonzero_does_not_confirm(self, monkeypatch):
+        import Mission_GPT as mg
+        monkeypatch.setattr(mg, "LAND_CONFIRM_TIMEOUT_S", 0.3)  # 加速测试，不用等25秒真实超时
+        m = _make_mission_for_land()
+        m._log_file = io.StringIO()
+        m.re_fc = TransientUnlockList([0] * 14, seq=[0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+        m.serial_fc_ref = FakeSerialFcRef(laser_height_m=0.06, motor_pwm_mask=0x0F)
+
+        logged = []
+        monkeypatch.setattr(mg.logger, "info", lambda msg, *a, **k: logged.append(("info", msg)))
+        monkeypatch.setattr(mg.logger, "warning", lambda msg, *a, **k: logged.append(("warning", msg)))
+
+        m.land()
+
+        assert ("info", "降落确认：已上锁") not in logged
+        assert ("warning", "降落确认超时，强制退出") in logged
+
+    def test_confirms_when_unlock_and_motor_pwm_both_zero(self, monkeypatch):
+        import Mission_GPT as mg
+        m = _make_mission_for_land()
+        m._log_file = io.StringIO()
+        m.re_fc = TransientUnlockList([0] * 14, seq=[0, 0, 0, 0, 0, 0, 0, 0])
+        m.serial_fc_ref = FakeSerialFcRef(laser_height_m=0.06, motor_pwm_mask=0)
+
+        logged = []
+        monkeypatch.setattr(mg.logger, "info", lambda msg, *a, **k: logged.append(("info", msg)))
+
+        m.land()
+
+        assert ("info", "降落确认：已上锁") in logged
+
+    def test_motor_pwm_mask_unavailable_falls_back_to_unlock_only(self, monkeypatch):
+        import Mission_GPT as mg
+        m = _make_mission_for_land()
+        m._log_file = io.StringIO()
+        m.re_fc = TransientUnlockList([0] * 14, seq=[0, 0, 0, 0, 0, 0, 0, 0])
+
+        logged = []
+        monkeypatch.setattr(mg.logger, "info", lambda msg, *a, **k: logged.append(("info", msg)))
+
+        m.land()
+
+        assert ("info", "降落确认：已上锁") in logged

@@ -43,6 +43,10 @@ LAND_UNLOCK_CONFIRM_COUNT = 5  # 降落确认去抖：要连续读到N次unlock_
                                 # 2026-07-09真机观察到疑似假阳性——终端打印"已上锁"退出，但用户确认电机实际
                                 # 未停转/没有真正降落；飞行日志显示确认发生的那一刻之前unlock_sta全程是1，
                                 # 说明原逻辑单次读到0就退出，容易被单帧通信噪声/校验巧合触发误判
+LASER_HEIGHT_MAX_M = 10.0  # 激光高度覆盖Z轴前的合理性上限：2026-07-10真机测试(basic_radar)发现降落末尾
+                            # 激光传感器偶发返回类似0xFFFFFFFF的错误码，除以100后变成约4.29e7米的垃圾值，
+                            # 原逻辑只判断laser_h>0.05、没有上限，会把这个垃圾值当真实高度写进pos[2]。
+                            # 10m远超室内飞行实际高度(实测未超过1.4m)，只用来挡掉这种量级的错误码。
 ARRIVAL_VEL_THRESH = 0.05  # 到达判定除了位置阈值外，还要求T265速度模长小于此值(m/s)，避免带着残余速度就触发land()盲降
 ARRIVAL_VEL_WINDOW = 5  # 到达判定用的速度取最近N帧均值而非单帧瞬时值，平滑T265速度噪声尖峰
                          # (2026-07-07实测: 单帧瞬时速度噪声可达0.07m/s，用瞬时值+连续N次达标会导致到达确认永远凑不齐、超时强制跳过)
@@ -65,6 +69,12 @@ def arrival_window_confirmed(window, need, ratio):
     窗口填满(len>=need)且达标帧占比>=ratio才算确认到达——替代旧的"严格连续N帧"
     逻辑，单帧噪声不会让已经积累的进度清零(见 ARRIVAL_CONFIRM_RATIO 常量注释)。"""
     return len(window) >= need and (sum(window) / len(window)) >= ratio
+
+
+def laser_height_valid(laser_h):
+    """激光高度是否合理，可以用来覆盖pos[2]/land_pos[2]。见 LASER_HEIGHT_MAX_M 注释：
+    2026-07-10真机测试(basic_radar)捕获到传感器错误码(约0xFFFFFFFF/100)未被过滤污染日志的真实案例。"""
+    return 0.05 < laser_h <= LASER_HEIGHT_MAX_M
 
 
 class mission:
@@ -228,7 +238,7 @@ class mission:
             if self.serial_fc_ref is not None:
                 with lock:
                     laser_h = self.serial_fc_ref._last_laser_height_cm
-                if laser_h > 0.05:
+                if laser_height_valid(laser_h):
                     pos[2] = laser_h
 
             # 状态机
@@ -543,7 +553,7 @@ class mission:
             # 这里如果继续用原始T265 Z，降落阶段记录的"高度"会是假数据，没法验证物理降落过程。
             with lock:
                 laser_h = self.serial_fc_ref._last_laser_height_cm if self.serial_fc_ref else 0.0
-            if laser_h > 0.05:
+            if laser_height_valid(laser_h):
                 land_pos[2] = laser_h
 
             with lock:
@@ -573,7 +583,13 @@ class mission:
                     pass
                 self._last_log_time = now
 
-            if unlock_sta == 0:
+            # 2026-07-10修复：只看unlock_sta的去抖仍会假阳性(问题7)——矩形路径基线测试
+            # (basic_radar)复现了unlock_sta连续读到0、去抖满足，但motor_pwm_mask全程
+            # 非零(电机仍在出PWM)的矛盾场景，用户确认那次是人工接管才降落的。这里要求
+            # unlock_sta==0同时motor_pwm_mask==0才计入确认；motor_pwm_mask为None(诊断
+            # 数据不可用)时不阻塞，退化成只看unlock_sta。
+            motor_pwm_ok = motor_pwm_mask is None or motor_pwm_mask == 0
+            if unlock_sta == 0 and motor_pwm_ok:
                 unlock_confirm_count += 1
                 if unlock_confirm_count >= LAND_UNLOCK_CONFIRM_COUNT:
                     logger.info("降落确认：已上锁")
