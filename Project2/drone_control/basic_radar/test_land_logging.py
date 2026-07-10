@@ -113,6 +113,24 @@ class TestLandLogging:
         entry = json.loads([l for l in m._log_file.readlines() if l.strip()][-1])
         assert entry["motor_pwm_mask"] == 0x0F
 
+    def test_logs_motor_pwm_mask_arrival_timestamp(self):
+        """2026-07-10严重案例：unlock_sta+motor_pwm_mask双条件都归零、land()正常确认
+        退出，但用户现场确认电机实际没有停转。怀疑motor_pwm_mask可能是帧2降频(~2.5秒
+        一次)导致的滞后快照。Lprotocol.py已经给debug_data加了到达时间戳
+        (motor_pwm_mask_t)，这里验证land()把它也写进飞行日志，方便下次核实"读到的0
+        是不是新鲜数据"。"""
+        m = _make_mission_for_land()
+        m._log_file = io.StringIO()
+        m.re_fc[5] = 0
+        m.serial_fc_ref = FakeSerialFcRef(laser_height_m=0.06, motor_pwm_mask=0)
+        m.serial_fc_ref.debug_data["motor_pwm_mask_t"] = 1234.5
+
+        m.land()
+
+        m._log_file.seek(0)
+        entry = json.loads([l for l in m._log_file.readlines() if l.strip()][-1])
+        assert entry["motor_pwm_mask_t"] == 1234.5
+
     def test_land_logs_motor_pwm_mask_none_when_unavailable(self):
         """serial_fc_ref没有debug_data(比如刚连上还没收到过帧2)时，字段应该是
         None而不是抛异常。"""

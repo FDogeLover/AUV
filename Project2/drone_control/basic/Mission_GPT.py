@@ -562,9 +562,11 @@ class mission:
             # 电机PWM非零位掩码(帧2新增字段)：诊断unlock_sta是否假阳性
             # (问题7 2026-07-08：unlock_sta读到0但用户确认电机实际未停转)
             motor_pwm_mask = None
+            motor_pwm_mask_t = None
             if self.serial_fc_ref is not None:
                 with lock:
                     motor_pwm_mask = self.serial_fc_ref.debug_data.get("motor_pwm_mask")
+                    motor_pwm_mask_t = self.serial_fc_ref.debug_data.get("motor_pwm_mask_t")
 
             now = time.time()
             if self._log_file and now - self._last_log_time >= FLIGHT_LOG_INTERVAL:
@@ -577,6 +579,7 @@ class mission:
                         "t265_vel": [round(land_tv[0], 4), round(land_tv[1], 4)],
                         "unlock_sta": unlock_sta,
                         "motor_pwm_mask": motor_pwm_mask,
+                        "motor_pwm_mask_t": motor_pwm_mask_t,
                     }) + "\n")
                     self._log_file.flush()
                 except Exception:

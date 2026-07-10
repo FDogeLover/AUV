@@ -115,12 +115,16 @@ class Serial_fc(object):
                     # 电机PWM非零位掩码(bit0~3=m1~m4)：诊断unlock_sta是否假阳性
                     # (问题7 2026-07-08：unlock_sta读到0但电机实际未停转)
                     motor_pwm_mask = data[18]
+                    # 2026-07-10新增：记录帧2到达时刻，用于跟unlock_sta翻转时间对比，
+                    # 核实motor_pwm_mask是不是滞后的旧快照(问题22追加分析：帧2降频约
+                    # 2.5秒才更新一次，land()读到的可能是过期数据)
                     with lock:
                         self.debug_data = {
                             "fc_vel": (fc_vel_x, fc_vel_y, fc_vel_z),
                             "of_acc": (of_acc_x, of_acc_y, of_acc_z),
                             "of_gyr": (of_gyr_x, of_gyr_y, of_gyr_z),
                             "motor_pwm_mask": motor_pwm_mask,
+                            "motor_pwm_mask_t": time.time(),
                         }
             time.sleep(0.05)
     def _send_t265_loop(self, t265_obj, freq):
