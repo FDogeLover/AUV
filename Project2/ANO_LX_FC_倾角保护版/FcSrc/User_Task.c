@@ -65,7 +65,10 @@ void UserTask_OneKeyCmd(void)// 一键功能
   else  // 离开降落区时清空标志，下次进入时重新触发
   {
       land_triggered_f = 0;
-      land_cmd_sent_f = 0;
+      // 2026-07-10修复：land_cmd_sent_f是CH_8/task_sta共用的通用降落标志，
+      // 不应该被CH_8离开区间这个动作清零(会把task_sta路径刚设置的1清掉，
+      // 导致近地强制锁定/超时兜底逻辑在Python触发的降落场景下永远看不到
+      // land_cmd_sent_f==1)。清零改到每次新任务开始时统一处理。
   }
 	 //////////////////////////////////////////////////////////////////////
   // 通用降落触发检测（覆盖 CH_8 降落 + mission default 降落）
@@ -124,6 +127,13 @@ void UserTask_OneKeyCmd(void)// 一键功能
 				one_key_mission_f = 1;
 					//开始任务
 				mission_step = 0;
+					// 2026-07-10 fix: reset landing state machine at mission start,
+					// so a previous landing (CH_8- or task_sta-triggered) never blocks
+					// this cycle's near-ground/timeout fallback via landing_f==1
+				land_cmd_sent_f = 0;
+				landing_f = 0;
+				landing_cnt = 0;
+				land_timeout_cnt = 0;
 			}
 		}
 		else
