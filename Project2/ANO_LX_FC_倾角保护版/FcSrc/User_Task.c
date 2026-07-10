@@ -20,7 +20,8 @@ void UserTask_OneKeyCmd(void)// 一键功能
 	static u8 mission_step,eme_stop=1,pi_start_f=0,now_task_mode=0,
 					land_triggered_f=0,landing_f=0;
 					static u16 landing_cnt=0;
-					u8 land_cmd_sent_f=0;           // 降落路径上通用降落指令的标志
+					static u16 land_timeout_cnt=0;  //2026-07-10新增:纯超时兜底,不依赖高度/光流状态
+					static u8 land_cmd_sent_f=0;           // 降落路径上通用降落指令的标志
   //////////////////////////////////////////////////////////////////////
 	// 确保T265始终为默认速度源，防止其他路径误改
 	pi_ctrl_mode = 1;
@@ -90,6 +91,20 @@ void UserTask_OneKeyCmd(void)// 一键功能
           {
 	              landing_cnt = 0;          // 未落地则清空计数器
           }
+	      //2026-07-10新增：纯超时兜底，不依赖高度/光流状态。原逻辑只有<10cm且光流有效
+	      //持续约1秒才强制锁定，如果OneKey_Land()的CMD一直没被凌霄IMU确认(wait_ck占用)
+	      //且飞机因故没有真正降到10cm以下，之前完全没有兜底。这里加一个不看条件的纯计时器：
+	      //降落指令已发出后持续约10秒(500 ticks@50Hz)仍未锁定，无条件强制锁定。
+	      land_timeout_cnt++;
+	      if (land_timeout_cnt >= 500)  //约10秒(50Hz)
+	      {
+	          FC_Lock();
+	          pwm_to_esc.pwm_m1 = 0;
+	          pwm_to_esc.pwm_m2 = 0;
+	          pwm_to_esc.pwm_m3 = 0;
+	          pwm_to_esc.pwm_m4 = 0;
+	          landing_f = 1;
+	      }
       }
 	      // landing_f == 1 -> 降落完成，保持状态不再触发
   }
@@ -97,6 +112,7 @@ void UserTask_OneKeyCmd(void)// 一键功能
   {
       landing_f = 0;
       landing_cnt = 0;
+      land_timeout_cnt = 0;
   }	//////////////////////////////////////////////////////////////////////
 		//任务启动：CH_7通道 1700<CH_7<2200 或 上位机发送任务指令
 		if((rc_in.rc_ch.st_data.ch_[ch_7_aux3]>1700 && rc_in.rc_ch.st_data.ch_[ch_7_aux3]<2200) || (received_data.task_sta==1))//上位机远程任务触发判断
