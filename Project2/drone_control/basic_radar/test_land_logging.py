@@ -15,10 +15,11 @@ from Mission_GPT import mission
 
 class FakeRealsense:
     """伪造T265接口，land()会在等待循环里自己重新采样，不依赖外部传入的旧值。"""
-    def __init__(self, pos, yaw, vel=(0.0, 0.0, 0.0)):
+    def __init__(self, pos, yaw, vel=(0.0, 0.0, 0.0), raw_imu=(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)):
         self._pos = pos
         self._yaw = yaw
         self._vel = vel
+        self._raw_imu = raw_imu
 
     def get_position(self):
         return list(self._pos)
@@ -28,6 +29,9 @@ class FakeRealsense:
 
     def get_velocity(self):
         return list(self._vel)
+
+    def get_raw_imu(self):
+        return list(self._raw_imu)
 
 
 def _make_mission_for_land():
@@ -65,6 +69,23 @@ class TestLandLogging:
         assert entry["state"] == "LAND"
         assert entry["pos"][0] == 0.12
         assert entry["pos"][1] == -0.05
+
+    def test_land_logs_raw_imu(self):
+        """2026-07-10问题7新增：给T265加了原始加速度计/陀螺仪接口(get_raw_imu())，
+        用于独立验证电机是否真的停转(不依赖凌霄IMU自己上报的unlock_sta/
+        motor_pwm_mask)。land()应该把这份数据也记进飞行日志，方便下次真机异常
+        时事后核对振动特征。"""
+        m = _make_mission_for_land()
+        m._log_file = io.StringIO()
+        m.re_fc[5] = 0
+        m.realsense = FakeRealsense(pos=(0.12, -0.05, 0.03), yaw=0.01,
+                                     raw_imu=(0.1, -0.2, 9.8, 0.01, -0.02, 0.03))
+
+        m.land()
+
+        m._log_file.seek(0)
+        entry = json.loads([l for l in m._log_file.readlines() if l.strip()][-1])
+        assert entry["raw_imu"] == [0.1, -0.2, 9.8, 0.01, -0.02, 0.03]
 
     def test_land_logs_laser_height_not_raw_t265_z(self):
         """land()原本自采样时直接用realsense.get_position()的原始Z轴——但loop()

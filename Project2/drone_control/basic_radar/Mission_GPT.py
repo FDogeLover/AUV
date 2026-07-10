@@ -630,10 +630,13 @@ class mission:
                     land_pos = list(self.realsense.get_position())
                     land_yaw = self.realsense.get_orientation()[2]
                     land_tv = self.realsense.get_velocity()
+                    land_raw_imu = list(self.realsense.get_raw_imu())
                 except Exception:
                     land_pos, land_yaw, land_tv = [0.0, 0.0, 0.0], 0.0, (0.0, 0.0, 0.0)
+                    land_raw_imu = [0.0] * 6
             else:
                 land_pos, land_yaw, land_tv = [0.0, 0.0, 0.0], 0.0, (0.0, 0.0, 0.0)
+                land_raw_imu = [0.0] * 6
 
             # 激光高度覆盖Z：跟 loop()/takeoff() 一样，T265自身Z轴未标定不是真实高度，
             # 这里如果继续用原始T265 Z，降落阶段记录的"高度"会是假数据，没法验证物理降落过程。
@@ -663,6 +666,7 @@ class mission:
                         "pos": [round(land_pos[0], 4), round(land_pos[1], 4), round(land_pos[2], 4)],
                         "t265_yaw_deg": round(math.degrees(land_yaw), 2),
                         "t265_vel": [round(land_tv[0], 4), round(land_tv[1], 4)],
+                        "raw_imu": [round(v, 4) for v in land_raw_imu],
                         "unlock_sta": unlock_sta,
                         "motor_pwm_mask": motor_pwm_mask,
                         "motor_pwm_mask_t": motor_pwm_mask_t,
