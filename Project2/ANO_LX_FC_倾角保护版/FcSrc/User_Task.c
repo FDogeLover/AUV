@@ -12,6 +12,7 @@
 u16 pid_speed=0;
 u8 mission_stage=0;// 用于指示当前任务阶段
 u8 mission_done_flag=0;// 当前任务完成后通知上位机状态
+u8 land_timeout_gaveup_f=0;// 2026-07-12新增:纯超时兜底判定高度仍偏高时置1,永久放弃自动锁定,供my_protocol.c打包遥测
 
 void UserTask_OneKeyCmd(void)// 一键功能
 {
@@ -99,14 +100,21 @@ void UserTask_OneKeyCmd(void)// 一键功能
 	      //且飞机因故没有真正降到10cm以下，之前完全没有兜底。这里加一个不看条件的纯计时器：
 	      //降落指令已发出后持续约10秒(500 ticks@50Hz)仍未锁定，无条件强制锁定。
 	      land_timeout_cnt++;
-	      if (land_timeout_cnt >= 500)  //约10秒(50Hz)
+	      if (land_timeout_cnt >= 500 && land_timeout_gaveup_f == 0)  //约10秒(50Hz)，只判定一次
 	      {
-	          FC_Lock();
-	          pwm_to_esc.pwm_m1 = 0;
-	          pwm_to_esc.pwm_m2 = 0;
-	          pwm_to_esc.pwm_m3 = 0;
-	          pwm_to_esc.pwm_m4 = 0;
-	          landing_f = 1;
+	          if (ano_of.work_sta && ano_of.of_alt_cm <= 50)  //2026-07-12新增:高度数据有效且<=0.5m才允许强制锁定，宁可错杀不错放
+	          {
+	              FC_Lock();
+	              pwm_to_esc.pwm_m1 = 0;
+	              pwm_to_esc.pwm_m2 = 0;
+	              pwm_to_esc.pwm_m3 = 0;
+	              pwm_to_esc.pwm_m4 = 0;
+	              landing_f = 1;
+	          }
+	          else  //高度未知或明显偏高，永久放弃自动锁定，等人工介入
+	          {
+	              land_timeout_gaveup_f = 1;
+	          }
 	      }
       }
 	      // landing_f == 1 -> 降落完成，保持状态不再触发
@@ -134,6 +142,7 @@ void UserTask_OneKeyCmd(void)// 一键功能
 				landing_f = 0;
 				landing_cnt = 0;
 				land_timeout_cnt = 0;
+				land_timeout_gaveup_f = 0;
 			}
 		}
 		else
