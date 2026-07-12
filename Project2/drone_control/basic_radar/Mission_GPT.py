@@ -75,12 +75,15 @@ POLE_HOVER_TIMEOUT_S = 15.0   # 2026-07-09新增：悬停位置修正生效后�
 POLE_YAW_SIGN = 1            # 未标定！CLAUDE.md已知问题13——真机/台架标定前只是假设值，
                               # 标定结果可能是+1也可能是-1，标定前这个避障功能的世界坐标可能是错的
 
-YAW_TEST_KP = float(os.getenv("DRONE_YAW_TEST_KP", "0"))
-# 问题16排查专用开关：默认0，此时yaw_pid保持喂弧度的已知安全回退状态(恒输出≈0)不变。
-# >0时才切换成喂角度(math.degrees)+这个低增益闭环，用于递进式真机复测——
-# 2026-07-09用原始Kp=1.5闭环触发过近90°失控事故，根因(疑似vyaw符号在物理执行层
-# 面跟Python假设不一致，或跟持续闭环的动态特性有关)未定位，转盘测试+开环脉冲测试
-# 只排除了"简单符号反了"。启用前必须先看CLAUDE.md已知问题16的四个前置条件。
+YAW_TEST_KP = float(os.getenv("DRONE_YAW_TEST_KP", "0.45"))
+# 问题16：2026-07-09用原始Kp=1.5闭环触发过近90°失控事故，此后yaw_pid长期保持
+# 喂弧度的安全回退状态(恒输出≈0，等于没有yaw修正)。2026-07-12递进式真机复测
+# (单独会话+小步长+人工全程待命)确认稳定性边界在[0.45,0.5]之间：Kp=0.3/0.4/0.45
+# 均收敛(0.45这组物理观察最干净、收敛最完整)，Kp=0.5确认无界发散(伴随可见旋转)。
+# 现将Kp=0.45设为默认值，正式启用yaw修正(喂角度)——设置环境变量
+# DRONE_YAW_TEST_KP=0 可临时回退到旧的"喂弧度，不修正"安全状态(应急回滚用)。
+# 每组增益目前都只有1次真机样本，尚未验证可重复性，如果真机观察到异常应立即
+# 回退到0并重新评估。
 
 
 def nearest_confirmed_pole_dist(confirmed_poles, x, y):
@@ -127,10 +130,11 @@ class mission:
         self._yaw_test_enabled = YAW_TEST_KP > 0
         if self._yaw_test_enabled:
             self.yaw_pid = PID(1, 0, p=YAW_TEST_KP, i=0, d=0.05)
-            logger.warning(f"问题16排查：yaw修正回路以低增益Kp={YAW_TEST_KP}闭环启用(喂角度)，"
-                            f"非默认安全回退状态，需人工全程监控")
+            logger.info(f"yaw修正回路已启用，Kp={YAW_TEST_KP}(喂角度)。"
+                        f"设置DRONE_YAW_TEST_KP=0可回退到旧的不修正安全状态")
         else:
             self.yaw_pid = PID(1, 0)
+            logger.warning("yaw修正回路已通过DRONE_YAW_TEST_KP=0显式禁用(喂弧度，恒输出≈0)")
 
         # 航点
         self.targets = self.load_waypoints()
