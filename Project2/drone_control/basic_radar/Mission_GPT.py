@@ -641,6 +641,7 @@ class mission:
         # loop()调用时传入的旧值，那个值在整个等待期间不会更新)。
         t_start = time.time()
         unlock_confirm_count = 0
+        gaveup_logged = False
         while True:
             self.set_speed(0, 0, 0, int(self._ramp_z_cm))
 
@@ -676,6 +677,18 @@ class mission:
                     motor_pwm_mask = self.serial_fc_ref.debug_data.get("motor_pwm_mask")
                     motor_pwm_mask_t = self.serial_fc_ref.debug_data.get("motor_pwm_mask_t")
 
+            # 2026-07-12新增：固件纯超时兜底(10秒)判定高度仍偏高时会放弃自动锁桨，
+            # 转为永久等待人工接管(问题7/9严重安全隐患修复)。land()要能感知这个状态，
+            # 否则Python自己的LAND_CONFIRM_TIMEOUT_S超时会先关串口退出，切断固件
+            # 悬停所需的T265速度参考，跟固件"等人工介入"的设计意图冲突。
+            land_timeout_gaveup = None
+            if self.serial_fc_ref is not None:
+                with lock:
+                    land_timeout_gaveup = self.serial_fc_ref.debug_data.get("land_timeout_gaveup")
+            if land_timeout_gaveup and not gaveup_logged:
+                logger.warning("降落纯超时兜底判定高度仍偏高，已放弃自动锁桨，需要人工介入")
+                gaveup_logged = True
+
             now = time.time()
             if self._log_file and now - self._last_log_time >= FLIGHT_LOG_INTERVAL:
                 try:
@@ -708,7 +721,7 @@ class mission:
                     break
             else:
                 unlock_confirm_count = 0
-            if time.time() - t_start >= LAND_CONFIRM_TIMEOUT_S:
+            if not gaveup_logged and time.time() - t_start >= LAND_CONFIRM_TIMEOUT_S:
                 logger.warning("降落确认超时，强制退出")
                 break
             time.sleep(0.03)
