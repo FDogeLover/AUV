@@ -349,7 +349,8 @@ void pi_send(void)
         buf2[21] = (pwm_to_esc.pwm_m1 != 0 ? 0x01 : 0) |
                    (pwm_to_esc.pwm_m2 != 0 ? 0x02 : 0) |
                    (pwm_to_esc.pwm_m3 != 0 ? 0x04 : 0) |
-                   (pwm_to_esc.pwm_m4 != 0 ? 0x08 : 0);
+                   (pwm_to_esc.pwm_m4 != 0 ? 0x08 : 0) |
+                   (land_timeout_gaveup_f != 0 ? 0x10 : 0);  // 2026-07-12新增:bit4=纯超时兜底是否已放弃自动锁定(高度仍偏高)
 
         // 校验 + 帧尾（checksum覆盖buf2[1]~buf2[21]）
         buf2[22] = calc_checksum(buf2, 21);
