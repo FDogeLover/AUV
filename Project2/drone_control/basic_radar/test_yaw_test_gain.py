@@ -1,8 +1,10 @@
 """问题16：yaw修正回路增益开关(YAW_TEST_KP)。
 
-2026-07-12递进式真机复测确认稳定性边界在[0.45,0.5]之间(0.3/0.4/0.45均收敛，
-0.5确认无界发散)，默认值已从0(禁用)改为0.45(启用，喂角度+此增益闭环)。
-设置环境变量DRONE_YAW_TEST_KP=0可临时回退到旧的"喂弧度，不修正"安全状态
+2026-07-12递进式真机复测确认稳定性边界在[0.45,0.5]之间(0.3/0.4/0.45均收敛)，
+但0.45的"默认行为"复测样本出现了跟第一次不一致的结果(峰值10.38°未收敛+可见
+旋转)，run-to-run方差偏大；0.4的唯一样本更保守(全程未观察到可见旋转)。
+默认值已从0(禁用)改为0.4(启用，喂角度+此增益闭环)。设置环境变量
+DRONE_YAW_TEST_KP=0可临时回退到旧的"喂弧度，不修正"安全状态
 (应急回滚用，见test_yaw_unit_fix.py的回归守卫)。
 
 运行：
@@ -40,9 +42,9 @@ def _make_mission():
 
 
 class TestYawCorrectionEnabledByDefault:
-    def test_default_kp_is_0p45(self):
-        """模块级默认值必须是0.45(问题16真机验证过的边界内数值)，不能被意外改动。"""
-        assert mg.YAW_TEST_KP == 0.45
+    def test_default_kp_is_0p4(self):
+        """模块级默认值必须是0.4(问题16真机验证过、比0.45更保守的边界内数值)，不能被意外改动。"""
+        assert mg.YAW_TEST_KP == 0.4
 
     def test_mission_flagged_enabled_by_default(self):
         m = _make_mission()
@@ -81,7 +83,7 @@ class TestYawCorrectionCanBeDisabled:
         assert sent[0][2] == 0
 
     def test_other_gain_values_still_enable_correction(self, monkeypatch):
-        """非0的任意增益(比如问题16测过的0.3)都应保持启用状态，不只是默认值0.45。"""
+        """非0的任意增益(比如问题16测过的0.3)都应保持启用状态，不只是默认值0.4。"""
         monkeypatch.setattr(mg, "YAW_TEST_KP", 0.3)
         m = _make_mission()
         assert m._yaw_test_enabled is True
