@@ -105,10 +105,12 @@ class TestArrivalHoldTimeoutDecoupled:
     2026-07-12把arrival_timeout_max改成独立常量，不再随arrival_hold_s变化，
     才能安全地单独压缩停留时间。"""
 
-    def test_arrival_hold_s_is_0p7(self):
-        """arrival_hold_s下调到0.7秒(比之前失败的1.0秒更保守)。"""
+    def test_arrival_hold_s_is_0p3(self):
+        """2026-07-12解耦arrival_timeout_max后先降到0.7秒真机验证有效
+        (5/6航点确认，平均4.67秒/段，比历史基线快12-20%)。这次继续沿用
+        同一条已验证的杠杆，进一步降到0.3秒。"""
         import Mission_GPT as mg
-        assert mg.arrival_hold_s == 0.7
+        assert mg.arrival_hold_s == 0.3
 
     def test_arrival_timeout_max_is_independent_constant_not_derived_from_hold_s(self):
         """arrival_timeout_max锁定在6.5(即改动前 5.0+1.5 的有效值)，不再是
