@@ -94,3 +94,46 @@ class TestNavigateArrivalConfirm:
             m.navigate(list(target), 0.0)
 
         assert m.arrival_confirmed_time is not None
+
+
+# ═══════════════ arrival_hold_s / arrival_timeout_max 解耦 ═══════════════
+
+class TestArrivalHoldTimeoutDecoupled:
+    """2026-07-10曾把arrival_hold_s从3.0降到1.0想提速，结果反而更慢——因为
+    当时arrival_timeout_max=5.0+arrival_hold_s是个耦合公式，缩短停留时间的
+    同时也缩短了超时上限，导致滑动窗口更容易被截断、走更慢的超时兜底路径。
+    2026-07-12把arrival_timeout_max改成独立常量，不再随arrival_hold_s变化，
+    才能安全地单独压缩停留时间。"""
+
+    def test_arrival_hold_s_is_0p7(self):
+        """arrival_hold_s下调到0.7秒(比之前失败的1.0秒更保守)。"""
+        import Mission_GPT as mg
+        assert mg.arrival_hold_s == 0.7
+
+    def test_arrival_timeout_max_is_independent_constant_not_derived_from_hold_s(self):
+        """arrival_timeout_max锁定在6.5(即改动前 5.0+1.5 的有效值)，不再是
+        `5.0 + arrival_hold_s` 这个公式——如果之后有人不小心把arrival_hold_s
+        改小，这条断言能防止arrival_timeout_max跟着被动缩短。"""
+        import Mission_GPT as mg
+        assert mg.arrival_timeout_max == 6.5
+
+    def test_timeout_fires_at_arrival_timeout_max_not_derived_from_hold_s(self, monkeypatch):
+        """行为验证：把arrival_timeout_max单独调成一个很短的值(0.1秒)，
+        同时把arrival_hold_s调成一个很大的值(5.0秒，故意跟超时值方向相反)——
+        如果两者还耦合，超时应该要等很久；解耦后超时只看arrival_timeout_max
+        本身，应该在约0.1秒内就触发"超时强制跳过"。"""
+        import Mission_GPT as mg
+        monkeypatch.setattr(mg, "arrival_timeout_max", 0.1)
+        monkeypatch.setattr(mg, "arrival_hold_s", 5.0)
+
+        m = _make_mission_at_target()
+        target = m.targets[0]
+        far_pos = [target[0] + 10.0, target[1], target[2]]  # 远离目标，永远不会达标
+
+        m.navigate(far_pos, 0.0)
+        assert m.target_index == 0  # 刚开始，还没超时
+        import time
+        time.sleep(0.15)
+        m.navigate(far_pos, 0.0)
+
+        assert m.target_index == 1  # 超时已触发，强制跳到下一个航点
