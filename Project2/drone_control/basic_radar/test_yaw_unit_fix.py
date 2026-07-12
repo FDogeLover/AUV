@@ -1,18 +1,20 @@
-"""yaw 修正回路弧度/角度单位不匹配 — 已修复且已投入使用，本文件测试"应急回滚路径"。
+"""yaw 修正回路弧度/角度单位不匹配 — 修复已回退，本文件测试"回退后的安全状态"。
 
-背景：`yaw_pid` 用的增益是按"角度"量级设计的，但 `navigate()`/`takeoff()` 里
-早期版本喂给它的 `yaw` 参数是T265原始朝向弧度，几度误差换算成弧度后PID输出
-被 `int(...)` 截断成0——这条回路在正常飞行范围内完全不发指令。2026-07-08修复
-成喂角度后，2026-07-09用原始Kp=1.5首次真机验证触发了近90°失控事故，因此
-长期回退为喂弧度的"恒输出≈0"安全状态。
+背景：`yaw_pid` 用的增益(Kp=1.5等)是按"角度"量级设计的，但 `navigate()`/
+`takeoff()` 里喂给它的 `yaw` 参数是T265原始朝向，单位是弧度。几度的误差
+换算成弧度只有0.05-0.1量级，PID输出乘VEL_SCALE后还是远小于1，最后
+`int(...)`截断成0——导致这条回路在正常飞行范围内(误差几度)完全不发指令。
 
-2026-07-12递进式真机复测(单独会话+小步长+人工全程待命)确认了稳定性边界在
-[0.45,0.5]之间：Kp=0.3/0.4/0.45均收敛，Kp=0.5确认无界发散。但0.45的"默认行为"
-复测样本出现过跟第一次不一致的结果(未收敛+可见旋转)，改用更保守的Kp=0.4作为
-默认值，yaw修正回路正式投入使用(见test_yaw_test_gain.py)。
+2026-07-09用原始Kp=1.5闭环触发过近90°失控事故，长期回退成喂弧度的"恒输出
+≈0"安全状态。2026-07-12递进式真机复测(单独会话+小步长+人工全程待命)确认了
+稳定性边界在[0.45,0.5]之间(Kp=0.3/0.4/0.45均收敛，Kp=0.5确认无界发散)，
+一度把Kp=0.4设为默认值正式启用——但事后对比历史"完全不修正"基线(峰值6.12°，
+会自己回归)发现，"开启修正"的样本(峰值6.13°~10.38°)并不比不修正基线更好，
+缺乏证据支持修正确实有效，而下行风险是明确的，**已改回默认禁用**。
 
-**这个文件的用途**：验证应急回滚路径——`DRONE_YAW_TEST_KP=0`必须精确恢复到
-喂弧度、恒输出≈0的旧安全状态，供真机观察到异常时快速回退使用。
+**这个文件的用途**：作为默认禁用状态的回归守卫——如果以后有人不小心把
+`navigate()`/`takeoff()` 里的 `self.yaw_pid.get_pid(yaw)` 改成默认启用，
+这里的测试会失败，提醒这个改动需要先有能证明"修正比不修正好"的对照证据。
 
 运行（先确保已 pip install pytest pyserial）：
     cd drone_control/basic_radar && python -m pytest test_yaw_unit_fix.py -v
@@ -23,7 +25,6 @@ import sys
 
 sys.path.insert(0, os.path.dirname(__file__))
 
-import Mission_GPT as mg
 from Mission_GPT import mission
 
 
@@ -48,13 +49,12 @@ def _make_mission():
     return m
 
 
-class TestYawEmergencyRollback:
-    def test_realistic_yaw_error_produces_zero_correction_when_rolled_back(self, monkeypatch):
-        """应急回滚(DRONE_YAW_TEST_KP=0，此处monkeypatch模拟)：今天真机实测过的
-        yaw误差(6.12度)，换算成弧度后PID输出应被int()截断成0——精确恢复
-        2026-07-09事故后维持过的安全(但无效)状态。如果这个断言开始失败，
-        说明回滚路径本身坏了，必须先修好才能信任它作为应急手段。"""
-        monkeypatch.setattr(mg, "YAW_TEST_KP", 0)
+class TestYawUnitFixReverted:
+    def test_realistic_yaw_error_still_produces_zero_correction(self):
+        """默认禁用状态下：今天真机实测过的yaw误差(6.12度)，换算成弧度后
+        PID输出仍会被int()截断成0——这是当前刻意维持的安全(但也意味着无效)
+        状态，不是bug。如果这个断言开始失败，说明yaw_pid又被改成默认接收
+        角度了，必须先有对照证据证明修正确实比不修正好，才能这么做。"""
         m = _make_mission()
         target = m.targets[0]  # 默认航点，跟pos一致，只有yaw有误差
         sent = []
@@ -67,9 +67,8 @@ class TestYawEmergencyRollback:
         vyaw_sent = sent[0][2]
         assert vyaw_sent == 0
 
-    def test_small_yaw_error_still_zero_when_rolled_back(self, monkeypatch):
-        """回滚状态下，误差很小(0.5度)时输出仍然是0，跟旧的死区行为一致。"""
-        monkeypatch.setattr(mg, "YAW_TEST_KP", 0)
+    def test_small_yaw_error_still_zero(self):
+        """误差很小(0.5度)时输出仍然是0，跟死区行为一致。"""
         m = _make_mission()
         target = m.targets[0]
         sent = []

@@ -1,11 +1,13 @@
-"""问题16：yaw修正回路增益开关(YAW_TEST_KP)。
+"""问题16排查：yaw修正回路低增益递进式复测开关(YAW_TEST_KP)。
 
-2026-07-12递进式真机复测确认稳定性边界在[0.45,0.5]之间(0.3/0.4/0.45均收敛)，
-但0.45的"默认行为"复测样本出现了跟第一次不一致的结果(峰值10.38°未收敛+可见
-旋转)，run-to-run方差偏大；0.4的唯一样本更保守(全程未观察到可见旋转)。
-默认值已从0(禁用)改为0.4(启用，喂角度+此增益闭环)。设置环境变量
-DRONE_YAW_TEST_KP=0可临时回退到旧的"喂弧度，不修正"安全状态
-(应急回滚用，见test_yaw_unit_fix.py的回归守卫)。
+默认(YAW_TEST_KP=0)必须保持test_yaw_unit_fix.py验证过的安全回退行为不变——
+喂弧度，正常飞行范围内的yaw误差恒产生0修正指令。只有显式设置YAW_TEST_KP>0
+才切换成喂角度+这个低增益，用于问题16的真机复测，绝不能悄悄变成默认行为。
+
+2026-07-12曾短暂把默认值改为0.45再改为0.4正式启用，但事后对比历史"完全不
+修正"基线(凌霄IMU纯姿态自稳，yaw峰值6.12°会自己回归)发现，今天"开启修正"的
+样本(峰值6.13°~10.38°)并不比不修正基线更好，缺乏证据支持修正有效，而下行
+风险(Kp=0.5发散、Kp=0.45方差大)是明确的——已改回默认禁用。
 
 运行：
     cd drone_control/basic_radar && python -m pytest test_yaw_test_gain.py -v
@@ -41,19 +43,24 @@ def _make_mission():
     return m
 
 
-class TestYawCorrectionEnabledByDefault:
-    def test_default_kp_is_0p4(self):
-        """模块级默认值必须是0.4(问题16真机验证过、比0.45更保守的边界内数值)，不能被意外改动。"""
-        assert mg.YAW_TEST_KP == 0.4
+class TestYawTestGainDisabledByDefault:
+    def test_default_kp_is_zero(self):
+        """模块级默认值必须是0(关闭)，不能被意外改成非零默认值。"""
+        assert mg.YAW_TEST_KP == 0
 
-    def test_mission_flagged_enabled_by_default(self):
+    def test_mission_not_flagged_test_enabled_by_default(self):
+        m = _make_mission()
+        assert m._yaw_test_enabled is False
+
+
+class TestYawTestGainOptIn:
+    def test_enabled_with_low_gain_produces_nonzero_correction(self, monkeypatch):
+        """显式启用(如Kp=0.3)时，今天真机实测过的yaw误差(6.12度)应该能产生
+        非零修正指令(不再被int()截断成0)——这是"重新真正生效"的直接验证。"""
+        monkeypatch.setattr(mg, "YAW_TEST_KP", 0.3)
         m = _make_mission()
         assert m._yaw_test_enabled is True
 
-    def test_default_produces_nonzero_correction(self):
-        """默认配置下，今天真机实测过的yaw误差(6.12度)应该能产生非零修正指令
-        ——这是"默认已启用"的直接验证，不再是恒输出0的旧安全回退状态。"""
-        m = _make_mission()
         target = m.targets[0]
         sent = []
         m.set_speed = lambda *a, **k: sent.append(a)
@@ -62,13 +69,11 @@ class TestYawCorrectionEnabledByDefault:
         m.navigate(list(target), yaw_rad)
 
         assert len(sent) == 1
-        assert sent[0][2] != 0
+        vyaw_sent = sent[0][2]
+        assert vyaw_sent != 0
 
-
-class TestYawCorrectionCanBeDisabled:
-    def test_env_zero_disables_and_produces_zero_correction(self, monkeypatch):
-        """应急回滚路径：显式设置DRONE_YAW_TEST_KP=0(即monkeypatch模块常量为0)，
-        必须精确回退到test_yaw_unit_fix.py验证过的旧安全状态(喂弧度，恒输出0)。"""
+    def test_disabled_still_produces_zero_correction_when_monkeypatched_back(self, monkeypatch):
+        """确认开关本身双向生效：显式设回0，行为应该跟未设置时完全一致(仍是0)。"""
         monkeypatch.setattr(mg, "YAW_TEST_KP", 0)
         m = _make_mission()
         assert m._yaw_test_enabled is False
@@ -81,18 +86,3 @@ class TestYawCorrectionCanBeDisabled:
         m.navigate(list(target), yaw_rad)
 
         assert sent[0][2] == 0
-
-    def test_other_gain_values_still_enable_correction(self, monkeypatch):
-        """非0的任意增益(比如问题16测过的0.3)都应保持启用状态，不只是默认值0.4。"""
-        monkeypatch.setattr(mg, "YAW_TEST_KP", 0.3)
-        m = _make_mission()
-        assert m._yaw_test_enabled is True
-
-        target = m.targets[0]
-        sent = []
-        m.set_speed = lambda *a, **k: sent.append(a)
-
-        yaw_rad = math.radians(-6.12)
-        m.navigate(list(target), yaw_rad)
-
-        assert sent[0][2] != 0
