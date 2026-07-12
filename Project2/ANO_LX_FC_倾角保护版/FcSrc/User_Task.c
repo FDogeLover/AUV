@@ -242,7 +242,7 @@ void UserTask_OneKeyCmd(void)// Ò»¼ü¹¦ÄÜ
 					tar_setdata(0,0,0,0);
 			}
 			else{
-				rt_tar.st_data.vel_x=0;rt_tar.st_data.vel_y=0;rt_tar.st_data.yaw_dps=0;dt.fun[0x41].WTS=1;
+				rt_tar.st_data.vel_x=0;rt_tar.st_data.vel_y=0;rt_tar.st_data.vel_z=0;rt_tar.st_data.yaw_dps=0;dt.fun[0x41].WTS=1;
 			}
 			
 		}
