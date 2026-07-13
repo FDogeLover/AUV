@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 import pytest
 
-from Lcode.circle_planner import generate_circle_waypoints
+from Lcode.circle_planner import generate_circle_waypoints, compute_detour_waypoint
 
 
 class TestGenerateCircleWaypoints:
@@ -62,3 +62,37 @@ class TestGenerateCircleWaypoints:
     def test_rejects_invalid_direction(self):
         with pytest.raises(ValueError):
             generate_circle_waypoints(0.0, 0.0, 1.0, 0.0, direction="sideways")
+
+
+class TestComputeDetourWaypoint:
+    def test_returns_none_when_path_already_clear(self):
+        # 杆塔在(5,5)，航线从(0,0)到(1,0)完全不靠近它
+        d = compute_detour_waypoint(5.0, 5.0, 0.0, 0.0, 1.0, 0.0, safety_radius=0.75)
+        assert d is None
+
+    def test_returns_detour_when_path_crosses_safety_circle(self):
+        # 杆塔正好在航线中点上，半径0.75m必然被穿过
+        d = compute_detour_waypoint(1.0, 0.0, 0.0, 0.0, 2.0, 0.0, safety_radius=0.75)
+        assert d is not None
+
+    def test_detour_point_is_outside_safety_radius_plus_margin(self):
+        d = compute_detour_waypoint(1.0, 0.0, 0.0, 0.0, 2.0, 0.0,
+                                     safety_radius=0.75, margin=0.15)
+        dist = math.hypot(d[0] - 1.0, d[1] - 0.0)
+        assert dist == pytest.approx(0.75 + 0.15, abs=1e-9)
+
+    def test_detour_point_pushed_perpendicular_from_closest_approach(self):
+        # 杆塔在直线正中间(1,0)上，航线沿x轴，最近点就是杆塔本身正上方——
+        # 退化情况下随便选一个垂直方向推出，只要求确实在安全圈外即可
+        d = compute_detour_waypoint(1.0, 0.0, 0.0, 0.0, 2.0, 0.0, safety_radius=0.75)
+        assert math.hypot(d[0] - 1.0, d[1] - 0.0) >= 0.75
+
+    def test_detour_point_on_same_side_as_near_miss(self):
+        # 杆塔偏离直线0.3m(在安全半径0.75m以内)，最近点明显偏向杆塔那一侧，
+        # 绕行点应该被推向"杆塔中心->最近点"方向的更远处，也就是继续偏移同一侧
+        d = compute_detour_waypoint(1.0, 0.3, 0.0, 0.0, 2.0, 0.0, safety_radius=0.75)
+        assert d[1] < 0.3  # 从杆塔中心朝(1,0)方向(即-y方向)推出去，y应该比0.3更小
+
+    def test_zero_length_segment_returns_none(self):
+        d = compute_detour_waypoint(1.0, 0.0, 0.0, 0.0, 0.0, 0.0, safety_radius=0.75)
+        assert d is None

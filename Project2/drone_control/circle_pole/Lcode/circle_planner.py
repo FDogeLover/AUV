@@ -32,3 +32,41 @@ def generate_circle_waypoints(center_x, center_y, cur_x, cur_y,
         points.append([x, y, z])
     points.append(list(points[0]))
     return points
+
+
+def compute_detour_waypoint(pole_x, pole_y, cur_x, cur_y, target_x, target_y,
+                             safety_radius, margin=0.15):
+    """如果从(cur_x,cur_y)直飞(target_x,target_y)的直线会进入以(pole_x,pole_y)为
+    圆心、safety_radius为半径的安全区，返回一个绕开安全区的中间航点[x,y]；否则
+    返回None(直飞已经安全，不需要绕行)。
+
+    算法：取线段上离杆塔最近的点，把这个点沿"杆塔中心->最近点"方向推到安全半径
+    (+margin)之外——不是严格的切线最短路径，是简化近似，但对安全半径远小于航段
+    长度的场景跟真正最短路径差距通常只有几厘米，实现和测试都简单得多。
+    """
+    dx = target_x - cur_x
+    dy = target_y - cur_y
+    seg_len = math.hypot(dx, dy)
+    if seg_len < 1e-6:
+        return None
+
+    ux, uy = dx / seg_len, dy / seg_len
+    to_pole_x, to_pole_y = pole_x - cur_x, pole_y - cur_y
+    t = to_pole_x * ux + to_pole_y * uy
+    t = max(0.0, min(seg_len, t))
+    closest_x = cur_x + ux * t
+    closest_y = cur_y + uy * t
+
+    dist_to_pole = math.hypot(closest_x - pole_x, closest_y - pole_y)
+    if dist_to_pole >= safety_radius:
+        return None
+
+    if dist_to_pole < 1e-6:
+        # 最近点恰好落在杆塔中心(退化情况)，任取一个垂直于航线的方向推出
+        push_x, push_y = -uy, ux
+    else:
+        push_x = (closest_x - pole_x) / dist_to_pole
+        push_y = (closest_y - pole_y) / dist_to_pole
+
+    detour_radius = safety_radius + margin
+    return [pole_x + push_x * detour_radius, pole_y + push_y * detour_radius]

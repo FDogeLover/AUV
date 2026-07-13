@@ -17,7 +17,7 @@ from Lcode.Lpid import PID
 from Lcode.Logger import logger
 from Lcode.global_variable import sp_side, lock, fc_last_rx_time
 from Lcode.Lradar import PoleTracker
-from Lcode.circle_planner import generate_circle_waypoints
+from Lcode.circle_planner import generate_circle_waypoints, compute_detour_waypoint
 from t265 import t265_class
 
 # ---------- 常量 ----------
@@ -98,6 +98,8 @@ POLE_CIRCLE_EXCLUDE_MARGIN_M = 0.4  # 环绕中排除"自己正在绕的目标"�
                               # 1.5m，就不会误伤阶段2场景下真正的第二根杆子。
 TOTAL_POLES = int(os.getenv("DRONE_POLE_TOTAL", "1"))  # 阶段1=1(默认)；阶段2设DRONE_POLE_TOTAL=2
 LANDING_POINT = (2.0, 0.0)   # 降落点世界坐标占位值 — 现场量出实际降落标识位置后必须修改
+POLE_DETOUR_SAFETY_RADIUS_M = POLE_DANGER_DIST_M  # 绕行安全半径，跟悬停避让触发阈值一致(2026-07-13)
+POLE_DETOUR_MARGIN_M = 0.15  # 绕行航点比安全半径再往外推一点，避免刚好卡在边界抖动
 
 YAW_TEST_KP = float(os.getenv("DRONE_YAW_TEST_KP", "0"))
 # 问题16：2026-07-09用原始Kp=1.5闭环触发过近90°失控事故，此后yaw_pid长期保持
@@ -197,6 +199,8 @@ class mission:
         self._patrol_saved_index = 0
         self._cruise_z = self.targets[0][2] if self.targets else put_height / 100
         self.pole_total = TOTAL_POLES
+        self._detour_checked_index = -1  # 上次检查过绕行需求的target_index，避免同一个
+                                          # 目标每tick重复计算/重复插入绕行航点
 
     def load_waypoints(self):
         try:
@@ -447,6 +451,15 @@ class mission:
                     self._start_circling(new_pole, pos)
                     return
 
+            # 绕行：每次切换到一个新目标点时检查一次，如果直飞会穿进某根已知杆塔
+            # (排除当前正在环绕的目标，但**包含**已经环绕完成的杆塔——2026-07-13
+            # 真机测试发现巡航恢复/降落路径可能会绕回已环绕过的杆塔附近，那根杆塔
+            # 已经从悬停避让里永久排除了，如果直飞路径又正好穿过它，没有绕行机制的
+            # 话就是纯粹的碰撞风险)的安全区，插入一个绕开的中间航点。
+            if self._maybe_insert_detour(confirmed, pos, target):
+                target = self.targets[self.target_index]
+                target_z = int(target[2] * 100)
+
             # 悬停避让距离判断：排除当前正在主动环绕的目标、以及所有已经环绕完成的杆塔。
             # 2026-07-13真机测试发现：环绕刚完成那一刻飞机必然还在0.7m环绕半径内，
             # 小于0.75m悬停触发阈值，如果"已绕过的杆塔"恢复正常悬停判断，会在切换到
@@ -686,21 +699,48 @@ class mission:
                 return p
         return None
 
+    def _exclude_active_circle_target_only(self, confirmed):
+        """只排除当前正在主动环绕的目标(宽容差，见POLE_CIRCLE_EXCLUDE_MARGIN_M注释)，
+        不排除已环绕完成的杆塔——供绕行检测使用：已环绕过的杆塔已经从悬停避让永久
+        排除了，如果直飞路径又正好穿过它，绕行是唯一还能防碰撞的机制，不能连带排除。"""
+        if self._circle_pole_center is None:
+            return confirmed
+        cx, cy = self._circle_pole_center
+        exclude_radius = POLE_CIRCLE_RADIUS_M + POLE_CIRCLE_EXCLUDE_MARGIN_M
+        return [p for p in confirmed
+                if math.hypot(p["x"] - cx, p["y"] - cy) > exclude_radius]
+
     def _exclude_circle_target(self, confirmed):
         """从悬停避让候选里排除：(1)当前正在主动环绕的目标(宽容差，见常量注释)；
         (2)所有已经环绕完成的杆塔——已经安全绕过的杆塔不再需要触发悬停避让，
         否则环绕刚完成时飞机必然还在杆塔附近，会被自己刚绕完的目标重新悬停住。"""
-        result = []
-        for p in confirmed:
-            if self._circle_pole_center is not None:
-                cx, cy = self._circle_pole_center
-                exclude_radius = POLE_CIRCLE_RADIUS_M + POLE_CIRCLE_EXCLUDE_MARGIN_M
-                if math.hypot(p["x"] - cx, p["y"] - cy) <= exclude_radius:
-                    continue
-            if self._already_circled(p["x"], p["y"]):
-                continue
-            result.append(p)
-        return result
+        result = self._exclude_active_circle_target_only(confirmed)
+        return [p for p in result if not self._already_circled(p["x"], p["y"])]
+
+    def _maybe_insert_detour(self, confirmed, pos, target):
+        """每次切换到一个新目标点时检查一次(用_detour_checked_index去重，不是
+        每tick都算)：如果直飞会穿进某根已知杆塔(排除当前正在环绕的目标，但包含
+        已环绕完成的杆塔)的安全区，插入一个绕开的中间航点。返回True表示插入了
+        航点(调用方需要重新读取target)，False表示不需要绕行。"""
+        if self.target_index == self._detour_checked_index:
+            return False
+        self._detour_checked_index = self.target_index
+
+        detour_poles = self._exclude_active_circle_target_only(confirmed)
+        for p in detour_poles:
+            detour = compute_detour_waypoint(
+                p["x"], p["y"], pos[0], pos[1], target[0], target[1],
+                POLE_DETOUR_SAFETY_RADIUS_M, margin=POLE_DETOUR_MARGIN_M,
+            )
+            if detour is not None:
+                self.targets.insert(self.target_index, [detour[0], detour[1], target[2]])
+                logger.warning(
+                    f"航段(({pos[0]:.2f},{pos[1]:.2f})->({target[0]:.2f},{target[1]:.2f}))"
+                    f"穿过杆塔({p['x']:.2f},{p['y']:.2f})安全区，插入绕行航点"
+                    f"({detour[0]:.2f},{detour[1]:.2f})"
+                )
+                return True
+        return False
 
     def _start_circling(self, pole, pos):
         self._patrol_saved_targets = self.targets

@@ -142,3 +142,62 @@ class TestCircleCompletion:
         m.navigate([2.0, 0.0, 1.2], 0.0)
 
         assert m.state == "LAND"
+
+
+class TestDetourInsertion:
+    def test_inserts_detour_when_already_circled_pole_blocks_direct_path(self):
+        """2026-07-13讨论的场景：已经环绕过的杆塔从悬停避让里永久排除了，如果
+        巡航/降落路径又正好直飞穿过它，绕行是唯一还能防碰撞的机制。"""
+        m = _make_mission(radar_obj=object())
+        m.circled_poles = [(1.0, 0.0)]  # 已环绕过，挡在(0,0)->(2,0)正中间
+        m.nav_mode = "PATROL"
+        m.targets = [[2.0, 0.0, 1.2]]
+        m.target_index = 0
+        m._last_pole_poll_time = time.time()
+        for _ in range(3):
+            m.pole_tracker._history.append([(1.0, 0.0)])
+
+        m.set_speed = lambda *a, **k: None
+        m.navigate([0.0, 0.0, 1.2], 0.0)
+
+        assert len(m.targets) == 2
+        detour = m.targets[0]
+        assert m.targets[1] == [2.0, 0.0, 1.2]  # 原目标还在，往后挪了一位
+        # 绕行点应该在安全半径(0.75)+余量(0.15)之外
+        import math
+        dist = math.hypot(detour[0] - 1.0, detour[1] - 0.0)
+        assert dist == pytest.approx(0.75 + 0.15, abs=1e-6)
+
+    def test_does_not_insert_detour_for_actively_circling_target(self):
+        """正在主动环绕的目标不应该触发绕行检测——环绕航点本身就是绕着它走的。"""
+        m = _make_mission(radar_obj=object())
+        m._circle_pole_center = (1.0, 0.0)
+        m.nav_mode = "CIRCLING"
+        m.targets = [[2.0, 0.0, 1.2]]
+        m.target_index = 0
+        m._last_pole_poll_time = time.time()
+        for _ in range(3):
+            m.pole_tracker._history.append([(1.0, 0.0)])
+
+        m.set_speed = lambda *a, **k: None
+        m.navigate([0.0, 0.0, 1.2], 0.0)
+
+        assert len(m.targets) == 1  # 没有插入绕行航点
+
+    def test_does_not_recheck_same_target_index_repeatedly(self):
+        """同一个target_index只检查一次，不会每tick重复插入绕行航点。"""
+        m = _make_mission(radar_obj=object())
+        m.circled_poles = [(1.0, 0.0)]
+        m.nav_mode = "PATROL"
+        m.targets = [[2.0, 0.0, 1.2]]
+        m.target_index = 0
+        m._last_pole_poll_time = time.time()
+        for _ in range(3):
+            m.pole_tracker._history.append([(1.0, 0.0)])
+
+        m.set_speed = lambda *a, **k: None
+        m.navigate([0.0, 0.0, 1.2], 0.0)
+        assert len(m.targets) == 2
+
+        m.navigate([0.0, 0.0, 1.2], 0.0)  # 再调用一次，target_index还是0(指向绕行点)
+        assert len(m.targets) == 2  # 没有重复插入
