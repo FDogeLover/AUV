@@ -6,12 +6,13 @@ ubuntu-pi(地瓜派RDK X5) cam1槽位接的imx219，硬件排查+取流验证过
 
 | 文件 | 说明 |
 |---|---|
-| `camera_test_01_gain0_default_dark.png` | 排线接通后第一次成功拍到画面，`analogue_gain`默认值0，几乎全黑，只能隐约看出轮廓——证明硬件通了，不代表能用 |
-| `camera_test_02_gain0_exposuremax_still_dark.png` | 曝光时间调到最大(1759)但增益仍是0，亮度几乎没变——说明暗的根源是增益不是曝光时间 |
-| `camera_test_03_gain80_before_whitebalance.png` | 把`analogue_gain`调到80后画面正常亮了，但去马赛克后有明显绿色偏色(未做白平衡) |
-| `camera_test_04_gain80_after_whitebalance_BEST.png` | 在03基础上做灰世界白平衡校正——**目前最好的参考结果**，红色包装袋/绿色指示灯颜色基本正常 |
-| `camera_test_05_gain80_repeat_confirm.png` | 隔了几十分钟重新拍一张，验证"每次抓取前重新显式设一次增益"这个流程可重复 |
-| `camera_test_06_burst_video_DARK_gainreset_bug.mp4` | 连续60帧的测试视频，画面是黑的——**已知原因**：这批帧抓取前没有重新显式设置增益，`v4l2-ctl --get-ctrl`显示的"上次设置值"不代表这次streaming会话真的把寄存器写回了传感器。不是画质参考，是用来记录这个坑的。 |
+| `01_gain0_default_dark.png` | 排线接通后第一次成功拍到画面，`analogue_gain`默认值0，几乎全黑，只能隐约看出轮廓——证明硬件通了，不代表能用 |
+| `02_gain0_exposuremax_still_dark.png` | 曝光时间调到最大(1759)但增益仍是0，亮度几乎没变——说明暗的根源是增益不是曝光时间 |
+| `03_gain80_before_whitebalance.png` | 把`analogue_gain`调到80后画面正常亮了，但去马赛克后有明显绿色偏色(未做白平衡) |
+| `04_gain80_after_whitebalance_BEST.png` | 在03基础上做灰世界白平衡校正——**目前最好的参考结果**，红色包装袋/绿色指示灯颜色基本正常 |
+| `05_gain80_repeat_confirm.png` | 隔了几十分钟重新拍一张，验证"每次抓取前重新显式设一次增益"这个流程可重复 |
+| `06_burst_video_DARK_gainreset_bug.mp4` | 连续60帧的测试视频，画面是黑的——**已知原因**：这批帧抓取前没有重新显式设置增益，`v4l2-ctl --get-ctrl`显示的"上次设置值"不代表这次streaming会话真的把寄存器写回了传感器。不是画质参考，是用来记录这个坑的。 |
+| `07_front_usb_camera_test.jpg` | 前置1080p USB摄像头(`/dev/video0`)测试照片，标准UVC设备+MJPG格式，自带ISP(自动曝光/白平衡)，直接可用，不需要下面这些下置摄像头才有的坑 |
 
 ## 关键结论(供以后正式开发视觉定位代码时参考)
 
