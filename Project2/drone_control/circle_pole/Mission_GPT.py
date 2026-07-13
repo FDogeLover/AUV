@@ -17,6 +17,7 @@ from Lcode.Lpid import PID
 from Lcode.Logger import logger
 from Lcode.global_variable import sp_side, lock, fc_last_rx_time
 from Lcode.Lradar import PoleTracker
+from Lcode.circle_planner import generate_circle_waypoints
 from t265 import t265_class
 
 # ---------- 常量 ----------
@@ -77,6 +78,14 @@ POLE_HOVER_TIMEOUT_S = 15.0   # 2026-07-09新增：悬停位置修正生效后�
                               # 触发/取消(2026-07-08真机0.1m步进接近测试观察到这个问题)
 POLE_YAW_SIGN = 1            # 未标定！CLAUDE.md已知问题13——真机/台架标定前只是假设值，
                               # 标定结果可能是+1也可能是-1，标定前这个避障功能的世界坐标可能是错的
+POLE_CIRCLE_RADIUS_M = 0.5   # 环绕半径，对应赛题50cm距离要求
+POLE_CIRCLE_N_POINTS = 6     # 环绕航点数(60°一个)。弦长0.5m未超出已验证安全范围
+                              # (已知问题15唯一站得住的结论是"扰动随步长单调增大"，无硬上限，
+                              # 且问题21大范围大步长测试精度反而更好)
+POLE_CIRCLE_DIRECTION = "cw" # 固定顺时针(顶视)，颜色识别接入后改为按红/绿判断
+POLE_WORLD_MATCH_EPS_M = 0.2 # "同一根杆子"世界坐标匹配容差，跟PoleTracker.world_eps_m默认值一致
+TOTAL_POLES = int(os.getenv("DRONE_POLE_TOTAL", "1"))  # 阶段1=1(默认)；阶段2设DRONE_POLE_TOTAL=2
+LANDING_POINT = (2.0, 0.0)   # 降落点世界坐标占位值 — 现场量出实际降落标识位置后必须修改
 
 YAW_TEST_KP = float(os.getenv("DRONE_YAW_TEST_KP", "0"))
 # 问题16：2026-07-09用原始Kp=1.5闭环触发过近90°失控事故，此后yaw_pid长期保持
@@ -168,9 +177,18 @@ class mission:
         self._hover_hold_pos = None  # 悬停期间用x_pid/y_pid锁定的位置(进入悬停那一刻的pos)
         self._hover_start_time = None  # 悬停开始时间，用于POLE_HOVER_TIMEOUT_S超时判断
 
+        # 环绕状态机(阶段1单杆/阶段2双杆共用)
+        self.nav_mode = "PATROL"  # PATROL / CIRCLING / TO_LANDING
+        self.circled_poles = []   # 已完成环绕的杆塔世界坐标 [(x,y), ...]
+        self._circle_pole_center = None  # 当前正在环绕的杆塔世界坐标，从悬停避让判断中排除
+        self._patrol_saved_targets = None
+        self._patrol_saved_index = 0
+        self._cruise_z = self.targets[0][2] if self.targets else put_height / 100
+        self.pole_total = TOTAL_POLES
+
     def load_waypoints(self):
         try:
-            with open('router.txt', 'r') as f:
+            with open('router.txt', 'r', encoding='utf-8') as f:
                 waypoints = []
                 for line in f:
                     line = line.strip()
@@ -376,15 +394,22 @@ class mission:
 
     # ================= 导航 =================
     def navigate(self, pos, yaw):
+        # 全部航点耗尽：按当前nav_mode分支处理(环绕完成/到达降落点/巡航耗尽兜底)
         if self.target_index >= len(self.targets):
-            logger.info("全部航点完成")
-            self.state = "LAND"
+            if self.nav_mode == "CIRCLING":
+                self._on_circle_complete()
+            elif self.nav_mode == "TO_LANDING":
+                logger.info("到达降落点")
+                self.state = "LAND"
+            else:
+                logger.info("全部航点完成")
+                self.state = "LAND"
             return
 
         target = self.targets[self.target_index]
         target_z = int(target[2] * 100)
 
-        # 雷达避障：检测到确认的杆子且距离过近就悬停，不绕行。
+        # 雷达避障：检测到确认的杆子且距离过近就悬停，不绕行(除非正在主动环绕它)。
         # 触发(POLE_DANGER_DIST_M)和恢复(POLE_RESUME_DIST_M)用两个不同阈值(滞回)，
         # 避免距离刚好卡在阈值附近抖动时悬停状态反复触发/取消。
         pole_hover = False
@@ -402,7 +427,18 @@ class mission:
                  "dist": round(math.hypot(p["x"] - pos[0], p["y"] - pos[1]), 3)}
                 for p in confirmed
             ]
-            pole_dist = nearest_confirmed_pole_dist(confirmed, pos[0], pos[1])
+
+            # PATROL态：发现一个未环绕过的确认杆塔，立即切到CIRCLING
+            if self.nav_mode == "PATROL":
+                new_pole = self._find_new_pole(confirmed)
+                if new_pole is not None:
+                    self._start_circling(new_pole, pos)
+                    return
+
+            # 悬停避让距离判断：排除当前正在主动环绕的目标(否则环绕航点一进0.75m
+            # 就会被悬停逻辑拦下来，跟环绕意图矛盾)
+            hover_check_poles = self._exclude_circle_target(confirmed)
+            pole_dist = nearest_confirmed_pole_dist(hover_check_poles, pos[0], pos[1])
             if self._pole_hovering:
                 pole_hover = pole_dist is not None and pole_dist < POLE_RESUME_DIST_M
             else:
@@ -615,6 +651,57 @@ class mission:
             f"{t265_str}{pole_str}",
             end="", flush=True
         )
+
+    # ================= 环绕状态机辅助方法 =================
+    def _already_circled(self, x, y):
+        return any(math.hypot(x - cx, y - cy) <= POLE_WORLD_MATCH_EPS_M
+                   for cx, cy in self.circled_poles)
+
+    def _find_new_pole(self, confirmed):
+        for p in confirmed:
+            if not self._already_circled(p["x"], p["y"]):
+                return p
+        return None
+
+    def _exclude_circle_target(self, confirmed):
+        if self._circle_pole_center is None:
+            return confirmed
+        cx, cy = self._circle_pole_center
+        return [p for p in confirmed
+                if math.hypot(p["x"] - cx, p["y"] - cy) > POLE_WORLD_MATCH_EPS_M]
+
+    def _start_circling(self, pole, pos):
+        self._patrol_saved_targets = self.targets
+        self._patrol_saved_index = self.target_index
+        self._circle_pole_center = (pole["x"], pole["y"])
+        waypoints = generate_circle_waypoints(
+            pole["x"], pole["y"], pos[0], pos[1],
+            radius=POLE_CIRCLE_RADIUS_M, n_points=POLE_CIRCLE_N_POINTS,
+            direction=POLE_CIRCLE_DIRECTION, z=self._cruise_z,
+        )
+        self.targets = waypoints
+        self.target_index = 0
+        self.last_target_index = -1
+        self.nav_mode = "CIRCLING"
+        logger.warning(
+            f"检测到杆塔({pole['x']:.2f},{pole['y']:.2f})，开始环绕飞行，{len(waypoints)}个航点"
+        )
+
+    def _on_circle_complete(self):
+        cx, cy = self._circle_pole_center
+        logger.info(f"杆塔({cx:.2f},{cy:.2f})环绕完成")
+        self.circled_poles.append((cx, cy))
+        self._circle_pole_center = None
+        if len(self.circled_poles) >= self.pole_total:
+            logger.info(f"已绕完全部{self.pole_total}根杆塔，前往降落点")
+            self.targets = [[LANDING_POINT[0], LANDING_POINT[1], self._cruise_z]]
+            self.target_index = 0
+            self.nav_mode = "TO_LANDING"
+        else:
+            self.targets = self._patrol_saved_targets
+            self.target_index = self._patrol_saved_index
+            self.nav_mode = "PATROL"
+        self.last_target_index = -1
 
     # ================= 到达处理 =================
     def _on_arrival(self, target):
