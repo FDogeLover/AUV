@@ -670,7 +670,14 @@ class mission:
 
     # ================= 环绕状态机辅助方法 =================
     def _already_circled(self, x, y):
-        return any(math.hypot(x - cx, y - cy) <= POLE_WORLD_MATCH_EPS_M
+        # 2026-07-13真机测试发现：confirmed_poles()每次都从滑动窗口重新平均计算杆塔
+        # 世界坐标，窗口滚动+新读数噪声会让同一根静止杆塔的"当前估计位置"逐渐漂移。
+        # 如果用POLE_WORLD_MATCH_EPS_M(0.2m)这种给"同一物体"设计的窄容差判断"是否
+        # 已环绕过"，漂移超过0.2m就会被误判成"新杆塔"，导致环绕完成后被自己刚绕完
+        # 的目标重新触发悬停(时间上发生在_exclude_circle_target修复之后，是同一类
+        # 问题的另一个入口)。改用跟环绕排除一致的宽容差(环绕半径+余量)。
+        tolerance = POLE_CIRCLE_RADIUS_M + POLE_CIRCLE_EXCLUDE_MARGIN_M
+        return any(math.hypot(x - cx, y - cy) <= tolerance
                    for cx, cy in self.circled_poles)
 
     def _find_new_pole(self, confirmed):

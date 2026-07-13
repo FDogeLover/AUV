@@ -72,6 +72,23 @@ class TestMissionPoleHover:
 
         assert m._pole_hovering is False
 
+    def test_navigate_does_not_hover_when_already_circled_pole_position_has_drifted(self):
+        """2026-07-13真机测试发现的第二个回归测试：confirmed_poles()每次都从滑动
+        窗口重新平均杆塔世界坐标，同一根已环绕过的静止杆塔的估计位置会随窗口滚动
+        逐渐漂移。用比POLE_WORLD_MATCH_EPS_M(0.2m)更宽的容差(环绕半径+余量)判断
+        "是否已环绕过"，否则漂移超过0.2m就会被误判成新杆塔，重新触发悬停。"""
+        m = _make_mission(radar_obj=object())
+        m.circled_poles = [(-0.91, -0.28)]  # 已环绕过的杆塔记录位置
+        m._last_pole_poll_time = time.time()
+        # 当前重新计算出的位置漂移了约0.41m(超过0.2m旧容差，但在1.1m新容差内)
+        for _ in range(3):
+            m.pole_tracker._history.append([(-0.5, -0.28)])
+
+        m.set_speed = lambda *a, **k: None
+        m.navigate([0.06, -0.12, 1.0], 0.0)  # 飞机当前位置离漂移后的坐标很近
+
+        assert m._pole_hovering is False
+
     def test_navigate_does_not_hover_when_pole_far_away(self):
         m = _make_mission(radar_obj=object())
         m._last_pole_poll_time = time.time()
