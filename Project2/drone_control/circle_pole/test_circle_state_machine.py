@@ -71,13 +71,34 @@ class TestCirclingHoverExclusion:
         m.nav_mode = "CIRCLING"
         m.targets = [[0.5, -0.2, 1.2], [1.0, 0.3, 1.2]]
         m._last_pole_poll_time = time.time()
+        # 另一根杆子，离环绕目标1.6m(赛题杆塔间距最小150cm，比排除半径1.1m更远，
+        # 不会被_exclude_circle_target误伤)，离飞机当前位置只有0.3m
         for _ in range(3):
-            m.pole_tracker._history.append([(0.3, 0.0)])  # 另一根杆子，离(0,0)只有0.3m
+            m.pole_tracker._history.append([(2.1, 0.3)])
 
         m.set_speed = lambda *a, **k: None
-        m.navigate([0.0, 0.0, 1.2], 0.0)
+        m.navigate([1.8, 0.3, 1.2], 0.0)
 
         assert m._pole_hovering is True
+
+    def test_own_circling_target_still_excluded_despite_yaw_drift_offset(self):
+        """环绕过程中yaw漂移可能让雷达对同一根杆子的世界坐标算出偏移，验证排除逻辑
+        用的是环绕半径+余量的宽松容差(POLE_CIRCLE_EXCLUDE_MARGIN_M)，不是原本给
+        "同一物体"判断设计的0.2m窄容差——否则漂移会让排除逻辑"认不出"自己正在
+        环绕的目标，中途误触发悬停(见2026-07-13讨论的风险1)。"""
+        m = _make_mission(radar_obj=object())
+        m._circle_pole_center = (0.5, 0.3)
+        m.nav_mode = "CIRCLING"
+        m.targets = [[0.5, -0.2, 1.2], [1.0, 0.3, 1.2]]
+        m._last_pole_poll_time = time.time()
+        # 偏移0.3m(超过旧的0.2m容差，但在新的排除半径1.1m以内)
+        for _ in range(3):
+            m.pole_tracker._history.append([(0.8, 0.3)])
+
+        m.set_speed = lambda *a, **k: None
+        m.navigate([0.75, 0.28, 1.2], 0.0)
+
+        assert m._pole_hovering is False
 
 
 class TestCircleCompletion:

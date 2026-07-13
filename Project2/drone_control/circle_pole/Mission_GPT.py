@@ -78,12 +78,24 @@ POLE_HOVER_TIMEOUT_S = 15.0   # 2026-07-09新增：悬停位置修正生效后�
                               # 触发/取消(2026-07-08真机0.1m步进接近测试观察到这个问题)
 POLE_YAW_SIGN = 1            # 未标定！CLAUDE.md已知问题13——真机/台架标定前只是假设值，
                               # 标定结果可能是+1也可能是-1，标定前这个避障功能的世界坐标可能是错的
-POLE_CIRCLE_RADIUS_M = 0.5   # 环绕半径，对应赛题50cm距离要求
-POLE_CIRCLE_N_POINTS = 6     # 环绕航点数(60°一个)。弦长0.5m未超出已验证安全范围
+POLE_CIRCLE_RADIUS_M = 0.7   # 环绕半径(中心到杆塔中心)。2026-07-13从0.5上调：赛题"50cm"
+                              # 指飞行器与杆塔的实际净空，不是中心到中心距离；`POLE_DANGER_DIST_M`
+                              # 注释记录的真机数据(0.6m中心距时桨叶到杆子实际间隙仅约20cm)反推出
+                              # 机身等效半径约0.4m，若中心距仍用0.5m，实际净空只剩约8cm，
+                              # 对连续转弯场景(未经真机验证的超调风险)太薄。0.7m是安全和测试
+                              # 空间大小之间的折中值，不是净空恰好50cm的精确解。
+POLE_CIRCLE_N_POINTS = 6     # 环绕航点数(60°一个)。弦长(0.7m半径下约0.7m)未超出已验证安全范围
                               # (已知问题15唯一站得住的结论是"扰动随步长单调增大"，无硬上限，
                               # 且问题21大范围大步长测试精度反而更好)
 POLE_CIRCLE_DIRECTION = "cw" # 固定顺时针(顶视)，颜色识别接入后改为按红/绿判断
-POLE_WORLD_MATCH_EPS_M = 0.2 # "同一根杆子"世界坐标匹配容差，跟PoleTracker.world_eps_m默认值一致
+POLE_WORLD_MATCH_EPS_M = 0.2 # "同一根杆子"世界坐标匹配容差(用于_already_circled判断"是不是
+                              # 已环绕过的那根")，跟PoleTracker.world_eps_m默认值一致
+POLE_CIRCLE_EXCLUDE_MARGIN_M = 0.4  # 环绕中排除"自己正在绕的目标"时，用比POLE_WORLD_MATCH_EPS_M
+                              # 更宽松的容差(环绕半径+这个余量)：环绕时飞机离杆子很近(0.5~0.9m)，
+                              # yaw漂移(问题16回路默认关闭无修正)换算到近距离的世界坐标误差
+                              # 可能超过0.2m，太窄的容差会让排除逻辑"认不出"自己正在绕的目标，
+                              # 中途误触发悬停。赛题杆塔间距最小150cm，只要排除半径明显小于
+                              # 1.5m，就不会误伤阶段2场景下真正的第二根杆子。
 TOTAL_POLES = int(os.getenv("DRONE_POLE_TOTAL", "1"))  # 阶段1=1(默认)；阶段2设DRONE_POLE_TOTAL=2
 LANDING_POINT = (2.0, 0.0)   # 降落点世界坐标占位值 — 现场量出实际降落标识位置后必须修改
 
@@ -667,8 +679,9 @@ class mission:
         if self._circle_pole_center is None:
             return confirmed
         cx, cy = self._circle_pole_center
+        exclude_radius = POLE_CIRCLE_RADIUS_M + POLE_CIRCLE_EXCLUDE_MARGIN_M
         return [p for p in confirmed
-                if math.hypot(p["x"] - cx, p["y"] - cy) > POLE_WORLD_MATCH_EPS_M]
+                if math.hypot(p["x"] - cx, p["y"] - cy) > exclude_radius]
 
     def _start_circling(self, pole, pos):
         self._patrol_saved_targets = self.targets
