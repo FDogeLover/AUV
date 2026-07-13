@@ -447,8 +447,12 @@ class mission:
                     self._start_circling(new_pole, pos)
                     return
 
-            # 悬停避让距离判断：排除当前正在主动环绕的目标(否则环绕航点一进0.75m
-            # 就会被悬停逻辑拦下来，跟环绕意图矛盾)
+            # 悬停避让距离判断：排除当前正在主动环绕的目标、以及所有已经环绕完成的杆塔。
+            # 2026-07-13真机测试发现：环绕刚完成那一刻飞机必然还在0.7m环绕半径内，
+            # 小于0.75m悬停触发阈值，如果"已绕过的杆塔"恢复正常悬停判断，会在切换到
+            # TO_LANDING的瞬间被自己刚绕完的杆塔悬停住，直到POLE_HOVER_TIMEOUT_S(15秒)
+            # 超时强制原地降落——不管降落点设在哪个方向都会复现，不是这次方向选错的巧合。
+            # 已经环绕过的杆塔已经安全绕开了，不需要再当障碍物处理。
             hover_check_poles = self._exclude_circle_target(confirmed)
             pole_dist = nearest_confirmed_pole_dist(hover_check_poles, pos[0], pos[1])
             if self._pole_hovering:
@@ -676,12 +680,20 @@ class mission:
         return None
 
     def _exclude_circle_target(self, confirmed):
-        if self._circle_pole_center is None:
-            return confirmed
-        cx, cy = self._circle_pole_center
-        exclude_radius = POLE_CIRCLE_RADIUS_M + POLE_CIRCLE_EXCLUDE_MARGIN_M
-        return [p for p in confirmed
-                if math.hypot(p["x"] - cx, p["y"] - cy) > exclude_radius]
+        """从悬停避让候选里排除：(1)当前正在主动环绕的目标(宽容差，见常量注释)；
+        (2)所有已经环绕完成的杆塔——已经安全绕过的杆塔不再需要触发悬停避让，
+        否则环绕刚完成时飞机必然还在杆塔附近，会被自己刚绕完的目标重新悬停住。"""
+        result = []
+        for p in confirmed:
+            if self._circle_pole_center is not None:
+                cx, cy = self._circle_pole_center
+                exclude_radius = POLE_CIRCLE_RADIUS_M + POLE_CIRCLE_EXCLUDE_MARGIN_M
+                if math.hypot(p["x"] - cx, p["y"] - cy) <= exclude_radius:
+                    continue
+            if self._already_circled(p["x"], p["y"]):
+                continue
+            result.append(p)
+        return result
 
     def _start_circling(self, pole, pos):
         self._patrol_saved_targets = self.targets
