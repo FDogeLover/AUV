@@ -480,7 +480,11 @@ class mission:
             ]
 
             # PATROL态：雷达+视觉+颜色未去重三条件持续满足POLE_TRIGGER_CONFIRM_S
-            # 才触发APPROACHING(2026-07-14设计文档"触发滞回"一节)
+            # 才触发APPROACHING(2026-07-14设计文档"触发滞回"一节)。
+            # 注意：nav_mode切到"APPROACHING"后，navigate()目前还没有任何分支处理
+            # 这个状态(Task 7范围内)——不会崩溃，但也没有真正的视觉接近行为，飞机
+            # 会继续沿着旧的PATROL航点飞，是个静默的空档，等后续任务接入
+            # APPROACHING控制逻辑才会生效，测试本分支时不要误当成bug。
             if self.nav_mode == "PATROL":
                 if self._update_trigger_candidate(confirmed):
                     return
@@ -730,9 +734,9 @@ class mission:
                    for cx, cy, _color in self.circled_poles)
 
     def _color_already_circled(self, color):
-        """颜色去重判断——将替代坐标容差成为"是否已环绕过"的依据(2026-07-14设计
-        文档"去重机制"一节)，供后续任务接入PATROL→APPROACHING触发使用；当前尚未
-        被任何调用点接入，是待后续任务连线的脚手架。`_already_circled`(坐标容差)
+        """颜色去重判断——替代坐标容差成为"是否已环绕过"的依据(2026-07-14设计
+        文档"去重机制"一节)。已被`_update_trigger_candidate`接入，作为
+        PATROL→APPROACHING触发条件之一(Task 7)。`_already_circled`(坐标容差)
         继续保留给悬停避让/绕行排除使用，两者服务不同目的，见设计文档。
         """
         return color in self.circled_colors
@@ -806,6 +810,8 @@ class mission:
             self._trigger_candidate_since = None
             return False
 
+        # 只比较颜色不比较坐标：赛题每种颜色最多一根杆，颜色相同即视为同一目标；
+        # 如果以后场景允许同色多杆，这里需要改成坐标也纳入身份判断。
         if self._trigger_candidate is None or self._trigger_candidate[2] != candidate[2]:
             self._trigger_candidate = candidate
             self._trigger_candidate_since = time.time()
