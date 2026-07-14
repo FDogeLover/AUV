@@ -13,7 +13,7 @@ import pytest
 
 from Mission_GPT import (
     mission, POLE_TRIGGER_CONFIRM_S, POLE_VISION_STALE_S,
-    APPROACH_X_SPEED_FAR, APPROACH_X_SPEED_NEAR,
+    APPROACH_X_SPEED_FAR, APPROACH_X_SPEED_NEAR, APPROACH_CENTERED_DX_PX,
 )
 from Lcode.circle_planner import generate_circle_waypoints  # noqa: E402  (文件顶部已有sys.path.insert)
 
@@ -40,62 +40,52 @@ class _FakeVision:
         self.locked_color = color
 
 
-class TestPatrolTriggerRequiresBothRadarAndVision(object):
-    def test_radar_only_does_not_trigger(self):
-        m = _make_mission(radar_obj=object(), pole_vision_obj=None)
-        m._last_pole_poll_time = time.time()
-        for _ in range(3):
-            m.pole_tracker._history.append([(0.5, 0.3)])
+class TestPatrolTriggerIsVisionOnly(object):
+    """2026-07-14现场测试后改为纯视觉触发：雷达有效探测距离(~1.2m)远小于
+    摄像头，要求雷达+视觉同时确认等于要求飞机先物理飞到很近才能触发，起不到
+    摄像头"远处先看到"的作用。雷达的职责后移到APPROACHING阶段内部(见
+    test_approaching_state.py::TestApproachingRadarHandoff)。"""
+
+    def test_no_vision_does_not_trigger(self):
+        m = _make_mission(radar_obj=None, pole_vision_obj=None)
         m.set_speed = lambda *a, **k: None
         m.navigate([0.0, 0.0, 1.2], 0.0)
         assert m.nav_mode == "PATROL"
 
-    def test_radar_and_vision_together_do_not_trigger_before_confirm_window(self):
+    def test_vision_alone_does_not_trigger_before_confirm_window(self):
         """条件刚满足的第一帧不应该立刻触发，需要持续POLE_TRIGGER_CONFIRM_S。"""
-        m = _make_mission(radar_obj=object(), pole_vision_obj=_FakeVision(color="red"))
-        m._last_pole_poll_time = time.time()
-        for _ in range(3):
-            m.pole_tracker._history.append([(0.5, 0.3)])
+        m = _make_mission(radar_obj=None, pole_vision_obj=_FakeVision(color="red"))
         m.set_speed = lambda *a, **k: None
         m.navigate([0.0, 0.0, 1.2], 0.0)
         assert m.nav_mode == "PATROL"
-        assert m._trigger_candidate == (0.5, 0.3, "red")
+        assert m._trigger_candidate == "red"
 
-    def test_radar_and_vision_together_trigger_approaching_after_confirm_window(self):
-        m = _make_mission(radar_obj=object(), pole_vision_obj=_FakeVision(color="red"))
-        m._last_pole_poll_time = time.time()
-        for _ in range(3):
-            m.pole_tracker._history.append([(0.5, 0.3)])
+    def test_vision_alone_triggers_approaching_after_confirm_window_without_radar(self):
+        """核心行为：不需要雷达确认，纯视觉持续看到颜色就能触发APPROACHING——
+        雷达坐标此时还没有，_approach_pole_center应该是None，等
+        _approaching_step内部轮询雷达后再冻结。"""
+        m = _make_mission(radar_obj=None, pole_vision_obj=_FakeVision(color="red"))
         m.set_speed = lambda *a, **k: None
         m.navigate([0.0, 0.0, 1.2], 0.0)  # 第一帧：只是记下候选，不触发
         assert m.nav_mode == "PATROL"
 
         m._trigger_candidate_since = time.time() - POLE_TRIGGER_CONFIRM_S - 0.01
-        m._last_pole_poll_time = time.time()
-        for _ in range(3):
-            m.pole_tracker._history.append([(0.5, 0.3)])
         m.navigate([0.0, 0.0, 1.2], 0.0)
 
         assert m.nav_mode == "APPROACHING"
-        assert m._approach_pole_center == pytest.approx((0.5, 0.3))
+        assert m._approach_pole_center is None
         assert m._approach_color == "red"
 
     def test_already_circled_color_does_not_trigger(self):
-        m = _make_mission(radar_obj=object(), pole_vision_obj=_FakeVision(color="red"))
+        m = _make_mission(radar_obj=None, pole_vision_obj=_FakeVision(color="red"))
         m.circled_colors.add("red")
-        m._last_pole_poll_time = time.time()
-        for _ in range(3):
-            m.pole_tracker._history.append([(0.5, 0.3)])
         m.set_speed = lambda *a, **k: None
         m.navigate([0.0, 0.0, 1.2], 0.0)
         assert m.nav_mode == "PATROL"
         assert m._trigger_candidate is None
 
     def test_stale_vision_does_not_trigger(self):
-        m = _make_mission(radar_obj=object(), pole_vision_obj=_FakeVision(color="red", fresh=False))
-        m._last_pole_poll_time = time.time()
-        for _ in range(3):
-            m.pole_tracker._history.append([(0.5, 0.3)])
+        m = _make_mission(radar_obj=None, pole_vision_obj=_FakeVision(color="red", fresh=False))
         m.set_speed = lambda *a, **k: None
         m.navigate([0.0, 0.0, 1.2], 0.0)
         assert m.nav_mode == "PATROL"
@@ -104,21 +94,15 @@ class TestPatrolTriggerRequiresBothRadarAndVision(object):
         """候选颜色中途变化(比如视觉误判抖动)要重新计时，不能沿用旧计时器——
         这也是颜色锁定防抖机制的一部分，见2026-07-14设计文档"颜色锁定"一节。"""
         vision = _FakeVision(color="red")
-        m = _make_mission(radar_obj=object(), pole_vision_obj=vision)
-        m._last_pole_poll_time = time.time()
-        for _ in range(3):
-            m.pole_tracker._history.append([(0.5, 0.3)])
+        m = _make_mission(radar_obj=None, pole_vision_obj=vision)
         m.set_speed = lambda *a, **k: None
         m.navigate([0.0, 0.0, 1.2], 0.0)
         first_since = m._trigger_candidate_since
 
         vision._color = "green"
-        m._last_pole_poll_time = time.time()
-        for _ in range(3):
-            m.pole_tracker._history.append([(0.5, 0.3)])
         m.navigate([0.0, 0.0, 1.2], 0.0)
 
-        assert m._trigger_candidate == (0.5, 0.3, "green")
+        assert m._trigger_candidate == "green"
         assert m._trigger_candidate_since > first_since
 
 
@@ -197,6 +181,76 @@ class TestApproachingControlLaw:
         # 不再是APPROACHING，会走非APPROACHING分支并访问雷达scan接口，
         # 跟本测试用的fake radar(object())不兼容。
         m = self._start(pos=[2.1, 0.0, 1.2], pole=(2.7, 0.0))
+        assert m.nav_mode == "CIRCLING"
+
+
+class TestApproachingRadarHandoff:
+    """2026-07-14现场测试后新增：APPROACHING触发时不再有雷达坐标
+    (_approach_pole_center从None开始)，这里验证两件事——没有雷达坐标时的
+    纯视觉控制律、以及雷达中途确认后正确切换到既有的距离阶梯控制。"""
+
+    def _start_no_radar_center(self, pos, color="red", dx_px=0.0, radar_obj=None):
+        vision = _FakeVision(dx_px=dx_px, color=color)
+        m = _make_mission(radar_obj=radar_obj, pole_vision_obj=vision)
+        m._approach_pole_center = None
+        m._approach_color = color
+        m.nav_mode = "APPROACHING"
+        # 同TestApproachingControlLaw._start()的注释：fake radar(object())不支持
+        # get_scan()，让_last_pole_poll_time刚更新过以跳过这次调用内的轮询窗口。
+        m._last_pole_poll_time = time.time()
+        m.set_speed = lambda *a, **k: None
+        m.navigate(pos, 0.0)
+        return m
+
+    def test_not_centered_uses_zero_x_speed(self):
+        calls = []
+        m = self._start_no_radar_center(pos=[0.0, 0.0, 1.2], dx_px=APPROACH_CENTERED_DX_PX + 50)
+        m.set_speed = lambda x, y, yaw, z: calls.append(x)
+        m.navigate([0.0, 0.0, 1.2], 0.0)
+        assert calls[-1] == 0
+
+    def test_centered_uses_fixed_near_speed(self):
+        calls = []
+        m = self._start_no_radar_center(pos=[0.0, 0.0, 1.2], dx_px=APPROACH_CENTERED_DX_PX - 20)
+        m.set_speed = lambda x, y, yaw, z: calls.append(x)
+        m.navigate([0.0, 0.0, 1.2], 0.0)
+        assert calls[-1] == pytest.approx(APPROACH_X_SPEED_NEAR)
+
+    def test_no_radar_center_still_updates_y_via_vision(self):
+        calls = []
+        m = self._start_no_radar_center(pos=[0.0, 0.0, 1.2], dx_px=500.0)
+        m.set_speed = lambda x, y, yaw, z: calls.append(y)
+        m.navigate([0.0, 0.0, 1.2], 0.0)
+        assert calls[-1] != 0
+
+    def test_radar_confirms_mid_approach_freezes_center_and_switches_control(self):
+        """雷达在APPROACHING期间(不是PATROL触发时)第一次确认出坐标，应该
+        冻结_approach_pole_center并且不会把自己刚确认的这根杆塔误判成
+        "其余未处理的杆塔"触发悬停(排除逻辑靠先冻结坐标再做悬停判断的顺序
+        保证，见_approaching_step实现注释)。"""
+        m = self._start_no_radar_center(pos=[0.0, 0.0, 1.2], dx_px=0.0, radar_obj=object())
+        assert m._approach_pole_center is None
+
+        # fake radar(object())不支持get_scan()：直接往_history里塞数据模拟
+        # "已经轮询到"的结果，_last_pole_poll_time设成刚更新过以跳过真正调用
+        # pole_tracker.update()(会打到不存在的radar.get_scan())。
+        m._last_pole_poll_time = time.time()
+        for _ in range(3):
+            m.pole_tracker._history.append([(2.0, 0.0)])
+        m.set_speed = lambda *a, **k: None
+        m.navigate([0.0, 0.0, 1.2], 0.0)
+
+        assert m._approach_pole_center == pytest.approx((2.0, 0.0))
+        assert m._pole_hovering is False  # 没有被自己刚确认的目标误触发悬停
+
+    def test_reaching_trigger_distance_after_radar_confirms_switches_to_circling(self):
+        m = self._start_no_radar_center(pos=[2.1, 0.0, 1.2], dx_px=0.0, radar_obj=object())
+        m._last_pole_poll_time = time.time()
+        for _ in range(3):
+            m.pole_tracker._history.append([(2.7, 0.0)])  # 距离0.6m，在触发半径内
+        m.set_speed = lambda *a, **k: None
+        m.navigate([2.1, 0.0, 1.2], 0.0)
+
         assert m.nav_mode == "CIRCLING"
 
 

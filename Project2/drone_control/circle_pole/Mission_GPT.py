@@ -104,10 +104,16 @@ POLE_COLOR_DIRECTION = {"red": "cw", "green": "ccw"}  # 赛题固定映射，见
 
 # ---------- 阶段2：前置摄像头颜色识别 + 视觉伺服接近 ----------
 POLE_VISION_STALE_S = 0.5     # 视觉检测结果超过此值未更新，APPROACHING视为目标丢失
-POLE_TRIGGER_CONFIRM_S = 0.3  # PATROL→APPROACHING触发条件(雷达确认+视觉确认+颜色未去重)
+POLE_TRIGGER_CONFIRM_S = 0.3  # PATROL→APPROACHING触发条件(视觉确认+颜色未去重，
+                                # 2026-07-14现场测试后改为纯视觉触发，不再要求雷达同时
+                                # 确认——雷达有效探测距离(~1.2m)远小于摄像头，"两者同时"
+                                # 等于卡在雷达的短距离，起不到摄像头远处先看到的作用)
                                 # 需要持续满足这么久才真正触发，同一个计时器也兼做颜色
-                                # 锁定防抖，避免单帧误判/边界抖动被当真，见2026-07-14设计
-                                # 文档"触发滞回""颜色锁定"两节
+                                # 锁定防抖，避免单帧误判/边界抖动被当真
+APPROACH_CENTERED_DX_PX = 100  # 2026-07-14新增：APPROACHING阶段雷达坐标还没冻结时
+                                # (纯视觉控制期)，杆子在画面中|dx_px|小于这个值才算"居中"，
+                                # 居中前只修正y不前进(避免斜着冲向杆子)，居中后才用固定慢速
+                                # 前进；1920宽画面下100px约对应2.9°方位角
 POLE_VISION_Y_SIGN = 1        # 未标定！真机标定前只是假设值，标定结果可能是+1也可能是-1，
                                 # 标定前APPROACHING阶段y方向视觉伺服可能是反的(同POLE_YAW_SIGN)
 APPROACH_Y_KP = 30.0           # 视觉伺服y轴PID增益，误差量是方位角(弧度，量级约±0.7rad)，
@@ -465,6 +471,15 @@ class mission:
         target = self.targets[self.target_index]
         target_z = int(target[2] * 100)
 
+        # PATROL态：视觉持续确认(颜色+未去重)POLE_TRIGGER_CONFIRM_S即可触发
+        # APPROACHING(2026-07-14现场测试后改为纯视觉触发，见_update_trigger_
+        # candidate的注释)。特意放在下面"if self.pole_tracker is not None:"
+        # 判断之外——雷达不再是触发条件，即使没有雷达(pole_tracker为None，
+        # 比如桌面/无雷达测试场景)，视觉单独触发也必须照常生效。
+        if self.nav_mode == "PATROL":
+            if self._update_trigger_candidate():
+                return
+
         # 雷达避障：检测到确认的杆子且距离过近就悬停，不绕行(除非正在主动环绕它)。
         # 触发(POLE_DANGER_DIST_M)和恢复(POLE_RESUME_DIST_M)用两个不同阈值(滞回)，
         # 避免距离刚好卡在阈值附近抖动时悬停状态反复触发/取消。
@@ -483,12 +498,6 @@ class mission:
                  "dist": round(math.hypot(p["x"] - pos[0], p["y"] - pos[1]), 3)}
                 for p in confirmed
             ]
-
-            # PATROL态：雷达+视觉+颜色未去重三条件持续满足POLE_TRIGGER_CONFIRM_S
-            # 才触发APPROACHING(2026-07-14设计文档"触发滞回"一节)。
-            if self.nav_mode == "PATROL":
-                if self._update_trigger_candidate(confirmed):
-                    return
 
             # 绕行：每次切换到一个新目标点时检查一次，如果直飞会穿进某根已知杆塔
             # (排除当前正在环绕的目标，但**包含**已经环绕完成的杆塔——2026-07-13
@@ -795,44 +804,46 @@ class mission:
                 return True
         return False
 
-    def _update_trigger_candidate(self, confirmed):
-        """返回True表示本次调用触发了APPROACHING(调用方应该直接return，跳过
+    def _update_trigger_candidate(self):
+        """PATROL→APPROACHING触发(2026-07-14现场测试后改为纯视觉触发)：雷达
+        有效探测距离(~1.2m)远小于摄像头，要求雷达+视觉同时确认等于要求飞机先
+        物理飞到很近才能触发，起不到摄像头"远处先看到"的作用。改为只看视觉
+        持续确认(颜色+未去重)POLE_TRIGGER_CONFIRM_S即可触发APPROACHING；雷达
+        的职责后移到_approaching_step内部，负责飞机靠近后确认世界坐标、切换
+        到距离阶梯控制，以及给"其余未处理杆塔"的悬停避让托底。
+        返回True表示本次调用触发了APPROACHING(调用方应该直接return，跳过
         本tick剩余的悬停避让/日志逻辑，语义上跟原来_start_circling后直接return
         一致)。"""
-        new_pole = self._find_new_pole(confirmed)
         vision = self.pole_vision.latest() if self.pole_vision is not None else None
         vision_color = vision["color"] if vision else None
         vision_fresh = (vision is not None and vision["t"] > 0
                          and time.time() - vision["t"] < POLE_VISION_STALE_S)
 
         candidate = None
-        if (new_pole is not None and vision_fresh and vision_color is not None
-                and not self._color_already_circled(vision_color)):
-            candidate = (new_pole["x"], new_pole["y"], vision_color)
+        if vision_fresh and vision_color is not None and not self._color_already_circled(vision_color):
+            candidate = vision_color
 
         if candidate is None:
             self._trigger_candidate = None
             self._trigger_candidate_since = None
             return False
 
-        # 只比较颜色不比较坐标：赛题每种颜色最多一根杆，颜色相同即视为同一目标；
-        # 如果以后场景允许同色多杆，这里需要改成坐标也纳入身份判断。
-        if self._trigger_candidate is None or self._trigger_candidate[2] != candidate[2]:
+        if self._trigger_candidate != candidate:
             self._trigger_candidate = candidate
             self._trigger_candidate_since = time.time()
             return False
 
         if time.time() - self._trigger_candidate_since >= POLE_TRIGGER_CONFIRM_S:
-            self._start_approaching(*candidate)
+            self._start_approaching(candidate)
             self._trigger_candidate = None
             self._trigger_candidate_since = None
             return True
         return False
 
-    def _start_approaching(self, x, y, color):
+    def _start_approaching(self, color):
         self._patrol_saved_targets = self.targets
         self._patrol_saved_index = self.target_index
-        self._approach_pole_center = (x, y)
+        self._approach_pole_center = None  # 雷达还没确认，等_approaching_step内部轮询到再冻结
         self._approach_color = color
         self._approach_lost_since = None
         # 跟x_pid/y_pid切换目标时的reset()同一套约定：避免PID内部
@@ -842,7 +853,7 @@ class mission:
         if self.pole_vision is not None:
             self.pole_vision.set_locked_color(color)
         self.nav_mode = "APPROACHING"
-        logger.warning(f"雷达+视觉确认{color}杆塔({x:.2f},{y:.2f})，开始视觉接近")
+        logger.warning(f"视觉确认{color}杆塔，开始视觉接近(雷达坐标待_approaching_step内确认)")
 
     def _approaching_step(self, pos, yaw):
         # 雷达轮询+悬停避让(2026-07-14全量review发现的缺口修复)：原实现直接
@@ -859,6 +870,20 @@ class mission:
                 self._last_pole_poll_time = now
                 self.pole_tracker.update(self.radar, pos[0], pos[1], yaw)
             confirmed = self.pole_tracker.confirmed_poles()
+
+            # 雷达坐标尚未冻结时尝试从这次轮询里确认出来(2026-07-14改为纯视觉
+            # 触发APPROACHING后，雷达坐标不再是触发时就有的，要在这里补上)。
+            # 必须放在下面悬停避让判断之前：否则还没冻结时，自己正在接近的这根
+            # 杆塔会被悬停避让判断误当成"其余未处理的杆塔"，把自己悬停住。
+            if self._approach_pole_center is None:
+                new_pole = self._find_new_pole(confirmed)
+                if new_pole is not None:
+                    self._approach_pole_center = (new_pole["x"], new_pole["y"])
+                    logger.warning(
+                        f"APPROACHING阶段雷达确认坐标"
+                        f"({new_pole['x']:.2f},{new_pole['y']:.2f})，切换到距离阶梯控制"
+                    )
+
             hover_check_poles = self._exclude_circle_target(confirmed)
             pole_dist = nearest_confirmed_pole_dist(hover_check_poles, pos[0], pos[1])
             if self._pole_hovering:
@@ -895,9 +920,6 @@ class mission:
             self._hover_hold_pos = None
             self._hover_start_time = None
 
-        cx, cy = self._approach_pole_center
-        dist = math.hypot(pos[0] - cx, pos[1] - cy)
-
         vision = self.pole_vision.latest() if self.pole_vision is not None else None
         vision_fresh = (vision is not None and vision["t"] > 0
                          and time.time() - vision["t"] < POLE_VISION_STALE_S)
@@ -912,12 +934,24 @@ class mission:
         else:
             self._approach_lost_since = None
 
-        if dist <= APPROACH_CIRCLE_TRIGGER_DIST_M:
-            self._start_circling_from_approach(pos)
-            return
+        if self._approach_pole_center is not None:
+            cx, cy = self._approach_pole_center
+            dist = math.hypot(pos[0] - cx, pos[1] - cy)
 
-        x_speed = APPROACH_X_SPEED_FAR if dist > APPROACH_X_SWITCH_DIST_M else APPROACH_X_SPEED_NEAR
-        vx = int(x_speed if cx >= pos[0] else -x_speed)
+            if dist <= APPROACH_CIRCLE_TRIGGER_DIST_M:
+                self._start_circling_from_approach(pos)
+                return
+
+            x_speed = APPROACH_X_SPEED_FAR if dist > APPROACH_X_SWITCH_DIST_M else APPROACH_X_SPEED_NEAR
+            vx = int(x_speed if cx >= pos[0] else -x_speed)
+        else:
+            # 雷达坐标还没冻结：纯视觉控制(2026-07-14决定)——杆子在画面中居中
+            # (|dx_px|<APPROACH_CENTERED_DX_PX)前只修正y不前进，避免斜着冲向
+            # 杆子；居中后才用固定慢速朝摄像头朝向(世界+x)前进。
+            if vision_fresh and vision["dx_px"] is not None and abs(vision["dx_px"]) < APPROACH_CENTERED_DX_PX:
+                vx = APPROACH_X_SPEED_NEAR
+            else:
+                vx = 0
 
         vy = 0
         if vision_fresh and vision["dx_px"] is not None:
