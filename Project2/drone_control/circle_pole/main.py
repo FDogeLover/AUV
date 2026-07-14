@@ -22,7 +22,8 @@ from Lcode.global_variable import sp_side, lock
 import Lcode.Lprotocol
 from Lcode.Logger import logger
 from Lcode.Lradar import Serial_radar
-from Mission_GPT import mission
+from Lcode.pole_vision import PoleVision
+from Mission_GPT import mission, CAMERA_DEVICE
 from t265 import t265_class
 
 
@@ -61,8 +62,14 @@ def main():
         radar.listen_start()
         logger.info(f"雷达避障已启用，端口={radar_port}，波特率={radar_baud}")
 
+    # 2.6 前置摄像头视觉伺服(可选，打不开则禁用，PATROL永远不会触发APPROACHING)
+    pole_vision_obj = PoleVision(device=CAMERA_DEVICE)
+    if not pole_vision_obj.start():
+        logger.error(f"摄像头视觉子系统启动失败，设备={CAMERA_DEVICE}，视觉伺服已禁用")
+        pole_vision_obj = None
+
     # 3. 创建任务
-    mission1 = mission(re_fc, se_fc, realsense, serial_fc, radar_obj=radar)
+    mission1 = mission(re_fc, se_fc, realsense, serial_fc, radar_obj=radar, pole_vision_obj=pole_vision_obj)
 
     # 4. 启动
     mission1.start()

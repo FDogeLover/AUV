@@ -18,6 +18,7 @@ from Lcode.Logger import logger
 from Lcode.global_variable import sp_side, lock, fc_last_rx_time
 from Lcode.Lradar import PoleTracker
 from Lcode.circle_planner import generate_circle_waypoints, compute_detour_waypoint
+from Lcode.pole_vision import azimuth_from_dx
 from t265 import t265_class
 
 # ---------- 常量 ----------
@@ -87,7 +88,6 @@ POLE_CIRCLE_RADIUS_M = 0.7   # 环绕半径(中心到杆塔中心)。2026-07-13�
 POLE_CIRCLE_N_POINTS = 6     # 环绕航点数(60°一个)。弦长(0.7m半径下约0.7m)未超出已验证安全范围
                               # (已知问题15唯一站得住的结论是"扰动随步长单调增大"，无硬上限，
                               # 且问题21大范围大步长测试精度反而更好)
-POLE_CIRCLE_DIRECTION = "cw" # 固定顺时针(顶视)，颜色识别接入后改为按红/绿判断
 POLE_WORLD_MATCH_EPS_M = 0.2 # "同一根杆子"世界坐标匹配容差(用于_already_circled判断"是不是
                               # 已环绕过的那根")，跟PoleTracker.world_eps_m默认值一致
 POLE_CIRCLE_EXCLUDE_MARGIN_M = 0.4  # 环绕中排除"自己正在绕的目标"时，用比POLE_WORLD_MATCH_EPS_M
@@ -97,9 +97,31 @@ POLE_CIRCLE_EXCLUDE_MARGIN_M = 0.4  # 环绕中排除"自己正在绕的目标"�
                               # 中途误触发悬停。赛题杆塔间距最小150cm，只要排除半径明显小于
                               # 1.5m，就不会误伤阶段2场景下真正的第二根杆子。
 TOTAL_POLES = int(os.getenv("DRONE_POLE_TOTAL", "1"))  # 阶段1=1(默认)；阶段2设DRONE_POLE_TOTAL=2
-LANDING_POINT = (2.0, 0.0)   # 降落点世界坐标占位值 — 现场量出实际降落标识位置后必须修改
 POLE_DETOUR_SAFETY_RADIUS_M = POLE_DANGER_DIST_M  # 绕行安全半径，跟悬停避让触发阈值一致(2026-07-13)
 POLE_DETOUR_MARGIN_M = 0.15  # 绕行航点比安全半径再往外推一点，避免刚好卡在边界抖动
+
+POLE_COLOR_DIRECTION = {"red": "cw", "green": "ccw"}  # 赛题固定映射，见2026-07-14设计文档
+
+# ---------- 阶段2：前置摄像头颜色识别 + 视觉伺服接近 ----------
+POLE_VISION_STALE_S = 0.5     # 视觉检测结果超过此值未更新，APPROACHING视为目标丢失
+POLE_TRIGGER_CONFIRM_S = 0.3  # PATROL→APPROACHING触发条件(雷达确认+视觉确认+颜色未去重)
+                                # 需要持续满足这么久才真正触发，同一个计时器也兼做颜色
+                                # 锁定防抖，避免单帧误判/边界抖动被当真，见2026-07-14设计
+                                # 文档"触发滞回""颜色锁定"两节
+POLE_VISION_Y_SIGN = 1        # 未标定！真机标定前只是假设值，标定结果可能是+1也可能是-1，
+                                # 标定前APPROACHING阶段y方向视觉伺服可能是反的(同POLE_YAW_SIGN)
+APPROACH_Y_KP = 30.0           # 视觉伺服y轴PID增益，误差量是方位角(弧度，量级约±0.7rad)，
+                                # 不是x_pid/y_pid那种米制误差，不能沿用0.82那组增益。
+                                # 初始值未经真机标定，见2026-07-14设计文档测试计划步骤1
+APPROACH_Y_KI = 0.0
+APPROACH_Y_KD = 2.0
+APPROACH_Y_VEL_MAX = 35        # 视觉伺服y轴输出限幅(cm/s量级，跟x_pid/y_pid的40上限同量级)
+APPROACH_X_SPEED_FAR = 25      # 雷达距离 > APPROACH_X_SWITCH_DIST_M 时的接近速度
+APPROACH_X_SPEED_NEAR = 12     # 雷达距离 <= APPROACH_X_SWITCH_DIST_M 时降速微调
+APPROACH_X_SWITCH_DIST_M = 0.8
+APPROACH_CIRCLE_TRIGGER_DIST_M = POLE_CIRCLE_RADIUS_M  # APPROACHING→CIRCLING触发距离，
+                                # 直接复用环绕半径(2026-07-14讨论决定，不额外加余量常量)
+CAMERA_DEVICE = os.getenv("DRONE_CAMERA_DEVICE", "/dev/video0")
 
 YAW_TEST_KP = float(os.getenv("DRONE_YAW_TEST_KP", "0"))
 # 问题16：2026-07-09用原始Kp=1.5闭环触发过近90°失控事故，此后yaw_pid长期保持
@@ -140,7 +162,7 @@ class mission:
 
     def __init__(self, re_fc: List[int], se_fc: List[int],
                  realsense_obj: Optional[t265_class] = None,
-                 serial_fc_ref=None, radar_obj=None):
+                 serial_fc_ref=None, radar_obj=None, pole_vision_obj=None):
         self.re_fc = re_fc
         self.se_fc = se_fc
         self.serial_fc_ref = serial_fc_ref
@@ -165,7 +187,7 @@ class mission:
             self.yaw_pid = PID(1, 0)
 
         # 航点
-        self.targets = self.load_waypoints()
+        self.targets = self.load_waypoints('patrol_router.txt')
         self.target_index = 0
         self.emergency_stop = False
 
@@ -192,9 +214,17 @@ class mission:
         self._hover_start_time = None  # 悬停开始时间，用于POLE_HOVER_TIMEOUT_S超时判断
 
         # 环绕状态机(阶段1单杆/阶段2双杆共用)
-        self.nav_mode = "PATROL"  # PATROL / CIRCLING / TO_LANDING
-        self.circled_poles = []   # 已完成环绕的杆塔世界坐标 [(x,y), ...]
-        self._circle_pole_center = None  # 当前正在环绕的杆塔世界坐标，从悬停避让判断中排除
+        self.nav_mode = "PATROL"  # PATROL / APPROACHING / CIRCLING / RETREAT / TO_LANDING
+        self.circled_poles = []   # 已完成环绕的杆塔 [(x,y,color), ...]，坐标供绕行检查用
+        self.circled_colors = set()  # 已环绕颜色集合，去重判断依据(替代坐标容差)，见2026-07-14设计文档
+        self._approach_pole_center = None  # 当前正在接近/环绕的杆塔世界坐标(冻结快照)。
+                                          # 2026-07-14 Task 5从_circle_pole_center改名：
+                                          # APPROACHING阶段(Task 6+引入)也要用同一个字段，
+                                          # 不再是CIRCLING专属
+        self._approach_color = None        # 当前APPROACHING/CIRCLING锁定颜色
+        self._approach_lost_since = None   # APPROACHING视觉结果开始陈旧的时间点(见POLE_VISION_STALE_S)
+        self._trigger_candidate = None       # PATROL态正在累计确认时长的(x,y,color)候选目标
+        self._trigger_candidate_since = None
         self._patrol_saved_targets = None
         self._patrol_saved_index = 0
         self._cruise_z = self.targets[0][2] if self.targets else put_height / 100
@@ -202,9 +232,13 @@ class mission:
         self._detour_checked_index = -1  # 上次检查过绕行需求的target_index，避免同一个
                                           # 目标每tick重复计算/重复插入绕行航点
 
-    def load_waypoints(self):
+        # 视觉子系统(可选)
+        self.pole_vision = pole_vision_obj
+        self.approach_y_pid = PID(0, 0, p=APPROACH_Y_KP, i=APPROACH_Y_KI, d=APPROACH_Y_KD)
+
+    def load_waypoints(self, path='patrol_router.txt'):
         try:
-            with open('router.txt', 'r', encoding='utf-8') as f:
+            with open(path, 'r', encoding='utf-8') as f:
                 waypoints = []
                 for line in f:
                     line = line.strip()
@@ -219,12 +253,12 @@ class mission:
                             except ValueError:
                                 logger.warning(f"无效航点: {line}")
                 if waypoints:
-                    logger.info(f"加载 {len(waypoints)} 个航点")
+                    logger.info(f"从{path}加载 {len(waypoints)} 个航点")
                     return waypoints
         except FileNotFoundError:
-            logger.warning("router.txt 不存在，使用默认航点")
+            logger.warning(f"{path} 不存在，使用默认航点")
         except Exception as e:
-            logger.warning(f"读取 router.txt 失败: {e}，使用默认航点")
+            logger.warning(f"读取 {path} 失败: {e}，使用默认航点")
 
         default = [[0.0, 0.0, put_height/100],
                    [0.5, 0.0, put_height/100],
@@ -410,10 +444,16 @@ class mission:
 
     # ================= 导航 =================
     def navigate(self, pos, yaw):
+        if self.nav_mode == "APPROACHING":
+            self._approaching_step(pos, yaw)
+            return
+
         # 全部航点耗尽：按当前nav_mode分支处理(环绕完成/到达降落点/巡航耗尽兜底)
         if self.target_index >= len(self.targets):
             if self.nav_mode == "CIRCLING":
-                self._on_circle_complete()
+                self._on_circle_complete(pos)
+            elif self.nav_mode == "RETREAT":
+                self._on_retreat_complete()
             elif self.nav_mode == "TO_LANDING":
                 logger.info("到达降落点")
                 self.state = "LAND"
@@ -444,11 +484,10 @@ class mission:
                 for p in confirmed
             ]
 
-            # PATROL态：发现一个未环绕过的确认杆塔，立即切到CIRCLING
+            # PATROL态：雷达+视觉+颜色未去重三条件持续满足POLE_TRIGGER_CONFIRM_S
+            # 才触发APPROACHING(2026-07-14设计文档"触发滞回"一节)。
             if self.nav_mode == "PATROL":
-                new_pole = self._find_new_pole(confirmed)
-                if new_pole is not None:
-                    self._start_circling(new_pole, pos)
+                if self._update_trigger_candidate(confirmed):
                     return
 
             # 绕行：每次切换到一个新目标点时检查一次，如果直飞会穿进某根已知杆塔
@@ -456,22 +495,28 @@ class mission:
             # 真机测试发现巡航恢复/降落路径可能会绕回已环绕过的杆塔附近，那根杆塔
             # 已经从悬停避让里永久排除了，如果直飞路径又正好穿过它，没有绕行机制的
             # 话就是纯粹的碰撞风险)的安全区，插入一个绕开的中间航点。
-            if self._maybe_insert_detour(confirmed, pos, target):
+            # 2026-07-14全量review修复：CIRCLING阶段绕行检测整体关闭，跟悬停避让
+            # 关闭是同一套设计哲学——环绕路径本身是精心规划好的轨迹，途中被绕行
+            # 逻辑打断的风险比不检测更高；这里也没有排除已环绕过的杆塔，阶段1
+            # 单杆场景从未触发过这条路径，阶段2才会暴露。
+            if self.nav_mode != "CIRCLING" and self._maybe_insert_detour(confirmed, pos, target):
                 target = self.targets[self.target_index]
                 target_z = int(target[2] * 100)
 
-            # 悬停避让距离判断：排除当前正在主动环绕的目标、以及所有已经环绕完成的杆塔。
-            # 2026-07-13真机测试发现：环绕刚完成那一刻飞机必然还在0.7m环绕半径内，
-            # 小于0.75m悬停触发阈值，如果"已绕过的杆塔"恢复正常悬停判断，会在切换到
-            # TO_LANDING的瞬间被自己刚绕完的杆塔悬停住，直到POLE_HOVER_TIMEOUT_S(15秒)
-            # 超时强制原地降落——不管降落点设在哪个方向都会复现，不是这次方向选错的巧合。
-            # 已经环绕过的杆塔已经安全绕开了，不需要再当障碍物处理。
-            hover_check_poles = self._exclude_circle_target(confirmed)
-            pole_dist = nearest_confirmed_pole_dist(hover_check_poles, pos[0], pos[1])
-            if self._pole_hovering:
-                pole_hover = pole_dist is not None and pole_dist < POLE_RESUME_DIST_M
-            else:
-                pole_hover = pole_dist is not None and pole_dist < POLE_DANGER_DIST_M
+            # 悬停避让距离判断：CIRCLING阶段整体关闭(2026-07-14决定，不只排除当前
+            # 目标)。赛题最小杆塔间距150cm、环绕半径0.7m下，环绕到最靠近另一根杆
+            # 的点最坏情况只有80cm，仅比0.75m悬停阈值高5cm，这个理论安全边际被
+            # 已知定位噪声(confirmed_poles()漂移0.4~1m量级)完全吞掉，环绕过程中
+            # 途悬停打断本身(近距离转弯突然停住)比不检测风险更高。PATROL/
+            # APPROACHING/TO_LANDING/RETREAT阶段不受影响，仍用现有悬停避让+
+            # _exclude_circle_target排除机制。
+            if self.nav_mode != "CIRCLING":
+                hover_check_poles = self._exclude_circle_target(confirmed)
+                pole_dist = nearest_confirmed_pole_dist(hover_check_poles, pos[0], pos[1])
+                if self._pole_hovering:
+                    pole_hover = pole_dist is not None and pole_dist < POLE_RESUME_DIST_M
+                else:
+                    pole_hover = pole_dist is not None and pole_dist < POLE_DANGER_DIST_M
 
         if pole_hover:
             if not self._pole_hovering:
@@ -691,7 +736,15 @@ class mission:
         # 问题的另一个入口)。改用跟环绕排除一致的宽容差(环绕半径+余量)。
         tolerance = POLE_CIRCLE_RADIUS_M + POLE_CIRCLE_EXCLUDE_MARGIN_M
         return any(math.hypot(x - cx, y - cy) <= tolerance
-                   for cx, cy in self.circled_poles)
+                   for cx, cy, _color in self.circled_poles)
+
+    def _color_already_circled(self, color):
+        """颜色去重判断——替代坐标容差成为"是否已环绕过"的依据(2026-07-14设计
+        文档"去重机制"一节)。已被`_update_trigger_candidate`接入，作为
+        PATROL→APPROACHING触发条件之一(Task 7)。`_already_circled`(坐标容差)
+        继续保留给悬停避让/绕行排除使用，两者服务不同目的，见设计文档。
+        """
+        return color in self.circled_colors
 
     def _find_new_pole(self, confirmed):
         for p in confirmed:
@@ -703,9 +756,9 @@ class mission:
         """只排除当前正在主动环绕的目标(宽容差，见POLE_CIRCLE_EXCLUDE_MARGIN_M注释)，
         不排除已环绕完成的杆塔——供绕行检测使用：已环绕过的杆塔已经从悬停避让永久
         排除了，如果直飞路径又正好穿过它，绕行是唯一还能防碰撞的机制，不能连带排除。"""
-        if self._circle_pole_center is None:
+        if self._approach_pole_center is None:
             return confirmed
-        cx, cy = self._circle_pole_center
+        cx, cy = self._approach_pole_center
         exclude_radius = POLE_CIRCLE_RADIUS_M + POLE_CIRCLE_EXCLUDE_MARGIN_M
         return [p for p in confirmed
                 if math.hypot(p["x"] - cx, p["y"] - cy) > exclude_radius]
@@ -742,32 +795,191 @@ class mission:
                 return True
         return False
 
-    def _start_circling(self, pole, pos):
+    def _update_trigger_candidate(self, confirmed):
+        """返回True表示本次调用触发了APPROACHING(调用方应该直接return，跳过
+        本tick剩余的悬停避让/日志逻辑，语义上跟原来_start_circling后直接return
+        一致)。"""
+        new_pole = self._find_new_pole(confirmed)
+        vision = self.pole_vision.latest() if self.pole_vision is not None else None
+        vision_color = vision["color"] if vision else None
+        vision_fresh = (vision is not None and vision["t"] > 0
+                         and time.time() - vision["t"] < POLE_VISION_STALE_S)
+
+        candidate = None
+        if (new_pole is not None and vision_fresh and vision_color is not None
+                and not self._color_already_circled(vision_color)):
+            candidate = (new_pole["x"], new_pole["y"], vision_color)
+
+        if candidate is None:
+            self._trigger_candidate = None
+            self._trigger_candidate_since = None
+            return False
+
+        # 只比较颜色不比较坐标：赛题每种颜色最多一根杆，颜色相同即视为同一目标；
+        # 如果以后场景允许同色多杆，这里需要改成坐标也纳入身份判断。
+        if self._trigger_candidate is None or self._trigger_candidate[2] != candidate[2]:
+            self._trigger_candidate = candidate
+            self._trigger_candidate_since = time.time()
+            return False
+
+        if time.time() - self._trigger_candidate_since >= POLE_TRIGGER_CONFIRM_S:
+            self._start_approaching(*candidate)
+            self._trigger_candidate = None
+            self._trigger_candidate_since = None
+            return True
+        return False
+
+    def _start_approaching(self, x, y, color):
         self._patrol_saved_targets = self.targets
         self._patrol_saved_index = self.target_index
-        self._circle_pole_center = (pole["x"], pole["y"])
+        self._approach_pole_center = (x, y)
+        self._approach_color = color
+        self._approach_lost_since = None
+        # 跟x_pid/y_pid切换目标时的reset()同一套约定：避免PID内部
+        # _last_time/_last_input/_last_error残留上一次APPROACHING episode
+        # (可能是另一根杆塔)的状态，污染这次接近的第一次微分项计算。
+        self.approach_y_pid.reset()
+        if self.pole_vision is not None:
+            self.pole_vision.set_locked_color(color)
+        self.nav_mode = "APPROACHING"
+        logger.warning(f"雷达+视觉确认{color}杆塔({x:.2f},{y:.2f})，开始视觉接近")
+
+    def _approaching_step(self, pos, yaw):
+        # 雷达轮询+悬停避让(2026-07-14全量review发现的缺口修复)：原实现直接
+        # 进入下面的接近控制逻辑，完全跳过了navigate()里其他nav_mode都会走的
+        # 雷达轮询/悬停避让代码块，设计文档承诺的"APPROACHING阶段其余未处理
+        # 杆塔仍触发悬停避让"从未生效。这里补一份跟navigate()同构的悬停避让
+        # 逻辑(排除当前接近目标+已环绕杆塔，复用_exclude_circle_target，语义
+        # 与PATROL/TO_LANDING/RETREAT一致)。
+        pole_hover = False
+        pole_dist = None
+        if self.pole_tracker is not None:
+            now = time.time()
+            if now - self._last_pole_poll_time >= POLE_POLL_INTERVAL_S:
+                self._last_pole_poll_time = now
+                self.pole_tracker.update(self.radar, pos[0], pos[1], yaw)
+            confirmed = self.pole_tracker.confirmed_poles()
+            hover_check_poles = self._exclude_circle_target(confirmed)
+            pole_dist = nearest_confirmed_pole_dist(hover_check_poles, pos[0], pos[1])
+            if self._pole_hovering:
+                pole_hover = pole_dist is not None and pole_dist < POLE_RESUME_DIST_M
+            else:
+                pole_hover = pole_dist is not None and pole_dist < POLE_DANGER_DIST_M
+
+        if pole_hover:
+            if not self._pole_hovering:
+                logger.warning(f"APPROACHING阶段检测到其他杆子距离{pole_dist:.2f}m，悬停等待")
+                self._pole_hovering = True
+                self._hover_hold_pos = (pos[0], pos[1])
+                self._hover_start_time = time.time()
+                self.x_pid.set_target(self._hover_hold_pos[0])
+                self.y_pid.set_target(self._hover_hold_pos[1])
+            elif time.time() - self._hover_start_time >= POLE_HOVER_TIMEOUT_S:
+                logger.warning(f"APPROACHING阶段悬停超过{POLE_HOVER_TIMEOUT_S:.0f}秒仍未恢复，原地触发降落")
+                self._pole_hovering = False
+                self._hover_hold_pos = None
+                self._hover_start_time = None
+                self.state = "LAND"
+                return
+            vx = int(self.limit(self.x_pid.get_pid(pos[0]) * 100 * VEL_SCALE, 40))
+            vy = int(self.limit(self.y_pid.get_pid(pos[1]) * 100 * VEL_SCALE, 40))
+            # 高度也一并冻结(不调用_step_ramp_z)，跟navigate()的悬停分支同构：
+            # 悬停避让的语义是"停一切、原地保持"，2026-07-14 code review发现这里
+            # 原本多了一行_step_ramp_z(cruise_z)会让高度在悬停期间继续爬升到
+            # 巡航高度，跟navigate()真正的"位置+高度都冻结"行为不一致，已去掉。
+            self.set_speed(vx, vy, 0, int(self._ramp_z_cm))
+            return
+        elif self._pole_hovering:
+            logger.info("APPROACHING阶段杆子确认已消失，恢复接近")
+            self._pole_hovering = False
+            self._hover_hold_pos = None
+            self._hover_start_time = None
+
+        cx, cy = self._approach_pole_center
+        dist = math.hypot(pos[0] - cx, pos[1] - cy)
+
+        vision = self.pole_vision.latest() if self.pole_vision is not None else None
+        vision_fresh = (vision is not None and vision["t"] > 0
+                         and time.time() - vision["t"] < POLE_VISION_STALE_S)
+
+        if not vision_fresh:
+            if self._approach_lost_since is None:
+                self._approach_lost_since = time.time()
+            elif time.time() - self._approach_lost_since >= POLE_VISION_STALE_S:
+                logger.warning("APPROACHING视觉目标丢失，退回PATROL")
+                self._abort_approaching()
+                return
+        else:
+            self._approach_lost_since = None
+
+        if dist <= APPROACH_CIRCLE_TRIGGER_DIST_M:
+            self._start_circling_from_approach(pos)
+            return
+
+        x_speed = APPROACH_X_SPEED_FAR if dist > APPROACH_X_SWITCH_DIST_M else APPROACH_X_SPEED_NEAR
+        vx = int(x_speed if cx >= pos[0] else -x_speed)
+
+        vy = 0
+        if vision_fresh and vision["dx_px"] is not None:
+            azimuth = azimuth_from_dx(vision["dx_px"])
+            self.approach_y_pid.set_target(0.0)
+            vy_raw = self.approach_y_pid.get_pid(azimuth * POLE_VISION_Y_SIGN)
+            vy = int(self.limit(vy_raw, APPROACH_Y_VEL_MAX))
+
+        self._step_ramp_z(int(self._cruise_z * 100))
+        self.set_speed(vx, vy, 0, int(self._ramp_z_cm))
+
+    def _abort_approaching(self):
+        if self.pole_vision is not None:
+            self.pole_vision.set_locked_color(None)
+        self.targets = self._patrol_saved_targets
+        self.target_index = self._patrol_saved_index
+        self.last_target_index = -1
+        self._approach_pole_center = None
+        self._approach_color = None
+        self._approach_lost_since = None
+        self.nav_mode = "PATROL"
+
+    def _start_circling_from_approach(self, pos):
+        cx, cy = self._approach_pole_center
+        direction = POLE_COLOR_DIRECTION[self._approach_color]
         waypoints = generate_circle_waypoints(
-            pole["x"], pole["y"], pos[0], pos[1],
+            cx, cy, pos[0], pos[1],
             radius=POLE_CIRCLE_RADIUS_M, n_points=POLE_CIRCLE_N_POINTS,
-            direction=POLE_CIRCLE_DIRECTION, z=self._cruise_z,
+            direction=direction, z=self._cruise_z,
         )
         self.targets = waypoints
         self.target_index = 0
         self.last_target_index = -1
+        self._detour_checked_index = -1
         self.nav_mode = "CIRCLING"
         logger.warning(
-            f"检测到杆塔({pole['x']:.2f},{pole['y']:.2f})，开始环绕飞行，{len(waypoints)}个航点"
+            f"进入环绕：{self._approach_color}杆塔({cx:.2f},{cy:.2f})，"
+            f"方向{direction}，{len(waypoints)}个航点"
         )
 
-    def _on_circle_complete(self):
-        cx, cy = self._circle_pole_center
-        logger.info(f"杆塔({cx:.2f},{cy:.2f})环绕完成")
-        self.circled_poles.append((cx, cy))
-        self._circle_pole_center = None
-        if len(self.circled_poles) >= self.pole_total:
-            logger.info(f"已绕完全部{self.pole_total}根杆塔，前往降落点")
-            self.targets = [[LANDING_POINT[0], LANDING_POINT[1], self._cruise_z]]
+    def _on_circle_complete(self, pos):
+        cx, cy = self._approach_pole_center
+        color = self._approach_color
+        logger.info(f"{color}杆塔({cx:.2f},{cy:.2f})环绕完成")
+        self.circled_poles.append((cx, cy, color))
+        self.circled_colors.add(color)
+        self._approach_pole_center = None
+        self._approach_color = None
+        if self.pole_vision is not None:
+            self.pole_vision.set_locked_color(None)
+        # 先退回x=0基准线，再决定继续巡航还是转向降落(见2026-07-14设计文档)
+        self.targets = [[0.0, pos[1], self._cruise_z]]
+        self.target_index = 0
+        self.last_target_index = -1
+        self.nav_mode = "RETREAT"
+
+    def _on_retreat_complete(self):
+        if len(self.circled_colors) >= self.pole_total:
+            logger.info(f"已绕完全部{self.pole_total}种颜色，前往降落点")
+            self.targets = self.load_waypoints('landing_router.txt')
             self.target_index = 0
+            self._detour_checked_index = -1
             self.nav_mode = "TO_LANDING"
         else:
             self.targets = self._patrol_saved_targets
