@@ -732,9 +732,10 @@ class mission:
                    for cx, cy, _color in self.circled_poles)
 
     def _color_already_circled(self, color):
-        """颜色去重判断——替代坐标容差成为"是否已环绕过"的依据(2026-07-14设计
-        文档"去重机制"一节)，只用于PATROL→APPROACHING触发；`_already_circled`
-        (坐标容差)继续保留给悬停避让/绕行排除使用，两者服务不同目的，见设计文档。
+        """颜色去重判断——将替代坐标容差成为"是否已环绕过"的依据(2026-07-14设计
+        文档"去重机制"一节)，供后续任务接入PATROL→APPROACHING触发使用；当前尚未
+        被任何调用点接入，是待后续任务连线的脚手架。`_already_circled`(坐标容差)
+        继续保留给悬停避让/绕行排除使用，两者服务不同目的，见设计文档。
         """
         return color in self.circled_colors
 
@@ -807,7 +808,7 @@ class mission:
     def _on_circle_complete(self):
         cx, cy = self._approach_pole_center
         logger.info(f"杆塔({cx:.2f},{cy:.2f})环绕完成")
-        self.circled_poles.append((cx, cy))
+        self.circled_poles.append((cx, cy, self._approach_color))
         self._approach_pole_center = None
         if len(self.circled_poles) >= self.pole_total:
             logger.info(f"已绕完全部{self.pole_total}根杆塔，前往降落点")
