@@ -729,7 +729,14 @@ class mission:
         # 问题的另一个入口)。改用跟环绕排除一致的宽容差(环绕半径+余量)。
         tolerance = POLE_CIRCLE_RADIUS_M + POLE_CIRCLE_EXCLUDE_MARGIN_M
         return any(math.hypot(x - cx, y - cy) <= tolerance
-                   for cx, cy in self.circled_poles)
+                   for cx, cy, _color in self.circled_poles)
+
+    def _color_already_circled(self, color):
+        """颜色去重判断——替代坐标容差成为"是否已环绕过"的依据(2026-07-14设计
+        文档"去重机制"一节)，只用于PATROL→APPROACHING触发；`_already_circled`
+        (坐标容差)继续保留给悬停避让/绕行排除使用，两者服务不同目的，见设计文档。
+        """
+        return color in self.circled_colors
 
     def _find_new_pole(self, confirmed):
         for p in confirmed:

@@ -69,7 +69,7 @@ class TestMissionPoleHover:
         """2026-07-13真机测试发现的回归测试：已环绕过的杆塔重新靠近也不应该悬停
         （旧版本这里会悬停，导致环绕完成后原地卡住直到15秒超时强制降落）。"""
         m = _make_mission(radar_obj=object())  # 哨兵对象，本测试跳过真实轮询，不会被调用
-        m.circled_poles = [(0.3, 0.0)]  # 已环绕过
+        m.circled_poles = [(0.3, 0.0, "red")]  # 已环绕过
         m._last_pole_poll_time = time.time()  # 跳过本帧的雷达轮询(节流)，直接摆好历史数据
         for _ in range(3):
             m.pole_tracker._history.append([(0.3, 0.0)])  # 世界坐标(0.3,0)，离(0,0)只有0.3m
@@ -85,7 +85,7 @@ class TestMissionPoleHover:
         逐渐漂移。用比POLE_WORLD_MATCH_EPS_M(0.2m)更宽的容差(环绕半径+余量)判断
         "是否已环绕过"，否则漂移超过0.2m就会被误判成新杆塔，重新触发悬停。"""
         m = _make_mission(radar_obj=object())
-        m.circled_poles = [(-0.91, -0.28)]  # 已环绕过的杆塔记录位置
+        m.circled_poles = [(-0.91, -0.28, "red")]  # 已环绕过的杆塔记录位置
         m._last_pole_poll_time = time.time()
         # 当前重新计算出的位置漂移了约0.41m(超过0.2m旧容差，但在1.1m新容差内)
         for _ in range(3):

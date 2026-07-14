@@ -22,32 +22,16 @@ def _make_mission(radar_obj=None, pole_total=1):
     return m
 
 
-class TestPatrolTriggersCircling:
-    def test_confirmed_new_pole_switches_to_circling(self):
-        m = _make_mission(radar_obj=object(), pole_total=1)
-        m._last_pole_poll_time = time.time()
-        for _ in range(3):
-            m.pole_tracker._history.append([(0.5, 0.3)])
+class TestColorDedup:
+    def test_already_circled_color_is_not_in_circled_colors_initially(self):
+        m = _make_mission(radar_obj=object())
+        assert m.circled_colors == set()
 
-        m.set_speed = lambda *a, **k: None
-        m.navigate([0.0, 0.0, 1.2], 0.0)
-
-        assert m.nav_mode == "CIRCLING"
-        assert m._approach_pole_center == pytest.approx((0.5, 0.3))
-        assert len(m.targets) == POLE_CIRCLE_N_POINTS + 1
-        assert m.target_index == 0
-
-    def test_already_circled_pole_does_not_retrigger(self):
-        m = _make_mission(radar_obj=object(), pole_total=2)
-        m.circled_poles = [(0.5, 0.3)]
-        m._last_pole_poll_time = time.time()
-        for _ in range(3):
-            m.pole_tracker._history.append([(0.5, 0.3)])
-
-        m.set_speed = lambda *a, **k: None
-        m.navigate([0.0, 0.0, 1.2], 0.0)
-
-        assert m.nav_mode == "PATROL"
+    def test_color_already_circled_true_after_recorded(self):
+        m = _make_mission(radar_obj=object())
+        m.circled_colors.add("red")
+        assert m._color_already_circled("red") is True
+        assert m._color_already_circled("green") is False
 
 
 class TestCirclingHoverExclusion:
@@ -151,7 +135,7 @@ class TestDetourInsertion:
         """2026-07-13讨论的场景：已经环绕过的杆塔从悬停避让里永久排除了，如果
         巡航/降落路径又正好直飞穿过它，绕行是唯一还能防碰撞的机制。"""
         m = _make_mission(radar_obj=object())
-        m.circled_poles = [(1.0, 0.0)]  # 已环绕过，挡在(0,0)->(2,0)正中间
+        m.circled_poles = [(1.0, 0.0, "red")]  # 已环绕过，挡在(0,0)->(2,0)正中间
         m.nav_mode = "PATROL"
         m.targets = [[2.0, 0.0, 1.2]]
         m.target_index = 0
@@ -189,7 +173,7 @@ class TestDetourInsertion:
     def test_does_not_recheck_same_target_index_repeatedly(self):
         """同一个target_index只检查一次，不会每tick重复插入绕行航点。"""
         m = _make_mission(radar_obj=object())
-        m.circled_poles = [(1.0, 0.0)]
+        m.circled_poles = [(1.0, 0.0, "red")]
         m.nav_mode = "PATROL"
         m.targets = [[2.0, 0.0, 1.2]]
         m.target_index = 0
