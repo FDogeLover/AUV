@@ -2,6 +2,7 @@
 后台线程封装(PoleVision类)见本文件下半部分，见2026-07-14设计文档"视觉子系统"一节。
 """
 import math
+import os
 import threading
 import time
 
@@ -101,6 +102,10 @@ class PoleVision:
         self._locked_color = None
         self._running = False
         self._cap = None
+        # 2026-07-14排查"识别到非预期颜色"问题时新增：设置DRONE_VISION_DEBUG_DIR后，
+        # 每次颜色从无到有/切换时保存一帧现场画面，方便事后核对镜头里实际拍到的是什么。
+        self._debug_dir = os.getenv("DRONE_VISION_DEBUG_DIR")
+        self._last_saved_color = None
 
     def start(self):
         self._cap = cv2.VideoCapture(self.device)
@@ -144,7 +149,15 @@ class PoleVision:
                     locked = self._locked_color
                 colors = (locked,) if locked else ("red", "green")
                 dx_px, color = detect_target(frame, colors=colors)
+                if self._debug_dir and color is not None and color != self._last_saved_color:
+                    self._save_debug_frame(frame, color)
+                self._last_saved_color = color
                 with self._lock:
                     self._latest = {"dx_px": dx_px, "color": color, "t": time.time()}
         finally:
             self._cap.release()
+
+    def _save_debug_frame(self, frame, color):
+        os.makedirs(self._debug_dir, exist_ok=True)
+        path = os.path.join(self._debug_dir, f"{time.strftime('%Y%m%d_%H%M%S')}_{color}.jpg")
+        cv2.imwrite(path, frame)

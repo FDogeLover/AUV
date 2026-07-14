@@ -213,6 +213,41 @@ class TestPoleVisionBackgroundLoop:
             time.sleep(0.02)
         pv.stop()
 
+
+class TestPoleVisionDebugFrameSave:
+    def test_saves_frame_when_debug_dir_set_and_color_detected(self, monkeypatch, tmp_path):
+        frame = _blank_frame()
+        _draw_rect_bgr(frame, (0, 0, 255), x_center=960)
+        fake_cap = _FakeCapOneFrame(frame)
+        monkeypatch.setattr("Lcode.pole_vision.cv2.VideoCapture", lambda *_a, **_k: fake_cap)
+        monkeypatch.setenv("DRONE_VISION_DEBUG_DIR", str(tmp_path))
+
+        pv = PoleVision()
+        assert pv.start() is True
+        deadline = time.time() + 2.0
+        while pv.latest()["color"] is None and time.time() < deadline:
+            time.sleep(0.02)
+        pv.stop()
+
+        saved = list(tmp_path.glob("*_red.jpg"))
+        assert len(saved) == 1
+
+    def test_no_save_when_debug_dir_not_set(self, monkeypatch, tmp_path):
+        frame = _blank_frame()
+        _draw_rect_bgr(frame, (0, 0, 255), x_center=960)
+        fake_cap = _FakeCapOneFrame(frame)
+        monkeypatch.setattr("Lcode.pole_vision.cv2.VideoCapture", lambda *_a, **_k: fake_cap)
+        monkeypatch.delenv("DRONE_VISION_DEBUG_DIR", raising=False)
+
+        pv = PoleVision()
+        assert pv.start() is True
+        deadline = time.time() + 2.0
+        while pv.latest()["color"] is None and time.time() < deadline:
+            time.sleep(0.02)
+        pv.stop()
+
+        assert list(tmp_path.glob("*.jpg")) == []
+
         # release() 只会在后台线程下一次循环检测到 _running=False 后才调用，
         # 轮询等待而不是固定sleep或立即断言
         deadline = time.time() + 2.0
