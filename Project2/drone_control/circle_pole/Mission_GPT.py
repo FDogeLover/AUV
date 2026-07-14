@@ -97,7 +97,6 @@ POLE_CIRCLE_EXCLUDE_MARGIN_M = 0.4  # 环绕中排除"自己正在绕的目标"�
                               # 中途误触发悬停。赛题杆塔间距最小150cm，只要排除半径明显小于
                               # 1.5m，就不会误伤阶段2场景下真正的第二根杆子。
 TOTAL_POLES = int(os.getenv("DRONE_POLE_TOTAL", "1"))  # 阶段1=1(默认)；阶段2设DRONE_POLE_TOTAL=2
-LANDING_POINT = (2.0, 0.0)   # 降落点世界坐标占位值 — 现场量出实际降落标识位置后必须修改
 POLE_DETOUR_SAFETY_RADIUS_M = POLE_DANGER_DIST_M  # 绕行安全半径，跟悬停避让触发阈值一致(2026-07-13)
 POLE_DETOUR_MARGIN_M = 0.15  # 绕行航点比安全半径再往外推一点，避免刚好卡在边界抖动
 
@@ -452,7 +451,9 @@ class mission:
         # 全部航点耗尽：按当前nav_mode分支处理(环绕完成/到达降落点/巡航耗尽兜底)
         if self.target_index >= len(self.targets):
             if self.nav_mode == "CIRCLING":
-                self._on_circle_complete()
+                self._on_circle_complete(pos)
+            elif self.nav_mode == "RETREAT":
+                self._on_retreat_complete()
             elif self.nav_mode == "TO_LANDING":
                 logger.info("到达降落点")
                 self.state = "LAND"
@@ -903,14 +904,26 @@ class mission:
             f"方向{direction}，{len(waypoints)}个航点"
         )
 
-    def _on_circle_complete(self):
+    def _on_circle_complete(self, pos):
         cx, cy = self._approach_pole_center
-        logger.info(f"杆塔({cx:.2f},{cy:.2f})环绕完成")
-        self.circled_poles.append((cx, cy, self._approach_color))
+        color = self._approach_color
+        logger.info(f"{color}杆塔({cx:.2f},{cy:.2f})环绕完成")
+        self.circled_poles.append((cx, cy, color))
+        self.circled_colors.add(color)
         self._approach_pole_center = None
-        if len(self.circled_poles) >= self.pole_total:
-            logger.info(f"已绕完全部{self.pole_total}根杆塔，前往降落点")
-            self.targets = [[LANDING_POINT[0], LANDING_POINT[1], self._cruise_z]]
+        self._approach_color = None
+        if self.pole_vision is not None:
+            self.pole_vision.set_locked_color(None)
+        # 先退回x=0基准线，再决定继续巡航还是转向降落(见2026-07-14设计文档)
+        self.targets = [[0.0, pos[1], self._cruise_z]]
+        self.target_index = 0
+        self.last_target_index = -1
+        self.nav_mode = "RETREAT"
+
+    def _on_retreat_complete(self):
+        if len(self.circled_colors) >= self.pole_total:
+            logger.info(f"已绕完全部{self.pole_total}种颜色，前往降落点")
+            self.targets = self.load_waypoints('landing_router.txt')
             self.target_index = 0
             self.nav_mode = "TO_LANDING"
         else:

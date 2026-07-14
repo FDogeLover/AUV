@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 import pytest
 
-from Mission_GPT import mission, POLE_CIRCLE_N_POINTS, LANDING_POINT
+from Mission_GPT import mission, POLE_CIRCLE_N_POINTS
 
 
 def _make_mission(radar_obj=None, pole_total=1):
@@ -88,34 +88,49 @@ class TestCirclingHoverExclusion:
 
 
 class TestCircleCompletion:
-    def test_single_pole_mission_switches_to_to_landing_when_circle_done(self):
+    def test_circle_done_retreats_to_x_zero_baseline_first(self):
         m = _make_mission(radar_obj=object(), pole_total=1)
         m.nav_mode = "CIRCLING"
-        m._circle_pole_center = (0.5, 0.3)
+        m._approach_pole_center = (0.5, 0.3)
+        m._approach_color = "red"
         m.targets = [[0.5, 0.8, 1.2]]
         m.target_index = 1  # 已飞完最后一个环绕航点
 
         m.navigate([0.5, 0.8, 1.2], 0.0)
 
-        assert m.nav_mode == "TO_LANDING"
-        assert m.circled_poles == [(0.5, 0.3)]
-        assert m.targets == [[LANDING_POINT[0], LANDING_POINT[1], m._cruise_z]]
+        assert m.nav_mode == "RETREAT"
+        assert m.circled_poles == [(0.5, 0.3, "red")]
+        assert m.circled_colors == {"red"}
+        assert m.targets == [[0.0, 0.8, m._cruise_z]]
         assert m.target_index == 0
+        assert m._approach_pole_center is None
 
-    def test_multi_pole_mission_resumes_patrol_when_more_poles_remain(self):
+    def test_single_color_mission_switches_to_to_landing_after_retreat(self):
+        m = _make_mission(radar_obj=object(), pole_total=1)
+        m.nav_mode = "RETREAT"
+        m.circled_colors = {"red"}
+        m.targets = [[0.0, 0.8, 1.2]]
+        m.target_index = 1  # 已到达基准线
+
+        m.navigate([0.0, 0.8, 1.2], 0.0)
+
+        assert m.nav_mode == "TO_LANDING"
+        assert m.target_index == 0
+        assert len(m.targets) >= 1  # 从landing_router.txt加载
+
+    def test_multi_color_mission_resumes_patrol_after_retreat(self):
         m = _make_mission(radar_obj=object(), pole_total=2)
         patrol_targets = [[0.0, 0.0, 1.2], [1.0, 0.0, 1.2], [2.0, 0.0, 1.2]]
         m._patrol_saved_targets = patrol_targets
         m._patrol_saved_index = 1
-        m.nav_mode = "CIRCLING"
-        m._circle_pole_center = (0.5, 0.3)
-        m.targets = [[0.5, 0.8, 1.2]]
+        m.nav_mode = "RETREAT"
+        m.circled_colors = {"red"}  # 只绕完一种颜色，还差一种
+        m.targets = [[0.0, 0.8, 1.2]]
         m.target_index = 1
 
-        m.navigate([0.5, 0.8, 1.2], 0.0)
+        m.navigate([0.0, 0.8, 1.2], 0.0)
 
         assert m.nav_mode == "PATROL"
-        assert m.circled_poles == [(0.5, 0.3)]
         assert m.targets == patrol_targets
         assert m.target_index == 1
 
