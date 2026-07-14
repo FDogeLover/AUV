@@ -118,6 +118,24 @@ class TestCircleCompletion:
         assert m.target_index == 0
         assert len(m.targets) >= 1  # 从landing_router.txt加载
 
+    def test_retreat_to_to_landing_resets_detour_checked_index(self):
+        """review发现的潜在gap：RETREAT的唯一航点(index 0)已经跑过一次
+        _maybe_insert_detour并把_detour_checked_index设成0；如果进入TO_LANDING时
+        不重置，TO_LANDING第一个航点同样是index 0，会被_maybe_insert_detour误判
+        成"已经检查过"而静默跳过绕行检测——跟_start_circling_from_approach进入
+        CIRCLING时显式重置_detour_checked_index=-1是同一类问题。"""
+        m = _make_mission(radar_obj=object(), pole_total=1)
+        m.nav_mode = "RETREAT"
+        m.circled_colors = {"red"}
+        m.targets = [[0.0, 0.8, 1.2]]
+        m.target_index = 1  # 已到达基准线
+        m._detour_checked_index = 0  # 模拟RETREAT航点已经跑过绕行检测
+
+        m.navigate([0.0, 0.8, 1.2], 0.0)
+
+        assert m.nav_mode == "TO_LANDING"
+        assert m._detour_checked_index == -1
+
     def test_multi_color_mission_resumes_patrol_after_retreat(self):
         m = _make_mission(radar_obj=object(), pole_total=2)
         patrol_targets = [[0.0, 0.0, 1.2], [1.0, 0.0, 1.2], [2.0, 0.0, 1.2]]

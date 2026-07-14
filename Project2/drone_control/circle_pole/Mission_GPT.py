@@ -929,6 +929,7 @@ class mission:
             logger.info(f"已绕完全部{self.pole_total}种颜色，前往降落点")
             self.targets = self.load_waypoints('landing_router.txt')
             self.target_index = 0
+            self._detour_checked_index = -1
             self.nav_mode = "TO_LANDING"
         else:
             self.targets = self._patrol_saved_targets
