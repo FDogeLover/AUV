@@ -883,7 +883,10 @@ class mission:
                 return
             vx = int(self.limit(self.x_pid.get_pid(pos[0]) * 100 * VEL_SCALE, 40))
             vy = int(self.limit(self.y_pid.get_pid(pos[1]) * 100 * VEL_SCALE, 40))
-            self._step_ramp_z(int(self._cruise_z * 100))
+            # 高度也一并冻结(不调用_step_ramp_z)，跟navigate()的悬停分支同构：
+            # 悬停避让的语义是"停一切、原地保持"，2026-07-14 code review发现这里
+            # 原本多了一行_step_ramp_z(cruise_z)会让高度在悬停期间继续爬升到
+            # 巡航高度，跟navigate()真正的"位置+高度都冻结"行为不一致，已去掉。
             self.set_speed(vx, vy, 0, int(self._ramp_z_cm))
             return
         elif self._pole_hovering:
