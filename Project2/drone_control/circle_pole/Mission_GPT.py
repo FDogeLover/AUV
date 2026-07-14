@@ -896,6 +896,7 @@ class mission:
         self.targets = waypoints
         self.target_index = 0
         self.last_target_index = -1
+        self._detour_checked_index = -1
         self.nav_mode = "CIRCLING"
         logger.warning(
             f"进入环绕：{self._approach_color}杆塔({cx:.2f},{cy:.2f})，"
