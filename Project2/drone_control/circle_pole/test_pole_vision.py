@@ -9,10 +9,11 @@ import sys
 
 sys.path.insert(0, os.path.dirname(__file__))
 
+import cv2
 import numpy as np
 import pytest
 
-from Lcode.pole_vision import detect_target, azimuth_from_dx, CAMERA_FOCAL_PX
+from Lcode.pole_vision import detect_target, azimuth_from_dx, CAMERA_FOCAL_PX, CAMERA_FRAME_WIDTH
 
 
 def _blank_frame(width=1920, height=1080):
@@ -110,6 +111,7 @@ class _FakeCapOneFrame:
         self._frame = frame
         self._served = False
         self.released = False
+        self.set_calls = []
 
     def isOpened(self):
         return True
@@ -122,6 +124,10 @@ class _FakeCapOneFrame:
 
     def release(self):
         self.released = True
+
+    def set(self, prop_id, value):
+        self.set_calls.append((prop_id, value))
+        return True
 
 
 class TestPoleVisionStartFailure:
@@ -137,6 +143,31 @@ class TestPoleVisionStartFailure:
         assert latest["dx_px"] is None
         assert latest["color"] is None
         assert latest["t"] == 0.0
+
+
+class TestPoleVisionResolution:
+    def test_start_sets_1920x1080_mjpg_on_capture(self, monkeypatch):
+        """2026-07-14真机测试发现：这颗USB摄像头默认给出320x240帧，而
+        CAMERA_FOCAL_PX(1100)是按1920宽度标定的焦距，不显式设置分辨率会让
+        azimuth_from_dx的换算完全错误(应该按帧宽等比例缩放焦距，而不是让帧
+        宽跟标定值对不上)。start()必须在拿到能打开的capture后、起后台线程前，
+        显式把格式/分辨率设成标定时用的1920x1080 MJPG。"""
+        frame = _blank_frame()
+        fake_cap = _FakeCapOneFrame(frame)
+        monkeypatch.setattr("Lcode.pole_vision.cv2.VideoCapture", lambda *_a, **_k: fake_cap)
+
+        pv = PoleVision()
+        assert pv.start() is True
+        pv.stop()
+
+        prop_ids_set = [call[0] for call in fake_cap.set_calls]
+        assert cv2.CAP_PROP_FOURCC in prop_ids_set
+        assert cv2.CAP_PROP_FRAME_WIDTH in prop_ids_set
+        assert cv2.CAP_PROP_FRAME_HEIGHT in prop_ids_set
+        width_value = dict(fake_cap.set_calls)[cv2.CAP_PROP_FRAME_WIDTH]
+        height_value = dict(fake_cap.set_calls)[cv2.CAP_PROP_FRAME_HEIGHT]
+        assert width_value == CAMERA_FRAME_WIDTH
+        assert height_value == 1080
 
 
 class TestPoleVisionLockedColor:

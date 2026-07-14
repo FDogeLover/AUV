@@ -91,6 +91,14 @@ class PoleVision:
             logger.error(f"前置摄像头打不开({self.device})，视觉子系统禁用")
             self._cap = None
             return False
+        # 2026-07-14真机测试发现：这颗USB摄像头默认给出320x240帧，而
+        # CAMERA_FOCAL_PX(1100)是按1920宽度标定的焦距——不显式设置分辨率，
+        # detect_target()算出来的dx_px是按实际帧宽(320)算的，但azimuth_from_dx
+        # 拿去除的焦距却是按1920宽度标定的，两者对不上会让方位角完全算错。
+        # MJPG格式+1920x1080是这颗摄像头支持的最高分辨率，也是标定时用的分辨率。
+        self._cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
+        self._cap.set(cv2.CAP_PROP_FRAME_WIDTH, CAMERA_FRAME_WIDTH)
+        self._cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
         self._running = True
         threading.Thread(target=self._loop, daemon=True).start()
         return True
