@@ -109,6 +109,7 @@ class _FakeCapOneFrame:
     def __init__(self, frame):
         self._frame = frame
         self._served = False
+        self.released = False
 
     def isOpened(self):
         return True
@@ -118,6 +119,9 @@ class _FakeCapOneFrame:
             self._served = True
             return True, self._frame
         return False, None
+
+    def release(self):
+        self.released = True
 
 
 class TestPoleVisionStartFailure:
@@ -164,3 +168,24 @@ class TestPoleVisionBackgroundLoop:
         assert latest["color"] == "red"
         assert latest["dx_px"] == pytest.approx(0.0, abs=5)
         assert latest["t"] > 0.0
+
+    def test_stop_releases_camera_capture(self, monkeypatch):
+        frame = _blank_frame()
+        _draw_rect_bgr(frame, (0, 0, 255), x_center=960)
+        fake_cap = _FakeCapOneFrame(frame)
+        monkeypatch.setattr("Lcode.pole_vision.cv2.VideoCapture", lambda *_a, **_k: fake_cap)
+
+        pv = PoleVision()
+        assert pv.start() is True
+        deadline = time.time() + 2.0
+        while pv.latest()["color"] is None and time.time() < deadline:
+            time.sleep(0.02)
+        pv.stop()
+
+        # release() 只会在后台线程下一次循环检测到 _running=False 后才调用，
+        # 轮询等待而不是固定sleep或立即断言
+        deadline = time.time() + 2.0
+        while not fake_cap.released and time.time() < deadline:
+            time.sleep(0.02)
+
+        assert fake_cap.released is True

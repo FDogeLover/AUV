@@ -109,14 +109,17 @@ class PoleVision:
             return dict(self._latest)
 
     def _loop(self):
-        while self._running:
-            ok, frame = self._cap.read()
-            if not ok:
-                time.sleep(0.05)
-                continue
-            with self._lock:
-                locked = self._locked_color
-            colors = (locked,) if locked else ("red", "green")
-            dx_px, color = detect_target(frame, colors=colors)
-            with self._lock:
-                self._latest = {"dx_px": dx_px, "color": color, "t": time.time()}
+        try:
+            while self._running:
+                ok, frame = self._cap.read()
+                if not ok:
+                    time.sleep(0.05)
+                    continue
+                with self._lock:
+                    locked = self._locked_color
+                colors = (locked,) if locked else ("red", "green")
+                dx_px, color = detect_target(frame, colors=colors)
+                with self._lock:
+                    self._latest = {"dx_px": dx_px, "color": color, "t": time.time()}
+        finally:
+            self._cap.release()
