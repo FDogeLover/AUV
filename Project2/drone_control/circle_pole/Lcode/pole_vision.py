@@ -2,9 +2,13 @@
 后台线程封装(PoleVision类)见本文件下半部分，见2026-07-14设计文档"视觉子系统"一节。
 """
 import math
+import threading
+import time
 
 import cv2
 import numpy as np
+
+from Lcode.Logger import logger
 
 CAMERA_FOCAL_PX = 1100.0  # 已标定焦距，见 drone_control/tools/camera_test_20260713/
 CAMERA_FRAME_WIDTH = 1920
@@ -60,3 +64,59 @@ def detect_target(frame_bgr, colors=("red", "green"), hsv_ranges=None,
 def azimuth_from_dx(dx_px, focal_px=CAMERA_FOCAL_PX):
     """像素偏移换算成方位角(弧度)，见2026-07-13设计文档"阶段2视觉辅助方案"一节的公式。"""
     return math.atan(dx_px / focal_px)
+
+
+class PoleVision:
+    """后台线程持续拉前置摄像头帧+HSV检测，主循环每tick只读`latest()`共享的最新
+    结果，不阻塞30ms主循环通信实时性(见2026-07-14设计文档"视觉子系统"一节)。
+
+    摄像头打不开时`start()`返回False、不起线程，`latest()`永远返回全None——
+    PATROL态的"雷达+视觉双确认"触发条件因此永远不满足，等同于阶段1纯雷达场景，
+    不会抛异常也不会阻塞主循环(2026-07-14审查记录的已知风险3：视觉系统整体故障
+    时任务会一直卡在PATROL直到超时，此处只保证不crash，卡死风险本身按之前讨论
+    "先记着，等真机测试暴露出来再处理"，不在本次范围内解决)。
+    """
+
+    def __init__(self, device="/dev/video0"):
+        self.device = device
+        self._lock = threading.Lock()
+        self._latest = {"dx_px": None, "color": None, "t": 0.0}
+        self._locked_color = None
+        self._running = False
+        self._cap = None
+
+    def start(self):
+        self._cap = cv2.VideoCapture(self.device)
+        if not self._cap.isOpened():
+            logger.error(f"前置摄像头打不开({self.device})，视觉子系统禁用")
+            self._cap = None
+            return False
+        self._running = True
+        threading.Thread(target=self._loop, daemon=True).start()
+        return True
+
+    def stop(self):
+        self._running = False
+
+    def set_locked_color(self, color):
+        """color为None时匹配红/绿两色(PATROL搜索阶段)，传具体颜色时只匹配该颜色
+        (APPROACHING阶段颜色锁定，见2026-07-14设计文档"颜色锁定"一节)。"""
+        with self._lock:
+            self._locked_color = color
+
+    def latest(self):
+        with self._lock:
+            return dict(self._latest)
+
+    def _loop(self):
+        while self._running:
+            ok, frame = self._cap.read()
+            if not ok:
+                time.sleep(0.05)
+                continue
+            with self._lock:
+                locked = self._locked_color
+            colors = (locked,) if locked else ("red", "green")
+            dx_px, color = detect_target(frame, colors=colors)
+            with self._lock:
+                self._latest = {"dx_px": dx_px, "color": color, "t": time.time()}
