@@ -88,7 +88,6 @@ POLE_CIRCLE_RADIUS_M = 0.7   # 环绕半径(中心到杆塔中心)。2026-07-13�
 POLE_CIRCLE_N_POINTS = 6     # 环绕航点数(60°一个)。弦长(0.7m半径下约0.7m)未超出已验证安全范围
                               # (已知问题15唯一站得住的结论是"扰动随步长单调增大"，无硬上限，
                               # 且问题21大范围大步长测试精度反而更好)
-POLE_CIRCLE_DIRECTION = "cw" # 固定顺时针(顶视)，颜色识别接入后改为按红/绿判断
 POLE_WORLD_MATCH_EPS_M = 0.2 # "同一根杆子"世界坐标匹配容差(用于_already_circled判断"是不是
                               # 已环绕过的那根")，跟PoleTracker.world_eps_m默认值一致
 POLE_CIRCLE_EXCLUDE_MARGIN_M = 0.4  # 环绕中排除"自己正在绕的目标"时，用比POLE_WORLD_MATCH_EPS_M
@@ -480,11 +479,10 @@ class mission:
                 for p in confirmed
             ]
 
-            # PATROL态：发现一个未环绕过的确认杆塔，立即切到CIRCLING
+            # PATROL态：雷达+视觉+颜色未去重三条件持续满足POLE_TRIGGER_CONFIRM_S
+            # 才触发APPROACHING(2026-07-14设计文档"触发滞回"一节)
             if self.nav_mode == "PATROL":
-                new_pole = self._find_new_pole(confirmed)
-                if new_pole is not None:
-                    self._start_circling(new_pole, pos)
+                if self._update_trigger_candidate(confirmed):
                     return
 
             # 绕行：每次切换到一个新目标点时检查一次，如果直飞会穿进某根已知杆塔
@@ -788,22 +786,48 @@ class mission:
                 return True
         return False
 
-    def _start_circling(self, pole, pos):
+    def _update_trigger_candidate(self, confirmed):
+        """返回True表示本次调用触发了APPROACHING(调用方应该直接return，跳过
+        本tick剩余的悬停避让/日志逻辑，语义上跟原来_start_circling后直接return
+        一致)。"""
+        new_pole = self._find_new_pole(confirmed)
+        vision = self.pole_vision.latest() if self.pole_vision is not None else None
+        vision_color = vision["color"] if vision else None
+        vision_fresh = (vision is not None and vision["t"] > 0
+                         and time.time() - vision["t"] < POLE_VISION_STALE_S)
+
+        candidate = None
+        if (new_pole is not None and vision_fresh and vision_color is not None
+                and not self._color_already_circled(vision_color)):
+            candidate = (new_pole["x"], new_pole["y"], vision_color)
+
+        if candidate is None:
+            self._trigger_candidate = None
+            self._trigger_candidate_since = None
+            return False
+
+        if self._trigger_candidate is None or self._trigger_candidate[2] != candidate[2]:
+            self._trigger_candidate = candidate
+            self._trigger_candidate_since = time.time()
+            return False
+
+        if time.time() - self._trigger_candidate_since >= POLE_TRIGGER_CONFIRM_S:
+            self._start_approaching(*candidate)
+            self._trigger_candidate = None
+            self._trigger_candidate_since = None
+            return True
+        return False
+
+    def _start_approaching(self, x, y, color):
         self._patrol_saved_targets = self.targets
         self._patrol_saved_index = self.target_index
-        self._approach_pole_center = (pole["x"], pole["y"])
-        waypoints = generate_circle_waypoints(
-            pole["x"], pole["y"], pos[0], pos[1],
-            radius=POLE_CIRCLE_RADIUS_M, n_points=POLE_CIRCLE_N_POINTS,
-            direction=POLE_CIRCLE_DIRECTION, z=self._cruise_z,
-        )
-        self.targets = waypoints
-        self.target_index = 0
-        self.last_target_index = -1
-        self.nav_mode = "CIRCLING"
-        logger.warning(
-            f"检测到杆塔({pole['x']:.2f},{pole['y']:.2f})，开始环绕飞行，{len(waypoints)}个航点"
-        )
+        self._approach_pole_center = (x, y)
+        self._approach_color = color
+        self._approach_lost_since = None
+        if self.pole_vision is not None:
+            self.pole_vision.set_locked_color(color)
+        self.nav_mode = "APPROACHING"
+        logger.warning(f"雷达+视觉确认{color}杆塔({x:.2f},{y:.2f})，开始视觉接近")
 
     def _on_circle_complete(self):
         cx, cy = self._approach_pole_center
