@@ -1495,6 +1495,230 @@ git commit -m "feat(circle_pole): main.py接入PoleVision，摄像头打不开�
 
 ---
 
+### Task 12: CIRCLING阶段绕行检测整体关闭（补充任务，全量review发现）
+
+2026-07-14全量review发现：`_maybe_insert_detour`没有像悬停避让那样在CIRCLING阶段整体关闭，只排除"当前正在环绕的目标"，不排除`circled_poles`里已经绕完的杆塔。阶段1从未暴露(只有一根杆)，阶段2双杆场景下，如果环绕杆A的路径恰好靠近已环绕过的杆B的安全区，会被插入绕行航点打断环绕路径，跟设计文档"绕行机制发生在PATROL/TO_LANDING态，不受CIRCLING阶段悬停关闭影响"的说法矛盾。
+
+**Files:**
+- Modify: `drone_control/circle_pole/Mission_GPT.py`
+- Modify: `drone_control/circle_pole/test_circle_state_machine.py`
+
+- [ ] **Step 1: 追加失败测试到`TestDetourInsertion`类**
+
+```python
+    def test_does_not_insert_detour_during_circling_even_for_already_circled_pole(self):
+        """2026-07-14全量review发现：CIRCLING阶段绕行检测之前没有整体关闭，只排除
+        当前正在环绕的目标，不排除已环绕过的杆塔——如果环绕路径途经已环绕杆塔的
+        安全区，会被插入绕行航点，打断环绕路径本身，跟设计文档"绕行机制发生在
+        PATROL/TO_LANDING态，不受CIRCLING阶段影响"的说法矛盾。"""
+        m = _make_mission(radar_obj=object())
+        m.circled_poles = [(1.0, 0.0, "red")]  # 已环绕过，挡在这次的环绕路径中间
+        m._approach_pole_center = (5.0, 5.0)  # 正在环绕的另一个目标(远处，不相关)
+        m.nav_mode = "CIRCLING"
+        m.targets = [[2.0, 0.0, 1.2]]
+        m.target_index = 0
+        m._last_pole_poll_time = time.time()
+        for _ in range(3):
+            m.pole_tracker._history.append([(1.0, 0.0)])
+
+        m.set_speed = lambda *a, **k: None
+        m.navigate([0.0, 0.0, 1.2], 0.0)
+
+        assert len(m.targets) == 1  # 没有插入绕行航点，CIRCLING阶段完全不做绕行检测
+```
+
+- [ ] **Step 2: 运行测试确认失败**
+
+Run: `cd "D:/项目与工具/Python项目/Project2/Project2/drone_control/circle_pole" && python -m pytest test_circle_state_machine.py -v`
+Expected: 新增用例FAIL（绕行航点被插入了，`len(m.targets) == 2`）
+
+- [ ] **Step 3: 实现——绕行检测加CIRCLING门控**
+
+找到 `navigate()` 里绕行检测调用（注释"绕行：每次切换到一个新目标点时检查一次..."后面那行）：
+
+```python
+            if self._maybe_insert_detour(confirmed, pos, target):
+                target = self.targets[self.target_index]
+                target_z = int(target[2] * 100)
+```
+
+替换为：
+
+```python
+            # 2026-07-14全量review修复：CIRCLING阶段绕行检测整体关闭，跟悬停避让
+            # 关闭是同一套设计哲学——环绕路径本身是精心规划好的轨迹，途中被绕行
+            # 逻辑打断的风险比不检测更高；这里也没有排除已环绕过的杆塔，阶段1
+            # 单杆场景从未触发过这条路径，阶段2才会暴露。
+            if self.nav_mode != "CIRCLING" and self._maybe_insert_detour(confirmed, pos, target):
+                target = self.targets[self.target_index]
+                target_z = int(target[2] * 100)
+```
+
+- [ ] **Step 4: 运行测试确认通过**
+
+Run: 同Step 2命令
+Expected: 全部PASS（含全量套件，仍应是118+1个PASS，0 FAIL）
+
+- [ ] **Step 5: Commit**
+
+```bash
+cd "D:/项目与工具/Python项目/Project2/Project2"
+git add drone_control/circle_pole/Mission_GPT.py drone_control/circle_pole/test_circle_state_machine.py
+git commit -m "fix(circle_pole): CIRCLING阶段绕行检测整体关闭，避免打断环绕路径本身"
+```
+
+---
+
+### Task 13: APPROACHING阶段补充雷达轮询+悬停避让（补充任务，全量review发现）
+
+2026-07-14全量review发现：`navigate()`对`nav_mode=="APPROACHING"`是立即`return`进`_approaching_step`，完全跳过了下面的雷达轮询(`pole_tracker.update`)和悬停避让代码块。这意味着设计文档明确承诺的"APPROACHING阶段其余未处理的杆塔仍正常触发悬停避让（阶段2双杆场景的安全网）"从未生效——APPROACHING全程对第二根杆是"盲飞"状态。
+
+**Files:**
+- Modify: `drone_control/circle_pole/Mission_GPT.py`
+- Modify: `drone_control/circle_pole/test_approaching_state.py`
+
+- [ ] **Step 1: 追加失败测试**
+
+```python
+class TestApproachingHoverAvoidance:
+    def test_other_pole_triggers_hover_during_approaching(self):
+        """设计文档承诺APPROACHING阶段悬停避让仍对"其余未处理的杆塔"生效——
+        2026-07-14全量review发现原实现从未执行到这段逻辑(navigate()对APPROACHING
+        直接return，跳过了雷达轮询/悬停避让代码块)。"""
+        vision = _FakeVision(dx_px=0.0, color="red")
+        m = _make_mission(radar_obj=object(), pole_vision_obj=vision)
+        m._approach_pole_center = (5.0, 5.0)  # 正在接近的目标，离这次的杆子很远
+        m._approach_color = "red"
+        m.nav_mode = "APPROACHING"
+        m._last_pole_poll_time = time.time()
+        for _ in range(3):
+            m.pole_tracker._history.append([(0.3, 0.0)])  # 另一根杆子，离飞机只有0.3m
+
+        m.set_speed = lambda *a, **k: None
+        m.navigate([0.0, 0.0, 1.2], 0.0)
+
+        assert m._pole_hovering is True
+
+    def test_own_approach_target_does_not_trigger_hover(self):
+        vision = _FakeVision(dx_px=0.0, color="red")
+        m = _make_mission(radar_obj=object(), pole_vision_obj=vision)
+        m._approach_pole_center = (0.5, 0.3)
+        m._approach_color = "red"
+        m.nav_mode = "APPROACHING"
+        m._last_pole_poll_time = time.time()
+        for _ in range(3):
+            m.pole_tracker._history.append([(0.5, 0.3)])  # 就是接近目标本身
+
+        m.set_speed = lambda *a, **k: None
+        m.navigate([0.45, 0.28, 1.2], 0.0)
+
+        assert m._pole_hovering is False
+
+    def test_hovering_blocks_approach_speed_commands(self):
+        """悬停期间不应该继续输出接近速度指令(vx朝目标杆)，应该是悬停锁定
+        位置的PID输出。"""
+        vision = _FakeVision(dx_px=0.0, color="red")
+        m = _make_mission(radar_obj=object(), pole_vision_obj=vision)
+        m._approach_pole_center = (5.0, 5.0)
+        m._approach_color = "red"
+        m.nav_mode = "APPROACHING"
+        m._last_pole_poll_time = time.time()
+        for _ in range(3):
+            m.pole_tracker._history.append([(0.3, 0.0)])
+
+        calls = []
+        m.set_speed = lambda x, y, yaw, z: calls.append(x)
+        m.navigate([0.0, 0.0, 1.2], 0.0)
+
+        assert calls[-1] != APPROACH_X_SPEED_FAR
+        assert calls[-1] != APPROACH_X_SPEED_NEAR
+```
+
+在文件顶部import行补充`POLE_DANGER_DIST_M`（如果还没有的话，检查现有import列表，按需追加，不要重复）。
+
+- [ ] **Step 2: 运行测试确认失败**
+
+Run: `cd "D:/项目与工具/Python项目/Project2/Project2/drone_control/circle_pole" && python -m pytest test_approaching_state.py -v`
+Expected: `TestApproachingHoverAvoidance`三个用例FAIL（`_approaching_step`目前完全不检查悬停）
+
+- [ ] **Step 3: 实现——`_approaching_step`开头补充雷达轮询+悬停避让**
+
+在 `_approaching_step` 方法最开头（`def _approaching_step(self, pos, yaw):` 之后，原有的 `cx, cy = self._approach_pole_center` 那行之前）插入：
+
+```python
+    def _approaching_step(self, pos, yaw):
+        # 雷达轮询+悬停避让(2026-07-14全量review发现的缺口修复)：原实现直接
+        # 进入下面的接近控制逻辑，完全跳过了navigate()里其他nav_mode都会走的
+        # 雷达轮询/悬停避让代码块，设计文档承诺的"APPROACHING阶段其余未处理
+        # 杆塔仍触发悬停避让"从未生效。这里补一份跟navigate()同构的悬停避让
+        # 逻辑(排除当前接近目标+已环绕杆塔，复用_exclude_circle_target，语义
+        # 与PATROL/TO_LANDING/RETREAT一致)。
+        pole_hover = False
+        pole_dist = None
+        if self.pole_tracker is not None:
+            now = time.time()
+            if now - self._last_pole_poll_time >= POLE_POLL_INTERVAL_S:
+                self._last_pole_poll_time = now
+                self.pole_tracker.update(self.radar, pos[0], pos[1], yaw)
+            confirmed = self.pole_tracker.confirmed_poles()
+            hover_check_poles = self._exclude_circle_target(confirmed)
+            pole_dist = nearest_confirmed_pole_dist(hover_check_poles, pos[0], pos[1])
+            if self._pole_hovering:
+                pole_hover = pole_dist is not None and pole_dist < POLE_RESUME_DIST_M
+            else:
+                pole_hover = pole_dist is not None and pole_dist < POLE_DANGER_DIST_M
+
+        if pole_hover:
+            if not self._pole_hovering:
+                logger.warning(f"APPROACHING阶段检测到其他杆子距离{pole_dist:.2f}m，悬停等待")
+                self._pole_hovering = True
+                self._hover_hold_pos = (pos[0], pos[1])
+                self._hover_start_time = time.time()
+                self.x_pid.set_target(self._hover_hold_pos[0])
+                self.y_pid.set_target(self._hover_hold_pos[1])
+            elif time.time() - self._hover_start_time >= POLE_HOVER_TIMEOUT_S:
+                logger.warning(f"APPROACHING阶段悬停超过{POLE_HOVER_TIMEOUT_S:.0f}秒仍未恢复，原地触发降落")
+                self._pole_hovering = False
+                self._hover_hold_pos = None
+                self._hover_start_time = None
+                self.state = "LAND"
+                return
+            vx = int(self.limit(self.x_pid.get_pid(pos[0]) * 100 * VEL_SCALE, 40))
+            vy = int(self.limit(self.y_pid.get_pid(pos[1]) * 100 * VEL_SCALE, 40))
+            self._step_ramp_z(int(self._cruise_z * 100))
+            self.set_speed(vx, vy, 0, int(self._ramp_z_cm))
+            return
+        elif self._pole_hovering:
+            logger.info("APPROACHING阶段杆子确认已消失，恢复接近")
+            self._pole_hovering = False
+            self._hover_hold_pos = None
+            self._hover_start_time = None
+
+        cx, cy = self._approach_pole_center
+```
+
+（原方法体从 `cx, cy = self._approach_pole_center` 开始的剩余部分不变，只是在它前面插入了上面这段悬停避让逻辑；注意这行在插入的代码块末尾已经出现一次，原方法体里紧跟着的重复的`cx, cy = self._approach_pole_center`要删掉，不要留两份）
+
+- [ ] **Step 4: 运行测试确认通过**
+
+Run: 同Step 2命令
+Expected: 全部PASS
+
+- [ ] **Step 5: 跑全量套件确认没有回归**
+
+Run: `cd "D:/项目与工具/Python项目/Project2/Project2/drone_control/circle_pole" && python -m pytest -v`
+Expected: 全部PASS（含Task 12新增的1个 + Task 13新增的3个，总数应该是118+1+3=122，0 FAIL）
+
+- [ ] **Step 6: Commit**
+
+```bash
+cd "D:/项目与工具/Python项目/Project2/Project2"
+git add drone_control/circle_pole/Mission_GPT.py drone_control/circle_pole/test_approaching_state.py
+git commit -m "fix(circle_pole): APPROACHING阶段补充雷达轮询+悬停避让，修复设计文档承诺的安全网从未生效"
+```
+
+---
+
 ## 本计划完成后仍未处理的事项（记录，不在本计划范围）
 
 - **真机HSV阈值标定 + 视觉伺服PID调参**：`HSV_RANGES`/`APPROACH_Y_KP/KI/KD`都是未经真机验证的初始值，需要按spec文档"测试计划"5步顺序现场调试
