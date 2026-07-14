@@ -485,10 +485,6 @@ class mission:
 
             # PATROL态：雷达+视觉+颜色未去重三条件持续满足POLE_TRIGGER_CONFIRM_S
             # 才触发APPROACHING(2026-07-14设计文档"触发滞回"一节)。
-            # 注意：nav_mode切到"APPROACHING"后，navigate()目前还没有任何分支处理
-            # 这个状态(Task 7范围内)——不会崩溃，但也没有真正的视觉接近行为，飞机
-            # 会继续沿着旧的PATROL航点飞，是个静默的空档，等后续任务接入
-            # APPROACHING控制逻辑才会生效，测试本分支时不要误当成bug。
             if self.nav_mode == "PATROL":
                 if self._update_trigger_candidate(confirmed):
                     return
@@ -834,6 +830,10 @@ class mission:
         self._approach_pole_center = (x, y)
         self._approach_color = color
         self._approach_lost_since = None
+        # 跟x_pid/y_pid切换目标时的reset()同一套约定：避免PID内部
+        # _last_time/_last_input/_last_error残留上一次APPROACHING episode
+        # (可能是另一根杆塔)的状态，污染这次接近的第一次微分项计算。
+        self.approach_y_pid.reset()
         if self.pole_vision is not None:
             self.pole_vision.set_locked_color(color)
         self.nav_mode = "APPROACHING"
@@ -886,6 +886,11 @@ class mission:
         self.nav_mode = "PATROL"
 
     def _start_circling_from_approach(self, pos):
+        # 占位实现(Task 8范围内)：只切换nav_mode，不生成真正的环绕航点，
+        # 也不touch self.targets/target_index——切到CIRCLING后下一tick会
+        # 飞向target_index仍指向的旧(APPROACHING前的PATROL)航点，这是已知的、
+        # 故意留到后续任务替换的空档，不是bug。Task 9负责替换成真正生成
+        # 环绕航点的完整版本。
         self.nav_mode = "CIRCLING"
 
     def _on_circle_complete(self):
