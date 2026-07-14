@@ -1051,10 +1051,14 @@ class TestApproachingControlLaw:
         assert calls[-1] == pytest.approx(APPROACH_X_SPEED_FAR)
 
     def test_near_distance_uses_slow_speed(self):
+        """dist要选在(APPROACH_CIRCLE_TRIGGER_DIST_M, APPROACH_X_SWITCH_DIST_M]
+        区间内(当前值下是(0.7, 0.8]m)，才是"降速但还没触发环绕"的近距离区——
+        选0.5m这种比环绕触发距离(0.7m)还近的值会在到达这里之前就已经转CIRCLING，
+        2026-07-14实现时发现的真实test-data bug，不是巧合。"""
         calls = []
-        m = self._start(pos=[1.5, 0.0, 1.2], pole=(2.0, 0.0))
+        m = self._start(pos=[1.25, 0.0, 1.2], pole=(2.0, 0.0))  # dist=0.75m
         m.set_speed = lambda x, y, yaw, z: calls.append(x)
-        m.navigate([1.5, 0.0, 1.2], 0.0)
+        m.navigate([1.25, 0.0, 1.2], 0.0)
         assert calls[-1] == pytest.approx(APPROACH_X_SPEED_NEAR)
 
     def test_approach_speed_direction_toward_pole(self):
@@ -1095,9 +1099,13 @@ class TestApproachingControlLaw:
         assert stale_vision.locked_color is None
 
     def test_reaching_trigger_distance_switches_to_circling(self):
-        m = self._start(pos=[2.0, 0.0, 1.2], pole=(2.7, 0.0))  # 距离0.7m == 触发阈值
+        """dist选0.6m(明显小于0.7m触发阈值)而不是卡在边界值0.7m——2.7-2.0在浮点
+        下算出来是0.7000000000000002，`<=0.7`会因为浮点误差判为False，边界相等
+        测试不该用浮点减法凑出来的"看起来相等"，2026-07-14实现时发现的真实
+        test-data bug。这里只需要验证"进入触发距离内会转CIRCLING"，不需要卡边界。"""
+        m = self._start(pos=[2.1, 0.0, 1.2], pole=(2.7, 0.0))  # dist=0.6m，明显在触发阈值内
         m.set_speed = lambda *a, **k: None
-        m.navigate([2.0, 0.0, 1.2], 0.0)
+        m.navigate([2.1, 0.0, 1.2], 0.0)
         assert m.nav_mode == "CIRCLING"
 ```
 
