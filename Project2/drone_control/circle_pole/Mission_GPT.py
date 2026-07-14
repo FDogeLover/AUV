@@ -219,11 +219,10 @@ class mission:
         self.nav_mode = "PATROL"  # PATROL / APPROACHING / CIRCLING / RETREAT / TO_LANDING
         self.circled_poles = []   # 已完成环绕的杆塔 [(x,y,color), ...]，坐标供绕行检查用
         self.circled_colors = set()  # 已环绕颜色集合，去重判断依据(替代坐标容差)，见2026-07-14设计文档
-        self._circle_pole_center = None  # 当前正在环绕的杆塔世界坐标(冻结快照)，Task 5会
-                                          # 整体改名成_approach_pole_center(APPROACHING阶段
-                                          # 也要用同一个字段)，这里先保持阶段1原名，避免和
-                                          # 还没改名的_exclude_active_circle_target_only等
-                                          # 方法产生中间断裂状态(AttributeError)
+        self._approach_pole_center = None  # 当前正在接近/环绕的杆塔世界坐标(冻结快照)。
+                                          # 2026-07-14 Task 5从_circle_pole_center改名：
+                                          # APPROACHING阶段(Task 6+引入)也要用同一个字段，
+                                          # 不再是CIRCLING专属
         self._approach_color = None        # 当前APPROACHING/CIRCLING锁定颜色
         self._approach_lost_since = None   # APPROACHING视觉结果开始陈旧的时间点(见POLE_VISION_STALE_S)
         self._trigger_candidate = None       # PATROL态正在累计确认时长的(x,y,color)候选目标
@@ -497,18 +496,20 @@ class mission:
                 target = self.targets[self.target_index]
                 target_z = int(target[2] * 100)
 
-            # 悬停避让距离判断：排除当前正在主动环绕的目标、以及所有已经环绕完成的杆塔。
-            # 2026-07-13真机测试发现：环绕刚完成那一刻飞机必然还在0.7m环绕半径内，
-            # 小于0.75m悬停触发阈值，如果"已绕过的杆塔"恢复正常悬停判断，会在切换到
-            # TO_LANDING的瞬间被自己刚绕完的杆塔悬停住，直到POLE_HOVER_TIMEOUT_S(15秒)
-            # 超时强制原地降落——不管降落点设在哪个方向都会复现，不是这次方向选错的巧合。
-            # 已经环绕过的杆塔已经安全绕开了，不需要再当障碍物处理。
-            hover_check_poles = self._exclude_circle_target(confirmed)
-            pole_dist = nearest_confirmed_pole_dist(hover_check_poles, pos[0], pos[1])
-            if self._pole_hovering:
-                pole_hover = pole_dist is not None and pole_dist < POLE_RESUME_DIST_M
-            else:
-                pole_hover = pole_dist is not None and pole_dist < POLE_DANGER_DIST_M
+            # 悬停避让距离判断：CIRCLING阶段整体关闭(2026-07-14决定，不只排除当前
+            # 目标)。赛题最小杆塔间距150cm、环绕半径0.7m下，环绕到最靠近另一根杆
+            # 的点最坏情况只有80cm，仅比0.75m悬停阈值高5cm，这个理论安全边际被
+            # 已知定位噪声(confirmed_poles()漂移0.4~1m量级)完全吞掉，环绕过程中
+            # 途悬停打断本身(近距离转弯突然停住)比不检测风险更高。PATROL/
+            # APPROACHING/TO_LANDING/RETREAT阶段不受影响，仍用现有悬停避让+
+            # _exclude_circle_target排除机制。
+            if self.nav_mode != "CIRCLING":
+                hover_check_poles = self._exclude_circle_target(confirmed)
+                pole_dist = nearest_confirmed_pole_dist(hover_check_poles, pos[0], pos[1])
+                if self._pole_hovering:
+                    pole_hover = pole_dist is not None and pole_dist < POLE_RESUME_DIST_M
+                else:
+                    pole_hover = pole_dist is not None and pole_dist < POLE_DANGER_DIST_M
 
         if pole_hover:
             if not self._pole_hovering:
@@ -740,9 +741,9 @@ class mission:
         """只排除当前正在主动环绕的目标(宽容差，见POLE_CIRCLE_EXCLUDE_MARGIN_M注释)，
         不排除已环绕完成的杆塔——供绕行检测使用：已环绕过的杆塔已经从悬停避让永久
         排除了，如果直飞路径又正好穿过它，绕行是唯一还能防碰撞的机制，不能连带排除。"""
-        if self._circle_pole_center is None:
+        if self._approach_pole_center is None:
             return confirmed
-        cx, cy = self._circle_pole_center
+        cx, cy = self._approach_pole_center
         exclude_radius = POLE_CIRCLE_RADIUS_M + POLE_CIRCLE_EXCLUDE_MARGIN_M
         return [p for p in confirmed
                 if math.hypot(p["x"] - cx, p["y"] - cy) > exclude_radius]
@@ -782,7 +783,7 @@ class mission:
     def _start_circling(self, pole, pos):
         self._patrol_saved_targets = self.targets
         self._patrol_saved_index = self.target_index
-        self._circle_pole_center = (pole["x"], pole["y"])
+        self._approach_pole_center = (pole["x"], pole["y"])
         waypoints = generate_circle_waypoints(
             pole["x"], pole["y"], pos[0], pos[1],
             radius=POLE_CIRCLE_RADIUS_M, n_points=POLE_CIRCLE_N_POINTS,
@@ -797,10 +798,10 @@ class mission:
         )
 
     def _on_circle_complete(self):
-        cx, cy = self._circle_pole_center
+        cx, cy = self._approach_pole_center
         logger.info(f"杆塔({cx:.2f},{cy:.2f})环绕完成")
         self.circled_poles.append((cx, cy))
-        self._circle_pole_center = None
+        self._approach_pole_center = None
         if len(self.circled_poles) >= self.pole_total:
             logger.info(f"已绕完全部{self.pole_total}根杆塔，前往降落点")
             self.targets = [[LANDING_POINT[0], LANDING_POINT[1], self._cruise_z]]

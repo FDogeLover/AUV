@@ -42,8 +42,15 @@ class TestNearestConfirmedPoleDist:
 # (0.75m)，如果"已绕过的杆塔"恢复正常悬停判断，会在切换到TO_LANDING的瞬间被
 # 自己刚绕完的杆塔悬停住，直到POLE_HOVER_TIMEOUT_S(15秒)超时强制原地降落，
 # 不管降落点方向选得对不对都会复现。所以已环绕杆塔现在被永久排除在悬停判断外。
-# 悬停避让在circle_pole里唯一还有效的场景是：CIRCLING态下，遇到另一根**不是**
-# 当前环绕目标、也**没**环绕过的杆塔(阶段2双杆场景)。
+# 第三次修正(2026-07-14设计文档"CIRCLING阶段悬停避让整体关闭"一节)：CIRCLING
+# 阶段悬停避让整体关闭，不只排除当前环绕目标——理论安全边际(5cm)被定位噪声
+# 完全吞掉，环绕中途悬停打断本身比不检测风险更高。
+# 悬停避让在circle_pole里唯一还有效的场景是：非CIRCLING阶段(PATROL/APPROACHING/
+# TO_LANDING/RETREAT)下，遇到另一根**不是**当前接近目标、也**没**环绕过的杆塔
+# (阶段2双杆场景)。下面几个测试用TO_LANDING态而非PATROL态来触发这个场景：
+# PATROL态下navigate()仍会先跑旧的_find_new_pole+_start_circling直接触发逻辑
+# (Task 7才替换成APPROACHING态的视觉触发流程)，任何确认杆塔都会被当成"新目标"
+# 立即环绕，走不到悬停判断。TO_LANDING没有这类早期分支，是稳定的选择。
 
 def _make_mission(radar_obj=None):
     re_fc = [0] * 14
@@ -99,12 +106,19 @@ class TestMissionPoleHover:
 
         assert m._pole_hovering is False
 
-    def test_navigate_hovers_for_different_uncircled_pole_while_circling(self):
-        """悬停避让唯一还有效的场景：CIRCLING态下遇到另一根不是当前环绕目标、
-        也没环绕过的杆塔(阶段2双杆场景的安全网)。"""
+    def test_navigate_hovers_for_different_uncircled_pole_outside_circling(self):
+        """悬停避让唯一还有效的场景：非CIRCLING阶段(PATROL/APPROACHING/TO_LANDING/
+        RETREAT)下遇到一根不是当前接近目标、也没环绕过的杆塔(阶段2双杆场景的安全
+        网)。CIRCLING阶段整体关闭悬停避让(2026-07-14设计文档"CIRCLING阶段悬停
+        避让整体关闭"一节)，不再是这里验证的场景。
+        用TO_LANDING态而非PATROL态来触发：PATROL态下`navigate()`仍会先跑旧的
+        `_find_new_pole`+`_start_circling`直接触发逻辑(Task 7才会替换成
+        APPROACHING态的视觉触发流程)，任何确认杆塔(不区分远近/是否是接近目标)
+        都会被当成"新目标"立即开始环绕，根本走不到悬停避让判断就return了。
+        TO_LANDING没有这类早期分支(Task 8也只拦截APPROACHING态)，是稳定的选择。"""
         m = _make_mission(radar_obj=object())
-        m._circle_pole_center = (5.0, 5.0)  # 正在环绕的目标，离这次的杆子很远
-        m.nav_mode = "CIRCLING"
+        m._approach_pole_center = (5.0, 5.0)  # 正在接近的目标，离这次的杆子很远
+        m.nav_mode = "TO_LANDING"
         m.targets = [[5.0, 4.3, 1.0]]
         m._last_pole_poll_time = time.time()
         for _ in range(3):
@@ -118,12 +132,12 @@ class TestMissionPoleHover:
     def test_navigate_keeps_hovering_within_resume_hysteresis_band(self):
         """已经悬停时，杆子距离哪怕超过了触发阈值(POLE_DANGER_DIST_M)，只要还没到
         恢复阈值(POLE_RESUME_DIST_M)，应该继续悬停——避免距离刚好卡在触发阈值附近
-        抖动时悬停状态跟着反复横跳(2026-07-08真机测试观察到的问题)。用CIRCLING态
-        +另一根不相关的杆子来触发(见上一个测试的说明，已环绕/正在环绕的杆子不再
-        参与悬停判断)。"""
+        抖动时悬停状态跟着反复横跳(2026-07-08真机测试观察到的问题)。用TO_LANDING
+        态+另一根不相关的杆子来触发(见上一个测试的说明，PATROL态下会被旧的
+        `_find_new_pole`直接触发逻辑抢先拦截，走不到悬停判断)。"""
         m = _make_mission(radar_obj=object())
-        m._circle_pole_center = (5.0, 5.0)
-        m.nav_mode = "CIRCLING"
+        m._approach_pole_center = (5.0, 5.0)
+        m.nav_mode = "TO_LANDING"
         m.targets = [[5.0, 4.3, 1.0]]
         m._last_pole_poll_time = time.time()
         for _ in range(3):
@@ -146,9 +160,12 @@ class TestMissionPoleHover:
         assert m._pole_hovering is True
 
     def test_navigate_resumes_once_pole_dist_exceeds_resume_threshold(self):
+        """非CIRCLING阶段(TO_LANDING)下悬停恢复行为(CIRCLING阶段已整体关闭悬停
+        避让)。选TO_LANDING理由同上一个测试(PATROL态会被旧的_find_new_pole直接
+        触发逻辑抢先拦截)。"""
         m = _make_mission(radar_obj=object())
-        m._circle_pole_center = (5.0, 5.0)
-        m.nav_mode = "CIRCLING"
+        m._approach_pole_center = (5.0, 5.0)
+        m.nav_mode = "TO_LANDING"
         m.targets = [[5.0, 4.3, 1.0]]
         m._last_pole_poll_time = time.time()
         for _ in range(3):

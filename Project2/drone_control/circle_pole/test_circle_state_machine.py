@@ -33,7 +33,7 @@ class TestPatrolTriggersCircling:
         m.navigate([0.0, 0.0, 1.2], 0.0)
 
         assert m.nav_mode == "CIRCLING"
-        assert m._circle_pole_center == pytest.approx((0.5, 0.3))
+        assert m._approach_pole_center == pytest.approx((0.5, 0.3))
         assert len(m.targets) == POLE_CIRCLE_N_POINTS + 1
         assert m.target_index == 0
 
@@ -53,7 +53,7 @@ class TestPatrolTriggersCircling:
 class TestCirclingHoverExclusion:
     def test_own_circling_target_does_not_trigger_hover(self):
         m = _make_mission(radar_obj=object())
-        m._circle_pole_center = (0.5, 0.3)
+        m._approach_pole_center = (0.5, 0.3)
         m.nav_mode = "CIRCLING"
         m.targets = [[0.5, -0.2, 1.2], [1.0, 0.3, 1.2]]
         m._last_pole_poll_time = time.time()
@@ -65,21 +65,23 @@ class TestCirclingHoverExclusion:
 
         assert m._pole_hovering is False
 
-    def test_other_confirmed_pole_still_triggers_hover_during_circling(self):
+    def test_circling_ignores_any_other_pole_regardless_of_distance(self):
+        """2026-07-14决定：CIRCLING阶段悬停避让整体关闭，不只排除当前目标。哪怕
+        另一根完全不相关的杆子就在飞机旁边(0.1m，远小于悬停阈值)，环绕过程中也
+        不应该被打断——赛题最小间距150cm+环绕半径0.7m下，理论安全边际只有5cm，
+        被已知定位噪声完全吞掉，环绕中途悬停打断本身比不检测风险更高。"""
         m = _make_mission(radar_obj=object())
-        m._circle_pole_center = (0.5, 0.3)
+        m._approach_pole_center = (5.0, 5.0)  # 正在环绕的目标，离这次的杆子很远
         m.nav_mode = "CIRCLING"
-        m.targets = [[0.5, -0.2, 1.2], [1.0, 0.3, 1.2]]
+        m.targets = [[5.0, 4.3, 1.2], [5.0, 5.7, 1.2]]
         m._last_pole_poll_time = time.time()
-        # 另一根杆子，离环绕目标1.6m(赛题杆塔间距最小150cm，比排除半径1.1m更远，
-        # 不会被_exclude_circle_target误伤)，离飞机当前位置只有0.3m
         for _ in range(3):
-            m.pole_tracker._history.append([(2.1, 0.3)])
+            m.pole_tracker._history.append([(0.1, 0.0)])  # 另一根杆子，离飞机只有0.1m
 
         m.set_speed = lambda *a, **k: None
-        m.navigate([1.8, 0.3, 1.2], 0.0)
+        m.navigate([0.0, 0.0, 1.2], 0.0)
 
-        assert m._pole_hovering is True
+        assert m._pole_hovering is False
 
     def test_own_circling_target_still_excluded_despite_yaw_drift_offset(self):
         """环绕过程中yaw漂移可能让雷达对同一根杆子的世界坐标算出偏移，验证排除逻辑
@@ -87,7 +89,7 @@ class TestCirclingHoverExclusion:
         "同一物体"判断设计的0.2m窄容差——否则漂移会让排除逻辑"认不出"自己正在
         环绕的目标，中途误触发悬停(见2026-07-13讨论的风险1)。"""
         m = _make_mission(radar_obj=object())
-        m._circle_pole_center = (0.5, 0.3)
+        m._approach_pole_center = (0.5, 0.3)
         m.nav_mode = "CIRCLING"
         m.targets = [[0.5, -0.2, 1.2], [1.0, 0.3, 1.2]]
         m._last_pole_poll_time = time.time()
@@ -171,7 +173,7 @@ class TestDetourInsertion:
     def test_does_not_insert_detour_for_actively_circling_target(self):
         """正在主动环绕的目标不应该触发绕行检测——环绕航点本身就是绕着它走的。"""
         m = _make_mission(radar_obj=object())
-        m._circle_pole_center = (1.0, 0.0)
+        m._approach_pole_center = (1.0, 0.0)
         m.nav_mode = "CIRCLING"
         m.targets = [[2.0, 0.0, 1.2]]
         m.target_index = 0
