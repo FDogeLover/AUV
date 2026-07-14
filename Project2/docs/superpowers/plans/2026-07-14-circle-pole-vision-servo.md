@@ -590,22 +590,26 @@ git commit -m "feat(circle_pole): load_waypoints参数化，接入视觉子系�
 
 ```python
         m._approach_pole_center = (5.0, 5.0)  # 正在接近的目标，离这次的杆子很远
-        m.nav_mode = "PATROL"
+        m.nav_mode = "TO_LANDING"
+        m.targets = [[5.0, 4.3, 1.0]]
 ```
 
-（删掉 `m.targets = [[5.0, 4.3, 1.0]]` 这行，PATROL态用`__init__`默认加载的`patrol_router.txt`航点即可，不需要手动设）
+**不要改用`nav_mode = "PATROL"`**（这是2026-07-14计划自审时发现的一处真实bug，记录下来避免下次犯同样的错）：`navigate()`里`PATROL`态现在还在用未经Task 7改造的`_find_new_pole`+`_start_circling`直接触发逻辑——只要雷达确认到一个未环绕过的杆塔，不管`_approach_pole_center`是什么，会立即触发环绕并`return`，根本不会执行到悬停避让判断那段代码。所以测试摆一个"离飞机0.3m的确认杆塔"时，PATROL态不会走到悬停判断，而是直接被旧逻辑吞掉触发环绕，`_pole_hovering`永远是False——不是因为排除逻辑生效，是悬停判断代码根本没执行到。`TO_LANDING`态没有这个问题(`navigate()`里`_find_new_pole`触发只挂在`nav_mode == "PATROL"`分支下)，本Task之后也不会有任何后续Task给`TO_LANDING`加类似的"提前return"分支(Task 8只给`APPROACHING`加，不影响`TO_LANDING`)，所以选它作为验证悬停避让通用逻辑的稳定测试场景。`m.targets`这行**保留不删**（跟原CIRCLING版本一致，`TO_LANDING`态不会自动加载`patrol_router.txt`，需要手动给一个非空列表避免`target_index>=len(targets)`分支意外触发)。
 
-同时把这三个方法的说明注释和docstring里"CIRCLING态"字样改成"PATROL/APPROACHING态"，例如 `test_navigate_hovers_for_different_uncircled_pole_while_circling` 改名为 `test_navigate_hovers_for_different_uncircled_pole_during_patrol`，docstring改为：
+同时把这三个方法的说明注释和docstring里"CIRCLING态"字样改成"非CIRCLING阶段"，例如 `test_navigate_hovers_for_different_uncircled_pole_while_circling` 改名为 `test_navigate_hovers_for_different_uncircled_pole_outside_circling`，docstring改为：
 
 ```python
-    def test_navigate_hovers_for_different_uncircled_pole_during_patrol(self):
-        """悬停避让唯一还有效的场景：PATROL/APPROACHING态下遇到一根不是当前接近
-        目标、也没环绕过的杆塔(阶段2双杆场景的安全网)。CIRCLING阶段整体关闭悬停
-        避让(2026-07-14设计文档"CIRCLING阶段悬停避让整体关闭"一节)，不再是这里
-        验证的场景。"""
+    def test_navigate_hovers_for_different_uncircled_pole_outside_circling(self):
+        """悬停避让唯一还有效的场景：非CIRCLING阶段(PATROL/APPROACHING/TO_LANDING/
+        RETREAT)下遇到一根不是当前接近目标、也没环绕过的杆塔(阶段2双杆场景的安全
+        网)。CIRCLING阶段整体关闭悬停避让(2026-07-14设计文档"CIRCLING阶段悬停
+        避让整体关闭"一节)，不再是这里验证的场景。这里用TO_LANDING态验证(而不是
+        PATROL)，因为PATROL态目前还有未经Task 7改造的_find_new_pole+_start_circling
+        直接触发逻辑，会在悬停判断代码执行前就把确认到的杆塔吞掉触发环绕，见Task 5
+        Step 1对应说明。"""
 ```
 
-其余两个测试同理改名去掉"circling"字样、docstring改成PATROL/APPROACHING语境（内容不用改，只是场景从"CIRCLING态排除自己环绕目标"变成"PATROL态排除自己正在接近的目标"，验证的仍然是同一套`_exclude_active_circle_target_only`/滞回逻辑）。
+其余两个测试同理改名去掉"circling"字样、docstring改成"非CIRCLING阶段"语境（内容不用改，只是场景从"CIRCLING态排除自己环绕目标"变成"TO_LANDING态排除自己正在接近的目标"，验证的仍然是同一套`_exclude_active_circle_target_only`/滞回逻辑）。
 
 在 `test_circle_state_machine.py` 里，`TestCirclingHoverExclusion.test_other_confirmed_pole_still_triggers_hover_during_circling` 整个删除（CIRCLING已经不再检查任何杆子，这个场景在Task 5 Step 1里已经用PATROL态覆盖了），改成一条新断言：
 
@@ -646,10 +650,12 @@ class TestCirclingHoverExclusion:
 
 （`_circle_pole_center` 全部改名成 `_approach_pole_center`，跟Task 6会做的字段改名保持一致；这一步先改测试，实现代码在Step 2里跟着改）
 
+**同时顺手把测试文件里其余两处遗留的`_circle_pole_center`引用也机械改名**（Step 3的sed命令只处理`Mission_GPT.py`，不会碰测试文件，这两处不手动改会在Step 4持续报`AttributeError`）：`test_circle_state_machine.py`里`TestPatrolTriggersCircling.test_confirmed_new_pole_switches_to_circling`（`assert m._circle_pole_center == pytest.approx((0.5, 0.3))`）和`TestCirclingHoverExclusion.test_own_circling_target_still_excluded_despite_yaw_drift_offset`（`m._circle_pole_center = (0.5, 0.3)`），两处都只是字段名替换，不改断言逻辑/测试意图。
+
 - [ ] **Step 2: 运行测试确认失败（字段还叫`_circle_pole_center`，且CIRCLING悬停还没关）**
 
 Run: `cd "D:/项目与工具/Python项目/Project2/Project2/drone_control/circle_pole" && python -m pytest test_mission_pole_integration.py test_circle_state_machine.py -v`
-Expected: 多个FAIL（`AttributeError: no attribute '_approach_pole_center'`，以及`test_circling_ignores_any_other_pole_regardless_of_distance`因为悬停还没关而失败）
+Expected: 多个FAIL（`AttributeError: no attribute '_approach_pole_center'`，以及`test_circling_ignores_any_other_pole_regardless_of_distance`因为悬停还没关而失败）。**注意**：还有两个Step 1没有提到、但同样会FAIL的用例——`test_circle_state_machine.py`里`TestPatrolTriggersCircling.test_confirmed_new_pole_switches_to_circling`（断言里读`m._circle_pole_center`）和`TestCirclingHoverExclusion.test_own_circling_target_still_excluded_despite_yaw_drift_offset`（同样设置`m._circle_pole_center = ...`），这两个测试Step 1没要求重写，但引用了即将被sed批量改名的字段，也会失败。这不是需要额外解决的新问题——纯属字段名不同步导致的`AttributeError`，跟其他因为改名而失败的用例是同一类原因，Step 3实现的时候顺手把这两处的`_circle_pole_center`也机械改成`_approach_pole_center`（纯改名，不改断言逻辑）即可一起修好，不用单独处理。
 
 - [ ] **Step 3: 实现——字段改名 + CIRCLING悬停避让整体关闭**
 
@@ -720,7 +726,7 @@ git commit -m "fix(circle_pole): CIRCLING阶段悬停避让整体关闭，_circl
 
 在 `test_circle_state_machine.py`：
 - `test_inserts_detour_when_already_circled_pole_blocks_direct_path` 和 `test_does_not_recheck_same_target_index_repeatedly` 里 `m.circled_poles = [(1.0, 0.0)]` 改为 `m.circled_poles = [(1.0, 0.0, "red")]`
-- `test_single_pole_mission_switches_to_to_landing_when_circle_done` 和 `test_multi_pole_mission_resumes_patrol_when_more_poles_remain` 属于CIRCLING完成流程，会在Task 9整体重写（现在会因为改用`_approach_color`/RETREAT而全部失效），本Task先不动它们
+- `test_single_pole_mission_switches_to_to_landing_when_circle_done` 和 `test_multi_pole_mission_resumes_patrol_when_more_poles_remain` 属于CIRCLING完成流程，会在Task 10整体重写（现在会因为改用`_approach_color`/RETREAT而全部失效），本Task先不动它们
 
 `TestPatrolTriggersCircling` 类整体删除（PATROL现在触发`APPROACHING`不是直接`CIRCLING`，测试内容移到Task 7的`test_approaching_state.py`），只保留一个颜色去重的新测试类：
 
