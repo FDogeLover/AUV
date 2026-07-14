@@ -445,6 +445,10 @@ class mission:
 
     # ================= 导航 =================
     def navigate(self, pos, yaw):
+        if self.nav_mode == "APPROACHING":
+            self._approaching_step(pos, yaw)
+            return
+
         # 全部航点耗尽：按当前nav_mode分支处理(环绕完成/到达降落点/巡航耗尽兜底)
         if self.target_index >= len(self.targets):
             if self.nav_mode == "CIRCLING":
@@ -834,6 +838,55 @@ class mission:
             self.pole_vision.set_locked_color(color)
         self.nav_mode = "APPROACHING"
         logger.warning(f"雷达+视觉确认{color}杆塔({x:.2f},{y:.2f})，开始视觉接近")
+
+    def _approaching_step(self, pos, yaw):
+        cx, cy = self._approach_pole_center
+        dist = math.hypot(pos[0] - cx, pos[1] - cy)
+
+        vision = self.pole_vision.latest() if self.pole_vision is not None else None
+        vision_fresh = (vision is not None and vision["t"] > 0
+                         and time.time() - vision["t"] < POLE_VISION_STALE_S)
+
+        if not vision_fresh:
+            if self._approach_lost_since is None:
+                self._approach_lost_since = time.time()
+            elif time.time() - self._approach_lost_since >= POLE_VISION_STALE_S:
+                logger.warning("APPROACHING视觉目标丢失，退回PATROL")
+                self._abort_approaching()
+                return
+        else:
+            self._approach_lost_since = None
+
+        if dist <= APPROACH_CIRCLE_TRIGGER_DIST_M:
+            self._start_circling_from_approach(pos)
+            return
+
+        x_speed = APPROACH_X_SPEED_FAR if dist > APPROACH_X_SWITCH_DIST_M else APPROACH_X_SPEED_NEAR
+        vx = int(x_speed if cx >= pos[0] else -x_speed)
+
+        vy = 0
+        if vision_fresh and vision["dx_px"] is not None:
+            azimuth = azimuth_from_dx(vision["dx_px"])
+            self.approach_y_pid.set_target(0.0)
+            vy_raw = self.approach_y_pid.get_pid(azimuth * POLE_VISION_Y_SIGN)
+            vy = int(self.limit(vy_raw, APPROACH_Y_VEL_MAX))
+
+        self._step_ramp_z(int(self._cruise_z * 100))
+        self.set_speed(vx, vy, 0, int(self._ramp_z_cm))
+
+    def _abort_approaching(self):
+        if self.pole_vision is not None:
+            self.pole_vision.set_locked_color(None)
+        self.targets = self._patrol_saved_targets
+        self.target_index = self._patrol_saved_index
+        self.last_target_index = -1
+        self._approach_pole_center = None
+        self._approach_color = None
+        self._approach_lost_since = None
+        self.nav_mode = "PATROL"
+
+    def _start_circling_from_approach(self, pos):
+        self.nav_mode = "CIRCLING"
 
     def _on_circle_complete(self):
         cx, cy = self._approach_pole_center
