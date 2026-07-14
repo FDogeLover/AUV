@@ -127,7 +127,8 @@ APPROACH_X_SPEED_NEAR = 12     # 雷达距离 <= APPROACH_X_SWITCH_DIST_M 时降
 APPROACH_X_SWITCH_DIST_M = 0.8
 APPROACH_CIRCLE_TRIGGER_DIST_M = POLE_CIRCLE_RADIUS_M  # APPROACHING→CIRCLING触发距离，
                                 # 直接复用环绕半径(2026-07-14讨论决定，不额外加余量常量)
-CAMERA_DEVICE = os.getenv("DRONE_CAMERA_DEVICE", "/dev/video0")
+CAMERA_DEVICE = os.getenv("DRONE_CAMERA_DEVICE", "/dev/pole_cam")  # 2026-07-14重建udev固定命名，
+                                # 见/etc/udev/rules.d/99-drone-serial.rules
 
 YAW_TEST_KP = float(os.getenv("DRONE_YAW_TEST_KP", "0"))
 # 问题16：2026-07-09用原始Kp=1.5闭环触发过近90°失控事故，此后yaw_pid长期保持

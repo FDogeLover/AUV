@@ -54,8 +54,8 @@ def main():
     # 2.5 雷达(可选，DRONE_RADAR_ENABLED=1 才启用，默认关闭不影响不接雷达的测试)
     radar = None
     if os.getenv("DRONE_RADAR_ENABLED", "0") == "1":
-        radar_port = os.getenv("DRONE_RADAR_PORT", "/dev/radar")  # ubuntu-pi上/dev/ttyUSB0其实是蓝牙，
-                                                                    # 雷达走udev固定命名(见/etc/udev/rules.d/99-drone-serial.rules)
+        radar_port = os.getenv("DRONE_RADAR_PORT", "/dev/radar")  # 2026-07-14重建udev固定命名后
+                                                                    # /dev/radar稳定指向雷达(见/etc/udev/rules.d/99-drone-serial.rules)
         radar_baud = int(os.getenv("DRONE_RADAR_BAUD", "460800"))
         radar = Serial_radar(radar_port, radar_baud)
         radar.port_open()
