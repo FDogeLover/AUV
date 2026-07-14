@@ -886,12 +886,21 @@ class mission:
         self.nav_mode = "PATROL"
 
     def _start_circling_from_approach(self, pos):
-        # 占位实现(Task 8范围内)：只切换nav_mode，不生成真正的环绕航点，
-        # 也不touch self.targets/target_index——切到CIRCLING后下一tick会
-        # 飞向target_index仍指向的旧(APPROACHING前的PATROL)航点，这是已知的、
-        # 故意留到后续任务替换的空档，不是bug。Task 9负责替换成真正生成
-        # 环绕航点的完整版本。
+        cx, cy = self._approach_pole_center
+        direction = POLE_COLOR_DIRECTION[self._approach_color]
+        waypoints = generate_circle_waypoints(
+            cx, cy, pos[0], pos[1],
+            radius=POLE_CIRCLE_RADIUS_M, n_points=POLE_CIRCLE_N_POINTS,
+            direction=direction, z=self._cruise_z,
+        )
+        self.targets = waypoints
+        self.target_index = 0
+        self.last_target_index = -1
         self.nav_mode = "CIRCLING"
+        logger.warning(
+            f"进入环绕：{self._approach_color}杆塔({cx:.2f},{cy:.2f})，"
+            f"方向{direction}，{len(waypoints)}个航点"
+        )
 
     def _on_circle_complete(self):
         cx, cy = self._approach_pole_center

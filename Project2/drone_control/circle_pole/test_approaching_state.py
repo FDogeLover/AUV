@@ -15,6 +15,7 @@ from Mission_GPT import (
     mission, POLE_TRIGGER_CONFIRM_S, POLE_VISION_STALE_S,
     APPROACH_X_SPEED_FAR, APPROACH_X_SPEED_NEAR,
 )
+from Lcode.circle_planner import generate_circle_waypoints  # noqa: E402  (文件顶部已有sys.path.insert)
 
 
 def _make_mission(radar_obj=None, pole_vision_obj=None):
@@ -190,3 +191,31 @@ class TestApproachingControlLaw:
         # 跟本测试用的fake radar(object())不兼容。
         m = self._start(pos=[2.1, 0.0, 1.2], pole=(2.7, 0.0))
         assert m.nav_mode == "CIRCLING"
+
+
+class TestStartCirclingFromApproach:
+    def test_red_pole_circles_clockwise(self):
+        m = _make_mission(radar_obj=object())
+        m._approach_pole_center = (2.0, 0.0)
+        m._approach_color = "red"
+        m._cruise_z = 1.2
+
+        m._start_circling_from_approach([1.3, 0.0, 1.2])
+
+        assert m.nav_mode == "CIRCLING"
+        expected = generate_circle_waypoints(2.0, 0.0, 1.3, 0.0, radius=0.7,
+                                              n_points=6, direction="cw", z=1.2)
+        assert m.targets == expected
+        assert m.target_index == 0
+
+    def test_green_pole_circles_counterclockwise(self):
+        m = _make_mission(radar_obj=object())
+        m._approach_pole_center = (2.0, 0.0)
+        m._approach_color = "green"
+        m._cruise_z = 1.2
+
+        m._start_circling_from_approach([1.3, 0.0, 1.2])
+
+        expected = generate_circle_waypoints(2.0, 0.0, 1.3, 0.0, radius=0.7,
+                                              n_points=6, direction="ccw", z=1.2)
+        assert m.targets == expected
