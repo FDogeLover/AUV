@@ -18,6 +18,7 @@ from Lcode.Logger import logger
 from Lcode.global_variable import sp_side, lock, fc_last_rx_time
 from Lcode.Lradar import PoleTracker
 from Lcode.circle_planner import generate_circle_waypoints, compute_detour_waypoint
+from Lcode.pole_vision import azimuth_from_dx
 from t265 import t265_class
 
 # ---------- 常量 ----------
@@ -101,6 +102,29 @@ LANDING_POINT = (2.0, 0.0)   # 降落点世界坐标占位值 — 现场量出�
 POLE_DETOUR_SAFETY_RADIUS_M = POLE_DANGER_DIST_M  # 绕行安全半径，跟悬停避让触发阈值一致(2026-07-13)
 POLE_DETOUR_MARGIN_M = 0.15  # 绕行航点比安全半径再往外推一点，避免刚好卡在边界抖动
 
+POLE_COLOR_DIRECTION = {"red": "cw", "green": "ccw"}  # 赛题固定映射，见2026-07-14设计文档
+
+# ---------- 阶段2：前置摄像头颜色识别 + 视觉伺服接近 ----------
+POLE_VISION_STALE_S = 0.5     # 视觉检测结果超过此值未更新，APPROACHING视为目标丢失
+POLE_TRIGGER_CONFIRM_S = 0.3  # PATROL→APPROACHING触发条件(雷达确认+视觉确认+颜色未去重)
+                                # 需要持续满足这么久才真正触发，同一个计时器也兼做颜色
+                                # 锁定防抖，避免单帧误判/边界抖动被当真，见2026-07-14设计
+                                # 文档"触发滞回""颜色锁定"两节
+POLE_VISION_Y_SIGN = 1        # 未标定！真机标定前只是假设值，标定结果可能是+1也可能是-1，
+                                # 标定前APPROACHING阶段y方向视觉伺服可能是反的(同POLE_YAW_SIGN)
+APPROACH_Y_KP = 30.0           # 视觉伺服y轴PID增益，误差量是方位角(弧度，量级约±0.7rad)，
+                                # 不是x_pid/y_pid那种米制误差，不能沿用0.82那组增益。
+                                # 初始值未经真机标定，见2026-07-14设计文档测试计划步骤1
+APPROACH_Y_KI = 0.0
+APPROACH_Y_KD = 2.0
+APPROACH_Y_VEL_MAX = 35        # 视觉伺服y轴输出限幅(cm/s量级，跟x_pid/y_pid的40上限同量级)
+APPROACH_X_SPEED_FAR = 25      # 雷达距离 > APPROACH_X_SWITCH_DIST_M 时的接近速度
+APPROACH_X_SPEED_NEAR = 12     # 雷达距离 <= APPROACH_X_SWITCH_DIST_M 时降速微调
+APPROACH_X_SWITCH_DIST_M = 0.8
+APPROACH_CIRCLE_TRIGGER_DIST_M = POLE_CIRCLE_RADIUS_M  # APPROACHING→CIRCLING触发距离，
+                                # 直接复用环绕半径(2026-07-14讨论决定，不额外加余量常量)
+CAMERA_DEVICE = os.getenv("DRONE_CAMERA_DEVICE", "/dev/video0")
+
 YAW_TEST_KP = float(os.getenv("DRONE_YAW_TEST_KP", "0"))
 # 问题16：2026-07-09用原始Kp=1.5闭环触发过近90°失控事故，此后yaw_pid长期保持
 # 喂弧度的安全回退状态(恒输出≈0，等于没有yaw修正)。2026-07-12递进式真机复测
@@ -140,7 +164,7 @@ class mission:
 
     def __init__(self, re_fc: List[int], se_fc: List[int],
                  realsense_obj: Optional[t265_class] = None,
-                 serial_fc_ref=None, radar_obj=None):
+                 serial_fc_ref=None, radar_obj=None, pole_vision_obj=None):
         self.re_fc = re_fc
         self.se_fc = se_fc
         self.serial_fc_ref = serial_fc_ref
@@ -165,7 +189,7 @@ class mission:
             self.yaw_pid = PID(1, 0)
 
         # 航点
-        self.targets = self.load_waypoints()
+        self.targets = self.load_waypoints('patrol_router.txt')
         self.target_index = 0
         self.emergency_stop = False
 
@@ -192,9 +216,18 @@ class mission:
         self._hover_start_time = None  # 悬停开始时间，用于POLE_HOVER_TIMEOUT_S超时判断
 
         # 环绕状态机(阶段1单杆/阶段2双杆共用)
-        self.nav_mode = "PATROL"  # PATROL / CIRCLING / TO_LANDING
-        self.circled_poles = []   # 已完成环绕的杆塔世界坐标 [(x,y), ...]
-        self._circle_pole_center = None  # 当前正在环绕的杆塔世界坐标，从悬停避让判断中排除
+        self.nav_mode = "PATROL"  # PATROL / APPROACHING / CIRCLING / RETREAT / TO_LANDING
+        self.circled_poles = []   # 已完成环绕的杆塔 [(x,y,color), ...]，坐标供绕行检查用
+        self.circled_colors = set()  # 已环绕颜色集合，去重判断依据(替代坐标容差)，见2026-07-14设计文档
+        self._circle_pole_center = None  # 当前正在环绕的杆塔世界坐标(冻结快照)，Task 5会
+                                          # 整体改名成_approach_pole_center(APPROACHING阶段
+                                          # 也要用同一个字段)，这里先保持阶段1原名，避免和
+                                          # 还没改名的_exclude_active_circle_target_only等
+                                          # 方法产生中间断裂状态(AttributeError)
+        self._approach_color = None        # 当前APPROACHING/CIRCLING锁定颜色
+        self._approach_lost_since = None   # APPROACHING视觉结果开始陈旧的时间点(见POLE_VISION_STALE_S)
+        self._trigger_candidate = None       # PATROL态正在累计确认时长的(x,y,color)候选目标
+        self._trigger_candidate_since = None
         self._patrol_saved_targets = None
         self._patrol_saved_index = 0
         self._cruise_z = self.targets[0][2] if self.targets else put_height / 100
@@ -202,9 +235,13 @@ class mission:
         self._detour_checked_index = -1  # 上次检查过绕行需求的target_index，避免同一个
                                           # 目标每tick重复计算/重复插入绕行航点
 
-    def load_waypoints(self):
+        # 视觉子系统(可选)
+        self.pole_vision = pole_vision_obj
+        self.approach_y_pid = PID(0, 0, p=APPROACH_Y_KP, i=APPROACH_Y_KI, d=APPROACH_Y_KD)
+
+    def load_waypoints(self, path='patrol_router.txt'):
         try:
-            with open('router.txt', 'r', encoding='utf-8') as f:
+            with open(path, 'r', encoding='utf-8') as f:
                 waypoints = []
                 for line in f:
                     line = line.strip()
@@ -219,12 +256,12 @@ class mission:
                             except ValueError:
                                 logger.warning(f"无效航点: {line}")
                 if waypoints:
-                    logger.info(f"加载 {len(waypoints)} 个航点")
+                    logger.info(f"从{path}加载 {len(waypoints)} 个航点")
                     return waypoints
         except FileNotFoundError:
-            logger.warning("router.txt 不存在，使用默认航点")
+            logger.warning(f"{path} 不存在，使用默认航点")
         except Exception as e:
-            logger.warning(f"读取 router.txt 失败: {e}，使用默认航点")
+            logger.warning(f"读取 {path} 失败: {e}，使用默认航点")
 
         default = [[0.0, 0.0, put_height/100],
                    [0.5, 0.0, put_height/100],
