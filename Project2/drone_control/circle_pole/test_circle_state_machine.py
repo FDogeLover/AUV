@@ -202,3 +202,23 @@ class TestDetourInsertion:
 
         m.navigate([0.0, 0.0, 1.2], 0.0)  # 再调用一次，target_index还是0(指向绕行点)
         assert len(m.targets) == 2  # 没有重复插入
+
+    def test_does_not_insert_detour_during_circling_even_for_already_circled_pole(self):
+        """2026-07-14全量review发现：CIRCLING阶段绕行检测之前没有整体关闭，只排除
+        当前正在环绕的目标，不排除已环绕过的杆塔——如果环绕路径途经已环绕杆塔的
+        安全区，会被插入绕行航点，打断环绕路径本身，跟设计文档"绕行机制发生在
+        PATROL/TO_LANDING态，不受CIRCLING阶段影响"的说法矛盾。"""
+        m = _make_mission(radar_obj=object())
+        m.circled_poles = [(1.0, 0.0, "red")]  # 已环绕过，挡在这次的环绕路径中间
+        m._approach_pole_center = (5.0, 5.0)  # 正在环绕的另一个目标(远处，不相关)
+        m.nav_mode = "CIRCLING"
+        m.targets = [[2.0, 0.0, 1.2]]
+        m.target_index = 0
+        m._last_pole_poll_time = time.time()
+        for _ in range(3):
+            m.pole_tracker._history.append([(1.0, 0.0)])
+
+        m.set_speed = lambda *a, **k: None
+        m.navigate([0.0, 0.0, 1.2], 0.0)
+
+        assert len(m.targets) == 1  # 没有插入绕行航点，CIRCLING阶段完全不做绕行检测

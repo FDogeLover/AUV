@@ -495,7 +495,11 @@ class mission:
             # 真机测试发现巡航恢复/降落路径可能会绕回已环绕过的杆塔附近，那根杆塔
             # 已经从悬停避让里永久排除了，如果直飞路径又正好穿过它，没有绕行机制的
             # 话就是纯粹的碰撞风险)的安全区，插入一个绕开的中间航点。
-            if self._maybe_insert_detour(confirmed, pos, target):
+            # 2026-07-14全量review修复：CIRCLING阶段绕行检测整体关闭，跟悬停避让
+            # 关闭是同一套设计哲学——环绕路径本身是精心规划好的轨迹，途中被绕行
+            # 逻辑打断的风险比不检测更高；这里也没有排除已环绕过的杆塔，阶段1
+            # 单杆场景从未触发过这条路径，阶段2才会暴露。
+            if self.nav_mode != "CIRCLING" and self._maybe_insert_detour(confirmed, pos, target):
                 target = self.targets[self.target_index]
                 target_z = int(target[2] * 100)
 
