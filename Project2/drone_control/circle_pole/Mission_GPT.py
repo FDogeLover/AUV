@@ -859,6 +859,35 @@ class mission:
         self.nav_mode = "APPROACHING"
         logger.warning(f"视觉确认{color}杆塔，开始视觉接近(雷达坐标待_approaching_step内确认)")
 
+    def _log_approaching_telemetry(self, pos, yaw, vx, vy, target, pole_dist=None,
+                                    confirmed_poles_list=None):
+        """2026-07-14新增：_approaching_step原本完全不写飞行日志(navigate()一进
+        APPROACHING分支就return，跳过了navigate()自己的日志写入代码块)，导致
+        APPROACHING阶段(纯视觉接近+雷达接管后的距离阶梯控制)全程没有位置/速度
+        数据可查——真机测试观察到"没有正对着杆子飞、靠近后来回震荡"这类现象时，
+        完全没有数据能验证/排查，只能事后靠回忆。这里补一份跟navigate()同结构
+        (但简化掉of1/roll_pitch等navigate()专属字段)的日志写入。"""
+        now = time.time()
+        if not (self._log_file and now - self._last_log_time >= FLIGHT_LOG_INTERVAL):
+            return
+        try:
+            self._log_file.write(json.dumps({
+                "t": round(now, 3),
+                "state": self.state,
+                "nav_mode": self.nav_mode,
+                "pos": [round(pos[0], 4), round(pos[1], 4), round(pos[2], 4)],
+                "target": [round(target[0], 4), round(target[1], 4), round(target[2], 4)],
+                "vx": vx, "vy": vy,
+                "t265_yaw_deg": round(math.degrees(yaw), 2),
+                "pole_hover": self._pole_hovering,
+                "pole_dist": round(pole_dist, 3) if pole_dist is not None else None,
+                "confirmed_poles": confirmed_poles_list or [],
+            }) + "\n")
+            self._log_file.flush()
+        except Exception:
+            pass
+        self._last_log_time = now
+
     def _approaching_step(self, pos, yaw):
         # 雷达轮询+悬停避让(2026-07-14全量review发现的缺口修复)：原实现直接
         # 进入下面的接近控制逻辑，完全跳过了navigate()里其他nav_mode都会走的
@@ -868,12 +897,18 @@ class mission:
         # 与PATROL/TO_LANDING/RETREAT一致)。
         pole_hover = False
         pole_dist = None
+        confirmed_poles_list = []
         if self.pole_tracker is not None:
             now = time.time()
             if now - self._last_pole_poll_time >= POLE_POLL_INTERVAL_S:
                 self._last_pole_poll_time = now
                 self.pole_tracker.update(self.radar, pos[0], pos[1], yaw)
             confirmed = self.pole_tracker.confirmed_poles()
+            confirmed_poles_list = [
+                {"x": round(p["x"], 3), "y": round(p["y"], 3), "hits": p["hits"],
+                 "dist": round(math.hypot(p["x"] - pos[0], p["y"] - pos[1]), 3)}
+                for p in confirmed
+            ]
 
             # 雷达坐标尚未冻结时尝试从这次轮询里确认出来(2026-07-14改为纯视觉
             # 触发APPROACHING后，雷达坐标不再是触发时就有的，要在这里补上)。
@@ -916,6 +951,11 @@ class mission:
             # 悬停避让的语义是"停一切、原地保持"，2026-07-14 code review发现这里
             # 原本多了一行_step_ramp_z(cruise_z)会让高度在悬停期间继续爬升到
             # 巡航高度，跟navigate()真正的"位置+高度都冻结"行为不一致，已去掉。
+            self._log_approaching_telemetry(
+                pos, yaw, vx, vy,
+                target=(self._hover_hold_pos[0], self._hover_hold_pos[1], self._cruise_z),
+                pole_dist=pole_dist, confirmed_poles_list=confirmed_poles_list,
+            )
             self.set_speed(vx, vy, 0, int(self._ramp_z_cm))
             return
         elif self._pole_hovering:
@@ -965,6 +1005,12 @@ class mission:
             vy = int(self.limit(vy_raw, APPROACH_Y_VEL_MAX))
 
         self._step_ramp_z(int(self._cruise_z * 100))
+        log_target = ((self._approach_pole_center[0], self._approach_pole_center[1], self._cruise_z)
+                      if self._approach_pole_center is not None else (pos[0], pos[1], self._cruise_z))
+        self._log_approaching_telemetry(
+            pos, yaw, vx, vy, target=log_target,
+            pole_dist=pole_dist, confirmed_poles_list=confirmed_poles_list,
+        )
         self.set_speed(vx, vy, 0, int(self._ramp_z_cm))
 
     def _abort_approaching(self):

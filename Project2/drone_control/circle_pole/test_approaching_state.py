@@ -3,6 +3,8 @@
 运行:
     cd drone_control/circle_pole && python -m pytest test_approaching_state.py -v
 """
+import io
+import json
 import os
 import sys
 import time
@@ -315,6 +317,68 @@ class TestApproachingHoverAvoidance:
         m.navigate([0.45, 0.28, 1.2], 0.0)
 
         assert m._pole_hovering is False
+
+
+class TestApproachingTelemetryLogging:
+    """2026-07-14真机测试观察到APPROACHING阶段"没有正对着杆子飞、靠近后来回
+    震荡"的现象，排查时发现navigate()对APPROACHING直接return到_approaching_step，
+    完全跳过了navigate()自己的飞行日志写入代码块——整个APPROACHING阶段(纯视觉
+    接近+雷达接管后的距离阶梯控制)在flight_data.jsonl里没有留下任何位置/速度
+    数据，没法验证/排查震荡现象。这里验证补上的_log_approaching_telemetry()
+    确实被调用到。"""
+
+    def test_pure_vision_phase_writes_log_entry(self):
+        vision = _FakeVision(dx_px=0.0, color="red")
+        m = _make_mission(radar_obj=None, pole_vision_obj=vision)
+        m._approach_pole_center = None
+        m._approach_color = "red"
+        m.nav_mode = "APPROACHING"
+        m._log_file = io.StringIO()
+        m.set_speed = lambda *a, **k: None
+
+        m.navigate([0.0, 0.0, 1.2], 0.0)
+
+        m._log_file.seek(0)
+        lines = [l for l in m._log_file.readlines() if l.strip()]
+        assert len(lines) >= 1
+        entry = json.loads(lines[-1])
+        assert entry["nav_mode"] == "APPROACHING"
+        assert entry["pos"] == [0.0, 0.0, 1.2]
+
+    def test_radar_confirmed_phase_writes_log_entry_with_target(self):
+        vision = _FakeVision(dx_px=0.0, color="red")
+        m = _make_mission(radar_obj=None, pole_vision_obj=vision)
+        m._approach_pole_center = (2.0, 0.5)
+        m._approach_color = "red"
+        m.nav_mode = "APPROACHING"
+        m._log_file = io.StringIO()
+        m.set_speed = lambda *a, **k: None
+
+        m.navigate([0.0, 0.0, 1.2], 0.0)
+
+        m._log_file.seek(0)
+        entry = json.loads([l for l in m._log_file.readlines() if l.strip()][-1])
+        assert entry["target"][0] == pytest.approx(2.0)
+        assert entry["target"][1] == pytest.approx(0.5)
+
+    def test_hover_avoidance_phase_writes_log_entry(self):
+        vision = _FakeVision(dx_px=0.0, color="red")
+        m = _make_mission(radar_obj=object(), pole_vision_obj=vision)
+        m._approach_pole_center = (5.0, 5.0)
+        m._approach_color = "red"
+        m.nav_mode = "APPROACHING"
+        m._last_pole_poll_time = time.time()
+        for _ in range(3):
+            m.pole_tracker._history.append([(0.3, 0.0)])
+        m._log_file = io.StringIO()
+        m.set_speed = lambda *a, **k: None
+
+        m.navigate([0.0, 0.0, 1.2], 0.0)
+
+        assert m._pole_hovering is True
+        m._log_file.seek(0)
+        entry = json.loads([l for l in m._log_file.readlines() if l.strip()][-1])
+        assert entry["pole_hover"] is True
 
     def test_hovering_blocks_approach_speed_commands(self):
         """悬停期间不应该继续输出接近速度指令(vx朝目标杆)，应该是悬停锁定
