@@ -845,6 +845,53 @@ class mission:
         logger.warning(f"雷达+视觉确认{color}杆塔({x:.2f},{y:.2f})，开始视觉接近")
 
     def _approaching_step(self, pos, yaw):
+        # 雷达轮询+悬停避让(2026-07-14全量review发现的缺口修复)：原实现直接
+        # 进入下面的接近控制逻辑，完全跳过了navigate()里其他nav_mode都会走的
+        # 雷达轮询/悬停避让代码块，设计文档承诺的"APPROACHING阶段其余未处理
+        # 杆塔仍触发悬停避让"从未生效。这里补一份跟navigate()同构的悬停避让
+        # 逻辑(排除当前接近目标+已环绕杆塔，复用_exclude_circle_target，语义
+        # 与PATROL/TO_LANDING/RETREAT一致)。
+        pole_hover = False
+        pole_dist = None
+        if self.pole_tracker is not None:
+            now = time.time()
+            if now - self._last_pole_poll_time >= POLE_POLL_INTERVAL_S:
+                self._last_pole_poll_time = now
+                self.pole_tracker.update(self.radar, pos[0], pos[1], yaw)
+            confirmed = self.pole_tracker.confirmed_poles()
+            hover_check_poles = self._exclude_circle_target(confirmed)
+            pole_dist = nearest_confirmed_pole_dist(hover_check_poles, pos[0], pos[1])
+            if self._pole_hovering:
+                pole_hover = pole_dist is not None and pole_dist < POLE_RESUME_DIST_M
+            else:
+                pole_hover = pole_dist is not None and pole_dist < POLE_DANGER_DIST_M
+
+        if pole_hover:
+            if not self._pole_hovering:
+                logger.warning(f"APPROACHING阶段检测到其他杆子距离{pole_dist:.2f}m，悬停等待")
+                self._pole_hovering = True
+                self._hover_hold_pos = (pos[0], pos[1])
+                self._hover_start_time = time.time()
+                self.x_pid.set_target(self._hover_hold_pos[0])
+                self.y_pid.set_target(self._hover_hold_pos[1])
+            elif time.time() - self._hover_start_time >= POLE_HOVER_TIMEOUT_S:
+                logger.warning(f"APPROACHING阶段悬停超过{POLE_HOVER_TIMEOUT_S:.0f}秒仍未恢复，原地触发降落")
+                self._pole_hovering = False
+                self._hover_hold_pos = None
+                self._hover_start_time = None
+                self.state = "LAND"
+                return
+            vx = int(self.limit(self.x_pid.get_pid(pos[0]) * 100 * VEL_SCALE, 40))
+            vy = int(self.limit(self.y_pid.get_pid(pos[1]) * 100 * VEL_SCALE, 40))
+            self._step_ramp_z(int(self._cruise_z * 100))
+            self.set_speed(vx, vy, 0, int(self._ramp_z_cm))
+            return
+        elif self._pole_hovering:
+            logger.info("APPROACHING阶段杆子确认已消失，恢复接近")
+            self._pole_hovering = False
+            self._hover_hold_pos = None
+            self._hover_start_time = None
+
         cx, cy = self._approach_pole_center
         dist = math.hypot(pos[0] - cx, pos[1] - cy)
 

@@ -129,6 +129,11 @@ class TestApproachingControlLaw:
         m._approach_pole_center = pole
         m._approach_color = color
         m.nav_mode = "APPROACHING"
+        # 2026-07-14 Task 13起_approaching_step也会轮询雷达(见悬停避让补充逻辑)，
+        # 这里的fake radar(object())不支持get_scan()，需要让_last_pole_poll_time
+        # 刚刚更新过，跳过本次轮询窗口，避免测试控制律的用例被雷达轮询意外打断——
+        # 真实流程中nav_mode切到APPROACHING前PATROL分支刚做过一次轮询，效果等价。
+        m._last_pole_poll_time = time.time()
         m.set_speed = lambda *a, **k: None
         m.navigate(pos, 0.0)
         return m
@@ -170,12 +175,14 @@ class TestApproachingControlLaw:
         m._approach_pole_center = (2.0, 0.0)
         m._approach_color = "red"
         m.nav_mode = "APPROACHING"
+        m._last_pole_poll_time = time.time()  # 见TestApproachingControlLaw._start()注释
         m.set_speed = lambda *a, **k: None
 
         m.navigate([0.0, 0.0, 1.2], 0.0)  # 第一次陈旧：只是开始计时，不立刻退回
         assert m.nav_mode == "APPROACHING"
 
         m._approach_lost_since = time.time() - POLE_VISION_STALE_S - 0.01
+        m._last_pole_poll_time = time.time()
         m.navigate([0.0, 0.0, 1.2], 0.0)
 
         assert m.nav_mode == "PATROL"
@@ -219,3 +226,57 @@ class TestStartCirclingFromApproach:
         expected = generate_circle_waypoints(2.0, 0.0, 1.3, 0.0, radius=0.7,
                                               n_points=6, direction="ccw", z=1.2)
         assert m.targets == expected
+
+
+class TestApproachingHoverAvoidance:
+    def test_other_pole_triggers_hover_during_approaching(self):
+        """设计文档承诺APPROACHING阶段悬停避让仍对"其余未处理的杆塔"生效——
+        2026-07-14全量review发现原实现从未执行到这段逻辑(navigate()对APPROACHING
+        直接return，跳过了雷达轮询/悬停避让代码块)。"""
+        vision = _FakeVision(dx_px=0.0, color="red")
+        m = _make_mission(radar_obj=object(), pole_vision_obj=vision)
+        m._approach_pole_center = (5.0, 5.0)  # 正在接近的目标，离这次的杆子很远
+        m._approach_color = "red"
+        m.nav_mode = "APPROACHING"
+        m._last_pole_poll_time = time.time()
+        for _ in range(3):
+            m.pole_tracker._history.append([(0.3, 0.0)])  # 另一根杆子，离飞机只有0.3m
+
+        m.set_speed = lambda *a, **k: None
+        m.navigate([0.0, 0.0, 1.2], 0.0)
+
+        assert m._pole_hovering is True
+
+    def test_own_approach_target_does_not_trigger_hover(self):
+        vision = _FakeVision(dx_px=0.0, color="red")
+        m = _make_mission(radar_obj=object(), pole_vision_obj=vision)
+        m._approach_pole_center = (0.5, 0.3)
+        m._approach_color = "red"
+        m.nav_mode = "APPROACHING"
+        m._last_pole_poll_time = time.time()
+        for _ in range(3):
+            m.pole_tracker._history.append([(0.5, 0.3)])  # 就是接近目标本身
+
+        m.set_speed = lambda *a, **k: None
+        m.navigate([0.45, 0.28, 1.2], 0.0)
+
+        assert m._pole_hovering is False
+
+    def test_hovering_blocks_approach_speed_commands(self):
+        """悬停期间不应该继续输出接近速度指令(vx朝目标杆)，应该是悬停锁定
+        位置的PID输出。"""
+        vision = _FakeVision(dx_px=0.0, color="red")
+        m = _make_mission(radar_obj=object(), pole_vision_obj=vision)
+        m._approach_pole_center = (5.0, 5.0)
+        m._approach_color = "red"
+        m.nav_mode = "APPROACHING"
+        m._last_pole_poll_time = time.time()
+        for _ in range(3):
+            m.pole_tracker._history.append([(0.3, 0.0)])
+
+        calls = []
+        m.set_speed = lambda x, y, yaw, z: calls.append(x)
+        m.navigate([0.0, 0.0, 1.2], 0.0)
+
+        assert calls[-1] != APPROACH_X_SPEED_FAR
+        assert calls[-1] != APPROACH_X_SPEED_NEAR
