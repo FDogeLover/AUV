@@ -860,16 +860,23 @@ class mission:
         logger.warning(f"视觉确认{color}杆塔，开始视觉接近(雷达坐标待_approaching_step内确认)")
 
     def _log_approaching_telemetry(self, pos, yaw, vx, vy, target, pole_dist=None,
-                                    confirmed_poles_list=None):
+                                    confirmed_poles_list=None, dx_px=None, azimuth_rad=None,
+                                    vision_fresh=None, vision_age_s=None):
         """2026-07-14新增：_approaching_step原本完全不写飞行日志(navigate()一进
         APPROACHING分支就return，跳过了navigate()自己的日志写入代码块)，导致
         APPROACHING阶段(纯视觉接近+雷达接管后的距离阶梯控制)全程没有位置/速度
         数据可查——真机测试观察到"没有正对着杆子飞、靠近后来回震荡"这类现象时，
         完全没有数据能验证/排查，只能事后靠回忆。这里补一份跟navigate()同结构
-        (但简化掉of1/roll_pitch等navigate()专属字段)的日志写入。"""
+        (但简化掉of1/roll_pitch等navigate()专属字段)的日志写入。
+        2026-07-15补充：原版本只记了PID算出来的指令vx/vy，没记视觉伺服的原始
+        输入(dx_px/azimuth)和T265实测速度(t265_vel)/飞控yaw(fc_yaw_deg)交叉校验，
+        导致没法区分"震荡"是视觉检测本身在跳还是控制律过冲——这里补上。"""
         now = time.time()
         if not (self._log_file and now - self._last_log_time >= FLIGHT_LOG_INTERVAL):
             return
+        tv = self.realsense.get_velocity() if (self.t265_ok and self.realsense) else (0.0, 0.0, 0.0)
+        with lock:
+            fc_yaw_deg = self.re_fc[3] / 100.0 if len(self.re_fc) > 3 else 0.0
         try:
             self._log_file.write(json.dumps({
                 "t": round(now, 3),
@@ -879,6 +886,12 @@ class mission:
                 "target": [round(target[0], 4), round(target[1], 4), round(target[2], 4)],
                 "vx": vx, "vy": vy,
                 "t265_yaw_deg": round(math.degrees(yaw), 2),
+                "fc_yaw_deg": round(fc_yaw_deg, 2),
+                "t265_vel": [round(tv[0], 4), round(tv[1], 4)],
+                "dx_px": dx_px,
+                "azimuth_deg": round(math.degrees(azimuth_rad), 2) if azimuth_rad is not None else None,
+                "vision_fresh": vision_fresh,
+                "vision_age_s": round(vision_age_s, 3) if vision_age_s is not None else None,
                 "pole_hover": self._pole_hovering,
                 "pole_dist": round(pole_dist, 3) if pole_dist is not None else None,
                 "confirmed_poles": confirmed_poles_list or [],
@@ -998,6 +1011,7 @@ class mission:
                 vx = 0
 
         vy = 0
+        azimuth = None
         if vision_fresh and vision["dx_px"] is not None:
             azimuth = azimuth_from_dx(vision["dx_px"])
             self.approach_y_pid.set_target(0.0)
@@ -1010,6 +1024,10 @@ class mission:
         self._log_approaching_telemetry(
             pos, yaw, vx, vy, target=log_target,
             pole_dist=pole_dist, confirmed_poles_list=confirmed_poles_list,
+            dx_px=vision["dx_px"] if vision is not None else None,
+            azimuth_rad=azimuth,
+            vision_fresh=vision_fresh,
+            vision_age_s=(time.time() - vision["t"]) if vision is not None and vision["t"] > 0 else None,
         )
         self.set_speed(vx, vy, 0, int(self._ramp_z_cm))
 
