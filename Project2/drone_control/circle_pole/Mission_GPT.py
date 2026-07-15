@@ -19,6 +19,7 @@ from Lcode.global_variable import sp_side, lock, fc_last_rx_time
 from Lcode.Lradar import PoleTracker
 from Lcode.circle_planner import generate_circle_waypoints, compute_detour_waypoint
 from Lcode.pole_vision import azimuth_from_dx
+from Lcode.resource_monitor import ResourceMonitor
 from t265 import t265_class
 
 # ---------- 常量 ----------
@@ -215,6 +216,7 @@ class mission:
         self._log_file = None
         self._last_log_time = 0.0
         self._log_lock = threading.Lock()
+        self._resource_monitor = ResourceMonitor()
 
         # 雷达避障(可选)
         self.radar = radar_obj
@@ -326,6 +328,8 @@ class mission:
                 self._log_file.flush()
         except Exception:
             pass
+
+        self._resource_monitor.start(self._log_file, self._log_lock)
 
         threading.Thread(target=self.loop, daemon=True).start()
 
@@ -1215,16 +1219,21 @@ class mission:
     # ================= 停止 =================
     def stop_all(self):
         logger.info("任务结束")
-        try:
-            if self._log_file:
-                self._log_file.close()
-        except Exception:
-            pass
+        # 上锁指令必须最先发出、前面不能有任何阻塞调用——stop_all()由emergency_stop
+        # 路径(飞控串口超时/T265丢失)触发，se_fc是独立50Hz发送线程读取的共享状态，
+        # 越早写入，飞控收到断电/上锁指令就越早。见docs/known_issues.md #22
+        # (电机停转可靠性是全项目最高优先级安全隐患)。
         with lock:
             self.se_fc[3] = sp_side
             self.se_fc[4] = sp_side
             self.se_fc[6] = sp_side
             self.se_fc[7] = 101
+        self._resource_monitor.stop()
+        try:
+            if self._log_file:
+                self._log_file.close()
+        except Exception:
+            pass
         if self.realsense:
             self.realsense.stop()
         self.task_running = False
