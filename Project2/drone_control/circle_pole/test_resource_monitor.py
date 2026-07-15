@@ -8,6 +8,7 @@ import json
 import os
 import sys
 import threading
+import time
 
 sys.path.insert(0, os.path.dirname(__file__))
 
@@ -110,3 +111,36 @@ class TestSampleOnce:
         monitor._sample_once()  # 不应该抛异常
 
         assert log_file.getvalue() == ""
+
+
+class TestStartStop:
+    def test_start_produces_samples_stop_halts_them(self, monkeypatch):
+        import Lcode.resource_monitor as rm_module
+
+        monkeypatch.setattr(rm_module, "SAMPLE_INTERVAL_S", 0.02)
+        monkeypatch.setattr(rm_module.psutil, "cpu_percent", lambda interval=None: 5.0)
+        monkeypatch.setattr(rm_module.psutil, "virtual_memory", lambda: FakeVirtualMemory())
+        monkeypatch.setattr(rm_module.psutil, "sensors_temperatures", lambda: {}, raising=False)
+        monkeypatch.setattr(
+            rm_module.psutil, "Process",
+            lambda pid: FakeProc(cpu_pct=5.0, rss_mb=100.0),
+        )
+
+        monitor = ResourceMonitor()
+        log_file = io.StringIO()
+        log_lock = threading.Lock()
+
+        monitor.start(log_file, log_lock)
+        time.sleep(0.1)  # 至少经过几个SAMPLE_INTERVAL_S=0.02周期
+        monitor.stop()
+
+        lines_after_stop = log_file.getvalue().strip().split("\n")
+        assert len(lines_after_stop) >= 2
+        for line in lines_after_stop:
+            entry = json.loads(line)
+            assert entry["event"] == "resource"
+
+        count_right_after_stop = len(lines_after_stop)
+        time.sleep(0.1)  # 再等一轮周期，确认线程真的停了，没有继续写
+        lines_later = log_file.getvalue().strip().split("\n")
+        assert len(lines_later) == count_right_after_stop
