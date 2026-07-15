@@ -255,3 +255,75 @@ class TestPoleVisionDebugFrameSave:
             time.sleep(0.02)
 
         assert fake_cap.released is True
+
+
+class _FakeCapMultiFrames:
+    """依次返回给定的多帧图像，用完后read()一直失败，供测试用。"""
+
+    def __init__(self, frames):
+        self._frames = frames
+        self._idx = 0
+        self.released = False
+
+    def isOpened(self):
+        return True
+
+    def read(self):
+        if self._idx < len(self._frames):
+            frame = self._frames[self._idx]
+            self._idx += 1
+            return True, frame
+        return False, None
+
+    def release(self):
+        self.released = True
+
+    def set(self, prop_id, value):
+        return True
+
+
+class TestPoleVisionDebugFrameSaveOnJump:
+    def test_saves_frame_when_dx_px_jumps_without_color_change(self, monkeypatch, tmp_path):
+        """真机测试发现：颜色锁定后(全程"green")dx_px仍会在两个相距很远的
+        位置间瞬时跳变，怀疑detect_target()在两个不同的同色连通域间切换选中
+        目标——颜色本身没变，之前"颜色切换才存图"的逻辑完全捕捉不到。"""
+        frame1 = _blank_frame()
+        _draw_rect_bgr(frame1, (0, 255, 0), x_center=200)  # 画面左侧
+        frame2 = _blank_frame()
+        _draw_rect_bgr(frame2, (0, 255, 0), x_center=1700)  # 画面右侧，同色但dx_px差很远
+        fake_cap = _FakeCapMultiFrames([frame1, frame2])
+        monkeypatch.setattr("Lcode.pole_vision.cv2.VideoCapture", lambda *_a, **_k: fake_cap)
+        monkeypatch.setenv("DRONE_VISION_DEBUG_DIR", str(tmp_path))
+
+        pv = PoleVision()
+        assert pv.start() is True
+        deadline = time.time() + 2.0
+        while fake_cap._idx < 2 and time.time() < deadline:
+            time.sleep(0.02)
+        time.sleep(0.1)  # 等第二帧处理完写盘
+        pv.stop()
+
+        switch_saved = list(tmp_path.glob("*_green.jpg"))
+        jump_saved = list(tmp_path.glob("*_green_jump.jpg"))
+        assert len(switch_saved) == 1  # 第一帧：颜色从None切到green
+        assert len(jump_saved) == 1    # 第二帧：颜色仍是green，但dx_px跳变超阈值
+
+    def test_no_jump_save_when_dx_px_change_is_small(self, monkeypatch, tmp_path):
+        frame1 = _blank_frame()
+        _draw_rect_bgr(frame1, (0, 255, 0), x_center=960)
+        frame2 = _blank_frame()
+        _draw_rect_bgr(frame2, (0, 255, 0), x_center=1000)  # 只差40px，远小于阈值
+        fake_cap = _FakeCapMultiFrames([frame1, frame2])
+        monkeypatch.setattr("Lcode.pole_vision.cv2.VideoCapture", lambda *_a, **_k: fake_cap)
+        monkeypatch.setenv("DRONE_VISION_DEBUG_DIR", str(tmp_path))
+
+        pv = PoleVision()
+        assert pv.start() is True
+        deadline = time.time() + 2.0
+        while fake_cap._idx < 2 and time.time() < deadline:
+            time.sleep(0.02)
+        time.sleep(0.1)
+        pv.stop()
+
+        jump_saved = list(tmp_path.glob("*_jump.jpg"))
+        assert jump_saved == []

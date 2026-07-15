@@ -14,6 +14,11 @@ from Lcode.Logger import logger
 CAMERA_FOCAL_PX = 1100.0  # 已标定焦距，见 drone_control/tools/camera_test_20260713/
 CAMERA_FRAME_WIDTH = 1920
 MIN_CONTOUR_AREA_PX = 200
+# 2026-07-15新增：同一tick内dx_px单帧跳变超过这个像素数就存一张调试帧。
+# 真机测试发现颜色锁定后(比如全程"green")dx_px仍会在两个相距很远的位置间
+# 瞬时跳变，怀疑detect_target()在两个不同的同色连通域间切换选中目标——
+# 颜色本身没变，之前"颜色切换才存图"的逻辑完全捕捉不到这种情况。
+DX_JUMP_DEBUG_THRESHOLD_PX = 300
 
 # HSV阈值。红色注意色相环绕0/180两段，取并集。
 # 2026-07-14现场标定：红色初始值(S_min=120)完全没识别到实际赛题杆子——真杆子
@@ -106,6 +111,7 @@ class PoleVision:
         # 每次颜色从无到有/切换时保存一帧现场画面，方便事后核对镜头里实际拍到的是什么。
         self._debug_dir = os.getenv("DRONE_VISION_DEBUG_DIR")
         self._last_saved_color = None
+        self._last_dx_px = None
 
     def start(self):
         self._cap = cv2.VideoCapture(self.device)
@@ -149,15 +155,22 @@ class PoleVision:
                     locked = self._locked_color
                 colors = (locked,) if locked else ("red", "green")
                 dx_px, color = detect_target(frame, colors=colors)
-                if self._debug_dir and color is not None and color != self._last_saved_color:
-                    self._save_debug_frame(frame, color)
+                if self._debug_dir:
+                    if color is not None and color != self._last_saved_color:
+                        self._save_debug_frame(frame, color)
+                    elif (color is not None and self._last_dx_px is not None
+                          and abs(dx_px - self._last_dx_px) > DX_JUMP_DEBUG_THRESHOLD_PX):
+                        self._save_debug_frame(frame, color, reason="jump")
                 self._last_saved_color = color
+                if dx_px is not None:
+                    self._last_dx_px = dx_px
                 with self._lock:
                     self._latest = {"dx_px": dx_px, "color": color, "t": time.time()}
         finally:
             self._cap.release()
 
-    def _save_debug_frame(self, frame, color):
+    def _save_debug_frame(self, frame, color, reason=None):
         os.makedirs(self._debug_dir, exist_ok=True)
-        path = os.path.join(self._debug_dir, f"{time.strftime('%Y%m%d_%H%M%S')}_{color}.jpg")
+        suffix = f"_{reason}" if reason else ""
+        path = os.path.join(self._debug_dir, f"{time.strftime('%Y%m%d_%H%M%S')}_{color}{suffix}.jpg")
         cv2.imwrite(path, frame)
