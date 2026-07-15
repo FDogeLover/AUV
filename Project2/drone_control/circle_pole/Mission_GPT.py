@@ -880,13 +880,20 @@ class mission:
         (但简化掉of1/roll_pitch等navigate()专属字段)的日志写入。
         2026-07-15补充：原版本只记了PID算出来的指令vx/vy，没记视觉伺服的原始
         输入(dx_px/azimuth)和T265实测速度(t265_vel)/飞控yaw(fc_yaw_deg)交叉校验，
-        导致没法区分"震荡"是视觉检测本身在跳还是控制律过冲——这里补上。"""
+        导致没法区分"震荡"是视觉检测本身在跳还是控制律过冲——这里补上。
+        2026-07-15再补充：真机测试观察到dx_px在APPROACHING阶段剧烈跳变但
+        t265_yaw_deg平稳、fc_yaw_deg异常(超出±180°范围)，用户目视确认飞机
+        没有明显yaw旋转，但roll/pitch有肉眼可见的抖动——之前"简化掉
+        roll_pitch"的假设(APPROACHING阶段不需要姿态数据)被推翻，这里补上，
+        跟navigate()主日志块的roll_pitch同源(re_fc[1]/re_fc[2])。"""
         now = time.time()
         if not (self._log_file and now - self._last_log_time >= FLIGHT_LOG_INTERVAL):
             return
         tv = self.realsense.get_velocity() if (self.t265_ok and self.realsense) else (0.0, 0.0, 0.0)
         with lock:
             fc_yaw_deg = self.re_fc[3] / 100.0 if len(self.re_fc) > 3 else 0.0
+            roll_deg = self.re_fc[1] / 100.0 if len(self.re_fc) > 1 else 0.0
+            pitch_deg = self.re_fc[2] / 100.0 if len(self.re_fc) > 2 else 0.0
         try:
             with self._log_lock:
                 self._log_file.write(json.dumps({
@@ -898,6 +905,7 @@ class mission:
                     "vx": vx, "vy": vy,
                     "t265_yaw_deg": round(math.degrees(yaw), 2),
                     "fc_yaw_deg": round(fc_yaw_deg, 2),
+                    "roll_pitch": [round(roll_deg, 2), round(pitch_deg, 2)],
                     "t265_vel": [round(tv[0], 4), round(tv[1], 4)],
                     "dx_px": dx_px,
                     "azimuth_deg": round(math.degrees(azimuth_rad), 2) if azimuth_rad is not None else None,
