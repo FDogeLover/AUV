@@ -107,6 +107,67 @@ class TestPatrolTriggerIsVisionOnly(object):
         assert m._trigger_candidate == "green"
         assert m._trigger_candidate_since > first_since
 
+    def test_off_center_vision_does_not_start_trigger_timer(self):
+        """杆子颜色确认了但不在正前方(|dx_px|>=APPROACH_CENTERED_DX_PX)，
+        不应该开始累积确认计时——巡航路线上杆子只是从画面边缘一闪而过时，
+        不该打断巡航路线。"""
+        vision = _FakeVision(color="red", dx_px=APPROACH_CENTERED_DX_PX + 50)
+        m = _make_mission(radar_obj=None, pole_vision_obj=vision)
+        m.set_speed = lambda *a, **k: None
+        m.navigate([0.0, 0.0, 1.2], 0.0)
+        assert m.nav_mode == "PATROL"
+        assert m._trigger_candidate is None
+        assert m._trigger_candidate_since is None
+
+    def test_becoming_centered_starts_timer_from_that_moment(self):
+        """先偏离中心(不计时)，之后进入居中范围，确认计时器应该从"变成
+        居中"这一刻才开始算，不是从颜色第一次出现那一刻算。"""
+        vision = _FakeVision(color="red", dx_px=APPROACH_CENTERED_DX_PX + 50)
+        m = _make_mission(radar_obj=None, pole_vision_obj=vision)
+        m.set_speed = lambda *a, **k: None
+        m.navigate([0.0, 0.0, 1.2], 0.0)
+        assert m._trigger_candidate is None
+
+        vision._dx_px = 0.0  # 变成居中
+        m.navigate([0.0, 0.0, 1.2], 0.0)
+        assert m._trigger_candidate == "red"
+        since_when_centered = m._trigger_candidate_since
+        assert since_when_centered is not None
+
+        # 计时未满0.3秒，不应该触发
+        m.navigate([0.0, 0.0, 1.2], 0.0)
+        assert m.nav_mode == "PATROL"
+
+        # 计时满0.3秒后才应该触发
+        m._trigger_candidate_since = time.time() - POLE_TRIGGER_CONFIRM_S - 0.01
+        m.navigate([0.0, 0.0, 1.2], 0.0)
+        assert m.nav_mode == "APPROACHING"
+
+    def test_drifting_off_center_mid_confirm_resets_timer(self):
+        """确认窗口进行到一半时杆子偏出中心，应该导致这次确认作废，不能
+        沿用之前累积的时长直接触发。"""
+        vision = _FakeVision(color="red", dx_px=0.0)
+        m = _make_mission(radar_obj=None, pole_vision_obj=vision)
+        m.set_speed = lambda *a, **k: None
+        m.navigate([0.0, 0.0, 1.2], 0.0)
+        assert m._trigger_candidate == "red"
+
+        # 手动把计时器往前拨，模拟已经过去了一段时间(但还没到0.3秒的边界)
+        m._trigger_candidate_since = time.time() - (POLE_TRIGGER_CONFIRM_S - 0.05)
+
+        vision._dx_px = APPROACH_CENTERED_DX_PX + 50  # 中途偏出中心
+        m.navigate([0.0, 0.0, 1.2], 0.0)
+        assert m.nav_mode == "PATROL"
+        assert m._trigger_candidate is None
+        assert m._trigger_candidate_since is None
+
+        # 就算立刻重新居中，也必须从这一刻重新计满0.3秒，不能因为"之前已经
+        # 攒了一部分时长"就提前触发
+        vision._dx_px = 0.0
+        m.navigate([0.0, 0.0, 1.2], 0.0)
+        assert m.nav_mode == "PATROL"
+        assert m._trigger_candidate == "red"
+
 
 class TestApproachingControlLaw:
     def _start(self, pos, pole=(2.0, 0.0), color="red", dx_px=0.0):

@@ -115,6 +115,12 @@ APPROACH_CENTERED_DX_PX = 100  # 2026-07-14新增：APPROACHING阶段雷达坐�
                                 # (纯视觉控制期)，杆子在画面中|dx_px|小于这个值才算"居中"，
                                 # 居中前只修正y不前进(避免斜着冲向杆子)，居中后才用固定慢速
                                 # 前进；1920宽画面下100px约对应2.9°方位角
+                                # 2026-07-15复用：同一阈值也用于_update_trigger_candidate的
+                                # PATROL→APPROACHING触发门槛(杆子必须居中才计入/继续累积
+                                # POLE_TRIGGER_CONFIRM_S确认计时)，避免以后单独为"接近控制律
+                                # 居中感"调这个值(比如嫌居中修正太严格想放宽)时，没意识到
+                                # 同时改变了触发门槛的松紧——两处如果要分开调，需要拆成两个
+                                # 独立常量。
 POLE_VISION_Y_SIGN = -1       # 2026-07-14真机测试：+1时观察到APPROACHING阶段持续往-y方向
                                 # 漂移(雷达确认坐标一度到y=-2.83，远超雷达实际探测距离，判断是
                                 # y轴视觉伺服正反馈发散，不是负反馈收敛)，翻转成-1现场验证方向
@@ -482,11 +488,12 @@ class mission:
         target = self.targets[self.target_index]
         target_z = int(target[2] * 100)
 
-        # PATROL态：视觉持续确认(颜色+未去重)POLE_TRIGGER_CONFIRM_S即可触发
-        # APPROACHING(2026-07-14现场测试后改为纯视觉触发，见_update_trigger_
-        # candidate的注释)。特意放在下面"if self.pole_tracker is not None:"
-        # 判断之外——雷达不再是触发条件，即使没有雷达(pole_tracker为None，
-        # 比如桌面/无雷达测试场景)，视觉单独触发也必须照常生效。
+        # PATROL态：视觉持续确认(颜色+未去重+居中)POLE_TRIGGER_CONFIRM_S即可
+        # 触发APPROACHING(2026-07-14现场测试后改为纯视觉触发，随后又补上居中
+        # 约束，避免巡逻转弯时杆子从画面边缘一闪而过误触发；详见
+        # _update_trigger_candidate的注释)。特意放在下面"if self.pole_tracker
+        # is not None:"判断之外——雷达不再是触发条件，即使没有雷达(pole_tracker
+        # 为None，比如桌面/无雷达测试场景)，视觉单独触发也必须照常生效。
         if self.nav_mode == "PATROL":
             if self._update_trigger_candidate():
                 return
@@ -825,6 +832,14 @@ class mission:
         持续确认(颜色+未去重)POLE_TRIGGER_CONFIRM_S即可触发APPROACHING；雷达
         的职责后移到_approaching_step内部，负责飞机靠近后确认世界坐标、切换
         到距离阶梯控制，以及给"其余未处理杆塔"的悬停避让托底。
+        额外要求杆子在画面中居中(|dx_px| < APPROACH_CENTERED_DX_PX，同一个
+        阈值也复用APPROACHING内部控制律的"居中判定"，见该常量定义处的注释)：
+        纯视觉触发只看颜色时，巡逻转弯途中杆子从画面边缘一闪而过也会被计入
+        确认窗口，容易打断本不该打断的巡航路线；要求先居中(大致在画面正前
+        方)才开始/继续累积POLE_TRIGGER_CONFIRM_S计时，确保触发的都是飞机
+        朝向已经基本对着杆子的情形。计时器语义也变了：不再是"颜色第一次
+        出现"就开始计时，而是"变成居中"那一刻才开始；确认窗口内一旦偏出
+        居中范围，计时立即作废重置，不能沿用之前攒的时长。
         返回True表示本次调用触发了APPROACHING(调用方应该直接return，跳过
         本tick剩余的悬停避让/日志逻辑，语义上跟原来_start_circling后直接return
         一致)。"""
@@ -834,7 +849,10 @@ class mission:
                          and time.time() - vision["t"] < POLE_VISION_STALE_S)
 
         candidate = None
-        if vision_fresh and vision_color is not None and not self._color_already_circled(vision_color):
+        if (vision_fresh and vision_color is not None
+                and not self._color_already_circled(vision_color)
+                and vision["dx_px"] is not None
+                and abs(vision["dx_px"]) < APPROACH_CENTERED_DX_PX):
             candidate = vision_color
 
         if candidate is None:
