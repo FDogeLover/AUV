@@ -24,3 +24,6 @@ drone_control/test_dmz_protocol.py
 
 # Git worktrees (临时隔离工作区)
 .worktrees/
+
+# Brainstorming可视化辅助(临时mockup文件)
+.superpowers/
