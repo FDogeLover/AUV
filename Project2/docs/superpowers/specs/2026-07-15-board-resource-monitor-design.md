@@ -12,7 +12,7 @@ circle_pole阶段2在ubuntu-pi上同时跑视觉识别(pole_vision线程)、雷�
 新增独立模块 `Lcode/resource_monitor.py`，提供 `ResourceMonitor` 类：
 
 - `start(log_file, log_lock)`：启动一个daemon线程，立即返回，不阻塞调用方
-- `stop()`：设置停止标志，线程在下一轮采样后自然退出，不做join阻塞
+- `stop()`：设置停止标志，并`join(timeout=2.0)`等待线程真正退出。`stop_all()`只在任务结束时调一次，不在实时控制路径上，阻塞至多2秒没有性能代价，但能保证`stop()`返回后线程已经不会再碰`_log_file`，避免调用方紧接着`close()`文件时跟仍在跑最后一轮采样的线程产生"写已关闭文件"的竞态（虽然有try/except兜底不会崩溃，但没必要留这个粗糙点）
 
 `Mission_GPT.py`里跟现有`self._log_file`生命周期对称接入：
 - `start()`方法（打开`flight_data.jsonl`+起`self.loop`线程处）：额外创建`ResourceMonitor`实例并调用`start(self._log_file, self._log_lock)`
@@ -31,7 +31,7 @@ circle_pole阶段2在ubuntu-pi上同时跑视觉识别(pole_vision线程)、雷�
 | `mem_rss_mb_proc` | 本进程RSS内存(MB) | `psutil.Process(os.getpid()).memory_info().rss / 1024 / 1024` |
 | `cpu_temp_c` | CPU温度(℃) | `psutil.sensors_temperatures()['pvt'][0].current`，取不到时为`None` |
 
-`cpu_percent`类接口首次调用需要一次"热身"调用（返回值无意义，直接丢弃），线程启动后立即调用一次再进入采样循环。
+`cpu_percent`类接口首次调用需要一次"热身"调用（返回值无意义，直接丢弃），线程启动后立即调用一次再进入采样循环。`psutil.Process(os.getpid())`必须只在线程启动时创建一次并复用同一个实例（存成`self._proc`）——如果每次采样都新建`Process`对象再调`cpu_percent()`，该接口内部靠同一实例前后两次调用的时间差计算百分比，每次新建实例会导致读数一直是0。
 
 进程级选择理由：视觉/雷达/T265都是本进程内的线程（非独立进程），本进程CPU%已经能回答"是circle_pole自己在吃CPU还是板子上其他东西"；线程级拆分需要额外读`/proc/[pid]/task/`并且C扩展线程（cv2/pyrealsense2内部）大概率无法映射到有意义的名字，复杂度明显高于收益，本次不做。
 
@@ -47,7 +47,7 @@ circle_pole阶段2在ubuntu-pi上同时跑视觉识别(pole_vision线程)、雷�
 
 ## 并发安全
 
-主循环线程（写位置遥测）和资源监控线程都会写同一个`self._log_file`文件对象。新增一个`self._log_lock`（`threading.Lock()`，在`Mission_GPT.__init__`里创建），所有`_log_file.write()+flush()`操作（包括现有的`navigate()`/`_log_approaching_telemetry()`/`land()`等已有日志写入点）改为在这个锁保护下执行，避免两个线程的`write()`调用交错导致行内容被打断（同一行JSON被拆成两半）。
+主循环线程（写位置遥测）和资源监控线程都会写同一个`self._log_file`文件对象。新增一个`self._log_lock`（`threading.Lock()`，在`Mission_GPT.__init__`里创建），所有现有的`_log_file.write()+flush()`调用点都要改为在这个锁保护下执行，避免两个线程的`write()`调用交错导致行内容被打断（同一行JSON被拆成两半）。现有写入点共7处（`start()`任务启动行、`takeoff()`、`navigate()`里的悬停避让分支/T265丢失分支/主日志块共3处、`_log_approaching_telemetry()`、`land()`），加上新增的资源监控写入，一共8处都要用同一把锁。
 
 ## 错误处理
 
