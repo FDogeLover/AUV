@@ -19,6 +19,18 @@ MIN_CONTOUR_AREA_PX = 200
 # 瞬时跳变，怀疑detect_target()在两个不同的同色连通域间切换选中目标——
 # 颜色本身没变，之前"颜色切换才存图"的逻辑完全捕捉不到这种情况。
 DX_JUMP_DEBUG_THRESHOLD_PX = 300
+# 2026-07-15新增形状过滤：真机调试帧证实场地天花板有一根绿色油漆横梁(结构/
+# 管道)，跟这次赛题的绿杆子颜色区间高度重合(横梁区域实测中位H=55,S=41，
+# 完全落在当前绿色阈值40~75内，不是阈值太松导致的误判，是现场真的有同色
+# 竞争目标)。横梁在画面里出现的连通域普遍扁平(实测4个假阳性样本高度
+# 12~159px、宽49~172px)，而真杆子是细高的(实测样本宽200×高507px)——纯颜色
+# 区分不开，靠形状可以：只接受"高度>=MIN_CONTOUR_HEIGHT_PX 且 高宽比>=
+# MIN_HEIGHT_WIDTH_RATIO"的候选，横梁样本无一能通过(4个样本高度全部<200)，
+# 真杆子样本轻松通过(507>=200, 507/200=2.54>=1.2)。这组阈值只用这次真机
+# 测试采集的5张调试帧验证过，下次测试要确认在正常接近距离下杆子仍能通过
+# 这两个新阈值(尤其是距离较远、杆子在画面里显得矮小时)，不能想当然。
+MIN_CONTOUR_HEIGHT_PX = 200
+MIN_HEIGHT_WIDTH_RATIO = 1.2
 
 # HSV阈值。红色注意色相环绕0/180两段，取并集。
 # 2026-07-14现场标定：红色初始值(S_min=120)完全没识别到实际赛题杆子——真杆子
@@ -46,12 +58,16 @@ HSV_RANGES = {
 
 
 def detect_target(frame_bgr, colors=("red", "green"), hsv_ranges=None,
-                   min_area=MIN_CONTOUR_AREA_PX):
-    """在BGR图像里找`colors`范围内面积最大的连通域，返回(dx_px, color)。
+                   min_area=MIN_CONTOUR_AREA_PX, min_height=MIN_CONTOUR_HEIGHT_PX,
+                   min_height_width_ratio=MIN_HEIGHT_WIDTH_RATIO):
+    """在BGR图像里找`colors`范围内面积最大的、形状像杆子的连通域，返回(dx_px, color)。
 
-    dx_px = 目标质心像素x - 画面中心x，没找到任何满足面积阈值的目标时返回(None, None)。
+    dx_px = 目标质心像素x - 画面中心x，没找到任何满足条件的目标时返回(None, None)。
     colors参数用于颜色锁定(APPROACHING阶段只传锁定的那一个颜色，忽略画面里出现
     的另一色，见2026-07-14设计文档"颜色锁定"一节)。
+    2026-07-15新增形状过滤：同一颜色内按面积从大到小遍历候选连通域，跳过高度
+    或高宽比不达标的(比如场地里跟杆子同色的横梁，扁平但面积可能很大)，取第一个
+    通过形状检查的作为该颜色的候选，而不是像之前那样直接认定面积最大的就是目标。
     """
     ranges = hsv_ranges or HSV_RANGES
     hsv = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2HSV)
@@ -67,17 +83,21 @@ def detect_target(frame_bgr, colors=("red", "green"), hsv_ranges=None,
             m = cv2.inRange(hsv, np.array(lower), np.array(upper))
             mask = m if mask is None else (mask | m)
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        if not contours:
-            continue
-        c = max(contours, key=cv2.contourArea)
-        area = cv2.contourArea(c)
-        if area >= min_area and area > best_area:
-            moments = cv2.moments(c)
-            if moments["m00"] == 0:
-                continue
-            best_area = area
-            best_color = color
-            best_cx = moments["m10"] / moments["m00"]
+        for c in sorted(contours, key=cv2.contourArea, reverse=True):
+            area = cv2.contourArea(c)
+            if area < min_area:
+                break  # 已按面积降序排列，后面的只会更小，不用再看
+            _, _, w, h = cv2.boundingRect(c)
+            if h < min_height or w == 0 or (h / w) < min_height_width_ratio:
+                continue  # 形状太扁，不像杆子，看这个颜色下一个候选
+            if area > best_area:
+                moments = cv2.moments(c)
+                if moments["m00"] == 0:
+                    continue
+                best_area = area
+                best_color = color
+                best_cx = moments["m10"] / moments["m00"]
+            break  # 这个颜色已经取到面积最大的合格候选
 
     if best_color is None:
         return None, None

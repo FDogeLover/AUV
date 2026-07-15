@@ -77,6 +77,31 @@ class TestDetectTarget:
         assert dx_px is None
         assert color is None
 
+    def test_flat_wide_blob_ignored_despite_large_area(self):
+        """2026-07-15真机测试发现：场地天花板有一根绿色横梁，颜色跟真杆子
+        完全重合(HSV阈值排查不掉)，但形状扁平(实测宽49~172×高12~159px)，
+        真杆子是细高的(实测宽200×高507px)。纯色块检测(min_area)分不清两者，
+        需要额外要求连通域的形状(高度+高宽比)像杆子。"""
+        frame = _blank_frame()
+        # 画一条宽600x高40的扁平绿色矩形(模拟横梁)，面积24000，远超min_area
+        _draw_rect_bgr(frame, (0, 255, 0), x_center=960, half_w=300, half_h=20)
+        dx_px, color = detect_target(frame)
+        assert dx_px is None
+        assert color is None
+
+    def test_tall_pole_shape_preferred_over_larger_flat_blob(self):
+        """同一帧里扁平横梁(面积更大，21000)和细高杆子(面积更小，13200)同时
+        出现，应该选中杆子而不是面积更大的横梁——验证形状过滤优先于面积比较，
+        不是"面积不够大的横梁恰好也会被面积阈值挡掉"这种巧合。"""
+        frame = _blank_frame()
+        # 横梁：宽700x高30，面积21000，画在画面上方，跟杆子不重叠
+        frame[85:115, 200:900] = (0, 255, 0)
+        # 杆子：宽60x高220，面积13200，比横梁面积小，画在画面下方
+        _draw_rect_bgr(frame, (0, 255, 0), x_center=1300, half_w=30, half_h=110)
+        dx_px, color = detect_target(frame)
+        assert color == "green"
+        assert dx_px == pytest.approx(1300 - 960, abs=5)  # 应该选中杆子(x_center=1300)，不是横梁(x_center=550)
+
 
 class TestAzimuthFromDx:
     def test_zero_dx_is_zero_azimuth(self):
