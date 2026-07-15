@@ -214,6 +214,7 @@ class mission:
         # 飞行数据日志
         self._log_file = None
         self._last_log_time = 0.0
+        self._log_lock = threading.Lock()
 
         # 雷达避障(可选)
         self.radar = radar_obj
@@ -320,8 +321,9 @@ class mission:
         try:
             path = os.path.dirname(os.path.realpath(sys.argv[0]))
             self._log_file = open(path + "/flight_data.jsonl", "a")
-            self._log_file.write(json.dumps({"event": "task_start"}) + "\n")
-            self._log_file.flush()
+            with self._log_lock:
+                self._log_file.write(json.dumps({"event": "task_start"}) + "\n")
+                self._log_file.flush()
         except Exception:
             pass
 
@@ -422,15 +424,16 @@ class mission:
                 fc_yaw_deg = self.re_fc[3] / 100.0 if len(self.re_fc) > 3 else 0.0
             if self._log_file:
                 try:
-                    self._log_file.write(json.dumps({
-                        "t": round(time.time(), 3),
-                        "state": "TAKEOFF",
-                        "t265_yaw_deg": round(math.degrees(yaw), 2),
-                        "fc_yaw_deg": round(fc_yaw_deg, 2),
-                        "vyaw": vyaw,
-                        "laser_cm": round(laser_cm, 1),
-                    }) + "\n")
-                    self._log_file.flush()
+                    with self._log_lock:
+                        self._log_file.write(json.dumps({
+                            "t": round(time.time(), 3),
+                            "state": "TAKEOFF",
+                            "t265_yaw_deg": round(math.degrees(yaw), 2),
+                            "fc_yaw_deg": round(fc_yaw_deg, 2),
+                            "vyaw": vyaw,
+                            "laser_cm": round(laser_cm, 1),
+                        }) + "\n")
+                        self._log_file.flush()
                 except Exception:
                     pass
 
@@ -562,22 +565,23 @@ class mission:
             if self._log_file and now - self._last_log_time >= FLIGHT_LOG_INTERVAL:
                 tv = self.realsense.get_velocity() if (self.t265_ok and self.realsense) else (0.0, 0.0, 0.0)
                 try:
-                    self._log_file.write(json.dumps({
-                        "t": round(now, 3),
-                        "state": self.state,
-                        "target_idx": self.target_index,
-                        "pos": [round(pos[0], 4), round(pos[1], 4), round(pos[2], 4)],
-                        "target": [round(target[0], 4), round(target[1], 4), round(target[2], 4)],
-                        "vx": vx, "vy": vy, "vyaw": 0,
-                        "t265_yaw_deg": round(math.degrees(yaw), 2),
-                        "t265_vel": [round(tv[0], 4), round(tv[1], 4)],
-                        "height_setpoint_cm": round(self._ramp_z_cm, 1),
-                        "pole_hover": self._pole_hovering,
-                        "pole_dist": round(pole_dist, 3) if pole_dist is not None else None,
-                        "hover_hold_pos": list(self._hover_hold_pos),
-                        "confirmed_poles": confirmed_poles_list,
-                    }) + "\n")
-                    self._log_file.flush()
+                    with self._log_lock:
+                        self._log_file.write(json.dumps({
+                            "t": round(now, 3),
+                            "state": self.state,
+                            "target_idx": self.target_index,
+                            "pos": [round(pos[0], 4), round(pos[1], 4), round(pos[2], 4)],
+                            "target": [round(target[0], 4), round(target[1], 4), round(target[2], 4)],
+                            "vx": vx, "vy": vy, "vyaw": 0,
+                            "t265_yaw_deg": round(math.degrees(yaw), 2),
+                            "t265_vel": [round(tv[0], 4), round(tv[1], 4)],
+                            "height_setpoint_cm": round(self._ramp_z_cm, 1),
+                            "pole_hover": self._pole_hovering,
+                            "pole_dist": round(pole_dist, 3) if pole_dist is not None else None,
+                            "hover_hold_pos": list(self._hover_hold_pos),
+                            "confirmed_poles": confirmed_poles_list,
+                        }) + "\n")
+                        self._log_file.flush()
                 except Exception:
                     pass
                 self._last_log_time = now
@@ -601,18 +605,19 @@ class mission:
             now = time.time()
             if self._log_file and now - self._last_log_time >= FLIGHT_LOG_INTERVAL:
                 try:
-                    self._log_file.write(json.dumps({
-                        "t": round(now, 3),
-                        "state": self.state,
-                        "target_idx": self.target_index,
-                        "pos": [round(pos[0], 4), round(pos[1], 4), round(pos[2], 4)],
-                        "target": [round(target[0], 4), round(target[1], 4), round(target[2], 4)],
-                        "vx": 0, "vy": 0, "vyaw": 0,
-                        "t265_yaw_deg": round(math.degrees(yaw), 2),
-                        "height_setpoint_cm": round(self._ramp_z_cm, 1),
-                        "t265_confidence_lost": True,
-                    }) + "\n")
-                    self._log_file.flush()
+                    with self._log_lock:
+                        self._log_file.write(json.dumps({
+                            "t": round(now, 3),
+                            "state": self.state,
+                            "target_idx": self.target_index,
+                            "pos": [round(pos[0], 4), round(pos[1], 4), round(pos[2], 4)],
+                            "target": [round(target[0], 4), round(target[1], 4), round(target[2], 4)],
+                            "vx": 0, "vy": 0, "vyaw": 0,
+                            "t265_yaw_deg": round(math.degrees(yaw), 2),
+                            "height_setpoint_cm": round(self._ramp_z_cm, 1),
+                            "t265_confidence_lost": True,
+                        }) + "\n")
+                        self._log_file.flush()
                 except Exception:
                     pass
                 self._last_log_time = now
@@ -700,25 +705,26 @@ class mission:
         now = time.time()
         if self._log_file and now - self._last_log_time >= FLIGHT_LOG_INTERVAL:
             try:
-                self._log_file.write(json.dumps({
-                    "t": round(now, 3),
-                    "state": self.state,
-                    "target_idx": self.target_index,
-                    "pos": [round(pos[0], 4), round(pos[1], 4), round(pos[2], 4)],
-                    "target": [round(target[0], 4), round(target[1], 4), round(target[2], 4)],
-                    "vx": vx, "vy": vy, "vyaw": vyaw,
-                    "t265_yaw_deg": round(math.degrees(yaw), 2),
-                    "fc_yaw_deg": round(fc_yaw_deg, 2),
-                    "t265_vel": [round(tv[0], 4), round(tv[1], 4)],
-                    "of1_vel_cms": [of1_dx, of1_dy],
-                    "roll_pitch": [round(roll_deg, 2), round(pitch_deg, 2)],
-                    "height_setpoint_cm": round(self._ramp_z_cm, 1),
-                    "of_status": [of_quality, of_link_sta, of_work_sta],
-                    "pole_hover": self._pole_hovering,
-                    "pole_dist": round(pole_dist, 3) if pole_dist is not None else None,
-                    "confirmed_poles": confirmed_poles_list,
-                }) + "\n")
-                self._log_file.flush()
+                with self._log_lock:
+                    self._log_file.write(json.dumps({
+                        "t": round(now, 3),
+                        "state": self.state,
+                        "target_idx": self.target_index,
+                        "pos": [round(pos[0], 4), round(pos[1], 4), round(pos[2], 4)],
+                        "target": [round(target[0], 4), round(target[1], 4), round(target[2], 4)],
+                        "vx": vx, "vy": vy, "vyaw": vyaw,
+                        "t265_yaw_deg": round(math.degrees(yaw), 2),
+                        "fc_yaw_deg": round(fc_yaw_deg, 2),
+                        "t265_vel": [round(tv[0], 4), round(tv[1], 4)],
+                        "of1_vel_cms": [of1_dx, of1_dy],
+                        "roll_pitch": [round(roll_deg, 2), round(pitch_deg, 2)],
+                        "height_setpoint_cm": round(self._ramp_z_cm, 1),
+                        "of_status": [of_quality, of_link_sta, of_work_sta],
+                        "pole_hover": self._pole_hovering,
+                        "pole_dist": round(pole_dist, 3) if pole_dist is not None else None,
+                        "confirmed_poles": confirmed_poles_list,
+                    }) + "\n")
+                    self._log_file.flush()
             except Exception:
                 pass
             self._last_log_time = now
@@ -878,25 +884,26 @@ class mission:
         with lock:
             fc_yaw_deg = self.re_fc[3] / 100.0 if len(self.re_fc) > 3 else 0.0
         try:
-            self._log_file.write(json.dumps({
-                "t": round(now, 3),
-                "state": self.state,
-                "nav_mode": self.nav_mode,
-                "pos": [round(pos[0], 4), round(pos[1], 4), round(pos[2], 4)],
-                "target": [round(target[0], 4), round(target[1], 4), round(target[2], 4)],
-                "vx": vx, "vy": vy,
-                "t265_yaw_deg": round(math.degrees(yaw), 2),
-                "fc_yaw_deg": round(fc_yaw_deg, 2),
-                "t265_vel": [round(tv[0], 4), round(tv[1], 4)],
-                "dx_px": dx_px,
-                "azimuth_deg": round(math.degrees(azimuth_rad), 2) if azimuth_rad is not None else None,
-                "vision_fresh": vision_fresh,
-                "vision_age_s": round(vision_age_s, 3) if vision_age_s is not None else None,
-                "pole_hover": self._pole_hovering,
-                "pole_dist": round(pole_dist, 3) if pole_dist is not None else None,
-                "confirmed_poles": confirmed_poles_list or [],
-            }) + "\n")
-            self._log_file.flush()
+            with self._log_lock:
+                self._log_file.write(json.dumps({
+                    "t": round(now, 3),
+                    "state": self.state,
+                    "nav_mode": self.nav_mode,
+                    "pos": [round(pos[0], 4), round(pos[1], 4), round(pos[2], 4)],
+                    "target": [round(target[0], 4), round(target[1], 4), round(target[2], 4)],
+                    "vx": vx, "vy": vy,
+                    "t265_yaw_deg": round(math.degrees(yaw), 2),
+                    "fc_yaw_deg": round(fc_yaw_deg, 2),
+                    "t265_vel": [round(tv[0], 4), round(tv[1], 4)],
+                    "dx_px": dx_px,
+                    "azimuth_deg": round(math.degrees(azimuth_rad), 2) if azimuth_rad is not None else None,
+                    "vision_fresh": vision_fresh,
+                    "vision_age_s": round(vision_age_s, 3) if vision_age_s is not None else None,
+                    "pole_hover": self._pole_hovering,
+                    "pole_dist": round(pole_dist, 3) if pole_dist is not None else None,
+                    "confirmed_poles": confirmed_poles_list or [],
+                }) + "\n")
+                self._log_file.flush()
         except Exception:
             pass
         self._last_log_time = now
@@ -1168,18 +1175,19 @@ class mission:
             now = time.time()
             if self._log_file and now - self._last_log_time >= FLIGHT_LOG_INTERVAL:
                 try:
-                    self._log_file.write(json.dumps({
-                        "t": round(now, 3),
-                        "state": self.state,
-                        "pos": [round(land_pos[0], 4), round(land_pos[1], 4), round(land_pos[2], 4)],
-                        "t265_yaw_deg": round(math.degrees(land_yaw), 2),
-                        "t265_vel": [round(land_tv[0], 4), round(land_tv[1], 4)],
-                        "raw_imu": [round(v, 4) for v in land_raw_imu],
-                        "unlock_sta": unlock_sta,
-                        "motor_pwm_mask": motor_pwm_mask,
-                        "motor_pwm_mask_t": motor_pwm_mask_t,
-                    }) + "\n")
-                    self._log_file.flush()
+                    with self._log_lock:
+                        self._log_file.write(json.dumps({
+                            "t": round(now, 3),
+                            "state": self.state,
+                            "pos": [round(land_pos[0], 4), round(land_pos[1], 4), round(land_pos[2], 4)],
+                            "t265_yaw_deg": round(math.degrees(land_yaw), 2),
+                            "t265_vel": [round(land_tv[0], 4), round(land_tv[1], 4)],
+                            "raw_imu": [round(v, 4) for v in land_raw_imu],
+                            "unlock_sta": unlock_sta,
+                            "motor_pwm_mask": motor_pwm_mask,
+                            "motor_pwm_mask_t": motor_pwm_mask_t,
+                        }) + "\n")
+                        self._log_file.flush()
                 except Exception:
                     pass
                 self._last_log_time = now
