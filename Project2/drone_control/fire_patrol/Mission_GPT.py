@@ -24,6 +24,13 @@ put_height = 100
 VEL_SCALE = 0.7
 posthreshold_xy = 0.15
 posthreshold_z = 0.20
+# 2026-07-16用户反馈：巡航航点(弓字形覆盖巡逻的中间点)不需要像最终降落准备航点那样
+# 精确到达，放宽阈值换取更快的巡航速度，只在最后两个航点(回原点+分段降到0.2m，
+# 为紧接着的land()做准备)保留严格精度。CRUISE_*给巡航航点用，非巡航航点仍用
+# 原有posthreshold_xy/z(经confidence分级)的严格判据。
+CRUISE_XY_THRESH = 0.4
+CRUISE_Z_THRESH = 0.4
+PRECISION_TAIL_WAYPOINTS = 2  # 航点列表最后N个视为"精确降落准备"航点，不放宽
 arrival_confirm_need = 15
 arrival_hold_s = 1.5   # 到达判定满足后，在原地强制停留观察的时长（阶跃响应测试用）
 # 2026-07-16真机测试实测：basic继承来的"5.0+arrival_hold_s"=6.5s是按basic那边
@@ -151,6 +158,8 @@ class mission:
         # 飞行数据日志
         self._log_file = None
         self._last_log_time = 0.0
+        self._last_detect_log_time = 0.0  # 独立节流时间戳，避免跟主日志块共用_last_log_time
+                                            # 导致两个日志块互相抢节流窗口、采样率减半
 
         # yaw方向测试(问题16)
         self._yaw_burst_done = False
@@ -381,7 +390,7 @@ class mission:
     # ================= 导航 =================
     def navigate(self, pos, yaw):
         if self.nav_mode == "APPROACH":
-            self._do_approach()
+            self._do_approach(pos)
             return
         if self.nav_mode == "CONFIRM_WARN":
             self._do_confirm_warn()
@@ -394,6 +403,24 @@ class mission:
         if self.nav_mode == "PATROL" and self.fire_vision is not None:
             latest = self.fire_vision.latest()
             now = time.time()
+            # 2026-07-16补充日志：之前完全没记录PATROL态逐帧的检测结果，没法诊断
+            # "火源明明在巡逻范围内为什么没检测到/为什么在别的时机才检测到"这类问题。
+            # 节流写法跟navigate()其它日志块一致(FLIGHT_LOG_INTERVAL)。
+            if self._log_file and now - self._last_detect_log_time >= FLIGHT_LOG_INTERVAL:
+                try:
+                    self._log_file.write(json.dumps({
+                        "t": round(now, 3),
+                        "state": "PATROL_DETECT",
+                        "target_idx": self.target_index,
+                        "pos": [round(pos[0], 4), round(pos[1], 4), round(pos[2], 4)],
+                        "dx_px": latest.get("dx_px"),
+                        "dy_px": latest.get("dy_px"),
+                        "detect_t": latest.get("t"),
+                    }) + "\n")
+                    self._log_file.flush()
+                except Exception:
+                    pass
+                self._last_detect_log_time = now
             if (latest.get("dx_px") is not None
                     and now - latest.get("t", 0) < FIRE_VISION_STALE_S):
                 if self.maybe_trigger_approach((latest["dx_px"], latest["dy_px"])):
@@ -459,7 +486,13 @@ class mission:
 
         # 到达检测
         if self.t265_ok and self.realsense:
-            xy_thresh = 0.10 if confidence >= 3 else (posthreshold_xy if confidence == 2 else 0.30)
+            is_precision_waypoint = self.target_index >= len(self.targets) - PRECISION_TAIL_WAYPOINTS
+            if is_precision_waypoint:
+                xy_thresh = 0.10 if confidence >= 3 else (posthreshold_xy if confidence == 2 else 0.30)
+                z_thresh = posthreshold_z
+            else:
+                xy_thresh = CRUISE_XY_THRESH
+                z_thresh = CRUISE_Z_THRESH
             dx = abs(pos[0] - target[0])
             dy = abs(pos[1] - target[1])
             dz = abs(pos[2] - target[2])
@@ -480,7 +513,7 @@ class mission:
             if dy > 0.3:
                 self.y_pid.reset()
 
-            frame_ok = dx < xy_thresh and dy < xy_thresh and dz < posthreshold_z and speed < ARRIVAL_VEL_THRESH
+            frame_ok = dx < xy_thresh and dy < xy_thresh and dz < z_thresh and speed < ARRIVAL_VEL_THRESH
             self._arrival_window.append(frame_ok)
 
             if arrival_window_confirmed(self._arrival_window, arrival_confirm_need, ARRIVAL_CONFIRM_RATIO):
@@ -616,7 +649,7 @@ class mission:
         except Exception as e:
             logger.error(f"set_rgb_led('OFF') 调用失败: {e}")
 
-    def _do_approach(self):
+    def _do_approach(self, pos):
         """悬停对准正下方：独立小增益+死区+符号预验证的伺服修正，超时兜底进CONFIRM_WARN。
         见设计文档"APPROACH（视觉伺服对准正下方）"一节。"""
         if self.fire_vision is None:
@@ -624,28 +657,51 @@ class mission:
             return
         latest = self.fire_vision.latest()
         dx_px, dy_px = latest.get("dx_px"), latest.get("dy_px")
+        vx, vy = 0, 0
+        centered = False
 
         if dx_px is not None and dy_px is not None:
             if self.is_approach_centered(dx_px, dy_px):
                 logger.info("APPROACH: 已对准正下方")
+                centered = True
                 self.nav_mode = "CONFIRM_WARN"
-                return
-            # 死区：像素偏移小于阈值不修正
-            # 符号约定(2026-07-16物理确认下视摄像头安装朝向后推导，非猜测)：
-            #   画面上边=+y、右边=+x(无镜像安装)
-            #   dx_px>0(目标在画面右侧) → 目标物理上在+x方向 → 需要+x速度靠近 → vx与dx_px同号
-            #   dy_px>0(目标在画面下方) → 画面"下"对应-y(上边才是+y) → 目标物理上在-y方向
-            #     → 需要-y速度靠近 → vy与dy_px反号，不能直接用dy_px*增益(那样会正反馈发散，
-            #     跟这个项目里yaw方向出过的同类问题一样)
-            vx = 0 if abs(dx_px) < APPROACH_DEADBAND_PX else self.limit(
-                dx_px * APPROACH_GAIN, APPROACH_MAX_STEP_CMPS)
-            vy = 0 if abs(dy_px) < APPROACH_DEADBAND_PX else self.limit(
-                -dy_px * APPROACH_GAIN, APPROACH_MAX_STEP_CMPS)
-            self.set_speed(int(vx), int(vy), 0, int(self._ramp_z_cm))
+            else:
+                # 死区：像素偏移小于阈值不修正
+                # 符号约定(2026-07-16物理确认下视摄像头安装朝向后推导，非猜测)：
+                #   画面上边=+y、右边=+x(无镜像安装)
+                #   dx_px>0(目标在画面右侧) → 目标物理上在+x方向 → 需要+x速度靠近 → vx与dx_px同号
+                #   dy_px>0(目标在画面下方) → 画面"下"对应-y(上边才是+y) → 目标物理上在-y方向
+                #     → 需要-y速度靠近 → vy与dy_px反号，不能直接用dy_px*增益(那样会正反馈发散，
+                #     跟这个项目里yaw方向出过的同类问题一样)
+                vx = 0 if abs(dx_px) < APPROACH_DEADBAND_PX else self.limit(
+                    dx_px * APPROACH_GAIN, APPROACH_MAX_STEP_CMPS)
+                vy = 0 if abs(dy_px) < APPROACH_DEADBAND_PX else self.limit(
+                    -dy_px * APPROACH_GAIN, APPROACH_MAX_STEP_CMPS)
+                self.set_speed(int(vx), int(vy), 0, int(self._ramp_z_cm))
         else:
             self.set_speed(0, 0, 0, int(self._ramp_z_cm))
 
-        if self.approach_timed_out():
+        # 2026-07-16补充日志：之前APPROACH阶段完全没有逐帧记录，没法诊断"伺服
+        # 是不是越修越偏"这类问题，只能靠对准/超时两条最终结果日志猜。
+        now = time.time()
+        if self._log_file and now - self._last_detect_log_time >= FLIGHT_LOG_INTERVAL:
+            try:
+                self._log_file.write(json.dumps({
+                    "t": round(now, 3),
+                    "state": "APPROACH",
+                    "pos": [round(pos[0], 4), round(pos[1], 4), round(pos[2], 4)],
+                    "dx_px": dx_px,
+                    "dy_px": dy_px,
+                    "vx": int(vx),
+                    "vy": int(vy),
+                    "centered": centered,
+                }) + "\n")
+                self._log_file.flush()
+            except Exception:
+                pass
+            self._last_detect_log_time = now
+
+        if not centered and self.approach_timed_out():
             logger.warning("APPROACH: 对准超时，按当前位置继续")
             self.nav_mode = "CONFIRM_WARN"
 

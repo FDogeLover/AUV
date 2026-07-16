@@ -274,3 +274,28 @@ class TestTakeoffWarningLed:
         monkeypatch.setattr("Mission_GPT.time.sleep", lambda s: None)
         m = _make_mission(tmp_path)
         m._blink_warning_led()  # 不应该抛异常(本机就是走这条路径，Lcode.gpio_led本身已优雅降级)
+
+
+class TestCruiseVsPrecisionArrivalThreshold:
+    """2026-07-16用户反馈：巡航航点(弓字形中间点)不需要精确到达，只有最后
+    PRECISION_TAIL_WAYPOINTS个航点(为land()做准备)才要严格精度。测试用的
+    router.txt有3个航点(idx 0/1/2)，PRECISION_TAIL_WAYPOINTS=2意味着idx=0是
+    巡航航点(宽松阈值)，idx=1/2是精确航点(严格阈值)。"""
+
+    def test_cruise_waypoint_accepts_loose_offset(self, tmp_path):
+        """idx=0是巡航航点：0.25m偏差超过严格阈值(confidence=3时0.10m)但在
+        CRUISE_XY_THRESH(0.4m)以内，应该被判定为"这一帧到达"。"""
+        m = _make_mission(tmp_path)
+        m.target_index = 0
+        m.last_target_index = 0
+        m.navigate(pos=[0.25, 0.0, 1.8], yaw=0.0)
+        assert m._arrival_window[-1] is True
+
+    def test_precision_waypoint_rejects_same_offset(self, tmp_path):
+        """同样0.25m偏差，在最后的精确航点(idx=2)应该判定为"这一帧未到达"，
+        证明精度分级确实按航点索引区分，不是巡航阈值全局放宽了。"""
+        m = _make_mission(tmp_path)
+        m.target_index = 2
+        m.last_target_index = 2
+        m.navigate(pos=[0.25, 0.0, 0.0], yaw=0.0)
+        assert m._arrival_window[-1] is False
