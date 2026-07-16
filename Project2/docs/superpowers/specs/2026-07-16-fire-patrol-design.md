@@ -61,7 +61,7 @@ IDLE → TAKEOFF → PATROL → [APPROACH → CONFIRM_WARN → HOVER_DROP] → P
 
 ### HOVER_DROP
 
-降到10dm悬停3s → 调用占位接口`drop_bag()` → 把火情场地坐标（本地坐标换算到赛场dm坐标）通过通信链路广播一次 → 恢复`PATROL`，从保存的`target_index`对应的**下一个未完成航点**继续飞（不退回触发点，不重新开始）。
+降到10dm悬停`HOVER_DROP_DURATION_S=3.0`（**新增独立常量，赛题写死的固定值，与`navigate()`到达确认用的`arrival_hold_s`无关，不随版本参数继承讨论变化**——`arrival_hold_s`是判断"是否稳定到达某航点"的通用参数，各版本可以不同；`HOVER_DROP_DURATION_S`是题目规定的业务悬停时长，两者语义和归属完全独立，实现时不能混用）→ 调用占位接口`drop_bag()` → 把火情场地坐标（本地坐标换算到赛场dm坐标）通过通信链路广播一次 → 恢复`PATROL`，从保存的`target_index`对应的**下一个未完成航点**继续飞（不退回触发点，不重新开始）。
 
 ### LAND
 
