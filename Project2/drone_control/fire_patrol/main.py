@@ -23,6 +23,8 @@ import os
 import time
 from Lcode.global_variable import sp_side, lock
 import Lcode.Lprotocol
+from Lcode.fire_vision import FireVision
+from Lcode.Lground import Serial_ground, start_position_heartbeat
 from Lcode.Logger import logger
 from Mission_GPT import mission
 from t265 import t265_class
@@ -52,8 +54,26 @@ def main():
     serial_fc.listen_start(re_fc)
     serial_fc.send_start(se_fc, realsense, vel_freq=100, cmd_freq=50)
 
+    # 2b. 下视摄像头火情检测
+    fire_vision = FireVision(device=os.getenv("DRONE_FIRE_CAMERA", "/dev/video0"))
+    fire_vision.start()  # 打不开时返回False，latest()永远全None，不阻断飞行(见设计文档)
+
+    # 2c. 消防车广播串口
+    serial_ground = Serial_ground(os.getenv("DRONE_GROUND_PORT", "/dev/ttyS7"))
+
     # 3. 创建任务
     mission1 = mission(re_fc, se_fc, realsense, serial_fc)
+    mission1.fire_vision = fire_vision
+    mission1.serial_ground = serial_ground
+
+    # 3b. 1Hz位置心跳广播（基本要求(3)）
+    start_position_heartbeat(
+        serial_ground,
+        get_position_cm=lambda: (
+            int(realsense.get_position()[0] * 100),
+            int(realsense.get_position()[1] * 100),
+        ),
+    )
 
     # 4. 启动
     mission1.start()
