@@ -598,13 +598,16 @@ class mission:
                 self.nav_mode = "CONFIRM_WARN"
                 return
             # 死区：像素偏移小于阈值不修正
+            # 符号约定(2026-07-16物理确认下视摄像头安装朝向后推导，非猜测)：
+            #   画面上边=+y、右边=+x(无镜像安装)
+            #   dx_px>0(目标在画面右侧) → 目标物理上在+x方向 → 需要+x速度靠近 → vx与dx_px同号
+            #   dy_px>0(目标在画面下方) → 画面"下"对应-y(上边才是+y) → 目标物理上在-y方向
+            #     → 需要-y速度靠近 → vy与dy_px反号，不能直接用dy_px*增益(那样会正反馈发散，
+            #     跟这个项目里yaw方向出过的同类问题一样)
             vx = 0 if abs(dx_px) < APPROACH_DEADBAND_PX else self.limit(
                 dx_px * APPROACH_GAIN, APPROACH_MAX_STEP_CMPS)
             vy = 0 if abs(dy_px) < APPROACH_DEADBAND_PX else self.limit(
-                dy_px * APPROACH_GAIN, APPROACH_MAX_STEP_CMPS)
-            # 符号约定：dx_px>0(目标在画面右侧/x正方向)应产生正的vx指令使机体
-            # 向x正方向移动以让目标居中——实现后必须先地面台架验证这个符号，
-            # 防止正反馈导致偏差越修越大(见设计文档APPROACH一节)
+                -dy_px * APPROACH_GAIN, APPROACH_MAX_STEP_CMPS)
             self.set_speed(int(vx), int(vy), 0, int(self._ramp_z_cm))
         else:
             self.set_speed(0, 0, 0, int(self._ramp_z_cm))

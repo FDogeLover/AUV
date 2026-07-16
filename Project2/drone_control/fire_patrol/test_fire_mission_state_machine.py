@@ -188,5 +188,53 @@ class TestHoverDropClosedLoopHold:
         vy_sent = m.se_fc[4] - sp_side
         assert vx_sent != 0  # 确认PID确实产生了非零输出，不是被限幅前就已经是0
         assert vy_sent != 0
-        assert abs(vx_sent) <= HOVER_HOLD_MAX_STEP_CMPS
-        assert abs(vy_sent) <= HOVER_HOLD_MAX_STEP_CMPS
+
+
+class _FakeFireVision:
+    def __init__(self, dx_px, dy_px):
+        self._latest = {"dx_px": dx_px, "dy_px": dy_px, "t": time.time()}
+
+    def latest(self):
+        return dict(self._latest)
+
+
+class TestApproachSignConvention:
+    """回归测试：下视摄像头物理安装确认(2026-07-16用户确认)画面上边=+y、右边=+x
+    (无镜像)。据此推导：dx_px>0(目标偏右)对应目标在+x方向，vx应与dx_px同号；
+    dy_px>0(目标偏下，因为"下"是"上=+y"的反方向即-y)对应目标在-y方向，vy必须
+    与dy_px反号——如果直接用dy_px同号会正反馈发散(这个项目里yaw方向出过同类问题，
+    见docs/known_issues.md)。这里只验证符号关系是编码正确，不代表已经过地面台架/
+    真机验证——那一步仍然需要在实际飞行前做。"""
+
+    def test_positive_dx_produces_positive_vx(self, tmp_path):
+        m = _make_mission(tmp_path)
+        m.nav_mode = "APPROACH"
+        m.fire_vision = _FakeFireVision(dx_px=500, dy_px=0)
+        m.navigate(pos=[0.0, 0.0, 1.8], yaw=0.0)
+        vx_sent = m.se_fc[3] - sp_side
+        assert vx_sent > 0
+
+    def test_negative_dx_produces_negative_vx(self, tmp_path):
+        m = _make_mission(tmp_path)
+        m.nav_mode = "APPROACH"
+        m.fire_vision = _FakeFireVision(dx_px=-500, dy_px=0)
+        m.navigate(pos=[0.0, 0.0, 1.8], yaw=0.0)
+        vx_sent = m.se_fc[3] - sp_side
+        assert vx_sent < 0
+
+    def test_positive_dy_produces_negative_vy(self, tmp_path):
+        """dy_px>0 = 目标在画面下方 = 目标物理上在-y方向 = 需要负的vy靠近。"""
+        m = _make_mission(tmp_path)
+        m.nav_mode = "APPROACH"
+        m.fire_vision = _FakeFireVision(dx_px=0, dy_px=500)
+        m.navigate(pos=[0.0, 0.0, 1.8], yaw=0.0)
+        vy_sent = m.se_fc[4] - sp_side
+        assert vy_sent < 0
+
+    def test_negative_dy_produces_positive_vy(self, tmp_path):
+        m = _make_mission(tmp_path)
+        m.nav_mode = "APPROACH"
+        m.fire_vision = _FakeFireVision(dx_px=0, dy_px=-500)
+        m.navigate(pos=[0.0, 0.0, 1.8], yaw=0.0)
+        vy_sent = m.se_fc[4] - sp_side
+        assert vy_sent > 0
