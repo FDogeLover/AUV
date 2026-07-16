@@ -146,7 +146,7 @@ class mission:
 
     def load_waypoints(self):
         try:
-            with open('router.txt', 'r') as f:
+            with open('router.txt', 'r', encoding="utf-8") as f:
                 waypoints = []
                 for line in f:
                     line = line.strip()
@@ -556,10 +556,22 @@ class mission:
 
     def finish_hover_drop_and_resume(self):
         """HOVER_DROP完成后恢复PATROL，从保存的target_index继续（不重置为0，
-        不退回触发点），见设计文档"续飞逻辑"。"""
+        不退回触发点），见设计文档"续飞逻辑"。
+
+        必须重置到达检测状态（arrival_start_time/_arrival_window/arrival_confirmed_time），
+        否则arrival_start_time还停留在火情触发前的旧值，APPROACH/CONFIRM_WARN/HOVER_DROP
+        整个过程都会被navigate()的超时判断计入"航点等待时长"，恢复PATROL后几乎立刻
+        触发"航点超时，强制跳过"，导致续飞航点被立即跳过。
+        同时把last_target_index同步为恢复后的target_index：navigate()靠
+        target_index != last_target_index判断"是否换了新航点"才会做上述重置，
+        如果这里不同步，之后即使真正换到下一个航点，由于凑巧数值相等也会漏判。"""
         self.target_index = self.saved_target_index_before_fire
+        self.last_target_index = self.target_index
         self.nav_mode = "PATROL"
         self._approach_start_time = None
+        self._arrival_window.clear()
+        self.arrival_confirmed_time = None
+        self.arrival_start_time = time.time()
 
     def _do_approach(self):
         """悬停对准正下方：独立小增益+死区+符号预验证的伺服修正，超时兜底进CONFIRM_WARN。
@@ -594,7 +606,10 @@ class mission:
     def _do_confirm_warn(self):
         """点亮警示LED后立即进入HOVER_DROP。"""
         from Lcode.actuators import warn_led
-        warn_led()
+        try:
+            warn_led()
+        except Exception as e:
+            logger.error(f"warn_led() 调用失败: {e}")
         self.nav_mode = "HOVER_DROP"
         self._hover_drop_start_time = None
 
@@ -603,8 +618,18 @@ class mission:
         self._step_ramp_z(HOVER_DROP_ALTITUDE_CM)
         self.set_speed(0, 0, 0, int(self._ramp_z_cm))
 
-        if abs(self._ramp_z_cm - HOVER_DROP_ALTITUDE_CM) > 2.0:
-            return  # 还在降高度途中，不开始计时
+        # setpoint_ok: 内部软件ramp是否已收敛到目标值（跟原逻辑一样）。
+        # measured_ok: pos[2](loop()里已被激光高度覆盖成米制真实测量值，见laser_height_valid
+        # 分支)是否也接近目标高度。只信setpoint会在真实高度还没跟上（比如飞控/凌霄IMU响应滞后、
+        # 或悬停中被风扰导致实际高度偏离）时提前开始计时，抛投时实际高度不在10dm。
+        # 阈值10cm：比posthreshold_z(0.20m=20cm，navigate()到达检测用的量级)更严格，因为
+        # HOVER_DROP要求精确到10dm这个赛题写死的高度用于抛投，容忍度不宜比普通到达检测更松；
+        # 但也不需要严格到cm级——激光高度本身有噪声，10cm对应赛题100cm目标的10%相对误差，
+        # 参考takeoff()里laser_cm的10cm确认容差保持一致。
+        setpoint_ok = abs(self._ramp_z_cm - HOVER_DROP_ALTITUDE_CM) <= 2.0
+        measured_ok = abs(pos[2] * 100 - HOVER_DROP_ALTITUDE_CM) <= 10.0
+        if not (setpoint_ok and measured_ok):
+            return  # 还没真正降到位，不开始计时
 
         if self._hover_drop_start_time is None:
             self._hover_drop_start_time = time.time()
@@ -615,9 +640,15 @@ class mission:
             return
 
         from Lcode.actuators import drop_bag
-        drop_bag()
+        try:
+            drop_bag()
+        except Exception as e:
+            logger.error(f"drop_bag() 调用失败: {e}")
         if self.serial_ground is not None:
-            self.serial_ground.send_fire(int(pos[0] * 100), int(pos[1] * 100))
+            try:
+                self.serial_ground.send_fire(int(pos[0] * 100), int(pos[1] * 100))
+            except Exception as e:
+                logger.error(f"serial_ground.send_fire() 调用失败: {e}")
         logger.info("HOVER_DROP: 抛投+坐标广播完成，恢复PATROL续飞")
         self.finish_hover_drop_and_resume()
 

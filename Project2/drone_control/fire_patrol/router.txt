@@ -1,5 +1,5 @@
-# x,y,z (meters) ¡ª fire_patrol 6x5¸ñĞÄ¹­×ÖĞÎÈ«¸²¸ÇÑ²Âßº½µã
-# ×Ô¶¯Éú³É£¬¼û Lcode/coverage_path.py generate_boustrophedon_waypoints()
+# x,y,z (meters) â€” fire_patrol 6x5æ ¼å¿ƒå¼“å­—å½¢å…¨è¦†ç›–å·¡é€»èˆªç‚¹
+# è‡ªåŠ¨ç”Ÿæˆï¼Œè§ Lcode/coverage_path.py generate_boustrophedon_waypoints()
 0.00,0.00,1.80
 4.00,0.00,1.80
 4.00,0.80,1.80

@@ -34,7 +34,7 @@ def generate_boustrophedon_waypoints(num_cols: int = NUM_COLS,
 def save_router_txt(path: str, waypoints: List[List[float]]) -> None:
     """写入 basic/Mission_GPT.py `load_waypoints()` 兼容的 x,y,z 逐行格式，
     末尾追加返回原点(0,0,0)降落航点。"""
-    with open(path, "w") as f:
+    with open(path, "w", encoding="utf-8") as f:
         f.write("# x,y,z (meters) — fire_patrol 6x5格心弓字形全覆盖巡逻航点\n")
         f.write("# 自动生成，见 Lcode/coverage_path.py generate_boustrophedon_waypoints()\n")
         for x, y, z in waypoints:

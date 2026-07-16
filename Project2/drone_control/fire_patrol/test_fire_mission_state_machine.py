@@ -1,5 +1,6 @@
 import os
 import sys
+import time
 
 sys.path.insert(0, os.path.dirname(__file__))
 
@@ -7,6 +8,7 @@ from Mission_GPT import (
     mission,
     APPROACH_CENTERED_DIST_M,
     HOVER_DROP_DURATION_S,
+    arrival_timeout_max,
 )
 
 
@@ -113,3 +115,28 @@ class TestResumeAfterHoverDrop:
         m.finish_hover_drop_and_resume()
         assert m.nav_mode == "PATROL"
         assert m.target_index == 3  # 恢复到触发时保存的索引，不重置为0
+
+    def test_resume_does_not_immediately_timeout_skip_waypoint(self, tmp_path):
+        """回归测试（问题2）：finish_hover_drop_and_resume()之前，arrival_start_time
+        停留在火情触发前的旧值，APPROACH/CONFIRM_WARN/HOVER_DROP整个过程都不会
+        重置它，导致恢复PATROL后第一个navigate() tick里
+        `time.time() - self.arrival_start_time` 几乎必然超过arrival_timeout_max，
+        触发"航点超时，强制跳过"——target_index会在没有真正到达的情况下自增。
+        修复后finish_hover_drop_and_resume()要重置arrival_start_time等到达检测状态，
+        紧接着调用navigate()（目标点还远，不会立即触发到达）不应该让target_index自增。"""
+        m = _make_mission(tmp_path)
+        m.target_index = 0  # router.txt: [0,0,1.8] -> [4.0,0,1.8]，与当前pos(0,0,1.8)有4m差距
+        m.last_target_index = 0
+
+        # 模拟火情触发前，arrival_start_time是很久以前设置的
+        m.arrival_start_time = time.time() - (arrival_timeout_max + 10.0)
+
+        m.maybe_trigger_approach(detection=(50.0, 30.0))  # 保存target_index=0，进入APPROACH
+        # 模拟APPROACH -> CONFIRM_WARN -> HOVER_DROP 全程没有触碰arrival_start_time
+        m.finish_hover_drop_and_resume()
+
+        assert m.nav_mode == "PATROL"
+        idx_before = m.target_index
+        # pos离target(4.0,0,1.8)很远，不会被真正判定为到达
+        m.navigate(pos=[0.0, 0.0, 1.8], yaw=0.0)
+        assert m.target_index == idx_before  # 不应该被"超时强制跳过"逻辑立即自增
