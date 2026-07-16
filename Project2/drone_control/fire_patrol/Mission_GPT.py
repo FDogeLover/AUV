@@ -583,6 +583,16 @@ class mission:
         self.y_pid.reset()
         self._hover_hold_pos = None
 
+        # 2026-07-16真机测试发现：警示LED点亮后(_do_confirm_warn里的warn_led())
+        # 从没有任何地方关掉，导致降落时灯还亮着——set_rgb_led()是状态型接口，
+        # 点亮后不会自动熄灭，调用方必须自己在合适时机关掉。LED的作用是示警
+        # "正在处理这次火情"，续飞后不该继续亮着占用状态，这里关掉。
+        try:
+            from Lcode.gpio_led import set_rgb_led
+            set_rgb_led('OFF')
+        except Exception as e:
+            logger.error(f"set_rgb_led('OFF') 调用失败: {e}")
+
     def _do_approach(self):
         """悬停对准正下方：独立小增益+死区+符号预验证的伺服修正，超时兜底进CONFIRM_WARN。
         见设计文档"APPROACH（视觉伺服对准正下方）"一节。"""

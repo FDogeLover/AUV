@@ -238,3 +238,19 @@ class TestApproachSignConvention:
         m.navigate(pos=[0.0, 0.0, 1.8], yaw=0.0)
         vy_sent = m.se_fc[4] - sp_side
         assert vy_sent > 0
+
+
+class TestWarnLedTurnsOffOnResume:
+    """回归测试：2026-07-16真机测试发现警示LED点亮后一直没关，降落时还亮着——
+    set_rgb_led()点亮后不会自动熄灭，finish_hover_drop_and_resume()必须显式关掉。"""
+
+    def test_resume_turns_off_led(self, tmp_path, monkeypatch):
+        calls = []
+        monkeypatch.setattr("Lcode.gpio_led.set_rgb_led", lambda color: calls.append(color))
+
+        m = _make_mission(tmp_path)
+        m.target_index = 0
+        m.maybe_trigger_approach(detection=(50.0, 30.0))
+        m.finish_hover_drop_and_resume()
+
+        assert 'OFF' in calls
