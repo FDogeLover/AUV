@@ -175,7 +175,7 @@ class TestResumeAfterHoverDrop:
         修复后finish_hover_drop_and_resume()要重置arrival_start_time等到达检测状态，
         紧接着调用navigate()（目标点还远，不会立即触发到达）不应该让target_index自增。"""
         m = _make_mission(tmp_path)
-        m.target_index = 0  # router.txt: [0,0,1.8] -> [4.0,0,1.8]，与当前pos(0,0,1.8)有4m差距
+        m.target_index = 0  # router.txt idx0目标是[0,0,1.8]
         m.last_target_index = 0
 
         # 模拟火情触发前，arrival_start_time是很久以前设置的
@@ -187,8 +187,9 @@ class TestResumeAfterHoverDrop:
 
         assert m.nav_mode == "PATROL"
         idx_before = m.target_index
-        # pos离target(4.0,0,1.8)很远，不会被真正判定为到达
-        m.navigate(pos=[0.0, 0.0, 1.8], yaw=0.0)
+        # pos离target[0,0,1.8]故意给3米偏差(超过CRUISE_XY_THRESH)，既不会被"掠过式"
+        # 巡航判定立即通过，也验证不会被"超时强制跳过"逻辑立即自增
+        m.navigate(pos=[3.0, 0.0, 1.8], yaw=0.0)
         assert m.target_index == idx_before  # 不应该被"超时强制跳过"逻辑立即自增
 
 
@@ -329,22 +330,37 @@ class TestCruiseVsPrecisionArrivalThreshold:
     """2026-07-16用户反馈：巡航航点(弓字形中间点)不需要精确到达，只有最后
     PRECISION_TAIL_WAYPOINTS个航点(为land()做准备)才要严格精度。测试用的
     router.txt有3个航点(idx 0/1/2)，PRECISION_TAIL_WAYPOINTS=2意味着idx=0是
-    巡航航点(宽松阈值)，idx=1/2是精确航点(严格阈值)。"""
+    巡航航点(宽松阈值)，idx=1/2是精确航点(严格阈值)。
 
-    def test_cruise_waypoint_accepts_loose_offset(self, tmp_path):
+    2026-07-16进一步改成"掠过式"：巡航航点一旦水平位置进入CRUISE_XY_THRESH
+    范围就立刻切下一个目标(target_index自增)，不再走滑动窗口确认+停留观察，
+    也就不再往_arrival_window里追加——测试改成直接看target_index有没有自增。"""
+
+    def test_cruise_waypoint_flies_through_on_loose_offset(self, tmp_path):
         """idx=0是巡航航点：0.25m偏差超过严格阈值(confidence=3时0.10m)但在
-        CRUISE_XY_THRESH(0.4m)以内，应该被判定为"这一帧到达"。"""
+        CRUISE_XY_THRESH(0.4m)以内，应该单帧内立刻掠过(target_index自增)，
+        不需要多帧确认、不需要停留。"""
         m = _make_mission(tmp_path)
         m.target_index = 0
         m.last_target_index = 0
         m.navigate(pos=[0.25, 0.0, 1.8], yaw=0.0)
-        assert m._arrival_window[-1] is True
+        assert m.target_index == 1
 
-    def test_precision_waypoint_rejects_same_offset(self, tmp_path):
-        """同样0.25m偏差，在最后的精确航点(idx=2)应该判定为"这一帧未到达"，
-        证明精度分级确实按航点索引区分，不是巡航阈值全局放宽了。"""
+    def test_cruise_waypoint_does_not_advance_when_far(self, tmp_path):
+        m = _make_mission(tmp_path)
+        m.target_index = 0
+        m.last_target_index = 0
+        m.arrival_start_time = time.time()  # 避免__init__默认值0.0被当成"早就超时"
+        m.navigate(pos=[2.0, 2.0, 1.8], yaw=0.0)
+        assert m.target_index == 0
+
+    def test_precision_waypoint_still_requires_confirm_window(self, tmp_path):
+        """同样0.25m偏差，在最后的精确航点(idx=2)不应该立刻掠过，还是要走
+        滑动窗口确认+停留观察那一套，证明精度分级依然按航点索引区分。"""
         m = _make_mission(tmp_path)
         m.target_index = 2
         m.last_target_index = 2
+        m.arrival_start_time = time.time()  # 避免__init__默认值0.0被当成"早就超时"
         m.navigate(pos=[0.25, 0.0, 0.0], yaw=0.0)
-        assert m._arrival_window[-1] is False
+        assert m.target_index == 2  # 单帧不会立刻掠过
+        assert m._arrival_window[-1] is False  # 精确航点仍然用严格阈值判定这一帧

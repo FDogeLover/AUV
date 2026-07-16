@@ -527,18 +527,31 @@ class mission:
             if dy > 0.3:
                 self.y_pid.reset()
 
-            frame_ok = dx < xy_thresh and dy < xy_thresh and dz < z_thresh and speed < ARRIVAL_VEL_THRESH
-            self._arrival_window.append(frame_ok)
+            if is_precision_waypoint:
+                # 精确航点(最后PRECISION_TAIL_WAYPOINTS个，为land()做准备)：维持原有
+                # 滑动窗口确认+停留观察的严格流程，不能掠过。
+                frame_ok = dx < xy_thresh and dy < xy_thresh and dz < z_thresh and speed < ARRIVAL_VEL_THRESH
+                self._arrival_window.append(frame_ok)
 
-            if arrival_window_confirmed(self._arrival_window, arrival_confirm_need, ARRIVAL_CONFIRM_RATIO):
-                if self.arrival_confirmed_time is None:
-                    self.arrival_confirmed_time = time.time()
-                    logger.info(f"到达航点 {self.target_index}，停留 {arrival_hold_s:.0f}s 观察")
-                elif time.time() - self.arrival_confirmed_time >= arrival_hold_s:
-                    logger.info(f"航点 {self.target_index} 停留完成")
-                    self._on_arrival(target)
+                if arrival_window_confirmed(self._arrival_window, arrival_confirm_need, ARRIVAL_CONFIRM_RATIO):
+                    if self.arrival_confirmed_time is None:
+                        self.arrival_confirmed_time = time.time()
+                        logger.info(f"到达航点 {self.target_index}，停留 {arrival_hold_s:.0f}s 观察")
+                    elif time.time() - self.arrival_confirmed_time >= arrival_hold_s:
+                        logger.info(f"航点 {self.target_index} 停留完成")
+                        self._on_arrival(target)
+                else:
+                    self.arrival_confirmed_time = None
             else:
-                self.arrival_confirmed_time = None
+                # 2026-07-16用户反馈：巡航航点(弓字形中间点)不需要精确停留确认，
+                # 改成"掠过式"——一旦水平位置进入CRUISE_XY_THRESH范围就立刻切下一个
+                # 目标点，不等滑动窗口确认、不停留观察，PID甚至不需要真正收敛到
+                # 静止就能继续。不检查z/速度门槛：高度由_step_ramp_z单独渐进逼近，
+                # 拿它来卡住水平推进反而会让HOVER_DROP之后高度未恢复的已知问题
+                # (见2026-07-16讨论)连带拖慢巡航，没有必要绑在一起。
+                if dx < xy_thresh and dy < xy_thresh:
+                    logger.info(f"航点 {self.target_index} 掠过(巡航航点，不停留)")
+                    self._on_arrival(target)
 
             if time.time() - self.arrival_start_time >= arrival_timeout_max:
                 logger.warning(f"航点 {self.target_index} 超时，强制跳过")
@@ -604,6 +617,16 @@ class mission:
         if self.target_index == len(self.targets) - 2:
             pass  # 到达倒数第二个航点 (原 rgb_led 逻辑已移除)
         self.target_index += 1
+        # 2026-07-16修复：巡航"掠过式"逻辑在navigate()同一次调用里就地推进target_index，
+        # 不像原来的"多帧确认+停留"那样要等到下一次tick顶部的
+        # `if self.target_index != self.last_target_index`才重置arrival_start_time——
+        # 如果不在这里立刻重置，紧接着本次调用末尾的超时检查会拿着旧的
+        # arrival_start_time(可能已经过期)去判定刚刚推进到的新target_index，
+        # 一次调用内连续误判超时、连跳两个航点。在这里直接同步重置，不留这个窗口。
+        self.last_target_index = self.target_index
+        self.arrival_start_time = time.time()
+        self._arrival_window.clear()
+        self.arrival_confirmed_time = None
 
     # ================= fire_patrol: 火情检测触发 =================
     def maybe_trigger_approach(self, detection):
