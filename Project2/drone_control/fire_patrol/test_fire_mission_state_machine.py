@@ -10,6 +10,7 @@ from Mission_GPT import (
     HOVER_DROP_DURATION_S,
     arrival_timeout_max,
 )
+from Lcode.global_variable import sp_side
 
 
 class _FakeRealsense:
@@ -140,3 +141,52 @@ class TestResumeAfterHoverDrop:
         # pos离target(4.0,0,1.8)很远，不会被真正判定为到达
         m.navigate(pos=[0.0, 0.0, 1.8], yaw=0.0)
         assert m.target_index == idx_before  # 不应该被"超时强制跳过"逻辑立即自增
+
+
+class TestHoverDropClosedLoopHold:
+    """回归测试：悬停3s期间水平位置必须闭环锁定，不能像之前那样只发vx=vy=0的
+    开环零速度指令(用户2026-07-16反馈)——否则任何漂移都不会被修正，直接影响
+    抛投精度和最终广播坐标的准确性。"""
+
+    def test_first_tick_locks_current_position_as_target(self, tmp_path):
+        m = _make_mission(tmp_path)
+        m.nav_mode = "HOVER_DROP"
+        m._hover_drop_start_time = None
+        m._hover_hold_pos = None
+        m.navigate(pos=[1.0, 2.0, 0.0], yaw=0.0)
+        assert m._hover_hold_pos == (1.0, 2.0)
+
+    def test_drifted_position_produces_corrective_nonzero_speed(self, tmp_path):
+        """锁定位置后，如果后续读数偏离锁定点，应该产生非零的修正速度指令，
+        而不是像开环那样始终发0。"""
+        m = _make_mission(tmp_path)
+        m.nav_mode = "HOVER_DROP"
+        m._hover_drop_start_time = None
+        m._hover_hold_pos = None
+        m.navigate(pos=[1.0, 2.0, 0.0], yaw=0.0)  # 锁定(1.0, 2.0)
+
+        # simple_pid在dt=0(两次调用间没有真实时间流逝)时不会更新输出，真实主循环
+        # tick间隔30ms，这里睡一下模拟，否则P项算出来恒为0，测试没有意义
+        time.sleep(0.05)
+        m.navigate(pos=[1.3, 2.0, 0.0], yaw=0.0)  # 偏离锁定点0.3m
+        vx_sent = m.se_fc[3] - sp_side
+        assert vx_sent != 0
+
+    def test_corrective_speed_is_clamped_to_conservative_limit(self, tmp_path):
+        """限幅应该用HOVER_HOLD_MAX_STEP_CMPS(跟APPROACH一致的保守值)，不是
+        navigate()跨格移动用的40——抛投前不该有大幅动作。"""
+        from Mission_GPT import HOVER_HOLD_MAX_STEP_CMPS
+        m = _make_mission(tmp_path)
+        m.nav_mode = "HOVER_DROP"
+        m._hover_drop_start_time = None
+        m._hover_hold_pos = None
+        m.navigate(pos=[0.0, 0.0, 0.0], yaw=0.0)  # 锁定(0.0, 0.0)
+
+        time.sleep(0.05)  # 见上一个测试注释：simple_pid需要dt>0才会更新输出
+        m.navigate(pos=[5.0, 5.0, 0.0], yaw=0.0)  # 故意给一个很大的偏差
+        vx_sent = m.se_fc[3] - sp_side
+        vy_sent = m.se_fc[4] - sp_side
+        assert vx_sent != 0  # 确认PID确实产生了非零输出，不是被限幅前就已经是0
+        assert vy_sent != 0
+        assert abs(vx_sent) <= HOVER_HOLD_MAX_STEP_CMPS
+        assert abs(vy_sent) <= HOVER_HOLD_MAX_STEP_CMPS

@@ -66,6 +66,9 @@ APPROACH_CENTERED_DIST_M = 0.3  # 像素偏移换算的水平距离小于此值�
 HOVER_DROP_ALTITUDE_CM = 10.0 * 10  # 悬停抛投高度=10dm=100cm
 HOVER_DROP_DURATION_S = 3.0     # 赛题写死的固定悬停时长，与arrival_hold_s(navigate()到达确认用)
                                   # 完全独立，不能混用——见设计文档"HOVER_DROP"一节
+HOVER_HOLD_MAX_STEP_CMPS = APPROACH_MAX_STEP_CMPS  # HOVER_DROP水平位置闭环锁定的输出限幅，
+                                  # 复用APPROACH的保守值(8cm/s)而非navigate()跨格移动的40——
+                                  # 抛投前悬停应该只做小幅漂移修正，不该有大动作
 PIXEL_TO_METER_AT_CRUISE = 0.0015  # 像素偏移->水平距离粗略换算系数，现场需按实际摄像头
                                      # FOV/高度标定，这里给占位初始值
 
@@ -126,6 +129,7 @@ class mission:
         self.fire_vision = None  # main.py 注入 FireVision 实例
         self.serial_ground = None  # main.py 注入 Serial_ground 实例
         self._hover_drop_start_time = None
+        self._hover_hold_pos = None  # HOVER_DROP闭环锁定的水平目标点，见_do_hover_drop()
 
         # 到达判断
         self._arrival_window = deque(maxlen=arrival_confirm_need)
@@ -572,6 +576,12 @@ class mission:
         self._arrival_window.clear()
         self.arrival_confirmed_time = None
         self.arrival_start_time = time.time()
+        # 清空HOVER_DROP闭环锁定期间累积的PID积分项，避免带着旧误差历史进入
+        # 恢复后的巡航航段(navigate()的PATROL分支会在下一tick重新set_target，
+        # 但reset()清掉积分项更干净，不留隐性偏置)
+        self.x_pid.reset()
+        self.y_pid.reset()
+        self._hover_hold_pos = None
 
     def _do_approach(self):
         """悬停对准正下方：独立小增益+死区+符号预验证的伺服修正，超时兜底进CONFIRM_WARN。
@@ -612,11 +622,29 @@ class mission:
             logger.error(f"warn_led() 调用失败: {e}")
         self.nav_mode = "HOVER_DROP"
         self._hover_drop_start_time = None
+        self._hover_hold_pos = None  # 触发_do_hover_drop()第一次调用时锁定当前位置
 
     def _do_hover_drop(self, pos):
-        """降到10dm悬停HOVER_DROP_DURATION_S后抛投+广播坐标，见设计文档"HOVER_DROP"一节。"""
+        """降到10dm悬停HOVER_DROP_DURATION_S后抛投+广播坐标，见设计文档"HOVER_DROP"一节。
+        水平位置用x_pid/y_pid闭环锁定在进入本状态那一刻的坐标，不能像之前那样只发
+        vx=vy=0的开环零速度指令——3秒悬停期间任何风扰/残余速度都会导致漂移，
+        影响抛投精度和最终广播坐标的准确性(用户2026-07-16反馈：悬停期间需要闭环
+        控制保证精度，不能开环)。"""
+        if self._hover_hold_pos is None:
+            self._hover_hold_pos = (pos[0], pos[1])
+            self.x_pid.set_target(pos[0])
+            self.y_pid.set_target(pos[1])
+            self.x_pid.reset()
+            self.y_pid.reset()
+            logger.info(f"HOVER_DROP: 锁定水平位置 ({pos[0]:.2f}, {pos[1]:.2f})")
+
         self._step_ramp_z(HOVER_DROP_ALTITUDE_CM)
-        self.set_speed(0, 0, 0, int(self._ramp_z_cm))
+
+        vx = self.x_pid.get_pid(pos[0]) * 100 * VEL_SCALE
+        vy = self.y_pid.get_pid(pos[1]) * 100 * VEL_SCALE
+        vx = int(self.limit(vx, HOVER_HOLD_MAX_STEP_CMPS))
+        vy = int(self.limit(vy, HOVER_HOLD_MAX_STEP_CMPS))
+        self.set_speed(vx, vy, 0, int(self._ramp_z_cm))
 
         # setpoint_ok: 内部软件ramp是否已收敛到目标值（跟原逻辑一样）。
         # measured_ok: pos[2](loop()里已被激光高度覆盖成米制真实测量值，见laser_height_valid
