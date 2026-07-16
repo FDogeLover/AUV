@@ -192,3 +192,35 @@ class TestFireVisionBackgroundLoop:
         fv.stop()
 
         assert fake_vision.released is True
+
+
+class TestSaveSnapshot:
+    """2026-07-16新增：火情触发时存一张现场画面方便事后调试分析。"""
+
+    def test_returns_none_when_no_frame_available(self, tmp_path):
+        fv = FireVision(debug_dir=str(tmp_path))
+        assert fv.save_snapshot() is None
+
+    def test_saves_latest_frame_and_returns_path(self, tmp_path, monkeypatch):
+        frame = _blank_frame()
+        _draw_circle_bgr(frame, (0, 0, 255), cx=960, cy=540)
+        fake_vision = _FakeVisionOneFrame(frame)
+        monkeypatch.setattr("Lcode.fire_vision.VisionSystem", lambda **kwargs: fake_vision)
+
+        fv = FireVision(smooth_window=1, debug_dir=str(tmp_path))
+        assert fv.start() is True
+        deadline = time.time() + 2.0
+        while fv.latest()["dx_px"] is None and time.time() < deadline:
+            time.sleep(0.02)
+
+        path = fv.save_snapshot(reason="fire_triggered")
+        fv.stop()
+
+        assert path is not None
+        assert os.path.exists(path)
+        assert "fire_triggered" in os.path.basename(path)
+
+    def test_debug_dir_defaults_to_env_var(self, monkeypatch):
+        monkeypatch.setenv("DRONE_FIRE_DEBUG_DIR", "/tmp/custom_fire_debug")
+        fv = FireVision()
+        assert fv.debug_dir == "/tmp/custom_fire_debug"

@@ -602,6 +602,13 @@ class mission:
         self.nav_mode = "APPROACH"
         self._approach_start_time = time.time()
         logger.info(f"检测到火情，悬停进入APPROACH（保存航点索引{self.target_index}）")
+        # 2026-07-16新增：触发时存一张现场画面，方便事后调试分析(比如误检测复盘、
+        # 确认当时看到的到底是不是真火源)。存图失败不应该影响触发流程本身。
+        if self.fire_vision is not None:
+            try:
+                self.fire_vision.save_snapshot(reason="fire_triggered")
+            except Exception as e:
+                logger.error(f"火情触发存图失败: {e}")
         return True
 
     def is_approach_centered(self, dx_px, dy_px):

@@ -75,6 +75,23 @@ class TestFireTriggerLatch:
         assert m.nav_mode == "APPROACH"
         assert m.fire_triggered is True
 
+    def test_trigger_saves_debug_snapshot(self, tmp_path):
+        """2026-07-16新增：火情触发时应该调用fire_vision.save_snapshot()存一张
+        现场画面，方便事后调试分析。"""
+        class _FakeFireVisionWithSnapshot:
+            def __init__(self):
+                self.snapshot_calls = []
+
+            def save_snapshot(self, reason="fire_triggered"):
+                self.snapshot_calls.append(reason)
+                return "/fake/path.jpg"
+
+        m = _make_mission(tmp_path)
+        m.fire_vision = _FakeFireVisionWithSnapshot()
+        m.maybe_trigger_approach(detection=(50.0, 30.0))
+
+        assert m.fire_vision.snapshot_calls == ["fire_triggered"]
+
     def test_second_detection_does_not_retrigger(self, tmp_path):
         m = _make_mission(tmp_path)
         m.maybe_trigger_approach(detection=(50.0, 30.0))

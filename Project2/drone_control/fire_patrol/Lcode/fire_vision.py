@@ -12,6 +12,7 @@ project_imx219_camera_bringup记忆，不要弄混）。
 `detect_fire()`/`SmoothedFireDetector`是纯函数/纯逻辑，跟摄像头取流方式无关，
 不受这次硬件方案调整影响。
 """
+import os
 import threading
 import time
 from collections import deque
@@ -134,13 +135,20 @@ class FireVision:
     同样的"返回False"约定，维持对`main.py`调用方透明。
     """
 
-    def __init__(self, device: str = IMX219_DEVICE, smooth_window: int = 5):
+    def __init__(self, device: str = IMX219_DEVICE, smooth_window: int = 5,
+                 debug_dir: str = None):
         self.device = device
         self._lock = threading.Lock()
         self._latest = {"dx_px": None, "dy_px": None, "t": 0.0}
+        self._latest_frame = None  # 最新一帧原始BGR画面，供save_snapshot()存档用
         self._running = False
         self._vision = None
         self._smoother = SmoothedFireDetector(window=smooth_window)
+        # 2026-07-16新增：火情触发时存一张现场画面方便事后调试分析。不像
+        # circle_pole/Lcode/pole_vision.py那样持续存debug帧(那边默认要env var
+        # 显式开启)——fire_patrol因为fire_triggered全程只触发一次，存图频率
+        # 天然很低，默认就开(不需要环境变量才启用)，目录仍可用环境变量覆盖。
+        self.debug_dir = debug_dir or os.getenv("DRONE_FIRE_DEBUG_DIR", "fire_debug")
 
     def start(self) -> bool:
         self._vision = VisionSystem(
@@ -179,6 +187,28 @@ class FireVision:
         with self._lock:
             return dict(self._latest)
 
+    def save_snapshot(self, reason: str = "fire_triggered") -> Optional[str]:
+        """把最新一帧原始画面存到self.debug_dir，文件名带时间戳+reason，
+        方便事后对照当时到底看到了什么(比如误检测复盘)。没有可用帧或写入失败
+        时返回None，不抛异常——调用方(火情触发时)不应该因为存图失败被打断。"""
+        with self._lock:
+            frame = None if self._latest_frame is None else self._latest_frame.copy()
+        if frame is None:
+            logger.warning("save_snapshot: 当前没有可用帧，跳过存图")
+            return None
+        try:
+            os.makedirs(self.debug_dir, exist_ok=True)
+            path = os.path.join(
+                self.debug_dir,
+                f"{time.strftime('%Y%m%d_%H%M%S')}_{reason}.jpg",
+            )
+            cv2.imwrite(path, frame)
+            logger.info(f"save_snapshot: 已存图 {path}")
+            return path
+        except Exception as e:
+            logger.error(f"save_snapshot 失败: {e}")
+            return None
+
     def _loop(self):
         while self._running:
             frame = self._vision.get_frame()
@@ -186,6 +216,7 @@ class FireVision:
                 raw = detect_fire(frame)
                 smoothed = self._smoother.update(raw)
                 with self._lock:
+                    self._latest_frame = frame
                     if smoothed is None:
                         self._latest = {"dx_px": None, "dy_px": None, "t": time.time()}
                     else:
