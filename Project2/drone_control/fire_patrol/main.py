@@ -58,22 +58,30 @@ def main():
     fire_vision = FireVision(device=os.getenv("DRONE_FIRE_CAMERA", "/dev/video10"))  # IMX219 VSE节点，见Lcode/fire_vision.py
     fire_vision.start()  # 打不开时返回False，latest()永远全None，不阻断飞行(见设计文档)
 
-    # 2c. 消防车广播串口
-    serial_ground = Serial_ground(os.getenv("DRONE_GROUND_PORT", "/dev/ttyS7"))
+    # 2c. 消防车广播串口——消防车是完全独立硬件(不在本仓库范围内)，这条链路
+    # 打不开(比如端口存在但没有实际接线的无线模块)不应该阻断无人机自身的飞行，
+    # 2026-07-16真机测试实测/dev/ttyS7节点存在但open()抛SerialException，
+    # 之前没有try/except直接导致main()崩溃退出、飞机根本起不来。
+    try:
+        serial_ground = Serial_ground(os.getenv("DRONE_GROUND_PORT", "/dev/ttyS7"))
+    except Exception as e:
+        logger.error(f"消防车广播串口打不开: {e}，火情/位置广播禁用，不影响无人机自身飞行")
+        serial_ground = None
 
     # 3. 创建任务
     mission1 = mission(re_fc, se_fc, realsense, serial_fc)
     mission1.fire_vision = fire_vision
     mission1.serial_ground = serial_ground
 
-    # 3b. 1Hz位置心跳广播（基本要求(3)）
-    start_position_heartbeat(
-        serial_ground,
-        get_position_cm=lambda: (
-            int(realsense.get_position()[0] * 100),
-            int(realsense.get_position()[1] * 100),
-        ),
-    )
+    # 3b. 1Hz位置心跳广播（基本要求(3)），serial_ground不可用时跳过
+    if serial_ground is not None:
+        start_position_heartbeat(
+            serial_ground,
+            get_position_cm=lambda: (
+                int(realsense.get_position()[0] * 100),
+                int(realsense.get_position()[1] * 100),
+            ),
+        )
 
     # 4. 启动
     mission1.start()
