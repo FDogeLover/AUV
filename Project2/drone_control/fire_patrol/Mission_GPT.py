@@ -55,6 +55,20 @@ ARRIVAL_CONFIRM_RATIO = 0.6  # 到达确认改用滑动窗口比例制而非严�
                               # 连续凑够arrival_confirm_need帧，导致大多数航点靠超时兜底而非真正确认到达
                               # (2026-07-08复测: 0.8比例下仍有部分航点(占比26-34%)无法确认，下调到0.6)
 
+# ---------- fire_patrol 新增常量 ----------
+FIRE_VISION_STALE_S = 0.5       # 火情检测结果超过此值未更新，视为摄像头/线程故障，不阻断飞行
+APPROACH_DEADBAND_PX = 20       # 像素偏移小于此值不修正，防止中心附近来回抖
+APPROACH_GAIN = 0.15            # APPROACH独立的小增益，明显小于navigate()跨格移动用的PID增益
+APPROACH_MAX_STEP_CMPS = 8      # APPROACH阶段单次修正的速度上限(cm/s)，远小于navigate()的40，避免大幅晃动
+APPROACH_TIMEOUT_S = 10.0       # 视觉伺服对准超时兜底，超时不强求完全居中，直接进入CONFIRM_WARN
+APPROACH_CENTERED_DIST_M = 0.3  # 像素偏移换算的水平距离小于此值才算"对准"，对应赛题
+                                  # 发挥部分(1)"接近火源水平距离<=5dm"，留量到3dm量级
+HOVER_DROP_ALTITUDE_CM = 10.0 * 10  # 悬停抛投高度=10dm=100cm
+HOVER_DROP_DURATION_S = 3.0     # 赛题写死的固定悬停时长，与arrival_hold_s(navigate()到达确认用)
+                                  # 完全独立，不能混用——见设计文档"HOVER_DROP"一节
+PIXEL_TO_METER_AT_CRUISE = 0.0015  # 像素偏移->水平距离粗略换算系数，现场需按实际摄像头
+                                     # FOV/高度标定，这里给占位初始值
+
 # 2026-07-09新增：yaw方向验证专用——问题16事故后yaw修正回路已回退，但符号问题
 # 尚未定位。这里加一个非闭环、短时、固定输出的yaw脉冲测试，绕开PID，直接验证
 # 凌霄IMU执行vyaw的真实物理方向，跟转盘验证过的T265测量方向做对比。
@@ -103,6 +117,15 @@ class mission:
         self.targets = self.load_waypoints()
         self.target_index = 0
         self.emergency_stop = False
+
+        # fire_patrol: 火情检测/接近/悬停抛投状态
+        self.nav_mode = "PATROL"  # PATROL / APPROACH / CONFIRM_WARN / HOVER_DROP
+        self.fire_triggered = False  # 全程只响应一次火情检测（见设计文档）
+        self.saved_target_index_before_fire = None
+        self._approach_start_time = None
+        self.fire_vision = None  # main.py 注入 FireVision 实例
+        self.serial_ground = None  # main.py 注入 Serial_ground 实例
+        self._hover_drop_start_time = None
 
         # 到达判断
         self._arrival_window = deque(maxlen=arrival_confirm_need)
@@ -330,6 +353,25 @@ class mission:
 
     # ================= 导航 =================
     def navigate(self, pos, yaw):
+        if self.nav_mode == "APPROACH":
+            self._do_approach()
+            return
+        if self.nav_mode == "CONFIRM_WARN":
+            self._do_confirm_warn()
+            return
+        if self.nav_mode == "HOVER_DROP":
+            self._do_hover_drop(pos)
+            return
+
+        # PATROL态：持续检查火情检测结果，触发APPROACH
+        if self.nav_mode == "PATROL" and self.fire_vision is not None:
+            latest = self.fire_vision.latest()
+            now = time.time()
+            if (latest.get("dx_px") is not None
+                    and now - latest.get("t", 0) < FIRE_VISION_STALE_S):
+                if self.maybe_trigger_approach((latest["dx_px"], latest["dy_px"])):
+                    return
+
         if self.target_index >= len(self.targets):
             logger.info("全部航点完成")
             self.state = "LAND"
@@ -488,6 +530,96 @@ class mission:
         if self.target_index == len(self.targets) - 2:
             pass  # 到达倒数第二个航点 (原 rgb_led 逻辑已移除)
         self.target_index += 1
+
+    # ================= fire_patrol: 火情检测触发 =================
+    def maybe_trigger_approach(self, detection):
+        """detection为None或已经触发过(fire_triggered=True)时不触发。
+        触发时保存当前target_index用于HOVER_DROP完成后续飞。"""
+        if detection is None or self.fire_triggered:
+            return False
+        self.saved_target_index_before_fire = self.target_index
+        self.fire_triggered = True
+        self.nav_mode = "APPROACH"
+        self._approach_start_time = time.time()
+        logger.info(f"检测到火情，悬停进入APPROACH（保存航点索引{self.target_index}）")
+        return True
+
+    def is_approach_centered(self, dx_px, dy_px):
+        """像素偏移换算成水平距离，小于APPROACH_CENTERED_DIST_M才算对准正下方。"""
+        dist_m = math.hypot(dx_px, dy_px) * PIXEL_TO_METER_AT_CRUISE
+        return dist_m < APPROACH_CENTERED_DIST_M
+
+    def approach_timed_out(self):
+        if self._approach_start_time is None:
+            return False
+        return time.time() - self._approach_start_time >= APPROACH_TIMEOUT_S
+
+    def finish_hover_drop_and_resume(self):
+        """HOVER_DROP完成后恢复PATROL，从保存的target_index继续（不重置为0，
+        不退回触发点），见设计文档"续飞逻辑"。"""
+        self.target_index = self.saved_target_index_before_fire
+        self.nav_mode = "PATROL"
+        self._approach_start_time = None
+
+    def _do_approach(self):
+        """悬停对准正下方：独立小增益+死区+符号预验证的伺服修正，超时兜底进CONFIRM_WARN。
+        见设计文档"APPROACH（视觉伺服对准正下方）"一节。"""
+        if self.fire_vision is None:
+            self.nav_mode = "CONFIRM_WARN"
+            return
+        latest = self.fire_vision.latest()
+        dx_px, dy_px = latest.get("dx_px"), latest.get("dy_px")
+
+        if dx_px is not None and dy_px is not None:
+            if self.is_approach_centered(dx_px, dy_px):
+                logger.info("APPROACH: 已对准正下方")
+                self.nav_mode = "CONFIRM_WARN"
+                return
+            # 死区：像素偏移小于阈值不修正
+            vx = 0 if abs(dx_px) < APPROACH_DEADBAND_PX else self.limit(
+                dx_px * APPROACH_GAIN, APPROACH_MAX_STEP_CMPS)
+            vy = 0 if abs(dy_px) < APPROACH_DEADBAND_PX else self.limit(
+                dy_px * APPROACH_GAIN, APPROACH_MAX_STEP_CMPS)
+            # 符号约定：dx_px>0(目标在画面右侧/x正方向)应产生正的vx指令使机体
+            # 向x正方向移动以让目标居中——实现后必须先地面台架验证这个符号，
+            # 防止正反馈导致偏差越修越大(见设计文档APPROACH一节)
+            self.set_speed(int(vx), int(vy), 0, int(self._ramp_z_cm))
+        else:
+            self.set_speed(0, 0, 0, int(self._ramp_z_cm))
+
+        if self.approach_timed_out():
+            logger.warning("APPROACH: 对准超时，按当前位置继续")
+            self.nav_mode = "CONFIRM_WARN"
+
+    def _do_confirm_warn(self):
+        """点亮警示LED后立即进入HOVER_DROP。"""
+        from Lcode.actuators import warn_led
+        warn_led()
+        self.nav_mode = "HOVER_DROP"
+        self._hover_drop_start_time = None
+
+    def _do_hover_drop(self, pos):
+        """降到10dm悬停HOVER_DROP_DURATION_S后抛投+广播坐标，见设计文档"HOVER_DROP"一节。"""
+        self._step_ramp_z(HOVER_DROP_ALTITUDE_CM)
+        self.set_speed(0, 0, 0, int(self._ramp_z_cm))
+
+        if abs(self._ramp_z_cm - HOVER_DROP_ALTITUDE_CM) > 2.0:
+            return  # 还在降高度途中，不开始计时
+
+        if self._hover_drop_start_time is None:
+            self._hover_drop_start_time = time.time()
+            logger.info(f"HOVER_DROP: 到达{HOVER_DROP_ALTITUDE_CM:.0f}cm，悬停{HOVER_DROP_DURATION_S:.0f}s")
+            return
+
+        if time.time() - self._hover_drop_start_time < HOVER_DROP_DURATION_S:
+            return
+
+        from Lcode.actuators import drop_bag
+        drop_bag()
+        if self.serial_ground is not None:
+            self.serial_ground.send_fire(int(pos[0] * 100), int(pos[1] * 100))
+        logger.info("HOVER_DROP: 抛投+坐标广播完成，恢复PATROL续飞")
+        self.finish_hover_drop_and_resume()
 
     def _do_yaw_test_burst(self):
         """非闭环yaw方向验证：直接发固定vyaw一小段时间后归零，不经过yaw_pid。
