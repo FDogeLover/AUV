@@ -55,7 +55,7 @@ def main():
     serial_fc.send_start(se_fc, realsense, vel_freq=100, cmd_freq=50)
 
     # 2b. 下视摄像头火情检测
-    fire_vision = FireVision(device=os.getenv("DRONE_FIRE_CAMERA", "/dev/video0"))
+    fire_vision = FireVision(device=os.getenv("DRONE_FIRE_CAMERA", "/dev/video10"))  # IMX219 VSE节点，见Lcode/fire_vision.py
     fire_vision.start()  # 打不开时返回False，latest()永远全None，不阻断飞行(见设计文档)
 
     # 2c. 消防车广播串口
