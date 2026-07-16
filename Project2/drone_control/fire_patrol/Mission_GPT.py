@@ -77,6 +77,9 @@ HOVER_HOLD_MAX_STEP_CMPS = APPROACH_MAX_STEP_CMPS  # HOVER_DROP水平位置闭�
                                   # 抛投前悬停应该只做小幅漂移修正，不该有大动作
 PIXEL_TO_METER_AT_CRUISE = 0.0015  # 像素偏移->水平距离粗略换算系数，现场需按实际摄像头
                                      # FOV/高度标定，这里给占位初始值
+TAKEOFF_WARN_BLINK_COUNT = 3    # 起飞前警示灯闪烁次数，提醒周围人员即将解锁/起飞
+TAKEOFF_WARN_BLINK_ON_S = 0.3   # 每次闪烁的亮灯时长(秒)
+TAKEOFF_WARN_BLINK_OFF_S = 0.3  # 每次闪烁的灭灯时长(秒)
 
 # 2026-07-09新增：yaw方向验证专用——问题16事故后yaw修正回路已回退，但符号问题
 # 尚未定位。这里加一个非闭环、短时、固定输出的yaw脉冲测试，绕开PID，直接验证
@@ -287,11 +290,28 @@ class mission:
             time.sleep(0.03)
 
     # ================= 起飞 =================
+    def _blink_warning_led(self, times=TAKEOFF_WARN_BLINK_COUNT):
+        """起飞前闪红灯提醒周围人员，阻塞调用(起飞前的安全等待本来就该是阻塞的，
+        给人反应时间)。GPIO不可用时静默跳过，不阻断起飞流程。"""
+        try:
+            from Lcode.gpio_led import set_rgb_led
+        except Exception as e:
+            logger.error(f"起飞警示灯闪烁失败: {e}")
+            return
+        for _ in range(times):
+            set_rgb_led('R')
+            time.sleep(TAKEOFF_WARN_BLINK_ON_S)
+            set_rgb_led('OFF')
+            time.sleep(TAKEOFF_WARN_BLINK_OFF_S)
+
     def takeoff(self):
         if DRY_RUN:
             logger.warning("takeoff: DRY_RUN 模式，不发送解锁指令，电机不会转")
         else:
             logger.info("takeoff: started")
+
+        # 起飞前闪红灯示警，必须在task_sta(解锁指令)写入se_fc之前完成
+        self._blink_warning_led()
 
         target_h_cm = TAKEOFF_LIFTOFF_CM  # 一键起飞只爬升到离地高度，真正目标高度交给 navigate() 闭环爬升
 
