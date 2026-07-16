@@ -70,6 +70,11 @@ ARRIVAL_CONFIRM_RATIO = 0.6  # 到达确认改用滑动窗口比例制而非严�
 
 # ---------- fire_patrol 新增常量 ----------
 FIRE_VISION_STALE_S = 0.5       # 火情检测结果超过此值未更新，视为摄像头/线程故障，不阻断飞行
+PATROL_MISS_SNAPSHOT_INTERVAL_S = 5.0  # 2026-07-16新增：PATROL态检测不到火源时，
+                                          # 每隔这么久也存一张画面(reason="patrol_no_detect")，
+                                          # 用来跟触发时存的清晰图做对比，验证"运动模糊导致
+                                          # 巡航中检测不到"这个假设——之前只有触发时才存图，
+                                          # 没有"检测失败时长什么样"的对照样本
 APPROACH_DEADBAND_PX = 20       # 像素偏移小于此值不修正，防止中心附近来回抖
 APPROACH_GAIN = 0.15            # APPROACH独立的小增益，明显小于navigate()跨格移动用的PID增益
 APPROACH_MAX_STEP_CMPS = 8      # APPROACH阶段单次修正的速度上限(cm/s)，远小于navigate()的40，避免大幅晃动
@@ -160,6 +165,7 @@ class mission:
         self._last_log_time = 0.0
         self._last_detect_log_time = 0.0  # 独立节流时间戳，避免跟主日志块共用_last_log_time
                                             # 导致两个日志块互相抢节流窗口、采样率减半
+        self._last_miss_snapshot_time = 0.0  # PATROL"检测不到"存图节流时间戳
 
         # yaw方向测试(问题16)
         self._yaw_burst_done = False
@@ -421,8 +427,16 @@ class mission:
                 except Exception:
                     pass
                 self._last_detect_log_time = now
-            if (latest.get("dx_px") is not None
-                    and now - latest.get("t", 0) < FIRE_VISION_STALE_S):
+
+            if latest.get("dx_px") is None:
+                # 检测不到时定期存一张画面，跟触发时存的清晰图做对比，验证运动模糊假设
+                if now - self._last_miss_snapshot_time >= PATROL_MISS_SNAPSHOT_INTERVAL_S:
+                    try:
+                        self.fire_vision.save_snapshot(reason="patrol_no_detect")
+                    except Exception as e:
+                        logger.error(f"patrol_no_detect存图失败: {e}")
+                    self._last_miss_snapshot_time = now
+            elif now - latest.get("t", 0) < FIRE_VISION_STALE_S:
                 if self.maybe_trigger_approach((latest["dx_px"], latest["dy_px"])):
                     return
 

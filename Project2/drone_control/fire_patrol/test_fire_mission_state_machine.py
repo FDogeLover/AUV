@@ -92,6 +92,38 @@ class TestFireTriggerLatch:
 
         assert m.fire_vision.snapshot_calls == ["fire_triggered"]
 
+
+class _FakeFireVisionNoDetection:
+    def __init__(self):
+        self.snapshot_calls = []
+
+    def latest(self):
+        return {"dx_px": None, "dy_px": None, "t": 0.0}
+
+    def save_snapshot(self, reason="fire_triggered"):
+        self.snapshot_calls.append(reason)
+        return "/fake/path.jpg"
+
+
+class TestPatrolMissSnapshot:
+    """2026-07-16新增：PATROL态检测不到火源时，每隔
+    PATROL_MISS_SNAPSHOT_INTERVAL_S也存一张画面，跟触发时存的清晰图对比，
+    验证运动模糊是不是巡航中检测不到的原因。"""
+
+    def test_saves_snapshot_when_interval_elapsed(self, tmp_path):
+        m = _make_mission(tmp_path)
+        m.fire_vision = _FakeFireVisionNoDetection()
+        m._last_miss_snapshot_time = 0.0  # 模拟"已经很久没存过"，节流窗口已过
+        m.navigate(pos=[0.0, 0.0, 1.8], yaw=0.0)
+        assert m.fire_vision.snapshot_calls == ["patrol_no_detect"]
+
+    def test_does_not_save_again_within_throttle_window(self, tmp_path):
+        m = _make_mission(tmp_path)
+        m.fire_vision = _FakeFireVisionNoDetection()
+        m._last_miss_snapshot_time = time.time()  # 刚存过，还在节流窗口内
+        m.navigate(pos=[0.0, 0.0, 1.8], yaw=0.0)
+        assert m.fire_vision.snapshot_calls == []
+
     def test_second_detection_does_not_retrigger(self, tmp_path):
         m = _make_mission(tmp_path)
         m.maybe_trigger_approach(detection=(50.0, 30.0))
