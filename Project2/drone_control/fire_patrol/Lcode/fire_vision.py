@@ -43,15 +43,25 @@ IMX219_VERTICAL_BLANKING = 2446
 MIN_FIRE_AREA_PX = 200
 MAX_FIRE_AREA_PX = 200000
 
+# 圆度过滤：4*pi*面积/周长^2，完美圆形=1.0，越扁/越不规则越接近0。真实火源
+# 灯罩俯视是近似圆形光斑，用这个过滤能排除面积恰好落在范围内、但形状是矩形/
+# 长条形的干扰物(比如小车车身反光)——2026-07-16真机测试实测触发了一次误检测，
+# 检测到的目标后来确认是"起点边上小车启动的红色矩形"，不是真实火源，面积上限
+# 挡不住(矩形恰好在合理面积范围内)，需要额外靠形状区分。阈值0.5比circle_pole
+# pole_vision.py用的0.75更宽松，因为真实光晕受噪点/过曝影响边缘不会很规整。
+MIN_CIRCULARITY = 0.5
+
 # 红色HSV阈值，色相环绕0/180两段取并集。经验初始值，现场需按实际LED光源标定
 # (参照circle_pole真机标定红杆子的经验：偏暗/偏亮光源饱和度差异很大)。
 HSV_RANGES_RED = [((0, 100, 100), (10, 255, 255)), ((170, 100, 100), (180, 255, 255))]
 
 
 def detect_fire(frame_bgr, min_area: int = MIN_FIRE_AREA_PX,
-                 max_area: int = MAX_FIRE_AREA_PX) -> Optional[Tuple[float, float]]:
-    """在BGR图像里找面积在[min_area, max_area]范围内的最大红色连通域，
-    返回(dx_px, dy_px) = 质心像素坐标 - 画面中心，没找到时返回None。"""
+                 max_area: int = MAX_FIRE_AREA_PX,
+                 min_circularity: float = MIN_CIRCULARITY) -> Optional[Tuple[float, float]]:
+    """在BGR图像里找面积在[min_area, max_area]范围内、形状接近圆形(圆度>=
+    min_circularity)的最大红色连通域，返回(dx_px, dy_px) = 质心像素坐标 - 画面
+    中心，没找到时返回None。"""
     hsv = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2HSV)
     height, width = frame_bgr.shape[:2]
 
@@ -66,6 +76,12 @@ def detect_fire(frame_bgr, min_area: int = MIN_FIRE_AREA_PX,
     for c in contours:
         area = cv2.contourArea(c)
         if area < min_area or area > max_area:
+            continue
+        perimeter = cv2.arcLength(c, True)
+        if perimeter <= 0:
+            continue
+        circularity = 4 * np.pi * area / (perimeter * perimeter)
+        if circularity < min_circularity:
             continue
         if area > best_area:
             moments = cv2.moments(c)

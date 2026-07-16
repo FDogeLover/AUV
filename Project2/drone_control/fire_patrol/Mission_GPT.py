@@ -26,7 +26,13 @@ posthreshold_xy = 0.15
 posthreshold_z = 0.20
 arrival_confirm_need = 15
 arrival_hold_s = 1.5   # 到达判定满足后，在原地强制停留观察的时长（阶跃响应测试用）
-arrival_timeout_max = 5.0 + arrival_hold_s
+# 2026-07-16真机测试实测：basic继承来的"5.0+arrival_hold_s"=6.5s是按basic那边
+# 几十厘米量级的小方框测试航线定的，fire_patrol的6x5格心网格航点间距最大到
+# 4.0m(单条车道全长)。真机数据显示恢复PATROL续飞后10个航点全部精确卡在6.5秒
+# 超时强制跳过，实际每段只飞了1~2.5米就被打断(数据换算有效前进速度约
+# 0.28~0.40m/s，6.5秒完全不够走完最长4.0m的航段)。改成按最长航段距离
+# (4.0m ÷ 保守速度0.25m/s ≈ 16s) + 到达确认/PID收敛余量，取25s。
+arrival_timeout_max = 25.0
 T265_CONFIDENCE_MIN = 2       # 定点所需最低追踪置信度 (0=失败,1=低,2=中,3=高)
 T265_CONFIDENCE_WAIT_S = 8.0  # 等待置信度达标的超时时间
 FLIGHT_LOG_INTERVAL = 0.05

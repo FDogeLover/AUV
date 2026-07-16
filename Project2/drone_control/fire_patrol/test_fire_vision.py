@@ -24,6 +24,13 @@ def cv2_circle(frame, color_bgr, cx, cy, radius):
     cv2.circle(frame, (cx, cy), radius, color_bgr, -1)
 
 
+def _draw_rect_bgr(frame, color_bgr, cx, cy, half_w, half_h):
+    y0, y1 = cy - half_h, cy + half_h
+    x0, x1 = cx - half_w, cx + half_w
+    frame[y0:y1, x0:x1] = color_bgr
+    return frame
+
+
 class TestDetectFire:
     def test_no_target_returns_none(self):
         frame = _blank_frame()
@@ -61,6 +68,23 @@ class TestDetectFire:
         frame = _blank_frame()
         _draw_circle_bgr(frame, (0, 0, 255), cx=960, cy=540, radius=500)  # 远超MAX_FIRE_AREA_PX
         assert detect_fire(frame) is None
+
+    def test_elongated_rectangle_ignored_despite_valid_area(self):
+        """2026-07-16真机测试实测：起点边上小车的红色矩形面积恰好落在合理范围内，
+        被误判成火源触发了一次APPROACH。面积过滤挡不住"形状对但面积凑巧合理"的
+        干扰物，需要额外用圆度过滤——真实火源灯罩俯视是近似圆形光斑，细长矩形
+        (10:1长宽比)圆度远低于圆形，应该被拒绝。"""
+        frame = _blank_frame()
+        _draw_rect_bgr(frame, (0, 0, 255), cx=960, cy=540, half_w=200, half_h=20)  # 400x40，面积16000，10:1长宽比
+        assert detect_fire(frame) is None
+
+    def test_circle_with_similar_area_to_rejected_rectangle_still_detected(self):
+        """对照组：跟上一个测试面积同量级(16000px)的圆形应该正常检测到，
+        证明是形状过滤起作用，不是面积阈值本身变严格了。"""
+        frame = _blank_frame()
+        _draw_circle_bgr(frame, (0, 0, 255), cx=960, cy=540, radius=71)  # pi*71^2约15837，同量级
+        result = detect_fire(frame)
+        assert result is not None
 
 
 class TestSmoothedFireDetector:
