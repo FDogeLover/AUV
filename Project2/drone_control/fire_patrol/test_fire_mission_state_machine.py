@@ -256,19 +256,18 @@ class TestWarnLedTurnsOffOnResume:
         assert 'OFF' in calls
 
 
-class TestTakeoffWarningBlink:
-    """起飞前闪红灯提醒周围人员，见_blink_warning_led()。"""
+class TestTakeoffWarningLed:
+    """起飞前红灯常亮TAKEOFF_WARN_LED_DURATION_S秒提醒周围人员，见_blink_warning_led()。"""
 
-    def test_blinks_red_off_alternating_expected_count(self, tmp_path, monkeypatch):
-        from Mission_GPT import TAKEOFF_WARN_BLINK_COUNT
+    def test_lights_red_then_off(self, tmp_path, monkeypatch):
         calls = []
         monkeypatch.setattr("Lcode.gpio_led.set_rgb_led", lambda color: calls.append(color))
-        monkeypatch.setattr("Mission_GPT.time.sleep", lambda s: None)  # 跳过真实sleep，测试不用等1.8秒
+        monkeypatch.setattr("Mission_GPT.time.sleep", lambda s: None)  # 跳过真实sleep，测试不用等2秒
 
         m = _make_mission(tmp_path)
         m._blink_warning_led()
 
-        assert calls == ['R', 'OFF'] * TAKEOFF_WARN_BLINK_COUNT
+        assert calls == ['R', 'OFF']
 
     def test_gpio_unavailable_does_not_raise(self, tmp_path, monkeypatch):
         """gpio_led模块导入失败(比如本机开发环境)时应该静默跳过，不阻断起飞流程。"""
