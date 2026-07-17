@@ -1,0 +1,780 @@
+{"event": "task_start"}
+{"event": "resource", "t": 1784288453.482, "cpu_percent_sys": 56.5, "cpu_percent_proc": 396.7, "mem_percent_sys": 11.9, "mem_used_mb_sys": 746.5, "mem_rss_mb_proc": 127.8, "cpu_temp_c": 53.4}
+{"event": "resource", "t": 1784288454.534, "cpu_percent_sys": 39.2, "cpu_percent_proc": 277.7, "mem_percent_sys": 11.7, "mem_used_mb_sys": 735.7, "mem_rss_mb_proc": 119.1, "cpu_temp_c": 54.5}
+{"t": 1784288455.46, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.25, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288455.49, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.4, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288455.521, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.4, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288455.552, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.4, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288455.583, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.4, "vyaw": 0, "laser_cm": 4294967295.0}
+{"event": "resource", "t": 1784288455.584, "cpu_percent_sys": 38.2, "cpu_percent_proc": 287.5, "mem_percent_sys": 11.8, "mem_used_mb_sys": 744.2, "mem_rss_mb_proc": 127.6, "cpu_temp_c": 55.0}
+{"t": 1784288455.614, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.4, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288455.644, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.4, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288455.675, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.4, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288455.708, "state": "TAKEOFF", "t265_yaw_deg": 0.0, "fc_yaw_deg": -5.4, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288455.739, "state": "TAKEOFF", "t265_yaw_deg": -0.01, "fc_yaw_deg": -5.4, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288455.77, "state": "TAKEOFF", "t265_yaw_deg": -0.04, "fc_yaw_deg": -5.4, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288455.8, "state": "TAKEOFF", "t265_yaw_deg": -0.04, "fc_yaw_deg": -5.4, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288455.832, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.4, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288455.862, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.4, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288455.893, "state": "TAKEOFF", "t265_yaw_deg": -0.04, "fc_yaw_deg": -5.4, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288455.924, "state": "TAKEOFF", "t265_yaw_deg": -0.04, "fc_yaw_deg": -5.4, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288455.955, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.4, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288455.985, "state": "TAKEOFF", "t265_yaw_deg": -0.0, "fc_yaw_deg": -5.42, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288456.017, "state": "TAKEOFF", "t265_yaw_deg": -0.03, "fc_yaw_deg": -5.26, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288456.048, "state": "TAKEOFF", "t265_yaw_deg": -0.01, "fc_yaw_deg": -5.26, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288456.079, "state": "TAKEOFF", "t265_yaw_deg": -0.03, "fc_yaw_deg": -5.26, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288456.11, "state": "TAKEOFF", "t265_yaw_deg": -0.06, "fc_yaw_deg": -5.26, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288456.142, "state": "TAKEOFF", "t265_yaw_deg": -0.03, "fc_yaw_deg": -5.26, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288456.173, "state": "TAKEOFF", "t265_yaw_deg": -0.02, "fc_yaw_deg": -5.26, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288456.205, "state": "TAKEOFF", "t265_yaw_deg": -0.01, "fc_yaw_deg": -5.26, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288456.236, "state": "TAKEOFF", "t265_yaw_deg": -0.02, "fc_yaw_deg": -5.26, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288456.267, "state": "TAKEOFF", "t265_yaw_deg": -0.02, "fc_yaw_deg": -5.26, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288456.298, "state": "TAKEOFF", "t265_yaw_deg": -0.01, "fc_yaw_deg": -5.26, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288456.329, "state": "TAKEOFF", "t265_yaw_deg": -0.01, "fc_yaw_deg": -5.26, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288456.36, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.26, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288456.391, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.26, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288456.422, "state": "TAKEOFF", "t265_yaw_deg": -0.01, "fc_yaw_deg": -5.26, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288456.453, "state": "TAKEOFF", "t265_yaw_deg": -0.01, "fc_yaw_deg": -5.26, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288456.484, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.36, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288456.515, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.36, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288456.547, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.36, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288456.577, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.36, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288456.609, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.36, "vyaw": 0, "laser_cm": 4294967295.0}
+{"event": "resource", "t": 1784288456.637, "cpu_percent_sys": 39.1, "cpu_percent_proc": 291.4, "mem_percent_sys": 11.8, "mem_used_mb_sys": 742.2, "mem_rss_mb_proc": 123.7, "cpu_temp_c": 55.3}
+{"t": 1784288456.641, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.2, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288456.673, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.2, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288456.703, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.2, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288456.734, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.2, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288456.766, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.2, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288456.796, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.2, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288456.828, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.2, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288456.859, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.2, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288456.889, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.2, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288456.921, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.2, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288456.952, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.2, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288456.982, "state": "TAKEOFF", "t265_yaw_deg": 0.04, "fc_yaw_deg": -5.39, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288457.013, "state": "TAKEOFF", "t265_yaw_deg": 0.04, "fc_yaw_deg": -5.39, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288457.044, "state": "TAKEOFF", "t265_yaw_deg": 0.04, "fc_yaw_deg": -5.39, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288457.075, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.39, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288457.107, "state": "TAKEOFF", "t265_yaw_deg": -0.04, "fc_yaw_deg": -5.39, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288457.138, "state": "TAKEOFF", "t265_yaw_deg": -0.02, "fc_yaw_deg": -5.23, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288457.169, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.23, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288457.201, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.23, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288457.232, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.23, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288457.264, "state": "TAKEOFF", "t265_yaw_deg": -0.01, "fc_yaw_deg": -5.23, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288457.296, "state": "TAKEOFF", "t265_yaw_deg": -0.0, "fc_yaw_deg": -5.23, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288457.326, "state": "TAKEOFF", "t265_yaw_deg": -0.01, "fc_yaw_deg": -5.23, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288457.357, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.23, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288457.387, "state": "TAKEOFF", "t265_yaw_deg": 0.0, "fc_yaw_deg": -5.23, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288457.418, "state": "TAKEOFF", "t265_yaw_deg": -0.01, "fc_yaw_deg": -5.23, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288457.449, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.23, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288457.481, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.33, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288457.512, "state": "TAKEOFF", "t265_yaw_deg": -0.01, "fc_yaw_deg": -5.33, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288457.544, "state": "TAKEOFF", "t265_yaw_deg": -0.0, "fc_yaw_deg": -5.33, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288457.576, "state": "TAKEOFF", "t265_yaw_deg": 0.0, "fc_yaw_deg": -5.33, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288457.607, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.18, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288457.638, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.18, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288457.668, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.18, "vyaw": 0, "laser_cm": 4294967295.0}
+{"event": "resource", "t": 1784288457.689, "cpu_percent_sys": 37.0, "cpu_percent_proc": 284.1, "mem_percent_sys": 11.8, "mem_used_mb_sys": 739.7, "mem_rss_mb_proc": 123.2, "cpu_temp_c": 55.5}
+{"t": 1784288457.7, "state": "TAKEOFF", "t265_yaw_deg": -0.01, "fc_yaw_deg": -5.18, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288457.731, "state": "TAKEOFF", "t265_yaw_deg": -0.0, "fc_yaw_deg": -5.18, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288457.761, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.18, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288457.792, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.18, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288457.824, "state": "TAKEOFF", "t265_yaw_deg": 0.0, "fc_yaw_deg": -5.18, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288457.856, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.18, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288457.886, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.18, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288457.917, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.18, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288457.948, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.18, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288457.979, "state": "TAKEOFF", "t265_yaw_deg": -0.02, "fc_yaw_deg": -5.33, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288458.011, "state": "TAKEOFF", "t265_yaw_deg": -0.01, "fc_yaw_deg": -5.18, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288458.042, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.18, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288458.073, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.18, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288458.106, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.18, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288458.137, "state": "TAKEOFF", "t265_yaw_deg": -0.0, "fc_yaw_deg": -5.18, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288458.167, "state": "TAKEOFF", "t265_yaw_deg": 0.0, "fc_yaw_deg": -5.18, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288458.2, "state": "TAKEOFF", "t265_yaw_deg": 0.0, "fc_yaw_deg": -5.18, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288458.231, "state": "TAKEOFF", "t265_yaw_deg": -0.01, "fc_yaw_deg": -5.18, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288458.262, "state": "TAKEOFF", "t265_yaw_deg": -0.01, "fc_yaw_deg": -5.18, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288458.292, "state": "TAKEOFF", "t265_yaw_deg": -0.01, "fc_yaw_deg": -5.18, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288458.323, "state": "TAKEOFF", "t265_yaw_deg": -0.02, "fc_yaw_deg": -5.18, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288458.354, "state": "TAKEOFF", "t265_yaw_deg": 0.0, "fc_yaw_deg": -5.18, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288458.385, "state": "TAKEOFF", "t265_yaw_deg": 0.06, "fc_yaw_deg": -5.18, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288458.416, "state": "TAKEOFF", "t265_yaw_deg": 0.07, "fc_yaw_deg": -5.03, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288458.446, "state": "TAKEOFF", "t265_yaw_deg": 0.07, "fc_yaw_deg": -5.03, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288458.477, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.4, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288458.509, "state": "TAKEOFF", "t265_yaw_deg": -0.0, "fc_yaw_deg": -5.4, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288458.541, "state": "TAKEOFF", "t265_yaw_deg": -0.06, "fc_yaw_deg": -5.4, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288458.572, "state": "TAKEOFF", "t265_yaw_deg": -0.03, "fc_yaw_deg": -5.4, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288458.603, "state": "TAKEOFF", "t265_yaw_deg": -0.02, "fc_yaw_deg": -5.4, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288458.635, "state": "TAKEOFF", "t265_yaw_deg": 0.04, "fc_yaw_deg": -5.4, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288458.666, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.4, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288458.696, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.4, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288458.727, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.4, "vyaw": 0, "laser_cm": 4294967295.0}
+{"event": "resource", "t": 1784288458.738, "cpu_percent_sys": 38.0, "cpu_percent_proc": 284.7, "mem_percent_sys": 11.7, "mem_used_mb_sys": 737.1, "mem_rss_mb_proc": 121.4, "cpu_temp_c": 55.6}
+{"t": 1784288458.76, "state": "TAKEOFF", "t265_yaw_deg": -0.01, "fc_yaw_deg": -5.24, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288458.79, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.24, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288458.821, "state": "TAKEOFF", "t265_yaw_deg": -0.01, "fc_yaw_deg": -5.24, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288458.851, "state": "TAKEOFF", "t265_yaw_deg": -0.02, "fc_yaw_deg": -5.24, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288458.883, "state": "TAKEOFF", "t265_yaw_deg": -0.05, "fc_yaw_deg": -5.24, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288458.913, "state": "TAKEOFF", "t265_yaw_deg": -0.03, "fc_yaw_deg": -5.24, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288458.944, "state": "TAKEOFF", "t265_yaw_deg": -0.01, "fc_yaw_deg": -5.24, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288458.976, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.45, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288459.006, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.45, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288459.037, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.45, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288459.068, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.45, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288459.099, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.29, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288459.13, "state": "TAKEOFF", "t265_yaw_deg": -0.0, "fc_yaw_deg": -5.29, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288459.162, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.29, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288459.195, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.29, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288459.226, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.29, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288459.257, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.29, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288459.288, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.29, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288459.319, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.29, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288459.35, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.29, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288459.382, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.29, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288459.412, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.14, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288459.443, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.14, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288459.475, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.44, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288459.507, "state": "TAKEOFF", "t265_yaw_deg": 0.0, "fc_yaw_deg": -5.44, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288459.538, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.44, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288459.57, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.44, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288459.601, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.44, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288459.631, "state": "TAKEOFF", "t265_yaw_deg": -0.01, "fc_yaw_deg": -5.44, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288459.664, "state": "TAKEOFF", "t265_yaw_deg": -0.0, "fc_yaw_deg": -5.44, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288459.696, "state": "TAKEOFF", "t265_yaw_deg": 0.04, "fc_yaw_deg": -5.28, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288459.727, "state": "TAKEOFF", "t265_yaw_deg": 0.04, "fc_yaw_deg": -5.28, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288459.758, "state": "TAKEOFF", "t265_yaw_deg": 0.06, "fc_yaw_deg": -5.28, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288459.79, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.28, "vyaw": 0, "laser_cm": 4294967295.0}
+{"event": "resource", "t": 1784288459.791, "cpu_percent_sys": 41.1, "cpu_percent_proc": 298.9, "mem_percent_sys": 11.9, "mem_used_mb_sys": 747.6, "mem_rss_mb_proc": 131.2, "cpu_temp_c": 55.8}
+{"t": 1784288459.82, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.28, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288459.851, "state": "TAKEOFF", "t265_yaw_deg": -0.01, "fc_yaw_deg": -5.28, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288459.882, "state": "TAKEOFF", "t265_yaw_deg": -0.02, "fc_yaw_deg": -5.28, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288459.912, "state": "TAKEOFF", "t265_yaw_deg": -0.01, "fc_yaw_deg": -5.28, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288459.943, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.28, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288459.975, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.5, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288460.006, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.5, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288460.036, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.5, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288460.067, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.5, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288460.098, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.5, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288460.13, "state": "TAKEOFF", "t265_yaw_deg": -0.01, "fc_yaw_deg": -5.5, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288460.161, "state": "TAKEOFF", "t265_yaw_deg": 0.0, "fc_yaw_deg": -5.5, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288460.192, "state": "TAKEOFF", "t265_yaw_deg": 0.0, "fc_yaw_deg": -5.5, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288460.223, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.5, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288460.254, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.5, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288460.285, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.34, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288460.316, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.34, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288460.347, "state": "TAKEOFF", "t265_yaw_deg": -0.01, "fc_yaw_deg": -5.34, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288460.378, "state": "TAKEOFF", "t265_yaw_deg": -0.02, "fc_yaw_deg": -5.34, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288460.411, "state": "TAKEOFF", "t265_yaw_deg": -0.0, "fc_yaw_deg": -5.34, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288460.441, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.34, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288460.472, "state": "TAKEOFF", "t265_yaw_deg": 0.04, "fc_yaw_deg": -5.53, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288460.504, "state": "TAKEOFF", "t265_yaw_deg": 0.06, "fc_yaw_deg": -5.53, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288460.535, "state": "TAKEOFF", "t265_yaw_deg": 0.05, "fc_yaw_deg": -5.37, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288460.566, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.37, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288460.597, "state": "TAKEOFF", "t265_yaw_deg": 0.04, "fc_yaw_deg": -5.37, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288460.628, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.37, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288460.662, "state": "TAKEOFF", "t265_yaw_deg": -0.03, "fc_yaw_deg": -5.37, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288460.692, "state": "TAKEOFF", "t265_yaw_deg": -0.03, "fc_yaw_deg": -5.37, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288460.724, "state": "TAKEOFF", "t265_yaw_deg": -0.01, "fc_yaw_deg": -5.37, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288460.754, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.37, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288460.785, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.21, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288460.815, "state": "TAKEOFF", "t265_yaw_deg": 0.05, "fc_yaw_deg": -5.21, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288460.846, "state": "TAKEOFF", "t265_yaw_deg": 0.04, "fc_yaw_deg": -5.21, "vyaw": 0, "laser_cm": 4294967295.0}
+{"event": "resource", "t": 1784288460.847, "cpu_percent_sys": 41.2, "cpu_percent_proc": 282.6, "mem_percent_sys": 11.8, "mem_used_mb_sys": 744.7, "mem_rss_mb_proc": 127.4, "cpu_temp_c": 55.9}
+{"t": 1784288460.877, "state": "TAKEOFF", "t265_yaw_deg": 0.04, "fc_yaw_deg": -5.21, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288460.909, "state": "TAKEOFF", "t265_yaw_deg": 0.0, "fc_yaw_deg": -5.21, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288460.94, "state": "TAKEOFF", "t265_yaw_deg": 0.0, "fc_yaw_deg": -5.21, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288460.97, "state": "TAKEOFF", "t265_yaw_deg": -0.0, "fc_yaw_deg": -5.53, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288461.002, "state": "TAKEOFF", "t265_yaw_deg": -0.01, "fc_yaw_deg": -5.53, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288461.032, "state": "TAKEOFF", "t265_yaw_deg": 0.0, "fc_yaw_deg": -5.37, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288461.065, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.37, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288461.095, "state": "TAKEOFF", "t265_yaw_deg": -0.02, "fc_yaw_deg": -5.37, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288461.126, "state": "TAKEOFF", "t265_yaw_deg": -0.01, "fc_yaw_deg": -5.37, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288461.157, "state": "TAKEOFF", "t265_yaw_deg": -0.01, "fc_yaw_deg": -5.37, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288461.189, "state": "TAKEOFF", "t265_yaw_deg": -0.01, "fc_yaw_deg": -5.37, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288461.219, "state": "TAKEOFF", "t265_yaw_deg": -0.0, "fc_yaw_deg": -5.37, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288461.25, "state": "TAKEOFF", "t265_yaw_deg": -0.01, "fc_yaw_deg": -5.37, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288461.282, "state": "TAKEOFF", "t265_yaw_deg": -0.0, "fc_yaw_deg": -5.21, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288461.315, "state": "TAKEOFF", "t265_yaw_deg": 0.0, "fc_yaw_deg": -5.21, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288461.346, "state": "TAKEOFF", "t265_yaw_deg": 0.0, "fc_yaw_deg": -5.21, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288461.377, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.21, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288461.409, "state": "TAKEOFF", "t265_yaw_deg": 0.0, "fc_yaw_deg": -5.21, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288461.439, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.21, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288461.47, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.56, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288461.5, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.56, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288461.531, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.4, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288461.562, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.4, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288461.593, "state": "TAKEOFF", "t265_yaw_deg": -0.0, "fc_yaw_deg": -5.4, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288461.625, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.4, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288461.656, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.4, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288461.687, "state": "TAKEOFF", "t265_yaw_deg": -0.01, "fc_yaw_deg": -5.4, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288461.718, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.4, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288461.749, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.24, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288461.78, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.24, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288461.811, "state": "TAKEOFF", "t265_yaw_deg": -0.01, "fc_yaw_deg": -5.24, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288461.843, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.24, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288461.874, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.24, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288461.905, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.24, "vyaw": 0, "laser_cm": 4294967295.0}
+{"event": "resource", "t": 1784288461.91, "cpu_percent_sys": 43.3, "cpu_percent_proc": 290.3, "mem_percent_sys": 11.8, "mem_used_mb_sys": 743.9, "mem_rss_mb_proc": 125.3, "cpu_temp_c": 56.1}
+{"t": 1784288461.936, "state": "TAKEOFF", "t265_yaw_deg": -0.0, "fc_yaw_deg": -5.24, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288461.967, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.55, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288461.999, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.55, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288462.029, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.55, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288462.063, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.55, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288462.094, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.55, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288462.125, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.55, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288462.158, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.55, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288462.189, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.39, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288462.219, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.39, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288462.25, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.39, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288462.281, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.39, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288462.311, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.39, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288462.343, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.39, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288462.374, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.39, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288462.404, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.23, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288462.435, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.23, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288462.466, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.59, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288462.497, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.59, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288462.528, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.59, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288462.559, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.59, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288462.59, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.59, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288462.62, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.59, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288462.651, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.59, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288462.683, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.59, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288462.714, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.59, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288462.744, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.59, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288462.775, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.59, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288462.806, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.59, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288462.836, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.59, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288462.87, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.59, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288462.903, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.59, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288462.934, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.59, "vyaw": 0, "laser_cm": 4294967295.0}
+{"event": "resource", "t": 1784288462.958, "cpu_percent_sys": 41.4, "cpu_percent_proc": 293.0, "mem_percent_sys": 11.8, "mem_used_mb_sys": 741.9, "mem_rss_mb_proc": 121.7, "cpu_temp_c": 56.3}
+{"t": 1784288462.964, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.59, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288462.996, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.59, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288463.027, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.59, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288463.06, "state": "TAKEOFF", "t265_yaw_deg": 0.0, "fc_yaw_deg": -5.59, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288463.091, "state": "TAKEOFF", "t265_yaw_deg": 0.0, "fc_yaw_deg": -5.59, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288463.122, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.59, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288463.153, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.59, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288463.183, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.59, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288463.214, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.59, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288463.244, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.59, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288463.275, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.59, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288463.307, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.59, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288463.338, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.59, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288463.369, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.59, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288463.399, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.59, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288463.431, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.59, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288463.462, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.61, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288463.493, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.61, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288463.523, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.61, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288463.554, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.61, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288463.585, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.61, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288463.617, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.61, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288463.647, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.61, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288463.678, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.61, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288463.709, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.61, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288463.74, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.61, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288463.77, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.61, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288463.802, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.61, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288463.833, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.61, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288463.864, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.61, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288463.895, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.61, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288463.925, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.61, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288463.959, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.61, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288463.989, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.61, "vyaw": 0, "laser_cm": 4294967295.0}
+{"event": "resource", "t": 1784288464.007, "cpu_percent_sys": 37.8, "cpu_percent_proc": 288.6, "mem_percent_sys": 11.8, "mem_used_mb_sys": 740.3, "mem_rss_mb_proc": 121.7, "cpu_temp_c": 56.3}
+{"t": 1784288464.02, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.61, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288464.05, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.61, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288464.082, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.61, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288464.113, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.61, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288464.143, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.61, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288464.174, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.61, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288464.205, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.61, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288464.235, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.61, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288464.267, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.61, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288464.298, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.61, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288464.329, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.61, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288464.36, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.61, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288464.393, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.61, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288464.423, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.61, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288464.454, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.62, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288464.485, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.62, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288464.515, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.62, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288464.547, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.62, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288464.577, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.62, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288464.609, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.62, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288464.639, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.62, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288464.671, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.62, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288464.702, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.62, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288464.733, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.62, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288464.764, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.46, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288464.795, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.46, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288464.826, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.46, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288464.857, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.46, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288464.888, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.46, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288464.918, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.46, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288464.949, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.63, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288464.98, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.63, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288465.012, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.63, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288465.043, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.63, "vyaw": 0, "laser_cm": 4294967295.0}
+{"event": "resource", "t": 1784288465.062, "cpu_percent_sys": 36.6, "cpu_percent_proc": 276.9, "mem_percent_sys": 11.7, "mem_used_mb_sys": 736.1, "mem_rss_mb_proc": 118.9, "cpu_temp_c": 56.5}
+{"t": 1784288465.074, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.63, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288465.104, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.63, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288465.135, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.63, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288465.167, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.63, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288465.198, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.63, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288465.228, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.63, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288465.264, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.63, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288465.295, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.63, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288465.327, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.63, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288465.358, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.63, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288465.388, "state": "TAKEOFF", "t265_yaw_deg": 0.0, "fc_yaw_deg": -5.63, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288465.419, "state": "TAKEOFF", "t265_yaw_deg": 0.0, "fc_yaw_deg": -5.63, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288465.449, "state": "TAKEOFF", "t265_yaw_deg": 0.0, "fc_yaw_deg": -5.63, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288465.48, "state": "TAKEOFF", "t265_yaw_deg": 0.0, "fc_yaw_deg": -5.63, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288465.512, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.63, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288465.543, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.63, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288465.573, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.63, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288465.604, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.63, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288465.636, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.63, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288465.667, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.47, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288465.698, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.47, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288465.729, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.47, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288465.759, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.47, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288465.791, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.47, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288465.821, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.47, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288465.852, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.47, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288465.883, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.47, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288465.913, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.47, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288465.944, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.47, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288465.976, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.63, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288466.006, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.63, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288466.037, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.63, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288466.068, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.63, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288466.099, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.63, "vyaw": 0, "laser_cm": 4294967295.0}
+{"event": "resource", "t": 1784288466.112, "cpu_percent_sys": 39.1, "cpu_percent_proc": 292.5, "mem_percent_sys": 11.8, "mem_used_mb_sys": 742.9, "mem_rss_mb_proc": 125.5, "cpu_temp_c": 56.6}
+{"t": 1784288466.13, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.63, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288466.16, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.63, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288466.191, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.63, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288466.222, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.63, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288466.252, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.63, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288466.283, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.63, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288466.313, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.47, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288466.345, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.47, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288466.377, "state": "TAKEOFF", "t265_yaw_deg": 0.04, "fc_yaw_deg": -5.47, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288466.407, "state": "TAKEOFF", "t265_yaw_deg": 0.04, "fc_yaw_deg": -5.47, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288466.438, "state": "TAKEOFF", "t265_yaw_deg": 0.04, "fc_yaw_deg": -5.47, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288466.469, "state": "TAKEOFF", "t265_yaw_deg": 0.04, "fc_yaw_deg": -5.64, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288466.5, "state": "TAKEOFF", "t265_yaw_deg": 0.04, "fc_yaw_deg": -5.64, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288466.531, "state": "TAKEOFF", "t265_yaw_deg": 0.04, "fc_yaw_deg": -5.64, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288466.561, "state": "TAKEOFF", "t265_yaw_deg": 0.04, "fc_yaw_deg": -5.64, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288466.592, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.64, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288466.626, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.64, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288466.656, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.64, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288466.687, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.64, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288466.717, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.64, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288466.748, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.64, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288466.78, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.64, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288466.811, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.64, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288466.842, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.64, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288466.873, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.48, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288466.903, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.48, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288466.935, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.48, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288466.966, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.64, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288466.998, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.64, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288467.028, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.64, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288467.059, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.64, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288467.09, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.64, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288467.12, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.64, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288467.151, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.64, "vyaw": 0, "laser_cm": 4294967295.0}
+{"event": "resource", "t": 1784288467.16, "cpu_percent_sys": 39.1, "cpu_percent_proc": 287.1, "mem_percent_sys": 11.8, "mem_used_mb_sys": 744.8, "mem_rss_mb_proc": 123.2, "cpu_temp_c": 56.8}
+{"t": 1784288467.181, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.64, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288467.212, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.64, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288467.243, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.64, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288467.273, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.64, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288467.306, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.64, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288467.336, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.64, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288467.367, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.48, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288467.398, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.48, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288467.428, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.48, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288467.461, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.65, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288467.492, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.65, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288467.522, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.65, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288467.553, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.65, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288467.584, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.65, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288467.616, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.65, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288467.646, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.65, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288467.677, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.65, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288467.708, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.65, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288467.739, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.65, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288467.77, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.49, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288467.801, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.49, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288467.832, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.49, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288467.862, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.49, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288467.893, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.49, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288467.923, "state": "TAKEOFF", "t265_yaw_deg": 0.0, "fc_yaw_deg": -5.49, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288467.955, "state": "TAKEOFF", "t265_yaw_deg": 0.0, "fc_yaw_deg": -5.64, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288467.985, "state": "TAKEOFF", "t265_yaw_deg": 0.0, "fc_yaw_deg": -5.64, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288468.016, "state": "TAKEOFF", "t265_yaw_deg": -0.0, "fc_yaw_deg": -5.64, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288468.046, "state": "TAKEOFF", "t265_yaw_deg": 0.0, "fc_yaw_deg": -5.64, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288468.077, "state": "TAKEOFF", "t265_yaw_deg": 0.0, "fc_yaw_deg": -5.64, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288468.108, "state": "TAKEOFF", "t265_yaw_deg": 0.0, "fc_yaw_deg": -5.64, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288468.138, "state": "TAKEOFF", "t265_yaw_deg": -0.0, "fc_yaw_deg": -5.64, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288468.17, "state": "TAKEOFF", "t265_yaw_deg": 0.0, "fc_yaw_deg": -5.48, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288468.2, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.48, "vyaw": 0, "laser_cm": 4294967295.0}
+{"event": "resource", "t": 1784288468.212, "cpu_percent_sys": 39.6, "cpu_percent_proc": 286.1, "mem_percent_sys": 11.8, "mem_used_mb_sys": 742.1, "mem_rss_mb_proc": 123.2, "cpu_temp_c": 56.7}
+{"t": 1784288468.231, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.48, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288468.262, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.48, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288468.292, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.48, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288468.323, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.48, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288468.353, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.48, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288468.384, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.48, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288468.415, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.48, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288468.446, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.66, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288468.477, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.66, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288468.51, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.66, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288468.541, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.49, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288468.572, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.49, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288468.602, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.49, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288468.633, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.49, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288468.665, "state": "TAKEOFF", "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.49, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288468.696, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.49, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288468.727, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.49, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288468.757, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.49, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288468.789, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.49, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288468.823, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.49, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288468.854, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.49, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288468.885, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.33, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288468.915, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.33, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288468.946, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.66, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288468.976, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.66, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288469.007, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.66, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288469.039, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.66, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288469.07, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.66, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288469.101, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.66, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288469.131, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.66, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288469.162, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.66, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288469.192, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.66, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288469.224, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.49, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288469.254, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.49, "vyaw": 0, "laser_cm": 4294967295.0}
+{"event": "resource", "t": 1784288469.263, "cpu_percent_sys": 40.9, "cpu_percent_proc": 278.9, "mem_percent_sys": 11.7, "mem_used_mb_sys": 736.6, "mem_rss_mb_proc": 119.8, "cpu_temp_c": 56.9}
+{"t": 1784288469.286, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.49, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288469.317, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.49, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288469.347, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.49, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288469.378, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.49, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288469.41, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.49, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288469.441, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.65, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288469.471, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.65, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288469.502, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.65, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288469.534, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.49, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288469.564, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.49, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288469.595, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.49, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288469.625, "state": "TAKEOFF", "t265_yaw_deg": 0.04, "fc_yaw_deg": -5.49, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288469.656, "state": "TAKEOFF", "t265_yaw_deg": 0.04, "fc_yaw_deg": -5.49, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288469.687, "state": "TAKEOFF", "t265_yaw_deg": 0.04, "fc_yaw_deg": -5.49, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288469.717, "state": "TAKEOFF", "t265_yaw_deg": 0.04, "fc_yaw_deg": -5.49, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288469.749, "state": "TAKEOFF", "t265_yaw_deg": 0.04, "fc_yaw_deg": -5.49, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288469.779, "state": "TAKEOFF", "t265_yaw_deg": 0.04, "fc_yaw_deg": -5.49, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288469.81, "state": "TAKEOFF", "t265_yaw_deg": 0.04, "fc_yaw_deg": -5.33, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288469.841, "state": "TAKEOFF", "t265_yaw_deg": 0.04, "fc_yaw_deg": -5.33, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288469.872, "state": "TAKEOFF", "t265_yaw_deg": 0.05, "fc_yaw_deg": -5.33, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288469.902, "state": "TAKEOFF", "t265_yaw_deg": 0.04, "fc_yaw_deg": -5.33, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288469.935, "state": "TAKEOFF", "t265_yaw_deg": 0.04, "fc_yaw_deg": -5.66, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288469.966, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.66, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288469.996, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.66, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288470.027, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.66, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288470.06, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.66, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288470.092, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.49, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288470.124, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.49, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288470.154, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.49, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288470.185, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.49, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288470.215, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.49, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288470.246, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.49, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288470.276, "state": "TAKEOFF", "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.49, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288470.307, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.49, "vyaw": 0, "laser_cm": 4294967295.0}
+{"event": "resource", "t": 1784288470.315, "cpu_percent_sys": 42.9, "cpu_percent_proc": 285.0, "mem_percent_sys": 11.8, "mem_used_mb_sys": 744.4, "mem_rss_mb_proc": 127.9, "cpu_temp_c": 57.0}
+{"t": 1784288470.339, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.49, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288470.37, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.49, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288470.401, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.33, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288470.431, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.66, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288470.462, "state": "TAKEOFF", "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.66, "vyaw": 0, "laser_cm": 4294967295.0}
+{"t": 1784288470.493, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0007], "dx_px": null, "dy_px": null, "detect_t": 1784288470.4899106}
+{"t": 1784288470.519, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0007], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.66, "t265_vel": [0.0005, 0.0001], "of1_vel_cms": [0, 0], "roll_pitch": [0.13, 0.15], "height_setpoint_cm": 36.5, "of_status": [255, 0, 1]}
+{"t": 1784288470.55, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, 0.0, 0.0006], "dx_px": null, "dy_px": null, "detect_t": 1784288470.4899106}
+{"t": 1784288470.581, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0007], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.66, "t265_vel": [0.0013, 0.0009], "of1_vel_cms": [0, 0], "roll_pitch": [0.13, 0.15], "height_setpoint_cm": 39.5, "of_status": [255, 0, 1]}
+{"t": 1784288470.614, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0007], "dx_px": null, "dy_px": null, "detect_t": 1784288470.5767746}
+{"t": 1784288470.645, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0007], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.49, "t265_vel": [0.0006, 0.0001], "of1_vel_cms": [0, 0], "roll_pitch": [0.13, 0.15], "height_setpoint_cm": 42.5, "of_status": [255, 0, 1]}
+{"t": 1784288470.676, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0001, -0.0, 0.0005], "dx_px": null, "dy_px": null, "detect_t": 1784288470.6660218}
+{"t": 1784288470.709, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0002, -0.0, 0.0004], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.49, "t265_vel": [0.0008, -0.0008], "of1_vel_cms": [0, 0], "roll_pitch": [0.13, 0.15], "height_setpoint_cm": 45.5, "of_status": [255, 0, 1]}
+{"t": 1784288470.741, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0002, 0.0, 0.0005], "dx_px": null, "dy_px": null, "detect_t": 1784288470.6660218}
+{"t": 1784288470.774, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0003, 0.0, 0.0006], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.49, "t265_vel": [-0.0005, 0.0003], "of1_vel_cms": [0, 0], "roll_pitch": [0.13, 0.15], "height_setpoint_cm": 48.5, "of_status": [255, 0, 1]}
+{"t": 1784288470.805, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0001, -0.0, 0.0006], "dx_px": null, "dy_px": null, "detect_t": 1784288470.7514057}
+{"t": 1784288470.837, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0002, 0.0, 0.0006], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.49, "t265_vel": [-0.0004, 0.0007], "of1_vel_cms": [0, 0], "roll_pitch": [0.13, 0.15], "height_setpoint_cm": 51.5, "of_status": [255, 0, 1]}
+{"t": 1784288470.869, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0004, 0.0001, 0.0007], "dx_px": null, "dy_px": null, "detect_t": 1784288470.8403778}
+{"t": 1784288470.901, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0004, 0.0001, 0.0007], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.33, "t265_vel": [-0.0011, 0.0011], "of1_vel_cms": [0, 0], "roll_pitch": [0.13, 0.15], "height_setpoint_cm": 54.5, "of_status": [255, 0, 1]}
+{"t": 1784288470.934, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0004, 0.0001, 0.0007], "dx_px": null, "dy_px": null, "detect_t": 1784288470.9269717}
+{"t": 1784288470.966, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0006], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.65, "t265_vel": [-0.0002, -0.0004], "of1_vel_cms": [0, 0], "roll_pitch": [0.13, 0.15], "height_setpoint_cm": 57.5, "of_status": [255, 0, 1]}
+{"t": 1784288470.998, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0006], "dx_px": null, "dy_px": null, "detect_t": 1784288470.9269717}
+{"t": 1784288471.029, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0004, 0.0001, 0.0006], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.65, "t265_vel": [-0.0011, 0.0007], "of1_vel_cms": [0, 0], "roll_pitch": [0.13, 0.15], "height_setpoint_cm": 60.5, "of_status": [255, 0, 1]}
+{"t": 1784288471.061, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0007], "dx_px": null, "dy_px": null, "detect_t": 1784288471.013278}
+{"t": 1784288471.094, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0002, -0.0, 0.0004], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.65, "t265_vel": [0.0002, -0.0006], "of1_vel_cms": [0, 0], "roll_pitch": [0.13, 0.15], "height_setpoint_cm": 63.5, "of_status": [255, 0, 1]}
+{"t": 1784288471.125, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, 0.0, 0.0004], "dx_px": null, "dy_px": null, "detect_t": 1784288471.099686}
+{"t": 1784288471.16, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0006], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.48, "t265_vel": [-0.0007, 0.0005], "of1_vel_cms": [0, 0], "roll_pitch": [0.13, 0.15], "height_setpoint_cm": 66.5, "of_status": [255, 0, 1]}
+{"t": 1784288471.191, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0007], "dx_px": null, "dy_px": null, "detect_t": 1784288471.1863585}
+{"t": 1784288471.223, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0004, 0.0001, 0.0006], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.48, "t265_vel": [-0.0006, -0.0002], "of1_vel_cms": [0, 0], "roll_pitch": [0.13, 0.15], "height_setpoint_cm": 69.5, "of_status": [255, 0, 1]}
+{"t": 1784288471.255, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, 0.0, 0.0007], "dx_px": null, "dy_px": null, "detect_t": 1784288471.1863585}
+{"t": 1784288471.286, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0006], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.48, "t265_vel": [0.0014, 0.0004], "of1_vel_cms": [0, 0], "roll_pitch": [0.13, 0.15], "height_setpoint_cm": 72.5, "of_status": [255, 0, 1]}
+{"t": 1784288471.318, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0005], "dx_px": null, "dy_px": null, "detect_t": 1784288471.274017}
+{"t": 1784288471.35, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0006], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.48, "t265_vel": [0.0006, 0.0004], "of1_vel_cms": [0, 0], "roll_pitch": [0.13, 0.15], "height_setpoint_cm": 75.5, "of_status": [255, 0, 1]}
+{"event": "resource", "t": 1784288471.37, "cpu_percent_sys": 41.3, "cpu_percent_proc": 288.3, "mem_percent_sys": 11.8, "mem_used_mb_sys": 742.7, "mem_rss_mb_proc": 123.9, "cpu_temp_c": 57.1}
+{"t": 1784288471.383, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0004, 0.0001, 0.0004], "dx_px": null, "dy_px": null, "detect_t": 1784288471.3602715}
+{"t": 1784288471.415, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0005], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.32, "t265_vel": [-0.0004, 0.0002], "of1_vel_cms": [0, 0], "roll_pitch": [0.13, 0.15], "height_setpoint_cm": 78.5, "of_status": [255, 0, 1]}
+{"t": 1784288471.446, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0006], "dx_px": null, "dy_px": null, "detect_t": 1784288471.4456391}
+{"t": 1784288471.479, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0006], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.64, "t265_vel": [-0.0001, 0.0006], "of1_vel_cms": [0, 0], "roll_pitch": [0.13, 0.14], "height_setpoint_cm": 81.5, "of_status": [255, 0, 1]}
+{"t": 1784288471.51, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0006], "dx_px": null, "dy_px": null, "detect_t": 1784288471.4456391}
+{"t": 1784288471.543, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0006], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.64, "t265_vel": [0.0002, 0.0003], "of1_vel_cms": [0, 0], "roll_pitch": [0.13, 0.14], "height_setpoint_cm": 84.5, "of_status": [255, 0, 1]}
+{"t": 1784288471.574, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0005], "dx_px": null, "dy_px": null, "detect_t": 1784288471.5326228}
+{"t": 1784288471.608, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0005], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.48, "t265_vel": [0.0009, -0.0005], "of1_vel_cms": [0, 0], "roll_pitch": [0.13, 0.14], "height_setpoint_cm": 87.5, "of_status": [255, 0, 1]}
+{"t": 1784288471.639, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0005], "dx_px": null, "dy_px": null, "detect_t": 1784288471.618664}
+{"t": 1784288471.671, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0005], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.48, "t265_vel": [0.0006, 0.0003], "of1_vel_cms": [0, 0], "roll_pitch": [0.13, 0.14], "height_setpoint_cm": 90.5, "of_status": [255, 0, 1]}
+{"t": 1784288471.704, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0005], "dx_px": null, "dy_px": null, "detect_t": 1784288471.618664}
+{"t": 1784288471.736, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0005], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.48, "t265_vel": [0.0005, 0.0002], "of1_vel_cms": [0, 0], "roll_pitch": [0.13, 0.14], "height_setpoint_cm": 93.5, "of_status": [255, 0, 1]}
+{"t": 1784288471.77, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0005], "dx_px": null, "dy_px": null, "detect_t": 1784288471.7054303}
+{"t": 1784288471.803, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0005], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.48, "t265_vel": [0.0006, -0.0], "of1_vel_cms": [0, 0], "roll_pitch": [0.13, 0.14], "height_setpoint_cm": 96.5, "of_status": [255, 0, 1]}
+{"t": 1784288471.835, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0005], "dx_px": null, "dy_px": null, "detect_t": 1784288471.795951}
+{"t": 1784288471.869, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0005], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.32, "t265_vel": [0.0009, -0.0], "of1_vel_cms": [0, 0], "roll_pitch": [0.13, 0.14], "height_setpoint_cm": 99.5, "of_status": [255, 0, 1]}
+{"t": 1784288471.9, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0002, 0.0, 0.0005], "dx_px": null, "dy_px": null, "detect_t": 1784288471.883833}
+{"t": 1784288471.933, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0002, 0.0001, 0.0005], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.63, "t265_vel": [0.0014, -0.0], "of1_vel_cms": [0, 0], "roll_pitch": [0.11, 0.14], "height_setpoint_cm": 102.5, "of_status": [255, 0, 1]}
+{"t": 1784288471.965, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0005], "dx_px": null, "dy_px": null, "detect_t": 1784288471.883833}
+{"t": 1784288471.998, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0004, 0.0001, 0.0005], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.63, "t265_vel": [-0.0004, 0.0], "of1_vel_cms": [0, 0], "roll_pitch": [0.11, 0.14], "height_setpoint_cm": 105.5, "of_status": [255, 0, 1]}
+{"t": 1784288472.029, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0005], "dx_px": null, "dy_px": null, "detect_t": 1784288471.969516}
+{"t": 1784288472.061, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0006], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.47, "t265_vel": [0.0007, 0.0005], "of1_vel_cms": [0, 0], "roll_pitch": [0.11, 0.14], "height_setpoint_cm": 108.5, "of_status": [255, 0, 1]}
+{"t": 1784288472.097, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0005], "dx_px": null, "dy_px": null, "detect_t": 1784288472.055738}
+{"t": 1784288472.129, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0006], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.47, "t265_vel": [0.0007, 0.0005], "of1_vel_cms": [0, 0], "roll_pitch": [0.11, 0.14], "height_setpoint_cm": 111.5, "of_status": [255, 0, 1]}
+{"t": 1784288472.162, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0002, 0.0, 0.0005], "dx_px": null, "dy_px": null, "detect_t": 1784288472.1430569}
+{"t": 1784288472.196, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0001, 0.0, 0.0005], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.47, "t265_vel": [0.0015, -0.0], "of1_vel_cms": [0, 0], "roll_pitch": [0.11, 0.14], "height_setpoint_cm": 114.5, "of_status": [255, 0, 1]}
+{"t": 1784288472.227, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0005], "dx_px": null, "dy_px": null, "detect_t": 1784288472.1430569}
+{"t": 1784288472.26, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0004, 0.0001, 0.0006], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.47, "t265_vel": [-0.0016, 0.0008], "of1_vel_cms": [0, 0], "roll_pitch": [0.11, 0.14], "height_setpoint_cm": 117.5, "of_status": [255, 0, 1]}
+{"t": 1784288472.292, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0005], "dx_px": null, "dy_px": null, "detect_t": 1784288472.2298589}
+{"t": 1784288472.324, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0002, 0.0001, 0.0005], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.31, "t265_vel": [0.0014, 0.0007], "of1_vel_cms": [0, 0], "roll_pitch": [0.11, 0.14], "height_setpoint_cm": 120.5, "of_status": [255, 0, 1]}
+{"t": 1784288472.355, "state": "PATROL_DETECT", "target_idx": 0, "pos": [0.0, 0.0, 0.0005], "dx_px": null, "dy_px": null, "detect_t": 1784288472.3186724}
+{"t": 1784288472.388, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0002, 0.0001, 0.0005], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.31, "t265_vel": [0.0007, 0.0001], "of1_vel_cms": [0, 0], "roll_pitch": [0.11, 0.14], "height_setpoint_cm": 123.5, "of_status": [255, 0, 1]}
+{"event": "resource", "t": 1784288472.42, "cpu_percent_sys": 41.7, "cpu_percent_proc": 293.3, "mem_percent_sys": 11.8, "mem_used_mb_sys": 741.2, "mem_rss_mb_proc": 123.9, "cpu_temp_c": 57.2}
+{"t": 1784288472.423, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0006], "dx_px": null, "dy_px": null, "detect_t": 1784288472.4038773}
+{"t": 1784288472.455, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0006], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.61, "t265_vel": [0.0012, 0.0012], "of1_vel_cms": [0, 0], "roll_pitch": [0.22, 0.15], "height_setpoint_cm": 126.5, "of_status": [255, 0, 1]}
+{"t": 1784288472.486, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0005], "dx_px": null, "dy_px": null, "detect_t": 1784288472.4038773}
+{"t": 1784288472.518, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0006], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.0, "fc_yaw_deg": -5.61, "t265_vel": [0.0017, 0.0002], "of1_vel_cms": [0, 0], "roll_pitch": [0.22, 0.15], "height_setpoint_cm": 129.5, "of_status": [255, 0, 1]}
+{"t": 1784288472.549, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0005], "dx_px": null, "dy_px": null, "detect_t": 1784288472.4928055}
+{"t": 1784288472.581, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0001, 0.0001, 0.0005], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.0, "fc_yaw_deg": -5.61, "t265_vel": [0.0027, 0.0001], "of1_vel_cms": [0, 0], "roll_pitch": [0.22, 0.15], "height_setpoint_cm": 132.5, "of_status": [255, 0, 1]}
+{"t": 1784288472.613, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0001, 0.0, 0.0004], "dx_px": null, "dy_px": null, "detect_t": 1784288472.5840616}
+{"t": 1784288472.645, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0004], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.61, "t265_vel": [-0.0014, -0.0], "of1_vel_cms": [0, 0], "roll_pitch": [0.22, 0.15], "height_setpoint_cm": 135.5, "of_status": [255, 0, 1]}
+{"t": 1784288472.676, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0002, 0.0, 0.0005], "dx_px": null, "dy_px": null, "detect_t": 1784288472.669775}
+{"t": 1784288472.709, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0005], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.61, "t265_vel": [-0.0011, 0.0005], "of1_vel_cms": [0, 0], "roll_pitch": [0.22, 0.15], "height_setpoint_cm": 138.5, "of_status": [255, 0, 1]}
+{"t": 1784288472.74, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0005], "dx_px": null, "dy_px": null, "detect_t": 1784288472.669775}
+{"t": 1784288472.773, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0004, 0.0001, 0.0005], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.61, "t265_vel": [-0.0009, 0.0008], "of1_vel_cms": [0, 0], "roll_pitch": [0.22, 0.15], "height_setpoint_cm": 141.5, "of_status": [255, 0, 1]}
+{"t": 1784288472.804, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0005], "dx_px": null, "dy_px": null, "detect_t": 1784288472.7593875}
+{"t": 1784288472.838, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0005], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.61, "t265_vel": [0.0007, 0.0003], "of1_vel_cms": [0, 0], "roll_pitch": [0.22, 0.15], "height_setpoint_cm": 144.5, "of_status": [255, 0, 1]}
+{"t": 1784288472.869, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0005], "dx_px": null, "dy_px": null, "detect_t": 1784288472.8481193}
+{"t": 1784288472.901, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0005], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.61, "t265_vel": [0.0, 0.0002], "of1_vel_cms": [0, 0], "roll_pitch": [0.22, 0.15], "height_setpoint_cm": 147.5, "of_status": [255, 0, 1]}
+{"t": 1784288472.934, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0005], "dx_px": null, "dy_px": null, "detect_t": 1784288472.8481193}
+{"t": 1784288472.966, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0004], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.61, "t265_vel": [-0.0, 0.0004], "of1_vel_cms": [0, 0], "roll_pitch": [0.2, 0.15], "height_setpoint_cm": 150.5, "of_status": [255, 0, 1]}
+{"t": 1784288472.999, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0004], "dx_px": null, "dy_px": null, "detect_t": 1784288472.9348547}
+{"t": 1784288473.031, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0005], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.61, "t265_vel": [0.0015, -0.0003], "of1_vel_cms": [0, 0], "roll_pitch": [0.2, 0.15], "height_setpoint_cm": 153.5, "of_status": [255, 0, 1]}
+{"t": 1784288473.063, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0006], "dx_px": null, "dy_px": null, "detect_t": 1784288473.0248306}
+{"t": 1784288473.095, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0005], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.61, "t265_vel": [0.0007, 0.0003], "of1_vel_cms": [0, 0], "roll_pitch": [0.2, 0.15], "height_setpoint_cm": 156.5, "of_status": [255, 0, 1]}
+{"t": 1784288473.128, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0005], "dx_px": null, "dy_px": null, "detect_t": 1784288473.115883}
+{"t": 1784288473.161, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0003], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.61, "t265_vel": [0.0002, 0.0004], "of1_vel_cms": [0, 0], "roll_pitch": [0.2, 0.15], "height_setpoint_cm": 159.5, "of_status": [255, 0, 1]}
+{"t": 1784288473.193, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0006], "dx_px": null, "dy_px": null, "detect_t": 1784288473.115883}
+{"t": 1784288473.225, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0005], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.61, "t265_vel": [0.0012, -0.0004], "of1_vel_cms": [0, 0], "roll_pitch": [0.2, 0.15], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288473.263, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0005], "dx_px": null, "dy_px": null, "detect_t": 1784288473.2025764}
+{"t": 1784288473.294, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0005], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.61, "t265_vel": [-0.0001, 0.0007], "of1_vel_cms": [0, 0], "roll_pitch": [0.2, 0.15], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288473.326, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0005], "dx_px": null, "dy_px": null, "detect_t": 1784288473.2900207}
+{"t": 1784288473.358, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0005], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.61, "t265_vel": [0.0005, 0.0], "of1_vel_cms": [0, 0], "roll_pitch": [0.2, 0.15], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288473.389, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0005], "dx_px": null, "dy_px": null, "detect_t": 1784288473.3795915}
+{"t": 1784288473.42, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0004, 0.0001, 0.0004], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.6, "t265_vel": [-0.0008, -0.0002], "of1_vel_cms": [0, 0], "roll_pitch": [0.2, 0.15], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288473.453, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0005], "dx_px": null, "dy_px": null, "detect_t": 1784288473.3795915}
+{"event": "resource", "t": 1784288473.469, "cpu_percent_sys": 39.5, "cpu_percent_proc": 289.8, "mem_percent_sys": 11.8, "mem_used_mb_sys": 738.6, "mem_rss_mb_proc": 123.4, "cpu_temp_c": 57.2}
+{"t": 1784288473.484, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0004, 0.0001, 0.0004], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.6, "t265_vel": [-0.0006, 0.0004], "of1_vel_cms": [0, 0], "roll_pitch": [0.2, 0.15], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288473.515, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0004, 0.0001, 0.0003], "dx_px": null, "dy_px": null, "detect_t": 1784288473.4688187}
+{"t": 1784288473.548, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0003], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.6, "t265_vel": [-0.0004, 0.0002], "of1_vel_cms": [0, 0], "roll_pitch": [0.2, 0.15], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288473.579, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0004, 0.0001, 0.0004], "dx_px": null, "dy_px": null, "detect_t": 1784288473.5548408}
+{"t": 1784288473.611, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0004, 0.0001, 0.0003], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.6, "t265_vel": [-0.0005, 0.0004], "of1_vel_cms": [0, 0], "roll_pitch": [0.2, 0.15], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288473.643, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0004], "dx_px": null, "dy_px": null, "detect_t": 1784288473.5548408}
+{"t": 1784288473.675, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0004, 0.0001, 0.0004], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.6, "t265_vel": [0.0004, 0.0006], "of1_vel_cms": [0, 0], "roll_pitch": [0.2, 0.15], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288473.708, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0004, 0.0001, 0.0004], "dx_px": null, "dy_px": null, "detect_t": 1784288473.6443968}
+{"t": 1784288473.742, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0004], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.6, "t265_vel": [0.0007, 0.0001], "of1_vel_cms": [0, 0], "roll_pitch": [0.2, 0.15], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288473.773, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0004, 0.0001, 0.0004], "dx_px": null, "dy_px": null, "detect_t": 1784288473.7329924}
+{"t": 1784288473.806, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0005], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.6, "t265_vel": [0.0005, 0.0002], "of1_vel_cms": [0, 0], "roll_pitch": [0.2, 0.15], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288473.838, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0006], "dx_px": null, "dy_px": null, "detect_t": 1784288473.8187597}
+{"t": 1784288473.871, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0004, 0.0001, 0.0005], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.6, "t265_vel": [-0.0004, 0.0003], "of1_vel_cms": [0, 0], "roll_pitch": [0.2, 0.15], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288473.903, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0004, 0.0001, 0.0004], "dx_px": null, "dy_px": null, "detect_t": 1784288473.8187597}
+{"t": 1784288473.935, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0002, 0.0, 0.0004], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.59, "t265_vel": [0.0026, -0.0004], "of1_vel_cms": [0, 0], "roll_pitch": [0.2, 0.15], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288473.967, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0, -0.0, 0.0004], "dx_px": null, "dy_px": null, "detect_t": 1784288473.9071496}
+{"t": 1784288473.999, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0002, 0.0, 0.0004], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.59, "t265_vel": [0.0002, -0.0003], "of1_vel_cms": [0, 0], "roll_pitch": [0.2, 0.15], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288474.032, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0005], "dx_px": null, "dy_px": null, "detect_t": 1784288473.9965982}
+{"t": 1784288474.064, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0004, 0.0001, 0.0005], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.43, "t265_vel": [-0.0022, 0.0004], "of1_vel_cms": [0, 0], "roll_pitch": [0.2, 0.15], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288474.096, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0004, 0.0001, 0.0004], "dx_px": null, "dy_px": null, "detect_t": 1784288474.0828178}
+{"t": 1784288474.129, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0004, 0.0001, 0.0004], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.43, "t265_vel": [-0.0006, 0.0002], "of1_vel_cms": [0, 0], "roll_pitch": [0.2, 0.15], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288474.161, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0004, 0.0001, 0.0004], "dx_px": null, "dy_px": null, "detect_t": 1784288474.0828178}
+{"t": 1784288474.195, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0006], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.43, "t265_vel": [0.0002, -0.0001], "of1_vel_cms": [0, 0], "roll_pitch": [0.2, 0.15], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288474.227, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0002, 0.0001, 0.0007], "dx_px": null, "dy_px": null, "detect_t": 1784288474.171617}
+{"t": 1784288474.259, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0001, 0.0, 0.0006], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.43, "t265_vel": [0.0032, -0.0005], "of1_vel_cms": [0, 0], "roll_pitch": [0.2, 0.15], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288474.29, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0002, 0.0, 0.0004], "dx_px": null, "dy_px": null, "detect_t": 1784288474.2611246}
+{"t": 1784288474.322, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0002, 0.0, 0.0004], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.43, "t265_vel": [0.0006, -0.001], "of1_vel_cms": [0, 0], "roll_pitch": [0.2, 0.15], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288474.353, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0004, 0.0001, 0.0005], "dx_px": null, "dy_px": null, "detect_t": 1784288474.348024}
+{"t": 1784288474.385, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0002, 0.0001, 0.0007], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.43, "t265_vel": [0.0016, -0.0001], "of1_vel_cms": [0, 0], "roll_pitch": [0.2, 0.15], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288474.417, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0002, 0.0, 0.0005], "dx_px": null, "dy_px": null, "detect_t": 1784288474.348024}
+{"t": 1784288474.449, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0002, -0.0, 0.0003], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.59, "t265_vel": [0.0011, -0.001], "of1_vel_cms": [0, 0], "roll_pitch": [0.2, 0.15], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288474.481, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0001, 0.0, 0.0006], "dx_px": null, "dy_px": null, "detect_t": 1784288474.4428506}
+{"t": 1784288474.513, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0002, 0.0001, 0.0006], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.59, "t265_vel": [0.0008, 0.0003], "of1_vel_cms": [0, 0], "roll_pitch": [0.2, 0.15], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"event": "resource", "t": 1784288474.528, "cpu_percent_sys": 40.0, "cpu_percent_proc": 297.2, "mem_percent_sys": 11.7, "mem_used_mb_sys": 735.8, "mem_rss_mb_proc": 121.3, "cpu_temp_c": 57.4}
+{"t": 1784288474.544, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0004, 0.0001, 0.0005], "dx_px": null, "dy_px": null, "detect_t": 1784288474.5296783}
+{"t": 1784288474.577, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0004, 0.0001, 0.0005], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.59, "t265_vel": [-0.0016, -0.0], "of1_vel_cms": [0, 0], "roll_pitch": [0.2, 0.15], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288474.609, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, 0.0, 0.0005], "dx_px": null, "dy_px": null, "detect_t": 1784288474.5296783}
+{"t": 1784288474.642, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0004], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.59, "t265_vel": [-0.0001, 0.0001], "of1_vel_cms": [0, 0], "roll_pitch": [0.2, 0.15], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288474.674, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0004], "dx_px": null, "dy_px": null, "detect_t": 1784288474.617715}
+{"t": 1784288474.707, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0002, 0.0001, 0.0005], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.59, "t265_vel": [0.0007, 0.0002], "of1_vel_cms": [0, 0], "roll_pitch": [0.2, 0.15], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288474.739, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, 0.0, 0.0004], "dx_px": null, "dy_px": null, "detect_t": 1784288474.7094238}
+{"t": 1784288474.772, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0005], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.59, "t265_vel": [-0.0016, 0.0011], "of1_vel_cms": [0, 0], "roll_pitch": [0.2, 0.15], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288474.804, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0005, 0.0002, 0.0005], "dx_px": null, "dy_px": null, "detect_t": 1784288474.8016028}
+{"t": 1784288474.836, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0005, 0.0001, 0.0006], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.59, "t265_vel": [-0.0015, 0.0003], "of1_vel_cms": [0, 0], "roll_pitch": [0.2, 0.15], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288474.869, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0005, 0.0001, 0.0007], "dx_px": null, "dy_px": null, "detect_t": 1784288474.8016028}
+{"t": 1784288474.902, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0006], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.59, "t265_vel": [0.0013, -0.0008], "of1_vel_cms": [0, 0], "roll_pitch": [0.2, 0.15], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288474.934, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0002, 0.0, 0.0004], "dx_px": null, "dy_px": null, "detect_t": 1784288474.8878663}
+{"t": 1784288474.966, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0002, 0.0, 0.0005], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.58, "t265_vel": [0.0007, -0.0012], "of1_vel_cms": [0, 0], "roll_pitch": [0.2, 0.14], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288474.998, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0002, 0.0, 0.0006], "dx_px": null, "dy_px": null, "detect_t": 1784288474.977346}
+{"t": 1784288475.031, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0002, 0.0, 0.0006], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.58, "t265_vel": [0.0003, -0.0004], "of1_vel_cms": [0, 0], "roll_pitch": [0.2, 0.14], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288475.063, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0005, 0.0001, 0.0004], "dx_px": null, "dy_px": null, "detect_t": 1784288474.977346}
+{"t": 1784288475.096, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0004, 0.0001, 0.0005], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.58, "t265_vel": [-0.0002, 0.0006], "of1_vel_cms": [0, 0], "roll_pitch": [0.2, 0.14], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288475.129, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0008], "dx_px": null, "dy_px": null, "detect_t": 1784288475.0666924}
+{"t": 1784288475.161, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0006], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.58, "t265_vel": [0.0004, 0.0002], "of1_vel_cms": [0, 0], "roll_pitch": [0.2, 0.14], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288475.192, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0004, 0.0001, 0.0007], "dx_px": null, "dy_px": null, "detect_t": 1784288475.1519659}
+{"t": 1784288475.226, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0004, 0.0001, 0.0004], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.42, "t265_vel": [-0.0003, 0.0007], "of1_vel_cms": [0, 0], "roll_pitch": [0.2, 0.14], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288475.257, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0004, 0.0001, 0.0006], "dx_px": null, "dy_px": null, "detect_t": 1784288475.2419682}
+{"t": 1784288475.289, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0004, 0.0001, 0.0008], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.42, "t265_vel": [0.001, 0.0002], "of1_vel_cms": [0, 0], "roll_pitch": [0.2, 0.14], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288475.32, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0005, 0.0001, 0.0006], "dx_px": null, "dy_px": null, "detect_t": 1784288475.2419682}
+{"t": 1784288475.352, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0005, 0.0001, 0.0005], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.42, "t265_vel": [-0.0007, -0.0005], "of1_vel_cms": [0, 0], "roll_pitch": [0.2, 0.14], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288475.383, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0004, 0.0001, 0.0006], "dx_px": null, "dy_px": null, "detect_t": 1784288475.3274603}
+{"t": 1784288475.416, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0004, 0.0001, 0.0007], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.42, "t265_vel": [-0.0006, -0.0001], "of1_vel_cms": [0, 0], "roll_pitch": [0.2, 0.14], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288475.447, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0005, 0.0001, 0.0005], "dx_px": null, "dy_px": null, "detect_t": 1784288475.4123185}
+{"t": 1784288475.479, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0004, 0.0, 0.0003], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.57, "t265_vel": [0.0004, -0.001], "of1_vel_cms": [0, 0], "roll_pitch": [0.19, 0.13], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288475.511, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0001, -0.0, 0.0004], "dx_px": null, "dy_px": null, "detect_t": 1784288475.4980693}
+{"t": 1784288475.533, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0001, -0.0, 0.0004], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.57, "t265_vel": [0.003, -0.0005], "of1_vel_cms": [0, 0], "roll_pitch": [0.19, 0.13], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288475.567, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0002, 0.0, 0.0004], "dx_px": null, "dy_px": null, "detect_t": 1784288475.4980693}
+{"event": "resource", "t": 1784288475.583, "cpu_percent_sys": 39.7, "cpu_percent_proc": 288.3, "mem_percent_sys": 11.9, "mem_used_mb_sys": 748.1, "mem_rss_mb_proc": 131.8, "cpu_temp_c": 57.4}
+{"t": 1784288475.599, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0005], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.57, "t265_vel": [-0.0008, 0.0004], "of1_vel_cms": [0, 0], "roll_pitch": [0.19, 0.13], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288475.631, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0004, 0.0001, 0.0006], "dx_px": null, "dy_px": null, "detect_t": 1784288475.5871103}
+{"t": 1784288475.663, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0004, 0.0001, 0.0006], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.57, "t265_vel": [-0.0005, 0.0005], "of1_vel_cms": [0, 0], "roll_pitch": [0.19, 0.13], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288475.696, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0004, 0.0001, 0.0004], "dx_px": null, "dy_px": null, "detect_t": 1784288475.6744382}
+{"t": 1784288475.729, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0002, 0.0, 0.0004], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.57, "t265_vel": [0.0017, -0.0006], "of1_vel_cms": [0, 0], "roll_pitch": [0.19, 0.13], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288475.761, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0004, 0.0001, 0.0006], "dx_px": null, "dy_px": null, "detect_t": 1784288475.6744382}
+{"t": 1784288475.793, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0004, 0.0001, 0.0004], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.57, "t265_vel": [-0.0017, -0.0001], "of1_vel_cms": [0, 0], "roll_pitch": [0.19, 0.13], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288475.827, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0005], "dx_px": null, "dy_px": null, "detect_t": 1784288475.7632947}
+{"t": 1784288475.86, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0006], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.57, "t265_vel": [-0.0, -0.0002], "of1_vel_cms": [0, 0], "roll_pitch": [0.19, 0.13], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288475.894, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0004, 0.0001, 0.0005], "dx_px": null, "dy_px": null, "detect_t": 1784288475.8519592}
+{"t": 1784288475.929, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0004, 0.0001, 0.0005], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.4, "t265_vel": [-0.0006, 0.0006], "of1_vel_cms": [0, 0], "roll_pitch": [0.18, 0.13], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288475.961, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0004, 0.0002, 0.0007], "dx_px": null, "dy_px": null, "detect_t": 1784288475.9400737}
+{"t": 1784288475.993, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0004, 0.0002, 0.0008], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.4, "t265_vel": [0.0, 0.0007], "of1_vel_cms": [0, 0], "roll_pitch": [0.18, 0.13], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288476.025, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0004, 0.0001, 0.0004], "dx_px": null, "dy_px": null, "detect_t": 1784288475.9400737}
+{"t": 1784288476.057, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0005, 0.0001, 0.0004], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.4, "t265_vel": [-0.0005, -0.0001], "of1_vel_cms": [0, 0], "roll_pitch": [0.18, 0.13], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288476.091, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0005, 0.0001, 0.0005], "dx_px": null, "dy_px": null, "detect_t": 1784288476.027355}
+{"t": 1784288476.126, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0004, 0.0001, 0.0004], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.4, "t265_vel": [0.0003, -0.0002], "of1_vel_cms": [0, 0], "roll_pitch": [0.18, 0.13], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288476.157, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0004, 0.0001, 0.0005], "dx_px": null, "dy_px": null, "detect_t": 1784288476.1271486}
+{"t": 1784288476.189, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0001, 0.0, 0.0005], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.4, "t265_vel": [0.0034, -0.0007], "of1_vel_cms": [0, 0], "roll_pitch": [0.18, 0.13], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288476.224, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0004, 0.0001, 0.0005], "dx_px": null, "dy_px": null, "detect_t": 1784288476.2130542}
+{"t": 1784288476.259, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0005, 0.0001, 0.0006], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.4, "t265_vel": [-0.0012, 0.0006], "of1_vel_cms": [0, 0], "roll_pitch": [0.18, 0.13], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288476.291, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0004, 0.0001, 0.0007], "dx_px": null, "dy_px": null, "detect_t": 1784288476.2130542}
+{"t": 1784288476.322, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0003, 0.0, 0.0005], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.4, "t265_vel": [0.0015, -0.0005], "of1_vel_cms": [0, 0], "roll_pitch": [0.18, 0.13], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288476.357, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, 0.0002, 0.0006], "dx_px": null, "dy_px": null, "detect_t": 1784288476.3006876}
+{"t": 1784288476.39, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0003, 0.0003, 0.0005], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.4, "t265_vel": [0.0018, 0.0044], "of1_vel_cms": [0, 0], "roll_pitch": [0.18, 0.13], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288476.421, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0002, 0.0001, 0.0004], "dx_px": null, "dy_px": null, "detect_t": 1784288476.3871813}
+{"t": 1784288476.453, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0002, 0.0001, 0.0003], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.03, "fc_yaw_deg": -5.54, "t265_vel": [-0.0013, -0.0072], "of1_vel_cms": [0, 1], "roll_pitch": [0.17, 0.17], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288476.485, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, -0.0001, 0.0005], "dx_px": null, "dy_px": null, "detect_t": 1784288476.4727852}
+{"t": 1784288476.517, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0003, 0.0004, 0.0005], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.04, "fc_yaw_deg": -5.54, "t265_vel": [0.0027, 0.012], "of1_vel_cms": [0, -1], "roll_pitch": [0.17, 0.17], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288476.548, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0002, 0.0004, 0.0003], "dx_px": null, "dy_px": null, "detect_t": 1784288476.4727852}
+{"t": 1784288476.58, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0003], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.04, "fc_yaw_deg": -5.38, "t265_vel": [-0.0036, -0.0085], "of1_vel_cms": [0, 2], "roll_pitch": [0.17, 0.17], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288476.612, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0002, -0.0001, 0.0004], "dx_px": null, "dy_px": null, "detect_t": 1784288476.5605776}
+{"t": 1784288476.643, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0004, -0.0001, 0.0006], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.06, "fc_yaw_deg": -5.38, "t265_vel": [-0.0017, -0.0028], "of1_vel_cms": [-1, -1], "roll_pitch": [0.17, 0.17], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"event": "resource", "t": 1784288476.647, "cpu_percent_sys": 39.1, "cpu_percent_proc": 291.5, "mem_percent_sys": 11.9, "mem_used_mb_sys": 747.0, "mem_rss_mb_proc": 129.5, "cpu_temp_c": 57.5}
+{"t": 1784288476.676, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0005], "dx_px": null, "dy_px": null, "detect_t": 1784288476.6582975}
+{"t": 1784288476.707, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0002, 0.0002, 0.0004], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.05, "fc_yaw_deg": -5.38, "t265_vel": [0.0016, 0.0105], "of1_vel_cms": [0, 0], "roll_pitch": [0.17, 0.17], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288476.74, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0004, 0.0003, 0.0004], "dx_px": null, "dy_px": null, "detect_t": 1784288476.6582975}
+{"t": 1784288476.771, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0002, 0.0002, 0.0001], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.38, "t265_vel": [0.0019, -0.0017], "of1_vel_cms": [0, 3], "roll_pitch": [0.17, 0.17], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288476.802, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0002, 0.0001, 0.0003], "dx_px": null, "dy_px": null, "detect_t": 1784288476.7448285}
+{"t": 1784288476.836, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0004, -0.0001, 0.0006], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.06, "fc_yaw_deg": -5.38, "t265_vel": [-0.0042, -0.0136], "of1_vel_cms": [0, 0], "roll_pitch": [0.17, 0.17], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288476.867, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0002, -0.0002, 0.0005], "dx_px": null, "dy_px": null, "detect_t": 1784288476.8319201}
+{"t": 1784288476.901, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0002, 0.0, 0.0005], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.07, "fc_yaw_deg": -5.38, "t265_vel": [0.0057, 0.0094], "of1_vel_cms": [0, -4], "roll_pitch": [0.17, 0.17], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288476.934, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0004, 0.0003, 0.0005], "dx_px": null, "dy_px": null, "detect_t": 1784288476.9196103}
+{"t": 1784288476.966, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0005, 0.0005, 0.0006], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.04, "fc_yaw_deg": -5.57, "t265_vel": [-0.0056, 0.0076], "of1_vel_cms": [0, 2], "roll_pitch": [0.2, 0.19], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288476.997, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0004, 0.0002, 0.0004], "dx_px": null, "dy_px": null, "detect_t": 1784288476.9196103}
+{"t": 1784288477.03, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0002, 0.0002, 0.0002], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.04, "fc_yaw_deg": -5.57, "t265_vel": [0.0025, -0.0008], "of1_vel_cms": [0, 1], "roll_pitch": [0.2, 0.19], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288477.061, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0002, 0.0003, 0.0002], "dx_px": null, "dy_px": null, "detect_t": 1784288477.0056412}
+{"t": 1784288477.093, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0004, 0.0004, 0.0003], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.41, "t265_vel": [-0.0041, 0.0071], "of1_vel_cms": [0, 0], "roll_pitch": [0.2, 0.19], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288477.127, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0004, 0.0003, 0.0003], "dx_px": null, "dy_px": null, "detect_t": 1784288477.0951538}
+{"t": 1784288477.16, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0006, -0.0004, 0.0003], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.1, "fc_yaw_deg": -5.41, "t265_vel": [-0.0057, -0.0251], "of1_vel_cms": [0, 0], "roll_pitch": [0.2, 0.19], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288477.191, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0006, -0.0005, 0.0005], "dx_px": null, "dy_px": null, "detect_t": 1784288477.1852198}
+{"t": 1784288477.223, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0004, 0.0003, 0.0007], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.07, "fc_yaw_deg": -5.41, "t265_vel": [0.0036, 0.0232], "of1_vel_cms": [0, -3], "roll_pitch": [0.2, 0.19], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288477.256, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0002, 0.0003, -0.0002], "dx_px": null, "dy_px": null, "detect_t": 1784288477.1852198}
+{"t": 1784288477.288, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0009, 0.0003, 0.0001], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.04, "fc_yaw_deg": -5.41, "t265_vel": [-0.0143, -0.0051], "of1_vel_cms": [0, -3], "roll_pitch": [0.2, 0.19], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288477.32, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0008, -0.0001, 0.0006], "dx_px": null, "dy_px": null, "detect_t": 1784288477.272438}
+{"t": 1784288477.351, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0006, 0.0, 0.0006], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.09, "fc_yaw_deg": -5.41, "t265_vel": [0.0018, -0.0036], "of1_vel_cms": [0, -3], "roll_pitch": [0.2, 0.19], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288477.382, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0006, -0.0001, 0.0005], "dx_px": null, "dy_px": null, "detect_t": 1784288477.3603296}
+{"t": 1784288477.415, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0004, -0.0001, 0.0006], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.09, "fc_yaw_deg": -5.41, "t265_vel": [0.0066, -0.0058], "of1_vel_cms": [0, -3], "roll_pitch": [0.2, 0.19], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288477.447, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, 0.0002, 0.0006], "dx_px": null, "dy_px": null, "detect_t": 1784288477.3603296}
+{"t": 1784288477.48, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0003, 0.0003, 0.0004], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.1, "fc_yaw_deg": -5.41, "t265_vel": [-0.0044, 0.0163], "of1_vel_cms": [0, -3], "roll_pitch": [0.2, 0.19], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288477.511, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0005, 0.0002, 0.0006], "dx_px": null, "dy_px": null, "detect_t": 1784288477.4525754}
+{"t": 1784288477.543, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0004, -0.0002, 0.0005], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.09, "fc_yaw_deg": -5.41, "t265_vel": [0.0034, -0.0178], "of1_vel_cms": [0, -3], "roll_pitch": [0.2, 0.19], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288477.575, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, -0.0003, 0.0005], "dx_px": null, "dy_px": null, "detect_t": 1784288477.5387747}
+{"t": 1784288477.607, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0002, -0.0001, 0.0004], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.06, "fc_yaw_deg": -5.41, "t265_vel": [-0.0009, 0.0083], "of1_vel_cms": [0, -3], "roll_pitch": [0.2, 0.19], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288477.64, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0004, 0.0004, 0.0006], "dx_px": null, "dy_px": null, "detect_t": 1784288477.6259015}
+{"t": 1784288477.672, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0006, 0.0002, 0.0006], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.07, "fc_yaw_deg": -5.41, "t265_vel": [-0.0036, -0.0011], "of1_vel_cms": [0, -3], "roll_pitch": [0.2, 0.19], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"event": "resource", "t": 1784288477.694, "cpu_percent_sys": 40.3, "cpu_percent_proc": 295.1, "mem_percent_sys": 11.8, "mem_used_mb_sys": 743.0, "mem_rss_mb_proc": 125.4, "cpu_temp_c": 57.6}
+{"t": 1784288477.703, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0005, -0.0001, 0.0005], "dx_px": null, "dy_px": null, "detect_t": 1784288477.6259015}
+{"t": 1784288477.736, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0004, -0.0001, 0.0005], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.06, "fc_yaw_deg": -5.41, "t265_vel": [0.0008, -0.0045], "of1_vel_cms": [0, -3], "roll_pitch": [0.2, 0.19], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288477.768, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, -0.0, 0.0005], "dx_px": null, "dy_px": null, "detect_t": 1784288477.71516}
+{"t": 1784288477.8, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0002, 0.0001, 0.0004], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.06, "fc_yaw_deg": -5.41, "t265_vel": [-0.0003, 0.0053], "of1_vel_cms": [0, -3], "roll_pitch": [0.2, 0.19], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288477.831, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, 0.0002, 0.0005], "dx_px": null, "dy_px": null, "detect_t": 1784288477.8008707}
+{"t": 1784288477.865, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0005, 0.0001, 0.0006], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.06, "fc_yaw_deg": -5.41, "t265_vel": [-0.0019, -0.0022], "of1_vel_cms": [0, -3], "roll_pitch": [0.2, 0.19], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288477.896, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0005, -0.0001, 0.0004], "dx_px": null, "dy_px": null, "detect_t": 1784288477.8908148}
+{"t": 1784288477.928, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0004, -0.0002, 0.0003], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.04, "fc_yaw_deg": -5.41, "t265_vel": [-0.0008, -0.0031], "of1_vel_cms": [0, -3], "roll_pitch": [0.2, 0.19], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288477.96, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0005], "dx_px": null, "dy_px": null, "detect_t": 1784288477.8908148}
+{"t": 1784288477.992, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0002, 0.0002, 0.0005], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.05, "fc_yaw_deg": -5.41, "t265_vel": [0.0011, 0.0046], "of1_vel_cms": [0, -3], "roll_pitch": [0.2, 0.19], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288478.024, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0005], "dx_px": null, "dy_px": null, "detect_t": 1784288477.9805386}
+{"t": 1784288478.056, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0004, -0.0001, 0.0004], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.41, "t265_vel": [0.0, -0.0061], "of1_vel_cms": [0, -3], "roll_pitch": [0.2, 0.19], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288478.087, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, -0.0001, 0.0006], "dx_px": null, "dy_px": null, "detect_t": 1784288478.0654016}
+{"t": 1784288478.119, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0004, 0.0002, 0.0006], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.04, "fc_yaw_deg": -5.41, "t265_vel": [-0.0006, 0.005], "of1_vel_cms": [0, -3], "roll_pitch": [0.2, 0.19], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288478.15, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0004, 0.0002, 0.0006], "dx_px": null, "dy_px": null, "detect_t": 1784288478.0654016}
+{"t": 1784288478.182, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0004, 0.0001, 0.0006], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.41, "t265_vel": [0.0006, -0.0019], "of1_vel_cms": [0, -3], "roll_pitch": [0.2, 0.19], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288478.214, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, -0.0, 0.0005], "dx_px": null, "dy_px": null, "detect_t": 1784288478.1547198}
+{"t": 1784288478.246, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0003, 0.0, 0.0005], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.41, "t265_vel": [0.0019, -0.0014], "of1_vel_cms": [0, -3], "roll_pitch": [0.2, 0.19], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288478.277, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0005], "dx_px": null, "dy_px": null, "detect_t": 1784288478.241347}
+{"t": 1784288478.31, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0004, 0.0002, 0.0006], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.41, "t265_vel": [-0.0004, 0.0027], "of1_vel_cms": [0, -3], "roll_pitch": [0.2, 0.19], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288478.342, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0004, 0.0002, 0.0006], "dx_px": null, "dy_px": null, "detect_t": 1784288478.3315442}
+{"t": 1784288478.375, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0004, 0.0, 0.0004], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.41, "t265_vel": [-0.0, -0.0022], "of1_vel_cms": [0, -3], "roll_pitch": [0.2, 0.19], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288478.406, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0004, -0.0, 0.0003], "dx_px": null, "dy_px": null, "detect_t": 1784288478.3315442}
+{"t": 1784288478.438, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0004], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.41, "t265_vel": [-0.0003, 0.0013], "of1_vel_cms": [0, -3], "roll_pitch": [0.2, 0.19], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288478.471, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, 0.0002, 0.0006], "dx_px": null, "dy_px": null, "detect_t": 1784288478.4199648}
+{"t": 1784288478.503, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0005], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.02, "fc_yaw_deg": -5.41, "t265_vel": [0.0008, -0.0001], "of1_vel_cms": [0, -3], "roll_pitch": [0.2, 0.19], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288478.535, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0004, 0.0, 0.0003], "dx_px": null, "dy_px": null, "detect_t": 1784288478.5089517}
+{"t": 1784288478.568, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0003, -0.0, 0.0004], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.41, "t265_vel": [-0.0002, -0.0017], "of1_vel_cms": [0, -3], "roll_pitch": [0.2, 0.19], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288478.601, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0005], "dx_px": null, "dy_px": null, "detect_t": 1784288478.5954494}
+{"t": 1784288478.633, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0006], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.41, "t265_vel": [-0.0002, 0.0008], "of1_vel_cms": [0, -3], "roll_pitch": [0.2, 0.19], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288478.666, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0004, 0.0001, 0.0005], "dx_px": null, "dy_px": null, "detect_t": 1784288478.5954494}
+{"t": 1784288478.699, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0005], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.01, "fc_yaw_deg": -5.41, "t265_vel": [-0.0001, -0.0008], "of1_vel_cms": [0, -3], "roll_pitch": [0.2, 0.19], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288478.731, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0006], "dx_px": null, "dy_px": null, "detect_t": 1784288478.681698}
+{"event": "resource", "t": 1784288478.747, "cpu_percent_sys": 45.2, "cpu_percent_proc": 288.9, "mem_percent_sys": 11.8, "mem_used_mb_sys": 743.0, "mem_rss_mb_proc": 125.4, "cpu_temp_c": 57.6}
+{"t": 1784288478.765, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0006], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": -0.0, "fc_yaw_deg": -5.41, "t265_vel": [0.0007, 0.0012], "of1_vel_cms": [0, -3], "roll_pitch": [0.2, 0.19], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288478.796, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, 0.0002, 0.0005], "dx_px": null, "dy_px": null, "detect_t": 1784288478.774985}
+{"t": 1784288478.829, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0004, 0.0001, 0.0005], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.0, "fc_yaw_deg": -5.41, "t265_vel": [-0.0005, -0.0004], "of1_vel_cms": [0, -3], "roll_pitch": [0.2, 0.19], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288478.861, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, 0.0, 0.0004], "dx_px": null, "dy_px": null, "detect_t": 1784288478.774985}
+{"t": 1784288478.893, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0005], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": -0.0, "fc_yaw_deg": -5.41, "t265_vel": [0.0005, -0.0], "of1_vel_cms": [0, -3], "roll_pitch": [0.2, 0.19], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288478.924, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0005], "dx_px": null, "dy_px": null, "detect_t": 1784288478.8652444}
+{"t": 1784288478.956, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0005], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": 0.0, "fc_yaw_deg": -5.41, "t265_vel": [0.0003, 0.0009], "of1_vel_cms": [0, -3], "roll_pitch": [0.2, 0.19], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288478.989, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0004], "dx_px": null, "dy_px": null, "detect_t": 1784288478.9542754}
+{"t": 1784288479.021, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0005], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": -0.0, "fc_yaw_deg": -5.41, "t265_vel": [0.0011, -0.0005], "of1_vel_cms": [0, -3], "roll_pitch": [0.2, 0.19], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288479.056, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0006], "dx_px": null, "dy_px": null, "detect_t": 1784288479.0419934}
+{"t": 1784288479.088, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0006], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": -0.0, "fc_yaw_deg": -5.41, "t265_vel": [0.0018, 0.0007], "of1_vel_cms": [0, -3], "roll_pitch": [0.2, 0.19], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
+{"t": 1784288479.12, "state": "PATROL_DETECT", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0005], "dx_px": null, "dy_px": null, "detect_t": 1784288479.0419934}
+{"t": 1784288479.151, "state": "NAVIGATE", "target_idx": 0, "pos": [-0.0003, 0.0001, 0.0006], "target": [0.0, 0.0, 1.6], "vx": 0, "vy": 0, "vyaw": 0, "t265_yaw_deg": -0.0, "fc_yaw_deg": -5.41, "t265_vel": [0.0005, 0.0006], "of1_vel_cms": [0, -3], "roll_pitch": [0.2, 0.19], "height_setpoint_cm": 160, "of_status": [255, 0, 1]}
