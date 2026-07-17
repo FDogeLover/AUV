@@ -827,6 +827,32 @@ class mission:
         # 参考takeoff()里laser_cm的10cm确认容差保持一致。
         setpoint_ok = abs(self._ramp_z_cm - HOVER_DROP_ALTITUDE_CM) <= 2.0
         measured_ok = abs(pos[2] * 100 - HOVER_DROP_ALTITUDE_CM) <= 10.0
+
+        # 2026-07-17新增：这个状态之前从来没写过飞行日志——2026-07-17真机测试
+        # 复现了HOVER_DROP卡住不动(疑似问题26"高度不恢复")，但因为没有日志，
+        # 完全没法诊断当时高度是冻结/漂移还是别的什么状态，只能确认"卡住了"这个
+        # 事实。补上跟navigate()其它分支一样的节流日志，下次复现时至少能拿到
+        # 高度曲线数据。
+        now = time.time()
+        if self._log_file and now - self._last_detect_log_time >= FLIGHT_LOG_INTERVAL:
+            try:
+                with self._log_lock:
+                    self._log_file.write(json.dumps({
+                        "t": round(now, 3),
+                        "state": "HOVER_DROP",
+                        "pos": [round(pos[0], 4), round(pos[1], 4), round(pos[2], 4)],
+                        "hover_hold_pos": list(self._hover_hold_pos) if self._hover_hold_pos else None,
+                        "vx": vx, "vy": vy,
+                        "height_setpoint_cm": round(self._ramp_z_cm, 1),
+                        "setpoint_ok": setpoint_ok,
+                        "measured_ok": measured_ok,
+                        "hover_drop_start_time": self._hover_drop_start_time,
+                    }) + "\n")
+                    self._log_file.flush()
+            except Exception:
+                pass
+            self._last_detect_log_time = now
+
         if not (setpoint_ok and measured_ok):
             return  # 还没真正降到位，不开始计时
 

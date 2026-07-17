@@ -1,3 +1,5 @@
+import io
+import json
 import os
 import sys
 import time
@@ -260,6 +262,48 @@ class TestHoverDropClosedLoopHold:
         vy_sent = m.se_fc[4] - sp_side
         assert vx_sent != 0  # 确认PID确实产生了非零输出，不是被限幅前就已经是0
         assert vy_sent != 0
+
+
+class TestHoverDropLogging:
+    """2026-07-17新增：_do_hover_drop()此前从来没写过飞行日志——同一天真机测试
+    复现了HOVER_DROP卡住不动(疑似问题26"高度不恢复")长达51秒，但完全没有日志
+    数据可供诊断，只能确认"卡住了"这个事实。补上跟navigate()其它分支一样的
+    节流日志，下次复现时至少能拿到高度曲线数据。"""
+
+    def test_hover_drop_writes_log_entry(self, tmp_path):
+        m = _make_mission(tmp_path)
+        m._log_file = io.StringIO()
+        m.nav_mode = "HOVER_DROP"
+        m._hover_drop_start_time = None
+        m._hover_hold_pos = None
+
+        m.navigate(pos=[1.0, 2.0, 0.5], yaw=0.0)
+
+        m._log_file.seek(0)
+        lines = [l for l in m._log_file.readlines() if l.strip()]
+        assert len(lines) >= 1
+        entry = json.loads(lines[-1])
+        assert entry["state"] == "HOVER_DROP"
+        assert entry["pos"] == [1.0, 2.0, 0.5]
+        assert entry["hover_hold_pos"] == [1.0, 2.0]
+        assert "setpoint_ok" in entry
+        assert "measured_ok" in entry
+
+    def test_hover_drop_log_reflects_setpoint_and_measured_status(self, tmp_path):
+        """高度还没收敛时setpoint_ok/measured_ok应该如实反映False，不是
+        提前当作"已到位"。"""
+        m = _make_mission(tmp_path)
+        m._log_file = io.StringIO()
+        m.nav_mode = "HOVER_DROP"
+        m._hover_drop_start_time = None
+        m._hover_hold_pos = None
+
+        m.navigate(pos=[0.0, 0.0, 0.3], yaw=0.0)  # 30cm，远低于HOVER_DROP_ALTITUDE_CM(100cm)
+
+        m._log_file.seek(0)
+        entry = json.loads([l for l in m._log_file.readlines() if l.strip()][-1])
+        assert entry["measured_ok"] is False
+        assert entry["hover_drop_start_time"] is None  # 还没到位，不应该开始计时
 
 
 class _FakeFireVision:
