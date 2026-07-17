@@ -70,6 +70,17 @@ MIN_CIRCULARITY = 0.7
 # (参照circle_pole真机标定红杆子的经验：偏暗/偏亮光源饱和度差异很大)。
 HSV_RANGES_RED = [((0, 100, 100), (10, 255, 255)), ((170, 100, 100), (180, 255, 255))]
 
+# 2026-07-17新增：真机测试实测发现，灯罩强光在画面里经常呈现"星芒/爆闪"形态
+# (高光衍射产生多条细尖刺，不是一个实心圆盘)，导致轮廓圆度只有0.068，远低于
+# MIN_CIRCULARITY——不是曝光或距离问题，无论怎么调曝光，只要高光是星芒状，
+# 圆度永远上不去。用闭运算(先膨胀再腐蚀)把尖刺之间的小缝隙填平、拼成一个
+# 接近实心圆盘的轮廓再算圆度：真机实测能把这类星芒灯罩的圆度从0.068拉到0.76，
+# 通过0.7阈值。经验证核大小15不会影响已有的防误判能力——纯矩形/圆形测试
+# 用例结果不变(闭运算只填补小缝隙，对已经连续无缝隙的实心形状没有任何影响)；
+# 问题30记录的"矩形被遮挡切碎"真实图片，碎片圆度0.639只被抬高到0.651，仍然
+# 低于0.7阈值，不会重新引入那次误触发。
+FIRE_MASK_CLOSE_KERNEL_SIZE = 15
+
 
 def detect_fire(frame_bgr, min_area: int = MIN_FIRE_AREA_PX,
                  max_area: int = MAX_FIRE_AREA_PX,
@@ -84,6 +95,10 @@ def detect_fire(frame_bgr, min_area: int = MIN_FIRE_AREA_PX,
     for lower, upper in HSV_RANGES_RED:
         m = cv2.inRange(hsv, np.array(lower), np.array(upper))
         mask = m if mask is None else (mask | m)
+
+    kernel = cv2.getStructuringElement(
+        cv2.MORPH_ELLIPSE, (FIRE_MASK_CLOSE_KERNEL_SIZE, FIRE_MASK_CLOSE_KERNEL_SIZE))
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
 
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     best_area = 0

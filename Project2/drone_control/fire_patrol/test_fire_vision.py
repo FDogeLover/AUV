@@ -31,6 +31,20 @@ def _draw_rect_bgr(frame, color_bgr, cx, cy, half_w, half_h):
     return frame
 
 
+def _draw_starburst_bgr(frame, color_bgr, cx, cy, core_r, spike_len, n_spikes, thickness):
+    """模拟强光源在画面里的"星芒/爆闪"高光形态：实心核心+若干条向外辐射的
+    细尖刺，尖刺之间留有空隙——真实圆形光源(灯罩)在闭运算修复前经常被
+    这种形态的轮廓算出很低的圆度(2026-07-17真机测试实测0.068)。"""
+    import cv2
+    cv2.circle(frame, (cx, cy), core_r, color_bgr, -1)
+    for i in range(n_spikes):
+        angle = 2 * np.pi * i / n_spikes
+        x2 = int(cx + spike_len * np.cos(angle))
+        y2 = int(cy + spike_len * np.sin(angle))
+        cv2.line(frame, (cx, cy), (x2, y2), color_bgr, thickness)
+    return frame
+
+
 class TestDetectFire:
     def test_no_target_returns_none(self):
         frame = _blank_frame()
@@ -83,6 +97,19 @@ class TestDetectFire:
         证明是形状过滤起作用，不是面积阈值本身变严格了。"""
         frame = _blank_frame()
         _draw_circle_bgr(frame, (0, 0, 255), cx=960, cy=540, radius=71)  # pi*71^2约15837，同量级
+        result = detect_fire(frame)
+        assert result is not None
+
+    def test_starburst_highlight_detected_after_mask_closing(self):
+        """2026-07-17真机测试：灯罩强光在画面里经常呈"星芒/爆闪"形态(高光衍射
+        产生多条细尖刺，不是实心圆盘)，导致轮廓圆度只有0.068，被MIN_CIRCULARITY
+        挡住——排查确认不是曝光/距离问题，无论怎么调曝光，星芒状高光的圆度都
+        上不去。用闭运算(FIRE_MASK_CLOSE_KERNEL_SIZE)把尖刺间的空隙填平再算
+        圆度：这里用同等形态(实心核心+24条细尖刺，无闭运算时圆度0.65，低于0.7)
+        复现，验证detect_fire()确实能检测到。"""
+        frame = _blank_frame(width=960, height=540)
+        _draw_starburst_bgr(frame, (0, 0, 255), cx=480, cy=270,
+                             core_r=20, spike_len=25, n_spikes=24, thickness=7)
         result = detect_fire(frame)
         assert result is not None
 
