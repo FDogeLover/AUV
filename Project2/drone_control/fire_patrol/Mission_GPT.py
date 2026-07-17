@@ -78,6 +78,12 @@ ARRIVAL_CONFIRM_RATIO = 0.6  # 到达确认改用滑动窗口比例制而非严�
 
 # ---------- fire_patrol 新增常量 ----------
 FIRE_VISION_STALE_S = 0.5       # 火情检测结果超过此值未更新，视为摄像头/线程故障，不阻断飞行
+FIRE_DETECT_MIN_HEIGHT_M = 1.0  # 低于此高度不触发火情检测。2026-07-17真机测试发现：
+                                  # 起飞/降落阶段下视画面里出现的小红点，是无人机自己
+                                  # 下视激光测距的反射光点，不是真实火源/干扰物——
+                                  # 之前误以为是"灯罩"本身。近地时这个激光点在HSV/形状
+                                  # 上跟真实火源难以区分，加高度门槛避免起飞/降落阶段
+                                  # 被自己的激光反光误触发。
 PATROL_MISS_SNAPSHOT_INTERVAL_S = 5.0  # 2026-07-16新增：PATROL态检测不到火源时，
                                           # 每隔这么久也存一张画面(reason="patrol_no_detect")，
                                           # 用来跟触发时存的清晰图做对比，验证"运动模糊导致
@@ -451,7 +457,7 @@ class mission:
                     except Exception as e:
                         logger.error(f"patrol_no_detect存图失败: {e}")
                     self._last_miss_snapshot_time = now
-            elif now - latest.get("t", 0) < FIRE_VISION_STALE_S:
+            elif now - latest.get("t", 0) < FIRE_VISION_STALE_S and pos[2] >= FIRE_DETECT_MIN_HEIGHT_M:
                 if self.maybe_trigger_approach((latest["dx_px"], latest["dy_px"])):
                     return
 

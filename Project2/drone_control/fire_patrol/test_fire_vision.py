@@ -203,6 +203,28 @@ class TestFireVisionBackgroundLoop:
 
         assert fake_vision.released is True
 
+    def test_stop_joins_loop_thread_before_releasing(self, monkeypatch):
+        """2026-07-17修复：真机测试main.py退出时实测到segfault——之前stop()
+        只置位_running就立刻release()，_loop()线程可能还在执行get_frame()的
+        过程中，跟release()拆卸底层采集资源产生竞态。stop()必须先join让轮询
+        线程确认退出，才能安全release()。这里验证stop()返回后，_loop()那个
+        线程对象确实已经不再存活。"""
+        frame = _blank_frame()
+        _draw_circle_bgr(frame, (0, 0, 255), cx=960, cy=540)
+        fake_vision = _FakeVisionOneFrame(frame)
+        monkeypatch.setattr("Lcode.fire_vision.VisionSystem", lambda **kwargs: fake_vision)
+
+        fv = FireVision(smooth_window=1)
+        assert fv.start() is True
+        deadline = time.time() + 2.0
+        while fv.latest()["dx_px"] is None and time.time() < deadline:
+            time.sleep(0.02)
+        loop_thread = fv._thread
+        fv.stop()
+
+        assert loop_thread is not None
+        assert loop_thread.is_alive() is False
+
 
 class TestSaveSnapshot:
     """2026-07-16新增：火情触发时存一张现场画面方便事后调试分析。"""

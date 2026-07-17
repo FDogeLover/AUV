@@ -156,6 +156,7 @@ class FireVision:
         self._latest = {"dx_px": None, "dy_px": None, "t": 0.0}
         self._latest_frame = None  # 最新一帧原始BGR画面，供save_snapshot()存档用
         self._running = False
+        self._thread = None
         self._vision = None
         self._smoother = SmoothedFireDetector(window=smooth_window)
         # 2026-07-16新增：火情触发时存一张现场画面方便事后调试分析。不像
@@ -189,11 +190,20 @@ class FireVision:
             self._vision = None
             return False
         self._running = True
-        threading.Thread(target=self._loop, daemon=True).start()
+        self._thread = threading.Thread(target=self._loop, daemon=True)
+        self._thread.start()
         return True
 
     def stop(self):
+        # 2026-07-17修复：真机测试(main.py退出时)实测到segfault——self._loop()
+        # 每30ms轮询一次self._vision.get_frame()，之前这里只置位_running就立刻
+        # release()，_loop()线程可能还在执行get_frame()的过程中，跟release()
+        # 拆卸底层V4L2采集子进程/共享内存产生竞态(release()内部会terminate采集
+        # 子进程、关闭管道)。跟ResourceMonitor.stop()一样的模式：先join让轮询
+        # 线程真正退出，确认它不会再碰self._vision，才安全地release()。
         self._running = False
+        if self._thread is not None:
+            self._thread.join(timeout=2.0)
         if self._vision is not None:
             self._vision.release()
 

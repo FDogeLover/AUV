@@ -270,6 +270,35 @@ class _FakeFireVision:
         return dict(self._latest)
 
 
+class TestFireDetectHeightGate:
+    """2026-07-17新增：低于FIRE_DETECT_MIN_HEIGHT_M不触发火情检测——真机测试
+    发现起飞/降落阶段下视画面里出现的小红点，其实是无人机自己下视激光测距的
+    反射光点，不是真实火源(之前误以为是"灯罩"本身)。近地时这个激光点在HSV/
+    形状上跟真实火源难以区分，加高度门槛避免起飞/降落阶段被自己的激光误触发。"""
+
+    def test_detection_below_height_threshold_does_not_trigger(self, tmp_path):
+        m = _make_mission(tmp_path)
+        m.fire_vision = _FakeFireVision(dx_px=50.0, dy_px=30.0)
+        m.navigate(pos=[0.0, 0.0, 0.5], yaw=0.0)  # 0.5m < FIRE_DETECT_MIN_HEIGHT_M(1.0m)
+        assert m.nav_mode == "PATROL"
+        assert m.fire_triggered is False
+
+    def test_detection_above_height_threshold_triggers(self, tmp_path):
+        m = _make_mission(tmp_path)
+        m.fire_vision = _FakeFireVision(dx_px=50.0, dy_px=30.0)
+        m.navigate(pos=[0.0, 0.0, 1.5], yaw=0.0)  # 1.5m >= FIRE_DETECT_MIN_HEIGHT_M
+        assert m.nav_mode == "APPROACH"
+        assert m.fire_triggered is True
+
+    def test_detection_exactly_at_threshold_triggers(self, tmp_path):
+        """边界值本身应该算达标(>=不是>)，不多留隐藏的0.01m盲区。"""
+        from Mission_GPT import FIRE_DETECT_MIN_HEIGHT_M
+        m = _make_mission(tmp_path)
+        m.fire_vision = _FakeFireVision(dx_px=50.0, dy_px=30.0)
+        m.navigate(pos=[0.0, 0.0, FIRE_DETECT_MIN_HEIGHT_M], yaw=0.0)
+        assert m.nav_mode == "APPROACH"
+
+
 class TestApproachSignConvention:
     """回归测试：下视摄像头物理安装确认(2026-07-16用户确认)画面上边=+y、右边=+x
     (无镜像)。据此推导：dx_px>0(目标偏右)对应目标在+x方向，vx应与dx_px同号；
