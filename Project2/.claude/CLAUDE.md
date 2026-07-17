@@ -172,7 +172,7 @@ cd drone_control/original && python main.py
 ## 远程设备操作规范（SSH 到板载设备）
 
 ### 主机别名
-- `ubuntu-pi`（root@192.168.137.125）：当前飞控载体，`~/Desktop/FJJ/` 下部署 `original/`（全功能版）+ `basic/`（精简版，从本机 `drone_control/basic/` 移植），已建独立 git 仓库用于回退
+- `ubuntu-pi`（root@DHCP动态IP，**不要在文档里硬编码具体IP**——这台板子的局域网IP经常变(2026-07-17一天内至少变了3次：.125→.244→.214)，实际IP以`~/.ssh/config`里`ubuntu-pi`这个Host别名当前配置为准，别名失效时先问用户要新IP再更新config，不要凭旧文档记录的IP直接连）：当前飞控载体，`~/Desktop/FJJ/` 下部署 `original/`（全功能版）+ `basic/`（精简版，从本机 `drone_control/basic/` 移植），已建独立 git 仓库用于回退
 - `orangepi`（orangepi@192.168.137.126）：角色待定，目前离线
 
 ### 文件修改范围
