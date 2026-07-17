@@ -113,15 +113,18 @@ class TestDetectFire:
         result = detect_fire(frame)
         assert result is not None
 
-    def test_occluded_fragment_shape_rejected_at_raised_threshold(self):
+    def test_occluded_fragment_shape_now_accepted_after_circularity_lowered(self):
         """2026-07-17真机测试：下视摄像头视场里的固定遮挡物(疑似脚架腿，已挪开)
-        把一块红色矩形地标切成两个连通域，完整矩形圆度0.326被正确挡住，但被
-        切碎后较小的那块碎片圆度0.639混过了当时0.5的阈值，触发误判。这里用
-        200x80矩形(圆度约0.64，跟实测碎片同量级)回归验证：阈值提到0.7后这类
-        "不规则但圆度介于0.5~0.7之间"的碎片应该被拒绝。"""
+        把一块红色矩形地标切成两个连通域，碎片圆度0.639曾混过0.5的阈值触发
+        误判，当时把MIN_CIRCULARITY提到0.7挡住了它。但同一天晚些时候的短程
+        近距离复测发现，真实火源近距离下圆度只有0.535~0.654，跟这块碎片的
+        圆度区间直接重叠——圆度已经不能同时满足"识别真实火源"和"挡住这块
+        碎片"，用户明确要求优先保证识别，阈值降回0.45。这里的200x80矩形
+        (圆度约0.64)现在会被判定为疑似火源，不再是"防误判"用例，防线改为
+        依赖"遮挡物已从现场物理挪开"这个根本修复，见known_issues.md。"""
         frame = _blank_frame()
         _draw_rect_bgr(frame, (0, 0, 255), cx=960, cy=540, half_w=100, half_h=40)  # 200x80，圆度约0.64
-        assert detect_fire(frame) is None
+        assert detect_fire(frame) is not None
 
 
 class TestSmoothedFireDetector:
