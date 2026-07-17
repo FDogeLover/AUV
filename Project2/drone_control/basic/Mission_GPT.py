@@ -321,15 +321,16 @@ class mission:
                 fc_yaw_deg = self.re_fc[3] / 100.0 if len(self.re_fc) > 3 else 0.0
             if self._log_file:
                 try:
-                    self._log_file.write(json.dumps({
-                        "t": round(time.time(), 3),
-                        "state": "TAKEOFF",
-                        "t265_yaw_deg": round(math.degrees(yaw), 2),
-                        "fc_yaw_deg": round(fc_yaw_deg, 2),
-                        "vyaw": vyaw,
-                        "laser_cm": round(laser_cm, 1),
-                    }) + "\n")
-                    self._log_file.flush()
+                    with self._log_lock:
+                        self._log_file.write(json.dumps({
+                            "t": round(time.time(), 3),
+                            "state": "TAKEOFF",
+                            "t265_yaw_deg": round(math.degrees(yaw), 2),
+                            "fc_yaw_deg": round(fc_yaw_deg, 2),
+                            "vyaw": vyaw,
+                            "laser_cm": round(laser_cm, 1),
+                        }) + "\n")
+                        self._log_file.flush()
                 except Exception:
                     pass
 

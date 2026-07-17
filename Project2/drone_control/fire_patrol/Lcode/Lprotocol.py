@@ -43,7 +43,7 @@ class Serial_fc(object):
     def listen_fc(self, rxbuffer: List[int]):
         """接收下行帧: AA | frame_id | len | DATA[len] | checksum | 0xFF
         frame_id=0x01 飞行关键帧(24B, 50Hz): mission_stage/rol/pit/yaw/fusion_state/unlock_sta/x_int/y_int/laser/of1_dx/of1_dy/of_quality/of_link_sta/of_work_sta
-        frame_id=0x02 调试扩展帧(19B, 2Hz):  fc_vel_xyz / of_acc_xyz / of_gyr_xyz
+        frame_id=0x02 调试扩展帧(19B, 2Hz):  fc_vel_xyz / of_acc_xyz / of_gyr_xyz / motor_pwm_mask
         """
         while self.fclisten_running:
             try:
@@ -126,6 +126,9 @@ class Serial_fc(object):
                     # 2026-07-10新增：记录帧2到达时刻，用于跟unlock_sta翻转时间对比，
                     # 核实motor_pwm_mask是不是滞后的旧快照(问题22追加分析：帧2降频约
                     # 2.5秒才更新一次，land()读到的可能是过期数据)
+                    # 2026-07-12新增：bit4=纯超时兜底是否已放弃自动锁定(高度仍偏高)，
+                    # 复用同一字节的空闲位，不扩展帧长度
+                    land_timeout_gaveup = bool(motor_pwm_mask & 0x10)
                     with lock:
                         self.debug_data = {
                             "fc_vel": (fc_vel_x, fc_vel_y, fc_vel_z),
@@ -133,6 +136,7 @@ class Serial_fc(object):
                             "of_gyr": (of_gyr_x, of_gyr_y, of_gyr_z),
                             "motor_pwm_mask": motor_pwm_mask,
                             "motor_pwm_mask_t": time.time(),
+                            "land_timeout_gaveup": land_timeout_gaveup,
                         }
 
     def _send_t265_loop(self, t265_obj, freq):

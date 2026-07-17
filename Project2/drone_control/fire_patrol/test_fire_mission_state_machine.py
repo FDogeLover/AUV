@@ -39,6 +39,9 @@ class _FakeRealsense:
     def get_velocity(self):
         return self._velocity
 
+    def get_raw_imu(self):
+        return (0.0, 0.0, 9.8, 0.0, 0.0, 0.0)
+
     def is_running(self):
         return self._running
 

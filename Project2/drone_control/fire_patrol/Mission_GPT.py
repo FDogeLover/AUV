@@ -16,6 +16,7 @@ from typing import List, Optional
 from Lcode.Lpid import PID
 from Lcode.Logger import logger
 from Lcode.global_variable import sp_side, lock, fc_last_rx_time
+from Lcode.resource_monitor import ResourceMonitor
 from t265 import t265_class
 
 # ---------- 常量 ----------
@@ -166,6 +167,8 @@ class mission:
         self._last_detect_log_time = 0.0  # 独立节流时间戳，避免跟主日志块共用_last_log_time
                                             # 导致两个日志块互相抢节流窗口、采样率减半
         self._last_miss_snapshot_time = 0.0  # PATROL"检测不到"存图节流时间戳
+        self._log_lock = threading.Lock()
+        self._resource_monitor = ResourceMonitor()
 
         # yaw方向测试(问题16)
         self._yaw_burst_done = False
@@ -244,10 +247,13 @@ class mission:
         try:
             path = os.path.dirname(os.path.realpath(sys.argv[0]))
             self._log_file = open(path + "/flight_data.jsonl", "a")
-            self._log_file.write(json.dumps({"event": "task_start"}) + "\n")
-            self._log_file.flush()
+            with self._log_lock:
+                self._log_file.write(json.dumps({"event": "task_start"}) + "\n")
+                self._log_file.flush()
         except Exception:
             pass
+
+        self._resource_monitor.start(self._log_file, self._log_lock)
 
         threading.Thread(target=self.loop, daemon=True).start()
 
@@ -363,15 +369,16 @@ class mission:
                 fc_yaw_deg = self.re_fc[3] / 100.0 if len(self.re_fc) > 3 else 0.0
             if self._log_file:
                 try:
-                    self._log_file.write(json.dumps({
-                        "t": round(time.time(), 3),
-                        "state": "TAKEOFF",
-                        "t265_yaw_deg": round(math.degrees(yaw), 2),
-                        "fc_yaw_deg": round(fc_yaw_deg, 2),
-                        "vyaw": vyaw,
-                        "laser_cm": round(laser_cm, 1),
-                    }) + "\n")
-                    self._log_file.flush()
+                    with self._log_lock:
+                        self._log_file.write(json.dumps({
+                            "t": round(time.time(), 3),
+                            "state": "TAKEOFF",
+                            "t265_yaw_deg": round(math.degrees(yaw), 2),
+                            "fc_yaw_deg": round(fc_yaw_deg, 2),
+                            "vyaw": vyaw,
+                            "laser_cm": round(laser_cm, 1),
+                        }) + "\n")
+                        self._log_file.flush()
                 except Exception:
                     pass
 
@@ -414,16 +421,17 @@ class mission:
             # 节流写法跟navigate()其它日志块一致(FLIGHT_LOG_INTERVAL)。
             if self._log_file and now - self._last_detect_log_time >= FLIGHT_LOG_INTERVAL:
                 try:
-                    self._log_file.write(json.dumps({
-                        "t": round(now, 3),
-                        "state": "PATROL_DETECT",
-                        "target_idx": self.target_index,
-                        "pos": [round(pos[0], 4), round(pos[1], 4), round(pos[2], 4)],
-                        "dx_px": latest.get("dx_px"),
-                        "dy_px": latest.get("dy_px"),
-                        "detect_t": latest.get("t"),
-                    }) + "\n")
-                    self._log_file.flush()
+                    with self._log_lock:
+                        self._log_file.write(json.dumps({
+                            "t": round(now, 3),
+                            "state": "PATROL_DETECT",
+                            "target_idx": self.target_index,
+                            "pos": [round(pos[0], 4), round(pos[1], 4), round(pos[2], 4)],
+                            "dx_px": latest.get("dx_px"),
+                            "dy_px": latest.get("dy_px"),
+                            "detect_t": latest.get("t"),
+                        }) + "\n")
+                        self._log_file.flush()
                 except Exception:
                     pass
                 self._last_detect_log_time = now
@@ -458,18 +466,19 @@ class mission:
             now = time.time()
             if self._log_file and now - self._last_log_time >= FLIGHT_LOG_INTERVAL:
                 try:
-                    self._log_file.write(json.dumps({
-                        "t": round(now, 3),
-                        "state": self.state,
-                        "target_idx": self.target_index,
-                        "pos": [round(pos[0], 4), round(pos[1], 4), round(pos[2], 4)],
-                        "target": [round(target[0], 4), round(target[1], 4), round(target[2], 4)],
-                        "vx": 0, "vy": 0, "vyaw": 0,
-                        "t265_yaw_deg": round(math.degrees(yaw), 2),
-                        "height_setpoint_cm": round(self._ramp_z_cm, 1),
-                        "t265_confidence_lost": True,
-                    }) + "\n")
-                    self._log_file.flush()
+                    with self._log_lock:
+                        self._log_file.write(json.dumps({
+                            "t": round(now, 3),
+                            "state": self.state,
+                            "target_idx": self.target_index,
+                            "pos": [round(pos[0], 4), round(pos[1], 4), round(pos[2], 4)],
+                            "target": [round(target[0], 4), round(target[1], 4), round(target[2], 4)],
+                            "vx": 0, "vy": 0, "vyaw": 0,
+                            "t265_yaw_deg": round(math.degrees(yaw), 2),
+                            "height_setpoint_cm": round(self._ramp_z_cm, 1),
+                            "t265_confidence_lost": True,
+                        }) + "\n")
+                        self._log_file.flush()
                 except Exception:
                     pass
                 self._last_log_time = now
@@ -574,22 +583,23 @@ class mission:
         now = time.time()
         if self._log_file and now - self._last_log_time >= FLIGHT_LOG_INTERVAL:
             try:
-                self._log_file.write(json.dumps({
-                    "t": round(now, 3),
-                    "state": self.state,
-                    "target_idx": self.target_index,
-                    "pos": [round(pos[0], 4), round(pos[1], 4), round(pos[2], 4)],
-                    "target": [round(target[0], 4), round(target[1], 4), round(target[2], 4)],
-                    "vx": vx, "vy": vy, "vyaw": vyaw,
-                    "t265_yaw_deg": round(math.degrees(yaw), 2),
-                    "fc_yaw_deg": round(fc_yaw_deg, 2),
-                    "t265_vel": [round(tv[0], 4), round(tv[1], 4)],
-                    "of1_vel_cms": [of1_dx, of1_dy],
-                    "roll_pitch": [round(roll_deg, 2), round(pitch_deg, 2)],
-                    "height_setpoint_cm": round(self._ramp_z_cm, 1),
-                    "of_status": [of_quality, of_link_sta, of_work_sta],
-                }) + "\n")
-                self._log_file.flush()
+                with self._log_lock:
+                    self._log_file.write(json.dumps({
+                        "t": round(now, 3),
+                        "state": self.state,
+                        "target_idx": self.target_index,
+                        "pos": [round(pos[0], 4), round(pos[1], 4), round(pos[2], 4)],
+                        "target": [round(target[0], 4), round(target[1], 4), round(target[2], 4)],
+                        "vx": vx, "vy": vy, "vyaw": vyaw,
+                        "t265_yaw_deg": round(math.degrees(yaw), 2),
+                        "fc_yaw_deg": round(fc_yaw_deg, 2),
+                        "t265_vel": [round(tv[0], 4), round(tv[1], 4)],
+                        "of1_vel_cms": [of1_dx, of1_dy],
+                        "roll_pitch": [round(roll_deg, 2), round(pitch_deg, 2)],
+                        "height_setpoint_cm": round(self._ramp_z_cm, 1),
+                        "of_status": [of_quality, of_link_sta, of_work_sta],
+                    }) + "\n")
+                    self._log_file.flush()
             except Exception:
                 pass
             self._last_log_time = now
@@ -730,17 +740,18 @@ class mission:
         now = time.time()
         if self._log_file and now - self._last_detect_log_time >= FLIGHT_LOG_INTERVAL:
             try:
-                self._log_file.write(json.dumps({
-                    "t": round(now, 3),
-                    "state": "APPROACH",
-                    "pos": [round(pos[0], 4), round(pos[1], 4), round(pos[2], 4)],
-                    "dx_px": dx_px,
-                    "dy_px": dy_px,
-                    "vx": int(vx),
-                    "vy": int(vy),
-                    "centered": centered,
-                }) + "\n")
-                self._log_file.flush()
+                with self._log_lock:
+                    self._log_file.write(json.dumps({
+                        "t": round(now, 3),
+                        "state": "APPROACH",
+                        "pos": [round(pos[0], 4), round(pos[1], 4), round(pos[2], 4)],
+                        "dx_px": dx_px,
+                        "dy_px": dy_px,
+                        "vx": int(vx),
+                        "vy": int(vy),
+                        "centered": centered,
+                    }) + "\n")
+                    self._log_file.flush()
             except Exception:
                 pass
             self._last_detect_log_time = now
@@ -863,6 +874,7 @@ class mission:
         # loop()调用时传入的旧值，那个值在整个等待期间不会更新)。
         t_start = time.time()
         unlock_confirm_count = 0
+        gaveup_logged = False
         while True:
             self.set_speed(0, 0, 0, int(self._ramp_z_cm))
 
@@ -871,10 +883,13 @@ class mission:
                     land_pos = list(self.realsense.get_position())
                     land_yaw = self.realsense.get_orientation()[2]
                     land_tv = self.realsense.get_velocity()
+                    land_raw_imu = list(self.realsense.get_raw_imu())
                 except Exception:
                     land_pos, land_yaw, land_tv = [0.0, 0.0, 0.0], 0.0, (0.0, 0.0, 0.0)
+                    land_raw_imu = [0.0] * 6
             else:
                 land_pos, land_yaw, land_tv = [0.0, 0.0, 0.0], 0.0, (0.0, 0.0, 0.0)
+                land_raw_imu = [0.0] * 6
 
             # 激光高度覆盖Z：跟 loop()/takeoff() 一样，T265自身Z轴未标定不是真实高度，
             # 这里如果继续用原始T265 Z，降落阶段记录的"高度"会是假数据，没法验证物理降落过程。
@@ -895,20 +910,34 @@ class mission:
                     motor_pwm_mask = self.serial_fc_ref.debug_data.get("motor_pwm_mask")
                     motor_pwm_mask_t = self.serial_fc_ref.debug_data.get("motor_pwm_mask_t")
 
+            # 2026-07-12新增：固件纯超时兜底(10秒)判定高度仍偏高时会放弃自动锁桨，
+            # 转为永久等待人工接管(问题7/9严重安全隐患修复)。land()要能感知这个状态，
+            # 否则Python自己的LAND_CONFIRM_TIMEOUT_S超时会先关串口退出，切断固件
+            # 悬停所需的T265速度参考，跟固件"等人工介入"的设计意图冲突。
+            land_timeout_gaveup = None
+            if self.serial_fc_ref is not None:
+                with lock:
+                    land_timeout_gaveup = self.serial_fc_ref.debug_data.get("land_timeout_gaveup")
+            if land_timeout_gaveup and not gaveup_logged:
+                logger.warning("降落纯超时兜底判定高度仍偏高，已放弃自动锁桨，需要人工介入")
+                gaveup_logged = True
+
             now = time.time()
             if self._log_file and now - self._last_log_time >= FLIGHT_LOG_INTERVAL:
                 try:
-                    self._log_file.write(json.dumps({
-                        "t": round(now, 3),
-                        "state": self.state,
-                        "pos": [round(land_pos[0], 4), round(land_pos[1], 4), round(land_pos[2], 4)],
-                        "t265_yaw_deg": round(math.degrees(land_yaw), 2),
-                        "t265_vel": [round(land_tv[0], 4), round(land_tv[1], 4)],
-                        "unlock_sta": unlock_sta,
-                        "motor_pwm_mask": motor_pwm_mask,
-                        "motor_pwm_mask_t": motor_pwm_mask_t,
-                    }) + "\n")
-                    self._log_file.flush()
+                    with self._log_lock:
+                        self._log_file.write(json.dumps({
+                            "t": round(now, 3),
+                            "state": self.state,
+                            "pos": [round(land_pos[0], 4), round(land_pos[1], 4), round(land_pos[2], 4)],
+                            "t265_yaw_deg": round(math.degrees(land_yaw), 2),
+                            "t265_vel": [round(land_tv[0], 4), round(land_tv[1], 4)],
+                            "raw_imu": [round(v, 4) for v in land_raw_imu],
+                            "unlock_sta": unlock_sta,
+                            "motor_pwm_mask": motor_pwm_mask,
+                            "motor_pwm_mask_t": motor_pwm_mask_t,
+                        }) + "\n")
+                        self._log_file.flush()
                 except Exception:
                     pass
                 self._last_log_time = now
@@ -926,7 +955,7 @@ class mission:
                     break
             else:
                 unlock_confirm_count = 0
-            if time.time() - t_start >= LAND_CONFIRM_TIMEOUT_S:
+            if not gaveup_logged and time.time() - t_start >= LAND_CONFIRM_TIMEOUT_S:
                 logger.warning("降落确认超时，强制退出")
                 break
             time.sleep(0.03)
@@ -936,16 +965,21 @@ class mission:
     # ================= 停止 =================
     def stop_all(self):
         logger.info("任务结束")
-        try:
-            if self._log_file:
-                self._log_file.close()
-        except Exception:
-            pass
+        # 上锁指令必须最先发出、前面不能有任何阻塞调用——stop_all()由emergency_stop
+        # 路径(飞控串口超时/T265丢失)触发，se_fc是独立50Hz发送线程读取的共享状态，
+        # 越早写入，飞控收到断电/上锁指令就越早。见docs/known_issues.md #22
+        # (电机停转可靠性是全项目最高优先级安全隐患)。
         with lock:
             self.se_fc[3] = sp_side
             self.se_fc[4] = sp_side
             self.se_fc[6] = sp_side
             self.se_fc[7] = 101
+        self._resource_monitor.stop()
+        try:
+            if self._log_file:
+                self._log_file.close()
+        except Exception:
+            pass
         if self.realsense:
             self.realsense.stop()
         self.task_running = False
