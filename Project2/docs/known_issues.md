@@ -379,9 +379,20 @@
 
     **火情检测加高度门槛**：用户现场指出，起飞/降落阶段近地时下视画面里那个"清晰圆形红点"其实是无人机自己下视激光测距模块的反射光点，不是真实"灯罩"——这解释了为什么问题28分析里唯一一次"清晰识别"的样本(圆度0.790)出现在起飞刚离地不久，以及为什么部分近地快照里能看到形态干净的小红点。这个激光点在HSV/形状上跟真实火源难以区分，纯靠图像特征filter不出来。**已修复**：新增`FIRE_DETECT_MIN_HEIGHT_M=1.0`，`navigate()`的PATROL触发分支加了`pos[2] >= FIRE_DETECT_MIN_HEIGHT_M`门槛，低于1m不触发火情检测(不影响检测本身的运行/日志，只影响是否触发APPROACH)。补了3个回归测试(低于/高于/恰好等于阈值)。
 
-    **main.py segfault真正根因定位**：问题30记录的"main.py finally块补fire_vision.stop()"修复方向没错，但不够——`FireVision._loop()`后台线程每30ms轮询一次`self._vision.get_frame()`，`FireVision.stop()`修复前的实现只是把`self._running`置为`False`就立刻调用`self._vision.release()`(`release()`内部会`terminate`底层V4L2采集子进程、关闭管道)，`_loop()`线程可能还在执行`get_frame()`的过程中，对正在被拆卸的底层资源产生并发访问，这才是segfault的真正来源，跟`main.py`本身是否调用`fire_vision.stop()`无关(调用了，但`stop()`自己不安全)。**已修复**：`FireVision.stop()`改成跟`ResourceMonitor.stop()`一样的模式——先`join(timeout=2.0)`确认`_loop()`线程真正退出，确认它不会再碰`self._vision`，才安全调用`release()`。补了验证join行为的单元测试(`test_stop_joins_loop_thread_before_releasing`)。
+    **main.py退出崩溃：`FireVision.stop()`竞态假说已被证伪，真正根因另有其人 — 结论：影响很低，不再继续修**：问题30记录的"main.py finally块补fire_vision.stop()"、本条记录的"FireVision.stop()改成先join再release"，两次修复思路都合理但都没有解决问题——2026-07-17第三次真机测试(已验证高度门槛/起飞爬升顺序等其他修复都生效)同一位置又崩了一次。用`python3 -X faulthandler`在地面`DRONE_DRY_RUN=1`模式复现(不需要真的起飞，启动后发`SIGINT`触发跟真实任务结束一致的退出路径)拿到了准确诊断：
 
-    两处修复板载87/87单元测试通过，均待下次真机测试验证实际效果——尤其是segfault这次是否真的消失，以及高度门槛会不会影响到真实的低空火情场景(赛题目前的巡航高度是1.6m，正常巡逻期间不受影响，主要是起飞/降落窗口期)。
+    ```
+    terminate called without an active exception
+    Fatal Python error: Aborted
+    Thread 0x0000ffffaa39f420 (most recent call first):
+      <no Python frame>
+    ```
+
+    **这不是段错误(SIGSEGV)，是SIGABRT**(C++运行时`std::terminate()`被调用导致`abort()`)，且崩溃线程"没有Python帧"——说明是Python的`threading`模块完全不知道、管不到的纯C++线程，`fire_vision`的竞态假说因此被排除。`t265.py`的`stop()`其实已经是"先join `data_thread`再`pipe.stop()`"的正确模式，但`pyrealsense2`(librealsense)自己内部还有一层C++线程处理T265的USB通信，`pipe.stop()`调用返回不代表这些内部线程立刻彻底清干净——真正的C++对象析构发生在Python解释器退出、垃圾回收`self.pipe`这个对象的那一刻，时机不可控，跟解释器退出时其他模块的终结化顺序交织，很可能是`std::terminate()`的触发点。这跟已知问题1(T265冷启动检测失败)是同一条USB通信链路，本身就有已知的不稳定记录。
+
+    **决策：不再继续修**。这类纯C++运行时崩溃，Python代码层面的`try/except`根本捕获不到(不是Python异常，是进程级`abort()`)，要根治需要深入`librealsense`内部实现，投入产出比低。而且实际影响很小——崩溃只发生在**任务已经完整安全结束之后**(所有航点飞完、正常降落上锁、`stop_all()`/`T265.stop()`都跑完)，不影响飞行安全；串口/摄像头设备崩溃后确认仍是空闲状态，不需要手动清理，下次运行不受影响。唯一代价是每次测试脚本退出时日志尾部会有一段看起来吓人的C++崩溃信息，纯属日志噪音。
+
+    三处修复(高度门槛/起飞爬升顺序/曝光值)板载87/87单元测试通过，2026-07-17第三次真机测试已验证生效；main.py退出崩溃保持现状，不再投入时间。
 
 29. **2026-07-16晚(21:55) 巡航航点改成"掠过式"+修复一个连带的超时误判连跳bug，板载65/65单元测试通过，但尚未真机验证 — 只在ubuntu-pi独立git历史里，本机commit记录当时截止到`653fcbb`时还没有这两笔**：`Mission_GPT.py`的`navigate()`原本对所有航点都用"滑动窗口确认+停留观察"的严格流程；这次改成区分航点类型——只有末尾`PRECISION_TAIL_WAYPOINTS`个精确航点(为`land()`做准备)保留严格流程，中间的弓字形巡航航点(非精确航点)改成"掠过式"：水平位置一进入`CRUISE_XY_THRESH`就立刻`_on_arrival()`切下一个目标，不等滑动窗口、不检查z/速度门槛、不停留观察——设计理由是高度已经由`_step_ramp_z`单独渐进逼近，拿它卡住水平推进只会连带拖慢巡航，跟已知问题26(HOVER_DROP后高度不恢复)无必然关系。
 
