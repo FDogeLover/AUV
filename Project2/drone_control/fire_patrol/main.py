@@ -95,6 +95,21 @@ def main():
         logger.info("用户中断")
         mission1.emergency()
     finally:
+        # 2026-07-17新增：之前这里只关闭了飞控串口，fire_vision的摄像头后台采集
+        # 线程和serial_ground从未被显式停止/关闭——真机测试实测到，正常任务完整
+        # 结束、Python解释器开始退出清理时，仍在跑的摄像头采集线程(牵涉OpenCV/V4L2
+        # 的C层调用)会跟解释器的模块终结化过程竞争，触发segfault。任务已经安全
+        # 降落之后才发生，不影响飞行安全，但会导致进程不能干净退出、下次启动前
+        # 设备句柄状态不确定。
+        try:
+            fire_vision.stop()
+        except Exception as e:
+            logger.error(f"fire_vision.stop() 调用失败: {e}")
+        if serial_ground is not None:
+            try:
+                serial_ground.close()
+            except Exception as e:
+                logger.error(f"serial_ground.close() 调用失败: {e}")
         serial_fc.send_end()
         serial_fc.close()
 
