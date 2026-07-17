@@ -16,6 +16,7 @@ from typing import List, Optional
 from Lcode.Lpid import PID
 from Lcode.Logger import logger
 from Lcode.global_variable import sp_side, lock, fc_last_rx_time
+from Lcode.resource_monitor import ResourceMonitor
 from t265 import t265_class
 
 # ---------- 常量 ----------
@@ -54,6 +55,7 @@ ARRIVAL_CONFIRM_RATIO = 0.6  # 到达确认改用滑动窗口比例制而非严�
                               # 计数器清零重来，2026-07-08矩形路径测试实测达标帧占比只有30-40%，几乎不可能
                               # 连续凑够arrival_confirm_need帧，导致大多数航点靠超时兜底而非真正确认到达
                               # (2026-07-08复测: 0.8比例下仍有部分航点(占比26-34%)无法确认，下调到0.6)
+TAKEOFF_WARN_LED_DURATION_S = 2.0  # 起飞前警示灯常亮时长(秒)，提醒周围人员即将解锁/起飞
 
 # 2026-07-09新增：yaw方向验证专用——问题16事故后yaw修正回路已回退，但符号问题
 # 尚未定位。这里加一个非闭环、短时、固定输出的yaw脉冲测试，绕开PID，直接验证
@@ -117,6 +119,8 @@ class mission:
         # 飞行数据日志
         self._log_file = None
         self._last_log_time = 0.0
+        self._log_lock = threading.Lock()
+        self._resource_monitor = ResourceMonitor()
 
         # yaw方向测试(问题16)
         self._yaw_burst_done = False
@@ -195,10 +199,13 @@ class mission:
         try:
             path = os.path.dirname(os.path.realpath(sys.argv[0]))
             self._log_file = open(path + "/flight_data.jsonl", "a")
-            self._log_file.write(json.dumps({"event": "task_start"}) + "\n")
-            self._log_file.flush()
+            with self._log_lock:
+                self._log_file.write(json.dumps({"event": "task_start"}) + "\n")
+                self._log_file.flush()
         except Exception:
             pass
+
+        self._resource_monitor.start(self._log_file, self._log_lock)
 
         threading.Thread(target=self.loop, daemon=True).start()
 
@@ -254,11 +261,27 @@ class mission:
             time.sleep(0.03)
 
     # ================= 起飞 =================
+    def _blink_warning_led(self):
+        """起飞前红灯常亮TAKEOFF_WARN_LED_DURATION_S秒提醒周围人员，阻塞调用
+        (起飞前的安全等待本来就该是阻塞的，给人反应时间)。GPIO不可用时静默
+        跳过，不阻断起飞流程。"""
+        try:
+            from Lcode.gpio_led import set_rgb_led
+        except Exception as e:
+            logger.error(f"起飞警示灯点亮失败: {e}")
+            return
+        set_rgb_led('R')
+        time.sleep(TAKEOFF_WARN_LED_DURATION_S)
+        set_rgb_led('OFF')
+
     def takeoff(self):
         if DRY_RUN:
             logger.warning("takeoff: DRY_RUN 模式，不发送解锁指令，电机不会转")
         else:
             logger.info("takeoff: started")
+
+        # 起飞前红灯常亮示警，必须在task_sta(解锁指令)写入se_fc之前完成
+        self._blink_warning_led()
 
         target_h_cm = TAKEOFF_LIFTOFF_CM  # 一键起飞只爬升到离地高度，真正目标高度交给 navigate() 闭环爬升
 
@@ -348,18 +371,19 @@ class mission:
             now = time.time()
             if self._log_file and now - self._last_log_time >= FLIGHT_LOG_INTERVAL:
                 try:
-                    self._log_file.write(json.dumps({
-                        "t": round(now, 3),
-                        "state": self.state,
-                        "target_idx": self.target_index,
-                        "pos": [round(pos[0], 4), round(pos[1], 4), round(pos[2], 4)],
-                        "target": [round(target[0], 4), round(target[1], 4), round(target[2], 4)],
-                        "vx": 0, "vy": 0, "vyaw": 0,
-                        "t265_yaw_deg": round(math.degrees(yaw), 2),
-                        "height_setpoint_cm": round(self._ramp_z_cm, 1),
-                        "t265_confidence_lost": True,
-                    }) + "\n")
-                    self._log_file.flush()
+                    with self._log_lock:
+                        self._log_file.write(json.dumps({
+                            "t": round(now, 3),
+                            "state": self.state,
+                            "target_idx": self.target_index,
+                            "pos": [round(pos[0], 4), round(pos[1], 4), round(pos[2], 4)],
+                            "target": [round(target[0], 4), round(target[1], 4), round(target[2], 4)],
+                            "vx": 0, "vy": 0, "vyaw": 0,
+                            "t265_yaw_deg": round(math.degrees(yaw), 2),
+                            "height_setpoint_cm": round(self._ramp_z_cm, 1),
+                            "t265_confidence_lost": True,
+                        }) + "\n")
+                        self._log_file.flush()
                 except Exception:
                     pass
                 self._last_log_time = now
@@ -445,22 +469,23 @@ class mission:
         now = time.time()
         if self._log_file and now - self._last_log_time >= FLIGHT_LOG_INTERVAL:
             try:
-                self._log_file.write(json.dumps({
-                    "t": round(now, 3),
-                    "state": self.state,
-                    "target_idx": self.target_index,
-                    "pos": [round(pos[0], 4), round(pos[1], 4), round(pos[2], 4)],
-                    "target": [round(target[0], 4), round(target[1], 4), round(target[2], 4)],
-                    "vx": vx, "vy": vy, "vyaw": vyaw,
-                    "t265_yaw_deg": round(math.degrees(yaw), 2),
-                    "fc_yaw_deg": round(fc_yaw_deg, 2),
-                    "t265_vel": [round(tv[0], 4), round(tv[1], 4)],
-                    "of1_vel_cms": [of1_dx, of1_dy],
-                    "roll_pitch": [round(roll_deg, 2), round(pitch_deg, 2)],
-                    "height_setpoint_cm": round(self._ramp_z_cm, 1),
-                    "of_status": [of_quality, of_link_sta, of_work_sta],
-                }) + "\n")
-                self._log_file.flush()
+                with self._log_lock:
+                    self._log_file.write(json.dumps({
+                        "t": round(now, 3),
+                        "state": self.state,
+                        "target_idx": self.target_index,
+                        "pos": [round(pos[0], 4), round(pos[1], 4), round(pos[2], 4)],
+                        "target": [round(target[0], 4), round(target[1], 4), round(target[2], 4)],
+                        "vx": vx, "vy": vy, "vyaw": vyaw,
+                        "t265_yaw_deg": round(math.degrees(yaw), 2),
+                        "fc_yaw_deg": round(fc_yaw_deg, 2),
+                        "t265_vel": [round(tv[0], 4), round(tv[1], 4)],
+                        "of1_vel_cms": [of1_dx, of1_dy],
+                        "roll_pitch": [round(roll_deg, 2), round(pitch_deg, 2)],
+                        "height_setpoint_cm": round(self._ramp_z_cm, 1),
+                        "of_status": [of_quality, of_link_sta, of_work_sta],
+                    }) + "\n")
+                    self._log_file.flush()
             except Exception:
                 pass
             self._last_log_time = now
@@ -536,6 +561,7 @@ class mission:
         # loop()调用时传入的旧值，那个值在整个等待期间不会更新)。
         t_start = time.time()
         unlock_confirm_count = 0
+        gaveup_logged = False
         while True:
             self.set_speed(0, 0, 0, int(self._ramp_z_cm))
 
@@ -544,10 +570,13 @@ class mission:
                     land_pos = list(self.realsense.get_position())
                     land_yaw = self.realsense.get_orientation()[2]
                     land_tv = self.realsense.get_velocity()
+                    land_raw_imu = list(self.realsense.get_raw_imu())
                 except Exception:
                     land_pos, land_yaw, land_tv = [0.0, 0.0, 0.0], 0.0, (0.0, 0.0, 0.0)
+                    land_raw_imu = [0.0] * 6
             else:
                 land_pos, land_yaw, land_tv = [0.0, 0.0, 0.0], 0.0, (0.0, 0.0, 0.0)
+                land_raw_imu = [0.0] * 6
 
             # 激光高度覆盖Z：跟 loop()/takeoff() 一样，T265自身Z轴未标定不是真实高度，
             # 这里如果继续用原始T265 Z，降落阶段记录的"高度"会是假数据，没法验证物理降落过程。
@@ -568,20 +597,34 @@ class mission:
                     motor_pwm_mask = self.serial_fc_ref.debug_data.get("motor_pwm_mask")
                     motor_pwm_mask_t = self.serial_fc_ref.debug_data.get("motor_pwm_mask_t")
 
+            # 2026-07-12新增：固件纯超时兜底(10秒)判定高度仍偏高时会放弃自动锁桨，
+            # 转为永久等待人工接管(问题7/9严重安全隐患修复)。land()要能感知这个状态，
+            # 否则Python自己的LAND_CONFIRM_TIMEOUT_S超时会先关串口退出，切断固件
+            # 悬停所需的T265速度参考，跟固件"等人工介入"的设计意图冲突。
+            land_timeout_gaveup = None
+            if self.serial_fc_ref is not None:
+                with lock:
+                    land_timeout_gaveup = self.serial_fc_ref.debug_data.get("land_timeout_gaveup")
+            if land_timeout_gaveup and not gaveup_logged:
+                logger.warning("降落纯超时兜底判定高度仍偏高，已放弃自动锁桨，需要人工介入")
+                gaveup_logged = True
+
             now = time.time()
             if self._log_file and now - self._last_log_time >= FLIGHT_LOG_INTERVAL:
                 try:
-                    self._log_file.write(json.dumps({
-                        "t": round(now, 3),
-                        "state": self.state,
-                        "pos": [round(land_pos[0], 4), round(land_pos[1], 4), round(land_pos[2], 4)],
-                        "t265_yaw_deg": round(math.degrees(land_yaw), 2),
-                        "t265_vel": [round(land_tv[0], 4), round(land_tv[1], 4)],
-                        "unlock_sta": unlock_sta,
-                        "motor_pwm_mask": motor_pwm_mask,
-                        "motor_pwm_mask_t": motor_pwm_mask_t,
-                    }) + "\n")
-                    self._log_file.flush()
+                    with self._log_lock:
+                        self._log_file.write(json.dumps({
+                            "t": round(now, 3),
+                            "state": self.state,
+                            "pos": [round(land_pos[0], 4), round(land_pos[1], 4), round(land_pos[2], 4)],
+                            "t265_yaw_deg": round(math.degrees(land_yaw), 2),
+                            "t265_vel": [round(land_tv[0], 4), round(land_tv[1], 4)],
+                            "raw_imu": [round(v, 4) for v in land_raw_imu],
+                            "unlock_sta": unlock_sta,
+                            "motor_pwm_mask": motor_pwm_mask,
+                            "motor_pwm_mask_t": motor_pwm_mask_t,
+                        }) + "\n")
+                        self._log_file.flush()
                 except Exception:
                     pass
                 self._last_log_time = now
@@ -599,7 +642,7 @@ class mission:
                     break
             else:
                 unlock_confirm_count = 0
-            if time.time() - t_start >= LAND_CONFIRM_TIMEOUT_S:
+            if not gaveup_logged and time.time() - t_start >= LAND_CONFIRM_TIMEOUT_S:
                 logger.warning("降落确认超时，强制退出")
                 break
             time.sleep(0.03)
@@ -609,16 +652,21 @@ class mission:
     # ================= 停止 =================
     def stop_all(self):
         logger.info("任务结束")
-        try:
-            if self._log_file:
-                self._log_file.close()
-        except Exception:
-            pass
+        # 上锁指令必须最先发出、前面不能有任何阻塞调用——stop_all()由emergency_stop
+        # 路径(飞控串口超时/T265丢失)触发，se_fc是独立50Hz发送线程读取的共享状态，
+        # 越早写入，飞控收到断电/上锁指令就越早。见docs/known_issues.md #22
+        # (电机停转可靠性是全项目最高优先级安全隐患)。
         with lock:
             self.se_fc[3] = sp_side
             self.se_fc[4] = sp_side
             self.se_fc[6] = sp_side
             self.se_fc[7] = 101
+        self._resource_monitor.stop()
+        try:
+            if self._log_file:
+                self._log_file.close()
+        except Exception:
+            pass
         if self.realsense:
             self.realsense.stop()
         self.task_running = False

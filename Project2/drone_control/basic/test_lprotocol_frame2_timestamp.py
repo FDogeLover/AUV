@@ -71,3 +71,24 @@ class TestFrame2Timestamp:
         fc.listen_fc(rxbuffer=[0] * 14)
 
         assert fc.debug_data["motor_pwm_mask"] == 0x0F
+
+
+class TestLandTimeoutGaveupBit:
+    def test_bit4_set_parses_as_land_timeout_gaveup_true(self):
+        """motor_pwm_mask字节的bit4=1时，debug_data里land_timeout_gaveup应为True，
+        且不影响原有bit0~3(motor_pwm_mask本身，诊断电机PWM用)的解析。"""
+        # 0x1F = 0b00011111: bit0-3全1(m1~m4非零) + bit4=1(land_timeout_gaveup)
+        fc = _make_serial_fc(_build_frame2(motor_pwm_mask=0x1F))
+
+        fc.listen_fc(rxbuffer=[0] * 14)
+
+        assert fc.debug_data["motor_pwm_mask"] == 0x1F
+        assert fc.debug_data["land_timeout_gaveup"] is True
+
+    def test_bit4_clear_parses_as_land_timeout_gaveup_false(self):
+        """bit4=0时应为False，不是None——跟'字段不存在'(老固件/未收到帧2)要能区分开。"""
+        fc = _make_serial_fc(_build_frame2(motor_pwm_mask=0x0F))  # bit0-3全1，bit4=0
+
+        fc.listen_fc(rxbuffer=[0] * 14)
+
+        assert fc.debug_data["land_timeout_gaveup"] is False

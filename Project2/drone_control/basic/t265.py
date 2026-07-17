@@ -25,6 +25,7 @@ class t265_class:
         self.running = False
         self.pose_data = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
         self.velocity_data = np.array([0.0, 0.0, 0.0])
+        self.raw_imu_data = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])  # ax,ay,az,gx,gy,gz
         self.lock = threading.Lock()
         self.error_count = 0
         self.max_error_count = 10
@@ -67,6 +68,10 @@ class t265_class:
                 self.pipe = rs.pipeline()
                 self.cfg = rs.config()
                 self.cfg.enable_stream(rs.stream.pose, rs.format.any, framerate=200)
+                # 2026-07-10新增：单独订阅加速度计/陀螺仪流，用于问题7降落确认异常的
+                # 独立验证——电机转动的振动特征不依赖凌霄IMU自己上报的任何遥测字段
+                self.cfg.enable_stream(rs.stream.accel)
+                self.cfg.enable_stream(rs.stream.gyro)
                 self.pipe.start(self.cfg)
                 logger.info("T265 启动成功（真实设备）")
             else:
@@ -150,6 +155,20 @@ class t265_class:
                             self.velocity_data[:] = [vx, vy, vz]
                             self.raw_pose_data[:] = [raw_x, raw_y, raw_z]
                             self.raw_velocity_data[:] = [rvx, rvy, rvz]
+
+                    # 2026-07-10新增：加速度计/陀螺仪是独立的帧类型，跟pose帧一起从
+                    # 同一个frameset里取，缺失时保留上一次的值(不强制置零，避免瞬时
+                    # 缺帧导致振动特征分析出现假的"静止"读数)
+                    accel_frame = frames.first_or_default(rs.stream.accel)
+                    gyro_frame = frames.first_or_default(rs.stream.gyro)
+                    if accel_frame:
+                        a = accel_frame.as_motion_frame().get_motion_data()
+                        with self.lock:
+                            self.raw_imu_data[0:3] = [a.x, a.y, a.z]
+                    if gyro_frame:
+                        g = gyro_frame.as_motion_frame().get_motion_data()
+                        with self.lock:
+                            self.raw_imu_data[3:6] = [g.x, g.y, g.z]
                 else:
                     # 模拟模式
                     time.sleep(0.03)
@@ -182,11 +201,20 @@ class t265_class:
                     vz = self.low_pass_filter(rvz, self.prev_velocity_z)
                     self.prev_velocity_x, self.prev_velocity_y, self.prev_velocity_z = vx, vy, vz
 
+                    # 模拟悬停时的振动特征：重力分量(az≈9.8)+小噪声，陀螺仪接近0
+                    sim_ax = np.random.normal(0, 0.05)
+                    sim_ay = np.random.normal(0, 0.05)
+                    sim_az = 9.8 + np.random.normal(0, 0.05)
+                    sim_gx = np.random.normal(0, 0.02)
+                    sim_gy = np.random.normal(0, 0.02)
+                    sim_gz = np.random.normal(0, 0.02)
+
                     with self.lock:
                         self.pose_data[:] = [px, py, pz, roll, pitch, yawerr]
                         self.velocity_data[:] = [vx, vy, vz]
                         self.raw_pose_data[:] = [rx, ry, rz]
                         self.raw_velocity_data[:] = [rvx, rvy, rvz]
+                        self.raw_imu_data[:] = [sim_ax, sim_ay, sim_az, sim_gx, sim_gy, sim_gz]
 
                 self.error_count = 0
             except Exception as e:
@@ -228,6 +256,13 @@ class t265_class:
         """诊断用：低通滤波前的原始速度(T265 SDK直接输出)。不用于飞控闭环。"""
         with self.lock:
             return self.raw_velocity_data.copy()
+
+    def get_raw_imu(self):
+        """返回(ax,ay,az,gx,gy,gz)：T265自带加速度计/陀螺仪原始数据(m/s^2, rad/s)，
+        不经过任何位置/速度融合，独立于凌霄IMU自己上报的任何遥测字段。用于诊断
+        问题7类降落确认异常——电机转动的振动特征应该能在这份数据里独立体现。"""
+        with self.lock:
+            return self.raw_imu_data.copy()
 
     def get_tracking_confidence(self):
         with self.lock:
