@@ -45,6 +45,15 @@ def main():
     logger.info("basic_flight — 基本飞行控制器")
     logger.info("=" * 40)
 
+    # 0. 抛投机构舵机复位到关闭位置(0°)——避免上次测试/飞行遗留在打开状态，
+    # 每次启动前都确保舱门是关的(2026-07-17用户要求)。GPIO不可用(本机开发
+    # 环境/硬件未接)时静默跳过，不阻断启动流程。
+    try:
+        from Lcode.gpio_servo import set_servo_angle, SERVO_ANGLE_CLOSED
+        set_servo_angle(SERVO_ANGLE_CLOSED)
+    except Exception as e:
+        logger.error(f"抛投舵机复位失败: {e}")
+
     # 1. T265
     realsense = t265_class()
 
