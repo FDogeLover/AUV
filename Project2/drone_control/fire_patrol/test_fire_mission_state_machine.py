@@ -187,17 +187,20 @@ class TestResumeAfterHoverDrop:
         m.target_index = 3
         m.maybe_trigger_approach(detection=(50.0, 30.0))  # 保存target_index=3
         m.finish_hover_drop_and_resume()
-        assert m.nav_mode == "PATROL"
+        # 2026-07-17改动：不再直接回到PATROL，先进入RECOVER_HEIGHT原地爬升，
+        # 见TestRecoverHeightBeforeResume。
+        assert m.nav_mode == "RECOVER_HEIGHT"
         assert m.target_index == 3  # 恢复到触发时保存的索引，不重置为0
 
     def test_resume_does_not_immediately_timeout_skip_waypoint(self, tmp_path):
-        """回归测试（问题2）：finish_hover_drop_and_resume()之前，arrival_start_time
-        停留在火情触发前的旧值，APPROACH/CONFIRM_WARN/HOVER_DROP整个过程都不会
-        重置它，导致恢复PATROL后第一个navigate() tick里
-        `time.time() - self.arrival_start_time` 几乎必然超过arrival_timeout_max，
-        触发"航点超时，强制跳过"——target_index会在没有真正到达的情况下自增。
-        修复后finish_hover_drop_and_resume()要重置arrival_start_time等到达检测状态，
-        紧接着调用navigate()（目标点还远，不会立即触发到达）不应该让target_index自增。"""
+        """回归测试（问题2，2026-07-17更新为两阶段版本）：finish_hover_drop_and_resume()
+        之前，arrival_start_time停留在火情触发前的旧值，APPROACH/CONFIRM_WARN/
+        HOVER_DROP整个过程都不会重置它，导致恢复PATROL后第一个navigate() tick里
+        `time.time() - self.arrival_start_time`几乎必然超过arrival_timeout_max，
+        触发"航点超时，强制跳过"。2026-07-17改成两阶段(RECOVER_HEIGHT先原地爬升，
+        爬满才切回PATROL)后，arrival_start_time的重置延后到RECOVER_HEIGHT完成
+        那一刻——这里验证RECOVER_HEIGHT期间本身不受这个旧arrival_start_time影响
+        (它有自己的高度收敛判据，不检查超时)。"""
         m = _make_mission(tmp_path)
         m.target_index = 0  # router.txt idx0目标是[0,0,1.8]
         m.last_target_index = 0
@@ -209,12 +212,71 @@ class TestResumeAfterHoverDrop:
         # 模拟APPROACH -> CONFIRM_WARN -> HOVER_DROP 全程没有触碰arrival_start_time
         m.finish_hover_drop_and_resume()
 
-        assert m.nav_mode == "PATROL"
+        assert m.nav_mode == "RECOVER_HEIGHT"
         idx_before = m.target_index
-        # pos离target[0,0,1.8]故意给3米偏差(超过CRUISE_XY_THRESH)，既不会被"掠过式"
-        # 巡航判定立即通过，也验证不会被"超时强制跳过"逻辑立即自增
-        m.navigate(pos=[3.0, 0.0, 1.8], yaw=0.0)
-        assert m.target_index == idx_before  # 不应该被"超时强制跳过"逻辑立即自增
+        # RECOVER_HEIGHT自己的高度收敛判据不看arrival_start_time，多次调用
+        # 都不应该让target_index自增(还没爬升到位，也没有超时判断)
+        for _ in range(3):
+            m.navigate(pos=[0.0, 0.0, 0.5], yaw=0.0)  # 高度远低于目标1.8m
+        assert m.target_index == idx_before
+        assert m.nav_mode == "RECOVER_HEIGHT"  # 高度没到位，不应该切回PATROL
+
+
+class TestRecoverHeightBeforeResume:
+    """2026-07-17新增：HOVER_DROP抛投完成后，不应该一边巡航一边爬升——先在
+    当前水平位置原地爬升回巡航高度，爬满了才真正恢复PATROL(用户反馈，跟问题31
+    起飞爬升顺序是同一类问题)。"""
+
+    def test_first_tick_locks_current_position_as_target(self, tmp_path):
+        m = _make_mission(tmp_path)
+        m.target_index = 0
+        m.maybe_trigger_approach(detection=(50.0, 30.0))
+        m.finish_hover_drop_and_resume()
+
+        m.navigate(pos=[1.0, 2.0, 0.5], yaw=0.0)
+
+        assert m._recover_hold_pos == (1.0, 2.0)
+
+    def test_stays_in_recover_height_until_target_altitude_reached(self, tmp_path):
+        m = _make_mission(tmp_path)
+        m.target_index = 0  # router.txt idx0目标高度1.8m
+        m.maybe_trigger_approach(detection=(50.0, 30.0))
+        m.finish_hover_drop_and_resume()
+
+        m.navigate(pos=[0.0, 0.0, 1.0], yaw=0.0)  # 高度1.0m，远低于目标1.8m
+
+        assert m.nav_mode == "RECOVER_HEIGHT"
+
+    def test_switches_to_patrol_once_altitude_recovered(self, tmp_path):
+        m = _make_mission(tmp_path)
+        m.target_index = 0  # router.txt idx0目标高度1.8m
+        m.maybe_trigger_approach(detection=(50.0, 30.0))
+        m.finish_hover_drop_and_resume()
+
+        # _ramp_z_cm需要先追到180cm附近，多调用几次navigate()让RAMP_STEP累积
+        for _ in range(200):
+            m.navigate(pos=[0.0, 0.0, 1.8], yaw=0.0)
+            if m.nav_mode == "PATROL":
+                break
+
+        assert m.nav_mode == "PATROL"
+
+    def test_arrival_start_time_is_fresh_when_switching_to_patrol(self, tmp_path):
+        """切回PATROL那一刻才重置到达检测状态，不能提前——否则RECOVER_HEIGHT
+        爬升期间流逝的时间会被计入航点等待时长，导致爬升刚完成就被判定超时。"""
+        m = _make_mission(tmp_path)
+        m.target_index = 0
+        m.arrival_start_time = time.time() - 9999  # 模拟很久以前的旧值
+        m.maybe_trigger_approach(detection=(50.0, 30.0))
+        m.finish_hover_drop_and_resume()
+
+        for _ in range(200):
+            m.navigate(pos=[0.0, 0.0, 1.8], yaw=0.0)
+            if m.nav_mode == "PATROL":
+                break
+
+        assert m.nav_mode == "PATROL"
+        assert time.time() - m.arrival_start_time < 5.0  # 是刚重置的，不是9999秒前的旧值
 
 
 class TestHoverDropClosedLoopHold:

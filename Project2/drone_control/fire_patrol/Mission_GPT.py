@@ -163,6 +163,8 @@ class mission:
         self.serial_ground = None  # main.py 注入 Serial_ground 实例
         self._hover_drop_start_time = None
         self._hover_hold_pos = None  # HOVER_DROP闭环锁定的水平目标点，见_do_hover_drop()
+        self._recover_hold_pos = None  # RECOVER_HEIGHT闭环锁定的水平目标点，见_do_recover_height()
+        self._recover_target_z_cm = None  # RECOVER_HEIGHT要爬升回的目标高度(cm)
 
         # 到达判断
         self._arrival_window = deque(maxlen=arrival_confirm_need)
@@ -423,6 +425,9 @@ class mission:
             return
         if self.nav_mode == "HOVER_DROP":
             self._do_hover_drop(pos)
+            return
+        if self.nav_mode == "RECOVER_HEIGHT":
+            self._do_recover_height(pos)
             return
 
         # PATROL态：持续检查火情检测结果，触发APPROACH
@@ -686,29 +691,33 @@ class mission:
         return time.time() - self._approach_start_time >= APPROACH_TIMEOUT_S
 
     def finish_hover_drop_and_resume(self):
-        """HOVER_DROP完成后恢复PATROL，从保存的target_index继续（不重置为0，
-        不退回触发点），见设计文档"续飞逻辑"。
+        """HOVER_DROP完成后不直接恢复PATROL，先进入RECOVER_HEIGHT原地爬升回
+        巡航高度，见设计文档"续飞逻辑"。
 
-        必须重置到达检测状态（arrival_start_time/_arrival_window/arrival_confirmed_time），
-        否则arrival_start_time还停留在火情触发前的旧值，APPROACH/CONFIRM_WARN/HOVER_DROP
-        整个过程都会被navigate()的超时判断计入"航点等待时长"，恢复PATROL后几乎立刻
-        触发"航点超时，强制跳过"，导致续飞航点被立即跳过。
-        同时把last_target_index同步为恢复后的target_index：navigate()靠
-        target_index != last_target_index判断"是否换了新航点"才会做上述重置，
-        如果这里不同步，之后即使真正换到下一个航点，由于凑巧数值相等也会漏判。"""
+        2026-07-17用户反馈：HOVER_DROP降到10dm抛投后，之前直接恢复PATROL会
+        导致"一边巡航一边爬升"——恢复的目标航点通常离触发点有一段距离，如果
+        是掠过式(非精确)航点，_on_arrival()只看xy不看z就会判定到达并继续
+        推进，爬升还没完成水平就已经在移动，跟问题31(起飞爬升顺序)是同一类
+        问题。改成两阶段：这里先进入RECOVER_HEIGHT，在当前水平位置原地爬升
+        回目标航点的高度，爬满了才真正恢复PATROL(见_do_recover_height())。
+
+        到达检测状态（arrival_start_time/_arrival_window/arrival_confirmed_time）
+        的重置延后到RECOVER_HEIGHT完成、真正恢复PATROL的那一刻才做——如果在这里
+        就重置，RECOVER_HEIGHT爬升期间流逝的时间会被navigate()的超时判断计入
+        "航点等待时长"，可能导致爬升还没完成就被"超时强制跳过"。
+        target_index/last_target_index仍然在这里恢复，因为_do_recover_height()
+        需要用target_index查询要爬升回的目标高度。"""
         self.target_index = self.saved_target_index_before_fire
         self.last_target_index = self.target_index
-        self.nav_mode = "PATROL"
+        self.nav_mode = "RECOVER_HEIGHT"
         self._approach_start_time = None
-        self._arrival_window.clear()
-        self.arrival_confirmed_time = None
-        self.arrival_start_time = time.time()
         # 清空HOVER_DROP闭环锁定期间累积的PID积分项，避免带着旧误差历史进入
-        # 恢复后的巡航航段(navigate()的PATROL分支会在下一tick重新set_target，
-        # 但reset()清掉积分项更干净，不留隐性偏置)
+        # RECOVER_HEIGHT的原地爬升(_do_recover_height()会在第一次调用时重新
+        # set_target，但reset()清掉积分项更干净，不留隐性偏置)
         self.x_pid.reset()
         self.y_pid.reset()
         self._hover_hold_pos = None
+        self._recover_hold_pos = None
 
         # 2026-07-16真机测试发现：警示LED点亮后(_do_confirm_warn里的warn_led())
         # 从没有任何地方关掉，导致降落时灯还亮着——set_rgb_led()是状态型接口，
@@ -876,6 +885,69 @@ class mission:
                 logger.error(f"serial_ground.send_fire() 调用失败: {e}")
         logger.info("HOVER_DROP: 抛投+坐标广播完成，恢复PATROL续飞")
         self.finish_hover_drop_and_resume()
+
+    def _do_recover_height(self, pos):
+        """HOVER_DROP抛投完成后，先在当前水平位置原地爬升回巡航高度，爬满了
+        才真正恢复PATROL——不要一边巡航一边爬升(2026-07-17用户反馈，跟问题31
+        起飞爬升顺序是同一类问题)。水平位置用x_pid/y_pid闭环锁定，模式跟
+        _do_hover_drop()一样。"""
+        if self._recover_hold_pos is None:
+            self._recover_hold_pos = (pos[0], pos[1])
+            self.x_pid.set_target(pos[0])
+            self.y_pid.set_target(pos[1])
+            self.x_pid.reset()
+            self.y_pid.reset()
+            target = self.targets[self.target_index] if self.target_index < len(self.targets) else None
+            self._recover_target_z_cm = target[2] * 100 if target is not None else self._ramp_z_cm
+            logger.info(f"RECOVER_HEIGHT: 锁定水平位置 ({pos[0]:.2f}, {pos[1]:.2f})，"
+                        f"原地爬升回{self._recover_target_z_cm:.0f}cm")
+
+        self._step_ramp_z(self._recover_target_z_cm)
+
+        vx = self.x_pid.get_pid(pos[0]) * 100 * VEL_SCALE
+        vy = self.y_pid.get_pid(pos[1]) * 100 * VEL_SCALE
+        vx = int(self.limit(vx, HOVER_HOLD_MAX_STEP_CMPS))
+        vy = int(self.limit(vy, HOVER_HOLD_MAX_STEP_CMPS))
+        self.set_speed(vx, vy, 0, int(self._ramp_z_cm))
+
+        setpoint_ok = abs(self._ramp_z_cm - self._recover_target_z_cm) <= 2.0
+        measured_ok = abs(pos[2] * 100 - self._recover_target_z_cm) <= 10.0
+
+        now = time.time()
+        if self._log_file and now - self._last_detect_log_time >= FLIGHT_LOG_INTERVAL:
+            try:
+                with self._log_lock:
+                    self._log_file.write(json.dumps({
+                        "t": round(now, 3),
+                        "state": "RECOVER_HEIGHT",
+                        "pos": [round(pos[0], 4), round(pos[1], 4), round(pos[2], 4)],
+                        "recover_hold_pos": list(self._recover_hold_pos) if self._recover_hold_pos else None,
+                        "vx": vx, "vy": vy,
+                        "height_setpoint_cm": round(self._ramp_z_cm, 1),
+                        "recover_target_z_cm": self._recover_target_z_cm,
+                        "setpoint_ok": setpoint_ok,
+                        "measured_ok": measured_ok,
+                    }) + "\n")
+                    self._log_file.flush()
+            except Exception:
+                pass
+            self._last_detect_log_time = now
+
+        if not (setpoint_ok and measured_ok):
+            return  # 还没爬满，继续原地锁定悬停
+
+        logger.info(f"RECOVER_HEIGHT: 已恢复到{self._recover_target_z_cm:.0f}cm，继续PATROL")
+        self.nav_mode = "PATROL"
+        self._recover_hold_pos = None
+        # 到这里才重置到达检测状态，避免RECOVER_HEIGHT期间流逝的时间被计入
+        # 航点等待时长，导致爬升刚完成就被判定超时强制跳过(见
+        # finish_hover_drop_and_resume()的说明)
+        self._arrival_window.clear()
+        self.arrival_confirmed_time = None
+        self.arrival_start_time = time.time()
+        self.last_target_index = self.target_index
+        self.x_pid.reset()
+        self.y_pid.reset()
 
     def _do_yaw_test_burst(self):
         """非闭环yaw方向验证：直接发固定vyaw一小段时间后归零，不经过yaw_pid。
