@@ -165,6 +165,7 @@ cd drone_control/original && python main.py
 | 29 | fire_patrol巡航航点改"掠过式"+超时误判连跳bug修复 | ✅ | 2026-07-17真机验证通过(12航点全程飞完)，同批router.txt旋转90度此前已验证 |
 | 30 | fire_patrol红色矩形地标被固定遮挡物切碎，碎片圆度混过阈值误触发 | 🟡 | 遮挡物已挪开(疑似脚架腿)，MIN_CIRCULARITY 0.5→0.7双重保险，真机验证待下次测试；附带修复main.py退出segfault |
 | 31 | fire_patrol起飞"边爬升边平移"+曝光过曝看不清 | 🟡 | 新增PRECISION_HEAD_WAYPOINTS=1让首航点先爬升再移动；曝光2645→500(近距离测试只能标亮度，圆度阈值仍需真机验证)；均待下次真机验证 |
+| 32 | fire_patrol近地误检测(实为自身激光反光)+main.py segfault根因修正 | 🟡 | 加FIRE_DETECT_MIN_HEIGHT_M=1.0高度门槛；segfault真根因是FireVision.stop()竞态(问题30的修复不完整)，已改成join再release，待下次真机验证 |
 
 ## 远程设备操作规范（SSH 到板载设备）
 
