@@ -86,6 +86,16 @@ class TestDetectFire:
         result = detect_fire(frame)
         assert result is not None
 
+    def test_occluded_fragment_shape_rejected_at_raised_threshold(self):
+        """2026-07-17真机测试：下视摄像头视场里的固定遮挡物(疑似脚架腿，已挪开)
+        把一块红色矩形地标切成两个连通域，完整矩形圆度0.326被正确挡住，但被
+        切碎后较小的那块碎片圆度0.639混过了当时0.5的阈值，触发误判。这里用
+        200x80矩形(圆度约0.64，跟实测碎片同量级)回归验证：阈值提到0.7后这类
+        "不规则但圆度介于0.5~0.7之间"的碎片应该被拒绝。"""
+        frame = _blank_frame()
+        _draw_rect_bgr(frame, (0, 0, 255), cx=960, cy=540, half_w=100, half_h=40)  # 200x80，圆度约0.64
+        assert detect_fire(frame) is None
+
 
 class TestSmoothedFireDetector:
     def test_no_detection_returns_none(self):
