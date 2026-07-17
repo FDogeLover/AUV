@@ -22,8 +22,11 @@ from Lcode.Logger import logger
 PWM_CHIP = 0
 PWM_CHANNEL = 0
 PWM_FREQUENCY_HZ = 50
-SERVO_ANGLE_CLOSED = 0
-SERVO_ANGLE_OPEN = 180
+# 2026-07-17真机测试后用户指出：开机复位到0°会把已装填的沙包提前丢出去——
+# 现场实测确认0°其实是舱门松开(释放)的角度，180°才是夹紧/锁定(不丢)的角度，
+# 跟直觉里"0=关闭"相反，是这套抛投机构舵机的实际安装方向决定的。
+SERVO_ANGLE_CLOSED = 180
+SERVO_ANGLE_OPEN = 0
 
 _PWM_BASE = f"/sys/class/pwm/pwmchip{PWM_CHIP}"
 _PWM_PATH = f"{_PWM_BASE}/pwm{PWM_CHANNEL}"
