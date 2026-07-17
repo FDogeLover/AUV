@@ -57,7 +57,11 @@ def start_position_heartbeat(serial_ground: Serial_ground, get_position_cm, hz: 
     def _loop():
         while True:
             x_cm, y_cm = get_position_cm()
-            serial_ground.send_position(x_cm, y_cm)
+            try:
+                serial_ground.send_position(x_cm, y_cm)
+            except serial.SerialException as e:
+                logger.error(f"地面站心跳位置帧发送失败，心跳线程退出: {e}")
+                break
             time.sleep(interval)
 
     t = threading.Thread(target=_loop, daemon=True)

@@ -293,6 +293,50 @@ class TestApproachSignConvention:
         assert vy_sent > 0
 
 
+class _FakeFireVisionStale:
+    """latest()始终返回同一份固定时间戳的旧数据，模拟视觉线程卡死后
+    get_frame()返回冻结帧的场景(不随每次调用推进t)。"""
+    def __init__(self, dx_px, dy_px, t):
+        self._latest = {"dx_px": dx_px, "dy_px": dy_px, "t": t}
+
+    def latest(self):
+        return dict(self._latest)
+
+
+class TestApproachStalenessGuard:
+    """2026-07-17新增：PATROL分支触发APPROACH前会检查latest()新鲜度
+    (FIRE_VISION_STALE_S)，但_do_approach()本身伺服修正之前没做同样检查——
+    如果视觉线程卡死、latest()一直返回同一份冻结坐标，_do_approach()会
+    持续伺服到不再代表真实目标位置的点上。修复后应该跟"没有检测"一样处理：
+    悬停等待(vx=vy=0)，不主动修正。"""
+
+    def test_stale_detection_does_not_produce_corrective_speed(self, tmp_path):
+        from Mission_GPT import FIRE_VISION_STALE_S
+        m = _make_mission(tmp_path)
+        m.nav_mode = "APPROACH"
+        # t设成远早于FIRE_VISION_STALE_S的过去时刻，模拟冻结的旧检测
+        stale_t = time.time() - FIRE_VISION_STALE_S - 1.0
+        m.fire_vision = _FakeFireVisionStale(dx_px=500, dy_px=0, t=stale_t)
+
+        m.navigate(pos=[0.0, 0.0, 1.8], yaw=0.0)
+
+        vx_sent = m.se_fc[3] - sp_side
+        vy_sent = m.se_fc[4] - sp_side
+        assert vx_sent == 0
+        assert vy_sent == 0
+
+    def test_fresh_detection_still_produces_corrective_speed(self, tmp_path):
+        """回归守卫：新鲜检测不应该被这次改动误伤。"""
+        m = _make_mission(tmp_path)
+        m.nav_mode = "APPROACH"
+        m.fire_vision = _FakeFireVisionStale(dx_px=500, dy_px=0, t=time.time())
+
+        m.navigate(pos=[0.0, 0.0, 1.8], yaw=0.0)
+
+        vx_sent = m.se_fc[3] - sp_side
+        assert vx_sent > 0
+
+
 class TestWarnLedTurnsOffOnResume:
     """回归测试：2026-07-16真机测试发现警示LED点亮后一直没关，降落时还亮着——
     set_rgb_led()点亮后不会自动熄灭，finish_hover_drop_and_resume()必须显式关掉。"""

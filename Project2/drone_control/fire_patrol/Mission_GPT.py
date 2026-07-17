@@ -711,6 +711,13 @@ class mission:
             return
         latest = self.fire_vision.latest()
         dx_px, dy_px = latest.get("dx_px"), latest.get("dy_px")
+        # 2026-07-17新增：PATROL分支触发APPROACH前会检查latest()新鲜度
+        # (FIRE_VISION_STALE_S)，但APPROACH阶段本身的伺服修正之前没有做同样的
+        # 检查——如果视觉线程卡死，latest()可能一直返回同一份冻结的旧坐标，
+        # _do_approach()会持续伺服到这个不再代表真实目标位置的点上。跟dx_px为
+        # None时一样按"没有检测"处理(悬停等待，不主动修正)。
+        if dx_px is not None and time.time() - latest.get("t", 0) >= FIRE_VISION_STALE_S:
+            dx_px, dy_px = None, None
         vx, vy = 0, 0
         centered = False
 
