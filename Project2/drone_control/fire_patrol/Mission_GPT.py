@@ -32,6 +32,13 @@ posthreshold_z = 0.20
 CRUISE_XY_THRESH = 0.4
 CRUISE_Z_THRESH = 0.4
 PRECISION_TAIL_WAYPOINTS = 2  # 航点列表最后N个视为"精确降落准备"航点，不放宽
+PRECISION_HEAD_WAYPOINTS = 1  # 2026-07-17新增：航点列表最前N个也视为精确航点，不能掠过。
+                                # 起飞后第一个航点(原点,目标高度)本意是"先原地爬升到巡航
+                                # 高度，再开始水平移动"，但"掠过式"逻辑只看xy不看z——起点
+                                # 本来xy就已经达标(还没开始移动)，会在高度还只有起飞离地
+                                # 高度(TAKEOFF_LIFTOFF_CM)时就被判定"到达"并立刻推进到下一个
+                                # 航点，导致爬升和水平移动同时发生，而不是先爬升再移动。
+                                # 2026-07-17真机测试实测到这个现象(边爬升边往-y飞)。
 arrival_confirm_need = 15
 arrival_hold_s = 1.5   # 到达判定满足后，在原地强制停留观察的时长（阶跃响应测试用）
 # 2026-07-16真机测试实测：basic继承来的"5.0+arrival_hold_s"=6.5s是按basic那边
@@ -509,7 +516,10 @@ class mission:
 
         # 到达检测
         if self.t265_ok and self.realsense:
-            is_precision_waypoint = self.target_index >= len(self.targets) - PRECISION_TAIL_WAYPOINTS
+            is_precision_waypoint = (
+                self.target_index < PRECISION_HEAD_WAYPOINTS
+                or self.target_index >= len(self.targets) - PRECISION_TAIL_WAYPOINTS
+            )
             if is_precision_waypoint:
                 xy_thresh = 0.10 if confidence >= 3 else (posthreshold_xy if confidence == 2 else 0.30)
                 z_thresh = posthreshold_z
@@ -537,8 +547,9 @@ class mission:
                 self.y_pid.reset()
 
             if is_precision_waypoint:
-                # 精确航点(最后PRECISION_TAIL_WAYPOINTS个，为land()做准备)：维持原有
-                # 滑动窗口确认+停留观察的严格流程，不能掠过。
+                # 精确航点(最前PRECISION_HEAD_WAYPOINTS个，起飞后原地爬升到巡航高度；
+                # 最后PRECISION_TAIL_WAYPOINTS个，为land()做准备)：维持原有滑动窗口
+                # 确认+停留观察的严格流程，不能掠过。
                 frame_ok = dx < xy_thresh and dy < xy_thresh and dz < z_thresh and speed < ARRIVAL_VEL_THRESH
                 self._arrival_window.append(frame_ok)
 
