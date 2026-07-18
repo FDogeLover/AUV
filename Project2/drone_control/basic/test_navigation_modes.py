@@ -149,7 +149,6 @@ def test_emergency_disarms_heading_hold_and_clears_yaw():
 def test_takeoff_latches_current_heading_before_unlock(monkeypatch):
     m = _make_mission()
     m.realsense.yaw = math.radians(12.0)
-    monkeypatch.setattr(m, "_blink_warning_led", lambda: None)
     monkeypatch.setattr(mg, "TAKEOFF_TIMEOUT_S", 0.0)
     monkeypatch.setattr(mg, "DRY_RUN", True)
     m.takeoff()
