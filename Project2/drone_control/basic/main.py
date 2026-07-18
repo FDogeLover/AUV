@@ -18,7 +18,7 @@
 """
 import os
 import time
-from Lcode.global_variable import sp_side, lock
+from Lcode.global_variable import sp_side
 import Lcode.Lprotocol
 from Lcode.Logger import logger
 from Mission_GPT import mission
@@ -52,17 +52,17 @@ def main():
     # 3. 创建任务
     mission1 = mission(re_fc, se_fc, realsense, serial_fc)
 
-    # 4. 启动
-    mission1.start()
-
-    # 5. 保持（任务自然结束或 Ctrl+C 都会退出）
+    # 4. 启动并保持（start 内会绿灯等待一键起飞按钮）
     try:
+        mission1.start()
         while mission1.task_running:
             time.sleep(0.1)
         logger.info("任务已结束，程序退出")
     except KeyboardInterrupt:
         logger.info("用户中断")
         mission1.emergency()
+        if not mission1.task_running:
+            mission1.stop_all()
     finally:
         serial_fc.send_end()
         serial_fc.close()

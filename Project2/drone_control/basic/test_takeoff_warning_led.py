@@ -24,16 +24,20 @@ class TestTakeoffWarningLed:
 
     def test_lights_red_then_off(self, tmp_path, monkeypatch):
         calls = []
-        monkeypatch.setattr("Lcode.gpio_led.set_rgb_led", lambda color: calls.append(color))
+        monkeypatch.setattr(
+            "Lcode.gpio_led.set_rgb_led",
+            lambda color: calls.append(color) or True,
+        )
         monkeypatch.setattr("Mission_GPT.time.sleep", lambda s: None)  # 跳过真实sleep，测试不用等2秒
 
         m = _make_mission(tmp_path)
-        m._blink_warning_led()
+        assert m._blink_warning_led() is True
 
         assert calls == ['R', 'OFF']
 
     def test_gpio_unavailable_does_not_raise(self, tmp_path, monkeypatch):
-        """gpio_led模块导入失败(比如本机开发环境)时应该静默跳过，不阻断起飞流程。"""
+        """gpio_led不可用时返回失败，让一键起飞门禁阻断起飞。"""
+        monkeypatch.setattr("Lcode.gpio_led.set_rgb_led", lambda color: False)
         monkeypatch.setattr("Mission_GPT.time.sleep", lambda s: None)
         m = _make_mission(tmp_path)
-        m._blink_warning_led()  # 不应该抛异常(本机就是走这条路径，Lcode.gpio_led本身已优雅降级)
+        assert m._blink_warning_led() is False

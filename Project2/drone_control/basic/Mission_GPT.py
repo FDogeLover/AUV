@@ -58,6 +58,7 @@ ARRIVAL_CONFIRM_RATIO = 0.6  # 到达确认改用滑动窗口比例制而非严�
                               # 连续凑够arrival_confirm_need帧，导致大多数航点靠超时兜底而非真正确认到达
                               # (2026-07-08复测: 0.8比例下仍有部分航点(占比26-34%)无法确认，下调到0.6)
 TAKEOFF_WARN_LED_DURATION_S = 2.0  # 起飞前警示灯常亮时长(秒)，提醒周围人员即将解锁/起飞
+TAKEOFF_BUTTON_POLL_S = 0.05  # 等待一键起飞按钮时的轮询周期
 
 # 旧yaw方向开环脉冲诊断工具。正式飞行使用HeadingHoldController；两者互斥。
 # 默认关闭；如需再次做方向诊断，必须同时显式关闭航向保持。
@@ -200,6 +201,12 @@ class mission:
                 return
             logger.warning("已人工确认，强制以仅高度模式起飞")
 
+        if not self._wait_for_takeoff_button():
+            logger.error("一键起飞按钮等待失败，任务取消；飞控不会解锁")
+            if self.realsense and self.t265_ok:
+                self.realsense.stop()
+            return
+
         logger.info(
             f"任务启动, {len(self.targets)} 个航点 | 导航={self.navigation_profile.profile}"
             f" | 航向保持={'开启' if self.heading_hold.config.enabled else '关闭'}"
@@ -277,27 +284,83 @@ class mission:
             time.sleep(0.03)
 
     # ================= 起飞 =================
+    def _wait_for_takeoff_button(self):
+        """绿灯常亮等待 BCM17 按键；按下后红灯警示 2 秒。
+
+        按键或警示灯不可用时安全关闭：返回 False，调用方不得进入 TAKEOFF。
+        """
+        try:
+            from Lcode.gpio_button import GpioButton
+            from Lcode.gpio_led import set_rgb_led
+        except Exception as e:
+            logger.error(f"一键起飞GPIO模块加载失败: {e}")
+            return False
+
+        button = GpioButton()
+        led_is_off = True
+        try:
+            if not button.start():
+                logger.error("一键起飞按钮初始化失败")
+                return False
+            led_is_off = False
+            if not set_rgb_led('G'):
+                logger.error("一键起飞绿灯点亮失败")
+                return False
+            logger.info("系统准备完成：绿灯常亮，等待按下一键起飞按钮")
+
+            while not button.was_pressed():
+                time.sleep(TAKEOFF_BUTTON_POLL_S)
+
+            logger.info("一键起飞按钮已按下：红灯警示 2 秒后起飞")
+            if not self._blink_warning_led():
+                logger.error("起飞前红灯警示失败")
+                return False
+            led_is_off = True
+            return True
+        except KeyboardInterrupt:
+            logger.info("等待一键起飞按钮时收到用户中断")
+            raise
+        except Exception as e:
+            logger.error(f"一键起飞按钮等待失败: {e}")
+            return False
+        finally:
+            if not led_is_off:
+                try:
+                    set_rgb_led('OFF')
+                except Exception as e:
+                    logger.error(f"一键起飞等待结束时关灯失败: {e}")
+            try:
+                button.stop()
+            except Exception as e:
+                logger.error(f"一键起飞按钮资源释放失败: {e}")
+
     def _blink_warning_led(self):
         """起飞前红灯常亮TAKEOFF_WARN_LED_DURATION_S秒提醒周围人员，阻塞调用
         (起飞前的安全等待本来就该是阻塞的，给人反应时间)。GPIO不可用时静默
-        跳过，不阻断起飞流程。"""
+        失败时返回False，由按钮门禁阻断起飞。"""
         try:
             from Lcode.gpio_led import set_rgb_led
         except Exception as e:
             logger.error(f"起飞警示灯点亮失败: {e}")
-            return
-        set_rgb_led('R')
-        time.sleep(TAKEOFF_WARN_LED_DURATION_S)
-        set_rgb_led('OFF')
+            return False
+        try:
+            if not set_rgb_led('R'):
+                return False
+            time.sleep(TAKEOFF_WARN_LED_DURATION_S)
+            return bool(set_rgb_led('OFF'))
+        except Exception as e:
+            logger.error(f"起飞警示灯控制失败: {e}")
+            try:
+                set_rgb_led('OFF')
+            except Exception:
+                pass
+            return False
 
     def takeoff(self):
         if DRY_RUN:
             logger.warning("takeoff: DRY_RUN 模式，不发送解锁指令，电机不会转")
         else:
             logger.info("takeoff: started")
-
-        # 起飞前红灯常亮示警，必须在task_sta(解锁指令)写入se_fc之前完成
-        self._blink_warning_led()
 
         # 解锁前锁存当前机头方向。T265不可用或置信度不足时不阻断基本飞行，
         # 航向保持维持未armed并输出0°/s。
