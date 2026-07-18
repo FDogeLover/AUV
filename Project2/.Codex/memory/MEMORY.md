@@ -1,0 +1,33 @@
+- [Flight log backup before flights](project_flight_log_backup.md) — flight_data.jsonl 是追加写入不清空，飞行前需先备份挪走
+- [Motor unlock test safety](project_motor_unlock_test_safety.md) — 测试真实解锁链路优先拆桨，固件层锁定不能替代
+- [Auto-sync changes to pi](feedback_auto_sync_pi.md) — 改动drone_control下Python文件后自动scp到ubuntu-pi，不用每次问
+- [Flight test safety confirmation](feedback_flight_test_safety_confirmation.md) — 真实起飞前每次都要重新确认安全条件，准备性操作不用
+- [User engineering skepticism](user_engineering_skepticism.md) — 用户会追问替代解释、动手实测验证，汇报结论要区分已证实/未证实
+- [Data-driven but verify anomalies](feedback_data_driven_but_verify_anomalies.md) — 结论必须靠数据，但要主动识破数据本身的异常(冻结值/延迟/阈值写反)，别照单全收
+- [No post-landing confirmation](feedback_no_post_landing_confirmation.md) — 飞行测试结束不用追问是否自动降落成功，默认成功，异常用户会主动说
+- [Sync test data to local](feedback_sync_test_data_to_local.md) — pi上归档的flight_data测试数据要主动同步回本机仓库，不用等要求
+- [T265 mount angle fix decision](project_t265_mount_angle_fix.md) — T265安装角度偏差导致坐标不对齐机体，决定先物理矫正，暂不做软件补偿
+- [USB dock verification](project_usb_dock_verification.md) — ubuntu-pi加USB拓展坞后，雷达/T265异常都另有原因(残留进程/短样本噪声)，非拓展坞本身问题
+- [CLAUDE.md sync lag](feedback_claude_md_sync_lag.md) — CLAUDE.md已知问题易落后于pi上实际测试进展，会话开始要核对pi的git log，发现新结论当场更新
+- [SSH root tilde path bug](feedback_ssh_root_tilde_path_bug.md) — root登录ubuntu-pi时~展开成/root而非/home/sunrise，写路径必须用绝对路径，验证也要用绝对路径
+- [N10P radar pole test](project_n10p_radar_pole_test.md) — yaw_sign仍未标定，udev固定命名已清空又重建，实测确认雷达=CH340(1a86:7523)/蓝牙=CP2102(10c4:ea60)非撞车，当前雷达在/dev/radar(需每次实测确认)；2026-07-14发现飞行振动会导致雷达USB物理断开级联飞控超时降落
+- [Flight path vs test object collision](feedback_flight_path_vs_test_object_collision.md) — 摆放物理测试物体(如雷达标定杆)时，安全确认必须核对航线会不会撞上它
+- [Pi sync line endings](feedback_pi_sync_line_endings.md) — 板子FJJ仓库换行符不统一，scp同步后commit前要按各文件原有约定核对LF/CRLF
+- [Start real flight scripts](feedback_start_real_flight_scripts.md) — 真机测试脚本由Claude通过SSH启动(方便读日志)，但解锁/起飞前仍要单独做安全确认
+- [Sync test version first](feedback_sync_test_version_first.md) — 多版本改动且要真机测试时，先只同步测试用的版本，其他版本测完再同步
+- [Codex review rigor](feedback_codex_review_rigor.md) — 用户会用Codex审查回答和代码质量，写代码后要自验证，结论要注明局限性
+- [Push after commit](feedback_push_after_commit.md) — 本机提交后主动push；板子FJJ独立git要及时commit(但不push)
+- [Battery endurance](project_battery_endurance.md) — 3300mAh旧电池约4分钟极限，新电池约5分钟极限，规划续航测试时长参考
+- [Landing timeout safety gap](project_land_timeout_safety_gap.md) — 10秒超时兜底已加高度门槛修复(2026-07-12)，低高度路径已验证，高度偏高分支仍未真机验证
+- [CLAUDE.md known issues moved](reference_claude_md_known_issues_location.md) — 已知问题详情已拆到docs/known_issues.md，CLAUDE.md只留状态表
+- [Verify known_issues detail before citing](feedback_verify_known_issues_detail_before_citing.md) — 引用摘要行论证设计决策前，先读docs/known_issues.md完整条目，摘要可能省略了后续推翻/修正
+- [circle_pole阶段1真机验证](project_circle_pole_phase1_validation.md) — 单杆环绕全链路通过，修复3个悬停/绕行bug，发现2个跟改动无关的位置精度现象
+- [circle_pole视觉辅助设计](project_circle_pole_vision_assist_design.md) — 前置摄像头判方向(不判距离)+闭环伺服对准，下置摄像头识别降落标记，尚未实现
+- [imx219摄像头硬件调通](project_imx219_camera_bringup.md) — 排线/驱动坑已解决，3套并行取流方案，画面偏暗噪点重待调增益，circle_pole+fire_patrol都要用
+- [fire_patrol G题空地协同消防设计](project_fire_patrol_g_competition_design.md) — 5次真机测试；APPROACH"发散"实为检测脆弱已证伪；HOVER_DROP后高度不恢复+疑似yaw导致xy耦合，未解决
+- [Background task completion misleading](feedback_background_task_completion_misleading.md) — nohup后台启动的"completed"通知不代表被启动的长时间任务(真机飞行)已结束，要单独等待
+- [circle_pole阶段2视觉伺服设计+实现+真机测试](project_circle_pole_vision_servo_stage2_design.md) — 双杆链路连续4测3成功；赛题8项要求核对：净空/降落识别/单按键3项未达标，巡航高度已改150cm
+- [板载资源监控ResourceMonitor](project_board_resource_monitor.md) — CPU/内存/温度记录已合并并真机验证，本进程占用超2核属正常
+- [板子git仓库损坏恢复](project_board_git_corruption_recovery.md) — FJJ/.git对象损坏已重新init(历史丢失，文件不受影响)，diff异常大先疑仓库损坏不只是换行符
+- [状态机加状态需同步补日志](feedback_state_machine_logging_sync.md) — 新增nav_mode子状态时要同步检查JSON飞行日志覆盖，别等测完才发现那段时间没数据
+- [ubuntu-pi动态IP](project_ubuntu_pi_dynamic_ip.md) — 局域网IP经常变(DHCP)，连不上先问用户新IP，改~/.ssh/config后用ssh-keyscan补known_hosts，不要StrictHostKeyChecking=no
