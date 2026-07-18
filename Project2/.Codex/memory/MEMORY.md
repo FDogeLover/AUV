@@ -31,3 +31,6 @@
 - [板子git仓库损坏恢复](project_board_git_corruption_recovery.md) — FJJ/.git对象损坏已重新init(历史丢失，文件不受影响)，diff异常大先疑仓库损坏不只是换行符
 - [状态机加状态需同步补日志](feedback_state_machine_logging_sync.md) — 新增nav_mode子状态时要同步检查JSON飞行日志覆盖，别等测完才发现那段时间没数据
 - [ubuntu-pi动态IP](project_ubuntu_pi_dynamic_ip.md) — 局域网IP经常变(DHCP)，连不上先问用户新IP，改~/.ssh/config后用ssh-keyscan补known_hosts，不要StrictHostKeyChecking=no
+- [视觉调试必须基于真实飞行参照](feedback_vision_debug_flight_reference.md) — 固定点先实飞拍照、长航程按频率留图、拍照调试开关正式任务默认关闭；参数必须用真实飞行素材离线回放验证
+- [立体货架盘点赛题坐标系](project_warehouse_inventory_coordinate_frame.md) — 起飞点为T265局部原点，+Y沿场地5m长边，-X沿场地4m宽边，+Z向上；图纸坐标统一转换，禁止散落轴交换/正负号
+- [立体货架盘点地面站通信](project_warehouse_inventory_ground_link.md) — 端口/dev/bt_serial，训练阶段只广播且无接收端，不能等待ACK或阻塞飞行；正式地面站可靠模式以后配置化接入
