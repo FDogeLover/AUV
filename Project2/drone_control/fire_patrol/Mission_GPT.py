@@ -13,6 +13,7 @@ import os
 import sys
 from collections import deque
 from typing import List, Optional
+from Lcode.heading_hold import HeadingHoldConfig, HeadingHoldController
 from Lcode.Lpid import PID
 from Lcode.Logger import logger
 from Lcode.global_variable import sp_side, lock, fc_last_rx_time
@@ -105,9 +106,9 @@ PIXEL_TO_METER_AT_CRUISE = 0.0015  # 像素偏移->水平距离粗略换算系�
                                      # FOV/高度标定，这里给占位初始值
 TAKEOFF_WARN_LED_DURATION_S = 2.0  # 起飞前警示灯常亮时长(秒)，提醒周围人员即将解锁/起飞
 
-# 2026-07-09新增：yaw方向验证专用——问题16事故后yaw修正回路已回退，但符号问题
-# 尚未定位。这里加一个非闭环、短时、固定输出的yaw脉冲测试，绕开PID，直接验证
-# 凌霄IMU执行vyaw的真实物理方向，跟转盘验证过的T265测量方向做对比。
+# 2026-07-09新增：yaw方向验证专用。该测试已确认凌霄IMU执行方向与T265测量
+# 方向一致；2026-07-18进一步定位到旧navigate()把PID输出额外取负，才是正反馈
+# 的直接代码原因。脉冲工具保留作诊断，但与正式HeadingHoldController互斥。
 # 默认关闭，不会影响正常飞行；显式设DRONE_YAW_TEST_BURST=1才会触发。
 YAW_TEST_BURST_ENABLED = os.getenv("DRONE_YAW_TEST_BURST", "0") == "1"
 YAW_TEST_BURST_VALUE = int(os.getenv("DRONE_YAW_TEST_BURST_VALUE", "-8"))
@@ -147,7 +148,11 @@ class mission:
         # PID
         self.x_pid = PID(0, 0)
         self.y_pid = PID(0, 0)
-        self.yaw_pid = PID(1, 0)
+        self.heading_hold = HeadingHoldController(HeadingHoldConfig.from_env())
+        if self.heading_hold.config.enabled and YAW_TEST_BURST_ENABLED:
+            raise ValueError("DRONE_HEADING_HOLD 与 DRONE_YAW_TEST_BURST 不能同时启用")
+        self._heading_status = self.heading_hold.update(0.0, confidence=0, now=time.time())
+        self._last_heading_fault_logged = None
 
         # 航点
         self.targets = self.load_waypoints()
@@ -185,7 +190,7 @@ class mission:
         self._log_lock = threading.Lock()
         self._resource_monitor = ResourceMonitor()
 
-        # yaw方向测试(问题16)
+        # 旧yaw方向开环脉冲测试(问题16)，与正式航向保持互斥
         self._yaw_burst_done = False
 
     def load_waypoints(self):
@@ -220,6 +225,8 @@ class mission:
 
     # ================= 启动 =================
     def start(self):
+        self.heading_hold.reset_for_new_mission()
+        self._last_heading_fault_logged = None
         if DRY_RUN:
             logger.warning("=" * 40)
             logger.warning("DRY_RUN 模式已启用 — 飞控不会解锁，电机不会转")
@@ -346,6 +353,19 @@ class mission:
         # 起飞前红灯常亮示警，必须在task_sta(解锁指令)写入se_fc之前完成
         self._blink_warning_led()
 
+        # 航向目标必须在解锁前锁存为“起飞时机头方向”，不能固定追T265初始化时的0°。
+        # T265不可用/置信度不足时不阻断基本飞行，航向环保持未arm并输出0°/s。
+        if self.t265_ok and self.realsense:
+            try:
+                takeoff_confidence = self.realsense.get_tracking_confidence()
+                takeoff_yaw = self.realsense.get_orientation()[2]
+                if takeoff_confidence >= T265_CONFIDENCE_MIN:
+                    self._heading_status = self.heading_hold.arm(takeoff_yaw, time.time())
+                else:
+                    logger.warning(f"航向保持未启用：起飞前T265置信度不足({takeoff_confidence})")
+            except Exception as e:
+                logger.warning(f"航向保持未启用：起飞前读取T265 yaw失败({e})")
+
         target_h_cm = TAKEOFF_LIFTOFF_CM  # 一键起飞只爬升到离地高度，真正目标高度交给 navigate() 闭环爬升
 
         with lock:
@@ -359,19 +379,19 @@ class mission:
             elapsed = time.time() - t_start
 
             yaw = 0.0
-            vyaw = 0
+            yaw_cmd = 0
             if self.t265_ok and self.realsense:
                 try:
                     yaw = self.realsense.get_orientation()[2]
-                    # 2026-07-09临时回退问题16的角度修复：真机验证发现yaw修正回路一旦真正
-                    # 输出非零指令会导致yaw持续发散(疑似固件/协议层符号约定与Python假设不一致，
-                    # 形成正反馈而非负反馈)，触发一次~90°失控需人工介入。喂弧度让PID输出重新
-                    # 恒近似为0，回到"修正回路事实上不生效"的已知安全状态，直到符号问题查清。
-                    vyaw = int(self.limit(self.yaw_pid.get_pid(yaw) * VEL_SCALE, 30))
+                    confidence = self.realsense.get_tracking_confidence()
+                    self._heading_status = self._update_heading_hold(yaw, confidence)
+                    yaw_cmd = self._heading_status.command_dps
                     with lock:
-                        self.se_fc[6] = vyaw + sp_side
-                except Exception:
-                    pass
+                        self.se_fc[6] = yaw_cmd + sp_side
+                except Exception as e:
+                    logger.warning(f"起飞阶段航向保持读取失败，当前tick输出0: {e}")
+                    with lock:
+                        self.se_fc[6] = sp_side
 
             with lock:
                 laser_m = self.serial_fc_ref._last_laser_height_cm if self.serial_fc_ref else 0.0
@@ -390,8 +410,9 @@ class mission:
                             "state": "TAKEOFF",
                             "t265_yaw_deg": round(math.degrees(yaw), 2),
                             "fc_yaw_deg": round(fc_yaw_deg, 2),
-                            "vyaw": vyaw,
+                            "yaw_cmd_sent": yaw_cmd,
                             "laser_cm": round(laser_cm, 1),
+                            **self._heading_log_fields(),
                         }) + "\n")
                         self._log_file.flush()
                 except Exception:
@@ -417,17 +438,21 @@ class mission:
 
     # ================= 导航 =================
     def navigate(self, pos, yaw):
+        confidence = self.realsense.get_tracking_confidence() if (self.t265_ok and self.realsense) else 0
+        self._heading_status = self._update_heading_hold(yaw, confidence)
+        yaw_cmd = self._heading_status.command_dps
+
         if self.nav_mode == "APPROACH":
-            self._do_approach(pos)
+            self._do_approach(pos, yaw_cmd)
             return
         if self.nav_mode == "CONFIRM_WARN":
             self._do_confirm_warn()
             return
         if self.nav_mode == "HOVER_DROP":
-            self._do_hover_drop(pos)
+            self._do_hover_drop(pos, yaw_cmd)
             return
         if self.nav_mode == "RECOVER_HEIGHT":
-            self._do_recover_height(pos)
+            self._do_recover_height(pos, yaw_cmd)
             return
 
         # PATROL态：持续检查火情检测结果，触发APPROACH
@@ -474,11 +499,9 @@ class mission:
         target = self.targets[self.target_index]
         target_z = int(target[2] * 100)
 
-        confidence = self.realsense.get_tracking_confidence() if (self.t265_ok and self.realsense) else 0
-
         if confidence == 0 and self.t265_ok:
             logger.warning("T265 追踪丢失，悬停等待")
-            self.set_speed(0, 0, 0, int(self._ramp_z_cm))
+            self.set_speed(0, 0, yaw_cmd, int(self._ramp_z_cm))
             # 2026-07-09从basic_radar/补同步(2026-07-08已在那边修复)：这里原本直接return
             # 会跳过日志写入，导致T265追踪丢失期间完全没有数据记录。
             now = time.time()
@@ -491,10 +514,11 @@ class mission:
                             "target_idx": self.target_index,
                             "pos": [round(pos[0], 4), round(pos[1], 4), round(pos[2], 4)],
                             "target": [round(target[0], 4), round(target[1], 4), round(target[2], 4)],
-                            "vx": 0, "vy": 0, "vyaw": 0,
+                            "vx": 0, "vy": 0, "yaw_cmd_sent": yaw_cmd,
                             "t265_yaw_deg": round(math.degrees(yaw), 2),
                             "height_setpoint_cm": round(self._ramp_z_cm, 1),
                             "t265_confidence_lost": True,
+                            **self._heading_log_fields(),
                         }) + "\n")
                         self._log_file.flush()
                 except Exception:
@@ -505,19 +529,17 @@ class mission:
         if self.t265_ok and self.realsense:
             self.x_pid.set_target(target[0])
             self.y_pid.set_target(target[1])
-            self.yaw_pid.set_target(0)
             vx = self.x_pid.get_pid(pos[0]) * 100 * VEL_SCALE
             vy = self.y_pid.get_pid(pos[1]) * 100 * VEL_SCALE
-            # 2026-07-09临时回退问题16的角度修复，理由同上(navigate()同一个符号问题)
-            vyaw = self.yaw_pid.get_pid(yaw) * VEL_SCALE
             vx = int(self.limit(vx, 40))
             vy = int(self.limit(vy, 40))
-            vyaw = int(self.limit(vyaw, 30))
         else:
-            vx, vy, vyaw = 0, 0, 0
+            vx, vy = 0, 0
 
         self._step_ramp_z(target_z)
-        self.set_speed(vx, vy, -vyaw, int(self._ramp_z_cm))
+        # HeadingHoldController已经按target-current生成正确符号，必须原样发送，
+        # 禁止再像旧代码那样额外取负把负反馈变成正反馈。
+        self.set_speed(vx, vy, yaw_cmd, int(self._ramp_z_cm))
 
         # T265 速度（到达检测的速度门槛 + 后面日志/终端输出共用，避免重复取值）
         if self.t265_ok and self.realsense:
@@ -612,7 +634,7 @@ class mission:
                         "target_idx": self.target_index,
                         "pos": [round(pos[0], 4), round(pos[1], 4), round(pos[2], 4)],
                         "target": [round(target[0], 4), round(target[1], 4), round(target[2], 4)],
-                        "vx": vx, "vy": vy, "vyaw": vyaw,
+                        "vx": vx, "vy": vy, "yaw_cmd_sent": yaw_cmd,
                         "t265_yaw_deg": round(math.degrees(yaw), 2),
                         "fc_yaw_deg": round(fc_yaw_deg, 2),
                         "t265_vel": [round(tv[0], 4), round(tv[1], 4)],
@@ -620,6 +642,7 @@ class mission:
                         "roll_pitch": [round(roll_deg, 2), round(pitch_deg, 2)],
                         "height_setpoint_cm": round(self._ramp_z_cm, 1),
                         "of_status": [of_quality, of_link_sta, of_work_sta],
+                        **self._heading_log_fields(),
                     }) + "\n")
                     self._log_file.flush()
             except Exception:
@@ -637,6 +660,7 @@ class mission:
             f"| tgt=({target[0]:+.2f},{target[1]:+.2f},{target[2]:+.2f}) "
             f"| v=({vx:>3},{vy:>3}) "
             f"| send=({self.se_fc[3]:>3},{self.se_fc[4]:>3},{self.se_fc[5]:>3})"
+            f" | yawerr={self._format_heading_error():>5} cmd={yaw_cmd:+d}"
             f"{t265_str}",
             end="", flush=True
         )
@@ -729,7 +753,7 @@ class mission:
         except Exception as e:
             logger.error(f"set_rgb_led('OFF') 调用失败: {e}")
 
-    def _do_approach(self, pos):
+    def _do_approach(self, pos, yaw_cmd=0):
         """悬停对准正下方：独立小增益+死区+符号预验证的伺服修正，超时兜底进CONFIRM_WARN。
         见设计文档"APPROACH（视觉伺服对准正下方）"一节。"""
         if self.fire_vision is None:
@@ -764,9 +788,9 @@ class mission:
                     dx_px * APPROACH_GAIN, APPROACH_MAX_STEP_CMPS)
                 vy = 0 if abs(dy_px) < APPROACH_DEADBAND_PX else self.limit(
                     -dy_px * APPROACH_GAIN, APPROACH_MAX_STEP_CMPS)
-                self.set_speed(int(vx), int(vy), 0, int(self._ramp_z_cm))
+                self.set_speed(int(vx), int(vy), yaw_cmd, int(self._ramp_z_cm))
         else:
-            self.set_speed(0, 0, 0, int(self._ramp_z_cm))
+            self.set_speed(0, 0, yaw_cmd, int(self._ramp_z_cm))
 
         # 2026-07-16补充日志：之前APPROACH阶段完全没有逐帧记录，没法诊断"伺服
         # 是不是越修越偏"这类问题，只能靠对准/超时两条最终结果日志猜。
@@ -783,6 +807,8 @@ class mission:
                         "vx": int(vx),
                         "vy": int(vy),
                         "centered": centered,
+                        "yaw_cmd_sent": yaw_cmd,
+                        **self._heading_log_fields(),
                     }) + "\n")
                     self._log_file.flush()
             except Exception:
@@ -804,7 +830,7 @@ class mission:
         self._hover_drop_start_time = None
         self._hover_hold_pos = None  # 触发_do_hover_drop()第一次调用时锁定当前位置
 
-    def _do_hover_drop(self, pos):
+    def _do_hover_drop(self, pos, yaw_cmd=0):
         """降到10dm悬停HOVER_DROP_DURATION_S后抛投+广播坐标，见设计文档"HOVER_DROP"一节。
         水平位置用x_pid/y_pid闭环锁定在进入本状态那一刻的坐标，不能像之前那样只发
         vx=vy=0的开环零速度指令——3秒悬停期间任何风扰/残余速度都会导致漂移，
@@ -824,7 +850,7 @@ class mission:
         vy = self.y_pid.get_pid(pos[1]) * 100 * VEL_SCALE
         vx = int(self.limit(vx, HOVER_HOLD_MAX_STEP_CMPS))
         vy = int(self.limit(vy, HOVER_HOLD_MAX_STEP_CMPS))
-        self.set_speed(vx, vy, 0, int(self._ramp_z_cm))
+        self.set_speed(vx, vy, yaw_cmd, int(self._ramp_z_cm))
 
         # setpoint_ok: 内部软件ramp是否已收敛到目标值（跟原逻辑一样）。
         # measured_ok: pos[2](loop()里已被激光高度覆盖成米制真实测量值，见laser_height_valid
@@ -852,10 +878,12 @@ class mission:
                         "pos": [round(pos[0], 4), round(pos[1], 4), round(pos[2], 4)],
                         "hover_hold_pos": list(self._hover_hold_pos) if self._hover_hold_pos else None,
                         "vx": vx, "vy": vy,
+                        "yaw_cmd_sent": yaw_cmd,
                         "height_setpoint_cm": round(self._ramp_z_cm, 1),
                         "setpoint_ok": setpoint_ok,
                         "measured_ok": measured_ok,
                         "hover_drop_start_time": self._hover_drop_start_time,
+                        **self._heading_log_fields(),
                     }) + "\n")
                     self._log_file.flush()
             except Exception:
@@ -886,7 +914,7 @@ class mission:
         logger.info("HOVER_DROP: 抛投+坐标广播完成，恢复PATROL续飞")
         self.finish_hover_drop_and_resume()
 
-    def _do_recover_height(self, pos):
+    def _do_recover_height(self, pos, yaw_cmd=0):
         """HOVER_DROP抛投完成后，先在当前水平位置原地爬升回巡航高度，爬满了
         才真正恢复PATROL——不要一边巡航一边爬升(2026-07-17用户反馈，跟问题31
         起飞爬升顺序是同一类问题)。水平位置用x_pid/y_pid闭环锁定，模式跟
@@ -908,7 +936,7 @@ class mission:
         vy = self.y_pid.get_pid(pos[1]) * 100 * VEL_SCALE
         vx = int(self.limit(vx, HOVER_HOLD_MAX_STEP_CMPS))
         vy = int(self.limit(vy, HOVER_HOLD_MAX_STEP_CMPS))
-        self.set_speed(vx, vy, 0, int(self._ramp_z_cm))
+        self.set_speed(vx, vy, yaw_cmd, int(self._ramp_z_cm))
 
         setpoint_ok = abs(self._ramp_z_cm - self._recover_target_z_cm) <= 2.0
         measured_ok = abs(pos[2] * 100 - self._recover_target_z_cm) <= 10.0
@@ -923,10 +951,12 @@ class mission:
                         "pos": [round(pos[0], 4), round(pos[1], 4), round(pos[2], 4)],
                         "recover_hold_pos": list(self._recover_hold_pos) if self._recover_hold_pos else None,
                         "vx": vx, "vy": vy,
+                        "yaw_cmd_sent": yaw_cmd,
                         "height_setpoint_cm": round(self._ramp_z_cm, 1),
                         "recover_target_z_cm": self._recover_target_z_cm,
                         "setpoint_ok": setpoint_ok,
                         "measured_ok": measured_ok,
+                        **self._heading_log_fields(),
                     }) + "\n")
                     self._log_file.flush()
             except Exception:
@@ -977,6 +1007,7 @@ class mission:
     # ================= 降落 =================
     def land(self):
         logger.info("降落")
+        self.heading_hold.disarm("land")
         with lock:
             self.se_fc[2] = 0
 
@@ -1087,6 +1118,7 @@ class mission:
     # ================= 停止 =================
     def stop_all(self):
         logger.info("任务结束")
+        self.heading_hold.disarm("stop_all")
         # 上锁指令必须最先发出、前面不能有任何阻塞调用——stop_all()由emergency_stop
         # 路径(飞控串口超时/T265丢失)触发，se_fc是独立50Hz发送线程读取的共享状态，
         # 越早写入，飞控收到断电/上锁指令就越早。见docs/known_issues.md #22
@@ -1114,6 +1146,35 @@ class mission:
             self.se_fc[5] = z
             self.se_fc[6] = yaw + sp_side
 
+    def _update_heading_hold(self, yaw, confidence):
+        status = self.heading_hold.update(yaw, confidence, time.time())
+        if status.fault_reason and status.fault_reason != self._last_heading_fault_logged:
+            logger.error(f"航向保持已锁存关闭: {status.fault_reason}")
+            self._last_heading_fault_logged = status.fault_reason
+        return status
+
+    def _heading_log_fields(self):
+        status = self._heading_status
+        return {
+            "heading_hold_enabled": status.enabled,
+            "heading_hold_armed": status.armed,
+            "heading_target_deg": (
+                round(status.target_deg, 2) if status.target_deg is not None else None
+            ),
+            "heading_current_deg": (
+                round(status.current_deg, 2) if status.current_deg is not None else None
+            ),
+            "heading_error_deg": (
+                round(status.error_deg, 2) if status.error_deg is not None else None
+            ),
+            "heading_degraded_reason": status.degraded_reason,
+            "heading_fault_reason": status.fault_reason,
+        }
+
+    def _format_heading_error(self):
+        error_deg = self._heading_status.error_deg
+        return "--" if error_deg is None else f"{error_deg:+.1f}"
+
     # ================= 工具 =================
     def limit(self, v, max_v=0.3):
         return max(min(v, max_v), -max_v)
@@ -1129,4 +1190,8 @@ class mission:
     # ================= 急停 =================
     def emergency(self):
         logger.warning("紧急停止触发！")
+        self.heading_hold.disarm("emergency")
+        # 立即清掉发送线程可能仍在重复发送的旧yaw指令，不等下一次loop()进入stop_all()。
+        with lock:
+            self.se_fc[6] = sp_side
         self.emergency_stop = True

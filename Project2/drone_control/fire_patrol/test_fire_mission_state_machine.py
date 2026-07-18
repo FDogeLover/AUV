@@ -1,11 +1,15 @@
 import io
 import json
+import math
 import os
 import sys
 import time
 
+import pytest
+
 sys.path.insert(0, os.path.dirname(__file__))
 
+import Mission_GPT as mg
 from Mission_GPT import (
     mission,
     APPROACH_CENTERED_DIST_M,
@@ -13,6 +17,7 @@ from Mission_GPT import (
     arrival_timeout_max,
 )
 from Lcode.global_variable import sp_side
+from Lcode.heading_hold import HeadingHoldConfig, HeadingHoldController
 
 
 class _FakeRealsense:
@@ -49,6 +54,9 @@ class _FakeRealsense:
 
     def stop(self):
         self._running = False
+
+    def set_yaw(self, yaw):
+        self._yaw = yaw
 
 
 def _make_mission(tmp_path):
@@ -584,3 +592,78 @@ class TestCruiseVsPrecisionArrivalThreshold:
         m.navigate(pos=[4.25, 0.0, 1.8], yaw=0.0)
         assert m.target_index == 2  # 单帧不会立刻掠过
         assert m._arrival_window[-1] is False  # 精确航点仍然用严格阈值判定这一帧
+
+
+def _enable_heading_hold(m):
+    m.heading_hold = HeadingHoldController(
+        HeadingHoldConfig(enabled=True, fault_error_deg=20.0)
+    )
+    m.heading_hold.arm(0.0, now=0.0)
+
+
+class TestHeadingHoldMissionIntegration:
+    def test_navigate_sends_negative_command_for_positive_yaw(self, tmp_path):
+        """回归守卫：PID/控制器已经生成target-current的正确符号，navigate()
+        不能再额外取负把负反馈变成正反馈。"""
+        m = _make_mission(tmp_path)
+        _enable_heading_hold(m)
+        m.arrival_start_time = time.time()
+
+        m.navigate(pos=[1.0, 0.0, 1.8], yaw=math.radians(5.0))
+
+        assert m._heading_status.error_deg == pytest.approx(-5.0)
+        assert m.se_fc[6] - sp_side == -1
+
+    def test_navigation_substates_receive_same_heading_command(self, tmp_path):
+        for nav_mode, method_name in (
+            ("APPROACH", "_do_approach"),
+            ("HOVER_DROP", "_do_hover_drop"),
+            ("RECOVER_HEIGHT", "_do_recover_height"),
+        ):
+            m = _make_mission(tmp_path)
+            _enable_heading_hold(m)
+            m.nav_mode = nav_mode
+            calls = []
+            setattr(m, method_name, lambda pos, yaw_cmd, calls=calls: calls.append(yaw_cmd))
+
+            m.navigate(pos=[0.0, 0.0, 1.8], yaw=math.radians(5.0))
+
+            assert calls == [-1], nav_mode
+
+    def test_takeoff_latches_current_heading_before_unlock(self, tmp_path, monkeypatch):
+        m = _make_mission(tmp_path)
+        m.heading_hold = HeadingHoldController(
+            HeadingHoldConfig(enabled=True, fault_error_deg=20.0)
+        )
+        m.realsense.set_yaw(math.radians(12.0))
+        monkeypatch.setattr(m, "_blink_warning_led", lambda: None)
+        monkeypatch.setattr(mg, "TAKEOFF_TIMEOUT_S", 0.0)
+        monkeypatch.setattr(mg, "DRY_RUN", True)
+
+        m.takeoff()
+
+        assert m.heading_hold.target_deg == pytest.approx(12.0)
+        assert m.heading_hold.armed is True
+        assert m.se_fc[6] - sp_side == 0
+
+    def test_emergency_disarms_heading_hold(self, tmp_path):
+        m = _make_mission(tmp_path)
+        _enable_heading_hold(m)
+        m.se_fc[6] = 3 + sp_side
+
+        m.emergency()
+
+        assert m.heading_hold.armed is False
+        assert m.se_fc[6] - sp_side == 0
+        assert m.emergency_stop is True
+
+    def test_heading_hold_and_yaw_burst_are_mutually_exclusive(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("DRONE_HEADING_HOLD", "1")
+        monkeypatch.setattr(mg, "YAW_TEST_BURST_ENABLED", True)
+        old_cwd = os.getcwd()
+        os.chdir(tmp_path)
+        try:
+            with pytest.raises(ValueError, match="不能同时启用"):
+                mission([0] * 14, [0] * 11, realsense_obj=_FakeRealsense())
+        finally:
+            os.chdir(old_cwd)
