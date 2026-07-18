@@ -52,7 +52,7 @@ def test_green_wait_then_red_two_seconds(monkeypatch):
     assert _make_mission()._wait_for_takeoff_button() is True
     assert colors == ["G", "R", "OFF"]
     assert sleeps == [TAKEOFF_BUTTON_POLL_S, TAKEOFF_WARN_LED_DURATION_S]
-    assert TAKEOFF_WARN_LED_DURATION_S == 2.0
+    assert TAKEOFF_WARN_LED_DURATION_S == 5.0
     assert FakeButton.last_instance.stopped is True
 
 

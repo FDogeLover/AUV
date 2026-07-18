@@ -57,7 +57,7 @@ ARRIVAL_CONFIRM_RATIO = 0.6  # 到达确认改用滑动窗口比例制而非严�
                               # 计数器清零重来，2026-07-08矩形路径测试实测达标帧占比只有30-40%，几乎不可能
                               # 连续凑够arrival_confirm_need帧，导致大多数航点靠超时兜底而非真正确认到达
                               # (2026-07-08复测: 0.8比例下仍有部分航点(占比26-34%)无法确认，下调到0.6)
-TAKEOFF_WARN_LED_DURATION_S = 2.0  # 起飞前警示灯常亮时长(秒)，提醒周围人员即将解锁/起飞
+TAKEOFF_WARN_LED_DURATION_S = 5.0  # 起飞前警示灯常亮时长(秒)，给周围人员留出充分反应时间
 TAKEOFF_BUTTON_POLL_S = 0.05  # 等待一键起飞按钮时的轮询周期
 
 # 旧yaw方向开环脉冲诊断工具。正式飞行使用HeadingHoldController；两者互斥。
@@ -285,7 +285,7 @@ class mission:
 
     # ================= 起飞 =================
     def _wait_for_takeoff_button(self):
-        """绿灯常亮等待 BCM17 按键；按下后红灯警示 2 秒。
+        """绿灯常亮等待 BCM17 按键；按下后红灯警示 5 秒。
 
         按键或警示灯不可用时安全关闭：返回 False，调用方不得进入 TAKEOFF。
         """
@@ -311,7 +311,7 @@ class mission:
             while not button.was_pressed():
                 time.sleep(TAKEOFF_BUTTON_POLL_S)
 
-            logger.info("一键起飞按钮已按下：红灯警示 2 秒后起飞")
+            logger.info("一键起飞按钮已按下：红灯警示 5 秒后起飞")
             if not self._blink_warning_led():
                 logger.error("起飞前红灯警示失败")
                 return False

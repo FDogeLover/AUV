@@ -28,7 +28,7 @@ class TestTakeoffWarningLed:
             "Lcode.gpio_led.set_rgb_led",
             lambda color: calls.append(color) or True,
         )
-        monkeypatch.setattr("Mission_GPT.time.sleep", lambda s: None)  # 跳过真实sleep，测试不用等2秒
+        monkeypatch.setattr("Mission_GPT.time.sleep", lambda s: None)  # 跳过真实sleep，测试不用等5秒
 
         m = _make_mission(tmp_path)
         assert m._blink_warning_led() is True
