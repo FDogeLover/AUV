@@ -218,4 +218,3 @@ class HeadingHoldController:
         if not math.isfinite(yaw_rad):
             raise ValueError("yaw 必须是有限数")
         return wrap_degrees(math.degrees(yaw_rad))
-
