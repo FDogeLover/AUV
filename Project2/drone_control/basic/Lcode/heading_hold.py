@@ -83,7 +83,7 @@ class HeadingHoldController:
         self._reset_runaway_window()
 
     def arm(self, current_yaw_rad: float, now: float) -> HeadingHoldStatus:
-        del now  # 预留给后续启动宽限/日志；目标锁存本身不依赖时钟。
+        del now
         current_deg = self._yaw_rad_to_deg(current_yaw_rad)
         if not self.config.enabled:
             self.degraded_reason = "disabled"
@@ -95,20 +95,14 @@ class HeadingHoldController:
             self.armed = True
             self.degraded_reason = None
             self._reset_runaway_window()
-        error_deg = wrap_degrees(self.target_deg - current_deg)
-        return self._status(0, current_deg, error_deg)
+        return self._status(0, current_deg, wrap_degrees(self.target_deg - current_deg))
 
     def disarm(self, reason: str) -> None:
         self.armed = False
         self.degraded_reason = reason
         self._reset_runaway_window()
 
-    def update(
-        self,
-        current_yaw_rad: float,
-        confidence: int,
-        now: float,
-    ) -> HeadingHoldStatus:
+    def update(self, current_yaw_rad: float, confidence: int, now: float) -> HeadingHoldStatus:
         current_deg = self._yaw_rad_to_deg(current_yaw_rad)
         if not self.config.enabled:
             self.degraded_reason = "disabled"
@@ -128,11 +122,8 @@ class HeadingHoldController:
         self.degraded_reason = None
         if abs(error_deg) >= self.config.fault_error_deg:
             return self._latch_fault(
-                f"heading_error_{error_deg:+.2f}deg_exceeds_limit",
-                current_deg,
-                error_deg,
+                f"heading_error_{error_deg:+.2f}deg_exceeds_limit", current_deg, error_deg
             )
-
         command_dps = self._command_for_error(error_deg)
         if self._runaway_detected(command_dps, error_deg, now):
             return self._latch_fault(
@@ -146,8 +137,7 @@ class HeadingHoldController:
     def _command_for_error(self, error_deg: float) -> int:
         if abs(error_deg) <= self.config.deadband_deg:
             return 0
-        raw_magnitude = abs(self.config.kp * error_deg)
-        magnitude = max(1, math.floor(raw_magnitude + 0.5))
+        magnitude = max(1, math.floor(abs(self.config.kp * error_deg) + 0.5))
         magnitude = min(magnitude, self.config.max_rate_dps)
         return magnitude if error_deg > 0 else -magnitude
 
@@ -155,7 +145,6 @@ class HeadingHoldController:
         if command_dps == 0:
             self._reset_runaway_window()
             return False
-
         sign = 1 if command_dps > 0 else -1
         abs_error = abs(error_deg)
         if self._runaway_sign != sign or self._runaway_start_time is None:
@@ -163,11 +152,8 @@ class HeadingHoldController:
             self._runaway_start_time = now
             self._runaway_start_abs_error = abs_error
             return False
-
-        elapsed = now - self._runaway_start_time
-        if elapsed < self.config.runaway_window_s:
+        if now - self._runaway_start_time < self.config.runaway_window_s:
             return False
-
         start_error = self._runaway_start_abs_error or 0.0
         grew = abs_error - start_error >= self.config.runaway_growth_deg
         if not grew:
@@ -175,12 +161,7 @@ class HeadingHoldController:
             self._runaway_start_abs_error = abs_error
         return grew
 
-    def _latch_fault(
-        self,
-        reason: str,
-        current_deg: float,
-        error_deg: float,
-    ) -> HeadingHoldStatus:
+    def _latch_fault(self, reason: str, current_deg: float, error_deg: float) -> HeadingHoldStatus:
         self.fault_reason = reason
         self.degraded_reason = None
         self._reset_runaway_window()

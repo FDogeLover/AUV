@@ -152,7 +152,9 @@ def test_config_rejects_unsafe_values(kwargs):
         HeadingHoldConfig(**kwargs)
 
 
-def test_from_env_parses_explicit_opt_in():
+def test_from_env_defaults_enabled_and_parses_overrides():
+    assert HeadingHoldConfig.from_env({}).enabled is True
+    assert HeadingHoldConfig.from_env({"DRONE_HEADING_HOLD": "0"}).enabled is False
     config = HeadingHoldConfig.from_env(
         {
             "DRONE_HEADING_HOLD": "1",
