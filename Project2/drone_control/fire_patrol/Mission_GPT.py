@@ -27,11 +27,15 @@ VEL_SCALE = 0.7
 posthreshold_xy = 0.15
 posthreshold_z = 0.20
 # 2026-07-16用户反馈：巡航航点(弓字形覆盖巡逻的中间点)不需要像最终降落准备航点那样
-# 精确到达，放宽阈值换取更快的巡航速度，只在最后两个航点(回原点+分段降到0.2m，
+# 精确停留，只在最后两个航点(回原点+分段降到0.2m，
 # 为紧接着的land()做准备)保留严格精度。CRUISE_*给巡航航点用，非巡航航点仍用
 # 原有posthreshold_xy/z(经confidence分级)的严格判据。
-CRUISE_XY_THRESH = 0.4
-CRUISE_Z_THRESH = 0.4
+# 2026-07-18日志回放确认：旧的0.4m分轴方形阈值会让0.8m换道航段在还差
+# 约0.38~0.39m时就切换，下一条4m直线因此从两条规划线中间开始。提速应来自
+# "不停留/不等速度归零"，不是来自未到航点就提前切换。历史三次完整路线
+# 的27个中间航点均能连续进入15cm圆形半径至少0.3s。
+CRUISE_WAYPOINT_RADIUS_M = 0.15
+CRUISE_ARRIVAL_CONFIRM_CYCLES = 3  # 30ms控制周期下约90ms，只过滤单帧毛刺，不停留
 PRECISION_TAIL_WAYPOINTS = 2  # 航点列表最后N个视为"精确降落准备"航点，不放宽
 PRECISION_HEAD_WAYPOINTS = 1  # 2026-07-17新增：航点列表最前N个也视为精确航点，不能掠过。
                                 # 起飞后第一个航点(原点,目标高度)本意是"先原地爬升到巡航
@@ -177,6 +181,7 @@ class mission:
         self.arrival_confirmed_time: Optional[float] = None
         self.last_target_index = -1
         self._vel_window = deque(maxlen=ARRIVAL_VEL_WINDOW)
+        self._cruise_arrival_count = 0
 
         # 高度 ramp
         self._ramp_z_cm = 0.0
@@ -556,9 +561,6 @@ class mission:
             if is_precision_waypoint:
                 xy_thresh = 0.10 if confidence >= 3 else (posthreshold_xy if confidence == 2 else 0.30)
                 z_thresh = posthreshold_z
-            else:
-                xy_thresh = CRUISE_XY_THRESH
-                z_thresh = CRUISE_Z_THRESH
             dx = abs(pos[0] - target[0])
             dy = abs(pos[1] - target[1])
             dz = abs(pos[2] - target[2])
@@ -573,6 +575,7 @@ class mission:
                 self._arrival_window.clear()
                 self.arrival_confirmed_time = None
                 self.arrival_start_time = time.time()
+                self._cruise_arrival_count = 0
 
             if dx > 0.3:
                 self.x_pid.reset()
@@ -597,12 +600,17 @@ class mission:
                     self.arrival_confirmed_time = None
             else:
                 # 2026-07-16用户反馈：巡航航点(弓字形中间点)不需要精确停留确认，
-                # 改成"掠过式"——一旦水平位置进入CRUISE_XY_THRESH范围就立刻切下一个
-                # 目标点，不等滑动窗口确认、不停留观察，PID甚至不需要真正收敛到
-                # 静止就能继续。不检查z/速度门槛：高度由_step_ramp_z单独渐进逼近，
+                # 改成"掠过式"——连续3个控制周期进入航点的15cm圆形半径就立刻切下一个
+                # 目标点，不等速度归零、不停留观察；短确认只过滤单帧定位毛刺。不检查
+                # z/速度门槛：高度由_step_ramp_z单独渐进逼近，
                 # 拿它来卡住水平推进反而会让HOVER_DROP之后高度未恢复的已知问题
                 # (见2026-07-16讨论)连带拖慢巡航，没有必要绑在一起。
-                if dx < xy_thresh and dy < xy_thresh:
+                cruise_distance = math.hypot(dx, dy)
+                if cruise_distance <= CRUISE_WAYPOINT_RADIUS_M:
+                    self._cruise_arrival_count += 1
+                else:
+                    self._cruise_arrival_count = 0
+                if self._cruise_arrival_count >= CRUISE_ARRIVAL_CONFIRM_CYCLES:
                     logger.info(f"航点 {self.target_index} 掠过(巡航航点，不停留)")
                     self._on_arrival(target)
 
@@ -683,6 +691,7 @@ class mission:
         self.arrival_start_time = time.time()
         self._arrival_window.clear()
         self.arrival_confirmed_time = None
+        self._cruise_arrival_count = 0
 
     # ================= fire_patrol: 火情检测触发 =================
     def maybe_trigger_approach(self, detection):
@@ -976,6 +985,7 @@ class mission:
         self.arrival_confirmed_time = None
         self.arrival_start_time = time.time()
         self.last_target_index = self.target_index
+        self._cruise_arrival_count = 0
         self.x_pid.reset()
         self.y_pid.reset()
 

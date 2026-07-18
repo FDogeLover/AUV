@@ -275,6 +275,7 @@ class TestRecoverHeightBeforeResume:
         m = _make_mission(tmp_path)
         m.target_index = 0
         m.arrival_start_time = time.time() - 9999  # 模拟很久以前的旧值
+        m._cruise_arrival_count = 2  # 模拟火情触发前留下的短确认计数
         m.maybe_trigger_approach(detection=(50.0, 30.0))
         m.finish_hover_drop_and_resume()
 
@@ -285,6 +286,7 @@ class TestRecoverHeightBeforeResume:
 
         assert m.nav_mode == "PATROL"
         assert time.time() - m.arrival_start_time < 5.0  # 是刚重置的，不是9999秒前的旧值
+        assert m._cruise_arrival_count == 0
 
 
 class TestHoverDropClosedLoopHold:
@@ -542,9 +544,9 @@ class TestCruiseVsPrecisionArrivalThreshold:
     idx=0是精确航点(起飞后原地爬升到巡航高度)，PRECISION_TAIL_WAYPOINTS=2让
     idx=2/3是精确航点(为land()做准备)，idx=1是唯一的巡航航点(宽松阈值)。
 
-    2026-07-16进一步改成"掠过式"：巡航航点一旦水平位置进入CRUISE_XY_THRESH
-    范围就立刻切下一个目标(target_index自增)，不再走滑动窗口确认+停留观察，
-    也就不再往_arrival_window里追加——测试改成直接看target_index有没有自增。
+    2026-07-16进一步改成"掠过式"：巡航航点进入几何到达范围后切换下一个
+    目标，不走精确航点的滑动窗口+停留观察。2026-07-18收紧为15cm圆形半径，
+    要求连续3个控制周期，只过滤单帧定位毛刺。
 
     2026-07-17新增PRECISION_HEAD_WAYPOINTS=1：真机测试实测到起飞后第一个
     航点(原点,巡航高度)被当成巡航航点掠过——起点水平位置本来就已经达标(还
@@ -564,23 +566,65 @@ class TestCruiseVsPrecisionArrivalThreshold:
         assert m.target_index == 0  # 不应该掠过，z还没收敛
         assert m._arrival_window[-1] is False
 
-    def test_cruise_waypoint_flies_through_on_loose_offset(self, tmp_path):
-        """idx=1是唯一的巡航航点：0.25m偏差超过严格阈值(confidence=3时0.10m)但在
-        CRUISE_XY_THRESH(0.4m)以内，应该单帧内立刻掠过(target_index自增)，
-        不需要多帧确认、不需要停留。"""
+    def test_cruise_waypoint_advances_after_three_cycles_inside_radius(self, tmp_path):
+        """14cm轴向误差在15cm圆形半径内；连续3周期后立即掠过，
+        不要求速度归零或停留。"""
         m = _make_mission_4wp(tmp_path)
         m.target_index = 1
         m.last_target_index = 1
-        m.navigate(pos=[2.25, 0.0, 1.8], yaw=0.0)
+        m.arrival_start_time = time.time()
+        m.navigate(pos=[2.14, 0.0, 1.8], yaw=0.0)
+        m.navigate(pos=[2.14, 0.0, 1.8], yaw=0.0)
+        assert m.target_index == 1
+        m.navigate(pos=[2.14, 0.0, 1.8], yaw=0.0)
         assert m.target_index == 2
 
-    def test_cruise_waypoint_does_not_advance_when_far(self, tmp_path):
+    def test_cruise_waypoint_does_not_advance_outside_radius(self, tmp_path):
         m = _make_mission_4wp(tmp_path)
         m.target_index = 1
         m.last_target_index = 1
         m.arrival_start_time = time.time()  # 避免__init__默认值0.0被当成"早就超时"
-        m.navigate(pos=[4.0, 2.0, 1.8], yaw=0.0)
+        for _ in range(3):
+            m.navigate(pos=[2.16, 0.0, 1.8], yaw=0.0)
         assert m.target_index == 1
+
+    def test_cruise_waypoint_uses_circular_not_per_axis_threshold(self, tmp_path):
+        """dx=dy=0.11m分别小于15cm，但欧氏距离约15.6cm，不应提前切换。"""
+        m = _make_mission_4wp(tmp_path)
+        m.target_index = 1
+        m.last_target_index = 1
+        m.arrival_start_time = time.time()
+        for _ in range(3):
+            m.navigate(pos=[2.11, 0.11, 1.8], yaw=0.0)
+        assert m.target_index == 1
+
+    def test_cruise_short_confirmation_resets_after_leaving_radius(self, tmp_path):
+        m = _make_mission_4wp(tmp_path)
+        m.target_index = 1
+        m.last_target_index = 1
+        m.arrival_start_time = time.time()
+        m.navigate(pos=[2.14, 0.0, 1.8], yaw=0.0)
+        m.navigate(pos=[2.14, 0.0, 1.8], yaw=0.0)
+        m.navigate(pos=[2.16, 0.0, 1.8], yaw=0.0)
+        m.navigate(pos=[2.14, 0.0, 1.8], yaw=0.0)
+        m.navigate(pos=[2.14, 0.0, 1.8], yaw=0.0)
+        assert m.target_index == 1
+        m.navigate(pos=[2.14, 0.0, 1.8], yaw=0.0)
+        assert m.target_index == 2
+
+    def test_cruise_arrival_resets_timeout_before_same_tick_check(self, tmp_path):
+        """第三个到达周期与旧超时同tick发生时，_on_arrival()必须重置计时，
+        不能紧接着又超时连跳第二个航点。"""
+        m = _make_mission_4wp(tmp_path)
+        m.target_index = 1
+        m.last_target_index = 1
+        m.arrival_start_time = time.time()
+        m.navigate(pos=[2.14, 0.0, 1.8], yaw=0.0)
+        m.navigate(pos=[2.14, 0.0, 1.8], yaw=0.0)
+        m.arrival_start_time = time.time() - arrival_timeout_max - 1.0
+        m.navigate(pos=[2.14, 0.0, 1.8], yaw=0.0)
+        assert m.target_index == 2
+        assert time.time() - m.arrival_start_time < 1.0
 
     def test_precision_waypoint_still_requires_confirm_window(self, tmp_path):
         """同样0.25m偏差，在最后的精确航点(idx=2)不应该立刻掠过，还是要走
