@@ -1,0 +1,128 @@
+[INFO] 2026-07-18 16:15:51
+========================================
+[INFO] 2026-07-18 16:15:51
+basic_flight — 基本飞行控制器
+[INFO] 2026-07-18 16:15:51
+========================================
+[INFO] 2026-07-18 16:15:51
+飞控串口监听线程启动
+[INFO] 2026-07-18 16:15:51
+飞控串口发送线程启动（速度帧 100Hz + 指令帧 50Hz）
+[ERROR] 2026-07-18 16:15:52
+消防车广播串口打不开: Could not configure port: (5, 'Input/output error')，火情/位置广播禁用，不影响无人机自身飞行
+[INFO] 2026-07-18 16:15:52
+加载 12 个航点
+[INFO] 2026-07-18 16:15:52
+T265 启动中...
+[INFO] 2026-07-18 16:15:52
+T265 启动成功（真实设备）
+[INFO] 2026-07-18 16:15:52
+T265 自动校准...
+[INFO] 2026-07-18 16:15:52
+T265 校准完成, 偏移: [0. 0. 0.]
+[INFO] 2026-07-18 16:15:52
+T265 OK
+[INFO] 2026-07-18 16:15:52
+T265 追踪置信度已稳定 (confidence=3)
+[INFO] 2026-07-18 16:15:52
+任务启动, 12 个航点
+[INFO] 2026-07-18 16:15:52
+takeoff: started
+[INFO] 2026-07-18 16:15:57
+takeoff: 高度确认 26 cm
+[INFO] 2026-07-18 16:15:57
+save_snapshot: 已存图 fire_debug/20260718_161557_patrol_no_detect.jpg
+[INFO] 2026-07-18 16:16:01
+到达航点 0，停留 2s 观察
+[INFO] 2026-07-18 16:16:02
+save_snapshot: 已存图 fire_debug/20260718_161602_patrol_no_detect.jpg
+[INFO] 2026-07-18 16:16:03
+航点 0 停留完成
+[INFO] 2026-07-18 16:16:07
+save_snapshot: 已存图 fire_debug/20260718_161607_patrol_no_detect.jpg
+[INFO] 2026-07-18 16:16:12
+save_snapshot: 已存图 fire_debug/20260718_161612_patrol_no_detect.jpg
+[INFO] 2026-07-18 16:16:17
+save_snapshot: 已存图 fire_debug/20260718_161617_patrol_no_detect.jpg
+[INFO] 2026-07-18 16:16:19
+航点 1 掠过(巡航航点，不停留)
+[INFO] 2026-07-18 16:16:22
+航点 2 掠过(巡航航点，不停留)
+[INFO] 2026-07-18 16:16:22
+save_snapshot: 已存图 fire_debug/20260718_161622_patrol_no_detect.jpg
+[INFO] 2026-07-18 16:16:27
+save_snapshot: 已存图 fire_debug/20260718_161627_patrol_no_detect.jpg
+[INFO] 2026-07-18 16:16:32
+save_snapshot: 已存图 fire_debug/20260718_161632_patrol_no_detect.jpg
+[INFO] 2026-07-18 16:16:33
+航点 3 掠过(巡航航点，不停留)
+[INFO] 2026-07-18 16:16:36
+航点 4 掠过(巡航航点，不停留)
+[INFO] 2026-07-18 16:16:37
+save_snapshot: 已存图 fire_debug/20260718_161637_patrol_no_detect.jpg
+[INFO] 2026-07-18 16:16:42
+save_snapshot: 已存图 fire_debug/20260718_161642_patrol_no_detect.jpg
+[INFO] 2026-07-18 16:16:47
+航点 5 掠过(巡航航点，不停留)
+[INFO] 2026-07-18 16:16:47
+save_snapshot: 已存图 fire_debug/20260718_161647_patrol_no_detect.jpg
+[INFO] 2026-07-18 16:16:50
+航点 6 掠过(巡航航点，不停留)
+[INFO] 2026-07-18 16:16:52
+save_snapshot: 已存图 fire_debug/20260718_161652_patrol_no_detect.jpg
+[INFO] 2026-07-18 16:16:57
+save_snapshot: 已存图 fire_debug/20260718_161657_patrol_no_detect.jpg
+[INFO] 2026-07-18 16:17:01
+航点 7 掠过(巡航航点，不停留)
+[INFO] 2026-07-18 16:17:02
+save_snapshot: 已存图 fire_debug/20260718_161702_patrol_no_detect.jpg
+[INFO] 2026-07-18 16:17:04
+航点 8 掠过(巡航航点，不停留)
+[INFO] 2026-07-18 16:17:07
+save_snapshot: 已存图 fire_debug/20260718_161707_patrol_no_detect.jpg
+[INFO] 2026-07-18 16:17:12
+save_snapshot: 已存图 fire_debug/20260718_161712_patrol_no_detect.jpg
+[INFO] 2026-07-18 16:17:15
+航点 9 掠过(巡航航点，不停留)
+[INFO] 2026-07-18 16:17:17
+save_snapshot: 已存图 fire_debug/20260718_161717_patrol_no_detect.jpg
+[INFO] 2026-07-18 16:17:22
+save_snapshot: 已存图 fire_debug/20260718_161722_patrol_no_detect.jpg
+[INFO] 2026-07-18 16:17:27
+save_snapshot: 已存图 fire_debug/20260718_161727_patrol_no_detect.jpg
+[INFO] 2026-07-18 16:17:30
+到达航点 10，停留 2s 观察
+[INFO] 2026-07-18 16:17:31
+到达航点 10，停留 2s 观察
+[INFO] 2026-07-18 16:17:32
+到达航点 10，停留 2s 观察
+[INFO] 2026-07-18 16:17:32
+save_snapshot: 已存图 fire_debug/20260718_161732_patrol_no_detect.jpg
+[INFO] 2026-07-18 16:17:33
+航点 10 停留完成
+[INFO] 2026-07-18 16:17:37
+save_snapshot: 已存图 fire_debug/20260718_161737_patrol_no_detect.jpg
+[INFO] 2026-07-18 16:17:39
+到达航点 11，停留 2s 观察
+[INFO] 2026-07-18 16:17:41
+到达航点 11，停留 2s 观察
+[INFO] 2026-07-18 16:17:42
+save_snapshot: 已存图 fire_debug/20260718_161742_patrol_no_detect.jpg
+[INFO] 2026-07-18 16:17:42
+航点 11 停留完成
+[INFO] 2026-07-18 16:17:42
+全部航点完成
+[INFO] 2026-07-18 16:17:42
+降落
+[INFO] 2026-07-18 16:17:46
+降落确认：已上锁
+[INFO] 2026-07-18 16:17:46
+任务结束
+[INFO] 2026-07-18 16:17:47
+T265 已停止
+[INFO] 2026-07-18 16:17:47
+任务已结束，程序退出
+[INFO] 2026-07-18 16:17:50
+飞控串口发送线程关闭
+[INFO] 2026-07-18 16:17:50
+飞控串口已关闭
