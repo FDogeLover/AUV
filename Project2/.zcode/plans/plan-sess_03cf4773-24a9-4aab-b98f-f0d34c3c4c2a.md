@@ -1,31 +1,39 @@
-## 文档全量更新计划
+## 修复 qr_vision.py 的 pyzbar early-return 问题
 
-### 目标
-基于项目实际情况更新文档：移除 Codex–Claude 协作规范、更新项目结构、同步已知问题。
+### 问题
+`qr_vision.py:668-669` — pyzbar 在 fast path 失败后直接 `return None`，完全跳过了 OpenCV 几何定位 + 透视矫正的 fallback 路径。从实际飞行数据看，pyzbar 在金属货架遮挡、俯仰角大、QR 码小等条件下零解码成功。
 
-### 修改文件清单
+### 修复方案
+移除第 668-669 行的 `if pyzbar_decode is not None: return None`，让 pyzbar 失败后继续走 `_fast_geometry_search` + `_decode_localized`（含 2x/3x 放大 + `_decode_warped` 透视矫正）。
 
-| # | 文件 | 操作 |
-|---|------|------|
-| 1 | `.Codex/CLAUDE.md` | 移除 Codex-Claude 协作规范（第 207-248 行），更新项目结构（添加 `warehouse_inventory`、`fire_patrol`、`CodeWiki`） |
-| 2 | `.claude/CLAUDE.md` | 移除 Codex-Claude 协作规范（第 205-246 行），同步项目结构和已知问题（补问题 38-39，修正问题 16/27/35 状态） |
-| 3 | `docs/known_issues.md` | 新增问题 38（串口监听线程关闭竞态）和问题 39（BCM17 一键起飞门禁）的详细 `<details>` 条目，修正问题 29 条目顺序 |
+### 性能考量
+- `_fast_geometry_search`（OpenCV `detect`）约 50-200ms
+- `_decode_localized`（裁剪 + 放大 + 透视矫正）约 20-50ms
+- 合计约 100-250ms/帧，远快于全帧 tile 扫描（`_decode_search` 数秒级）
+- 二维码共识层（`QRConsensus`）已有多帧确认机制，不需要每帧都解码成功
 
-### 具体变更细节
+### 修改文件
+- `drone_control/warehouse_inventory/Lcode/qr_vision.py` 第 665-669 行
+- `drone_control/warehouse_inventory/test_qr_vision.py` 补充验证 pyzbar 失败时 fallback 到 OpenCV 路径的测试
 
-**1. `.Codex/CLAUDE.md` 项目结构更新：**
-- `drone_control/` 下新增：
-  - `├── fire_patrol/ ← 空地协同消防赛题模块（2026-07-17 真机验证通过）`
-  - `├── warehouse_inventory/ ← 立体货架盘点赛题模块（2026-07-19 集成状态机）`
-- 根目录新增：`├── CodeWiki/ ← 项目 wiki 文档索引`
-- 使用方式新增仓库盘点命令
+### 具体改动
 
-**2. `.claude/CLAUDE.md` 已知问题同步：**
-- 问题 16：`🔴/待真机` → `✅/赛题验收`
-- 问题 27：`🟡` → `✅/赛题验收`
-- 问题 35：补充更多样本细节
-- 新增问题 38、39（与 `.Codex/CLAUDE.md` 一致）
+**qr_vision.py `detect()` 方法：**
+```python
+# 旧代码（第 665-669 行）：
+            # pyzbar is the deployed flight decoder.  Do not fall through to
+            # the multi-pass OpenCV search on every frame: on the board that
+            # path takes several seconds and prevents multi-frame sampling.
+            if pyzbar_decode is not None:
+                return None
 
-**3. `docs/known_issues.md` 补充：**
-- 按现有格式为问题 38、39 补充完整 `<details>` 条目
-- 将问题 29 条目移到正确位置
+# 改为：
+            # pyzbar fast path failed; fall through to the geometry search
+            # which adds perspective correction (warp) and multi-scale
+            # retry.  This is more expensive than raw pyzbar but far cheaper
+            # than the full-frame _decode_search tile scan.
+```
+
+**test_qr_vision.py 新增测试：**
+- 验证当 pyzbar 返回空结果时，detect() 继续调用 `_fast_geometry_search` 而非直接返回 None
+- mock `pyzbar_decode` 返回空列表 + mock `cv2.QRCodeDetector.detect` 返回有效几何，确认 fallback 路径可达
