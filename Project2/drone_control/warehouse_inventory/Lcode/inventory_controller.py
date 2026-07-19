@@ -18,7 +18,7 @@ from Lcode.inventory_state import InventoryState, InventoryStateMachine
 from Lcode.inventory_store import InventoryConflict, InventoryStore
 from Lcode.laser_pointer import LaserPointer
 from Lcode.Logger import logger
-from Lcode.qr_vision import QRConsensus, QRDecoder
+from Lcode.qr_vision import QRConsensus, QRDecoder, VisionDebugCapture
 from Lcode.sensor_gimbal import SensorGimbal
 from Mission_GPT import mission as FlightMission
 
@@ -155,6 +155,7 @@ class InventoryMissionCoordinator:
         config=None,
         clock=time.monotonic,
         sleep_fn=time.sleep,
+        vision_debug=None,
     ):
         self.route = list(route)
         self.state_machine = state_machine
@@ -168,6 +169,7 @@ class InventoryMissionCoordinator:
         self.config = config or InventoryMissionConfig.from_env()
         self._clock = clock
         self._sleep = sleep_fn
+        self.vision_debug = vision_debug
         self.driver = None
         self.last_detection = None
 
@@ -237,6 +239,9 @@ class InventoryMissionCoordinator:
         self.consensus.reset()
         deadline = self._clock() + self.config.scan_timeout_s
         accepted = None
+        first_debug_frame = True
+        last_frame = None
+        last_debug_metadata = None
 
         while self._clock() < deadline:
             try:
@@ -247,15 +252,33 @@ class InventoryMissionCoordinator:
                     "camera_read_exception", waypoint_index=index, error=str(exc)
                 )
             if frame is not None:
+                last_frame = frame
                 try:
                     detection = self.decoder.detect(frame)
-                    accepted = self.consensus.update(
-                        detection, self.camera.laser_aim_point(frame)
-                    )
+                    laser_aim_px = self.camera.laser_aim_point(frame)
+                    accepted = self.consensus.update(detection, laser_aim_px)
                 except Exception as exc:
                     return self._abort(
                         "vision_exception", waypoint_index=index, error=str(exc)
                     )
+                last_debug_metadata = {
+                    "state": InventoryState.VERIFY_QR.value,
+                    "capture": "scan",
+                    "waypoint_index": index,
+                    "slot_label": waypoint.slot_label,
+                    "position": list(position),
+                    "laser_aim_px": list(laser_aim_px),
+                    "detected_number": detection.number if detection else None,
+                    "accepted_number": accepted.number if accepted else None,
+                    "frame_shape": list(frame.shape),
+                    "timestamp": time.time(),
+                }
+                if first_debug_frame and self.vision_debug is not None:
+                    self.vision_debug.capture_fixed(
+                        frame,
+                        {**last_debug_metadata, "capture": "first"},
+                    )
+                    first_debug_frame = False
                 self.state_machine.sample(
                     waypoint_index=index,
                     slot_label=waypoint.slot_label,
@@ -267,7 +290,18 @@ class InventoryMissionCoordinator:
             self._sleep(self.config.scan_poll_s)
 
         if accepted is None:
+            if last_frame is not None and self.vision_debug is not None:
+                self.vision_debug.capture_fixed(
+                    last_frame,
+                    {**last_debug_metadata, "capture": "timeout"},
+                )
             return self._abort("qr_timeout", waypoint_index=index, slot_label=waypoint.slot_label)
+
+        if last_frame is not None and self.vision_debug is not None:
+            self.vision_debug.capture_fixed(
+                last_frame,
+                {**last_debug_metadata, "capture": "accepted"},
+            )
 
         try:
             self.store.check_available(

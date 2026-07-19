@@ -18,7 +18,7 @@ from Lcode.inventory_controller import (
 )
 from Lcode.laser_pointer import LaserPointer
 from Lcode.Logger import logger
-from Lcode.qr_vision import QRConsensus, QRMapping, QRDecoder
+from Lcode.qr_vision import QRConsensus, QRMapping, QRDecoder, VisionDebugCapture
 from Lcode.sensor_gimbal import SensorGimbal
 from Lcode.state_debug_logger import StateDebugConfig, StateTrace
 from Lcode.global_variable import sp_side
@@ -102,6 +102,9 @@ def main():
 
     base_dir = Path(__file__).resolve().parent
     config = default_inventory_config(base_dir)
+    vision_debug = VisionDebugCapture(
+        base_dir / os.getenv("DRONE_VISION_DEBUG_DIR", "vision_debug")
+    )
     trace = StateTrace(
         path=base_dir / "inventory_state.jsonl",
         config=StateDebugConfig.from_env(),
@@ -174,6 +177,7 @@ def main():
             store,
             ground,
             config,
+            vision_debug=vision_debug,
         )
         mission1 = InventoryFlightMission(
             re_fc, se_fc, realsense, serial_fc, route, coordinator
