@@ -62,3 +62,68 @@ def test_adaptive_three_x_variant_maps_polygon_back_to_full_frame(monkeypatch):
     assert detection.number == 11
     assert detection.center == (640.0, 360.0)
     assert (2, (1800, 1680)) in calls
+
+
+def test_pyzbar_failure_falls_through_to_opencv_geometry_search(monkeypatch):
+    """When pyzbar returns nothing, detect() should not return None
+    immediately but continue to the OpenCV geometry search path."""
+    # pyzbar always fails
+    monkeypatch.setattr(qr_vision, "pyzbar_decode", lambda _image: [])
+
+    decoder = qr_vision.QRDecoder(Mapping())
+    frame = np.zeros((720, 1280, 3), dtype=np.uint8)
+
+    # Track whether _fast_geometry_search was called
+    geo_called = []
+
+    def fake_geometry_search(frame, target_point=None):
+        geo_called.append(True)
+        # Return a plausible QR quad near the center of the frame
+        pts = np.array(
+            [[500, 200], [700, 200], [700, 400], [500, 400]],
+            dtype=np.float32,
+        )
+        return SimpleNamespace(corners=pts)
+
+    monkeypatch.setattr(decoder, "_fast_geometry_search", fake_geometry_search)
+
+    # Track whether _decode_localized was called
+    local_decode_called = []
+
+    def fake_decode_localized(frame, corners):
+        local_decode_called.append(True)
+        return "near"
+
+    monkeypatch.setattr(decoder, "_decode_localized", fake_decode_localized)
+
+    detection = decoder.detect(frame, target_point=(640.0, 360.0))
+
+    # The fallback path was reached
+    assert geo_called, "_fast_geometry_search was never called"
+    assert local_decode_called, "_decode_localized was never called"
+    assert detection is not None
+    assert detection.number == 11
+
+
+def test_pyzbar_failure_with_no_geometry_does_not_trigger_decode_search(monkeypatch):
+    """When both pyzbar and geometry search fail with a target_point, detect()
+    must return None immediately without calling the slow _decode_search."""
+    monkeypatch.setattr(qr_vision, "pyzbar_decode", lambda _image: [])
+
+    decoder = qr_vision.QRDecoder(Mapping())
+    frame = np.zeros((720, 1280, 3), dtype=np.uint8)
+
+    # Geometry search finds nothing (common when QR not in FOV / overexposed)
+    monkeypatch.setattr(decoder, "_fast_geometry_search", lambda *a, **kw: None)
+
+    decode_search_called = []
+    monkeypatch.setattr(
+        decoder,
+        "_decode_search",
+        lambda *a, **kw: decode_search_called.append(True) or None,
+    )
+
+    result = decoder.detect(frame, target_point=(640.0, 360.0))
+
+    assert result is None
+    assert not decode_search_called, "_decode_search must NOT be called in airborne scan loop"

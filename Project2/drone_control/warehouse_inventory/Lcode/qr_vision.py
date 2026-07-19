@@ -662,12 +662,26 @@ class QRDecoder:
             fast_detection = self._decode_target_roi(frame, target_point)
             if fast_detection is not None:
                 return fast_detection
-            # pyzbar is the deployed flight decoder.  Do not fall through to
-            # the multi-pass OpenCV search on every frame: on the board that
-            # path takes several seconds and prevents multi-frame sampling.
-            if pyzbar_decode is not None:
-                return None
+            # pyzbar fast path failed.  Try the geometry search which adds
+            # perspective correction (warp) and multi-scale retry.  This is
+            # more expensive than raw pyzbar but far cheaper than the
+            # full-frame _decode_search tile scan.  Crucially, we do NOT fall
+            # through to _decode_search here: when target_point is provided we
+            # are in the airborne scan loop and must return quickly enough for
+            # multi-frame sampling.  If the geometry search finds nothing, the
+            # consensus layer will retry on the next frame.
+            geometry = self._fast_geometry_search(frame, target_point)
+            if geometry is not None:
+                content = self._decode_localized(frame, geometry.corners)
+                if content:
+                    return QRDetection(
+                        self.mapping.content_to_number.get(content),
+                        content,
+                        geometry.corners,
+                    )
+            return None
 
+        # target_point is None: full search without airborne latency constraint.
         # First localize the QR near the optical axis. The same localized
         # polygon is then used to decode a padded, enlarged crop; this keeps
         # adjacent shelf codes and the guard rail out of the decoder input.
