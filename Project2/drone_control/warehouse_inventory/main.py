@@ -2,6 +2,7 @@
 
 import os
 import time
+from dataclasses import replace
 from pathlib import Path
 
 import Lcode.Lprotocol
@@ -91,6 +92,22 @@ def _close_resources(camera, gimbal, laser, ground, trace):
         trace.close()
 
 
+def _apply_scan_height_override(route):
+    """Adjust only inspection heights for a controlled vision test."""
+    raw = os.getenv("DRONE_INVENTORY_SCAN_Z", "").strip()
+    if not raw:
+        return route, None
+    scan_z = float(raw)
+    if not 0.5 <= scan_z <= 2.0:
+        raise ValueError("DRONE_INVENTORY_SCAN_Z must be between 0.5 and 2.0 m")
+    return [
+        replace(waypoint, point=replace(waypoint.point, z=scan_z))
+        if waypoint.kind.value == "inspect"
+        else waypoint
+        for waypoint in route
+    ], scan_z
+
+
 def main():
     logger.info("=" * 40)
     logger.info("warehouse_inventory — 完整立体货架盘点控制器")
@@ -146,6 +163,7 @@ def main():
         else:
             route = planner.plan_full_inventory()
             expected_slots = set(planner.model.slots)
+        route, scan_z_override = _apply_scan_height_override(route)
         mapping = QRMapping(config.qr_mapping_file)
         decoder = QRDecoder(mapping)
         consensus = QRConsensus()
@@ -156,6 +174,7 @@ def main():
             route_waypoints=len(route),
             inspect_slots=sum(waypoint.kind.value == "inspect" for waypoint in route),
             test_slot=requested_slot or None,
+            scan_z_override=scan_z_override,
         )
 
         re_fc = [0] * 14
