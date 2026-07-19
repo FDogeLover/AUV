@@ -1,41 +1,48 @@
-"""
-立体货架盘点无人机 — 主入口（安全锁定骨架）
+"""Full warehouse-inventory mission entry point."""
 
-运行:
-  python main.py
-
-启动顺序:
-  1. 绿灯常亮等待 BCM17 一键起飞按钮
-  2. 按键后创建 T265 实例
-  3. 打开飞控串口 → 启动监听 + 发送线程
-  4. 创建任务 → T265检查 → 红灯5秒 → 启动状态机
-  5. 保持主线程存活
-"""
 import os
 import time
+from pathlib import Path
 
 import Lcode.Lprotocol
-from Lcode.global_variable import sp_side
+from Lcode.ground_link import BroadcastGroundLink
+from Lcode.inventory_planner import InventoryPlanner
+from Lcode.inventory_state import InventoryState, InventoryStateMachine
+from Lcode.inventory_store import InventoryStore
+from Lcode.inventory_controller import (
+    CameraSource,
+    InventoryFlightMission,
+    InventoryMissionConfig,
+    InventoryMissionCoordinator,
+    default_inventory_config,
+)
+from Lcode.laser_pointer import LaserPointer
 from Lcode.Logger import logger
-from Mission_GPT import mission
+from Lcode.qr_vision import QRConsensus, QRMapping, QRDecoder
+from Lcode.sensor_gimbal import SensorGimbal
+from Lcode.state_debug_logger import StateDebugConfig, StateTrace
+from Lcode.global_variable import sp_side
 from t265 import t265_class
 
 
 START_BUTTON_POLL_S = 0.05
 
-# 新赛题状态机、云台、二维码和激光安全门禁尚未接入前，禁止误跑继承自 basic 的
-# router.txt。完成阶段性实现和桌面验收后，由代码评审明确移除此锁，而不是通过
-# 环境变量临时绕过。
-WAREHOUSE_MISSION_READY = False
+# The state machine is now connected.  Actual launch still requires the
+# physical button, T265 initialization, camera/gimbal/laser preflight, and the
+# existing five-second red-light warning.
+# Keep the physical entry point locked by default. For an explicitly authorized
+# bench/flight test, the operator must opt in at process start; the physical
+# button, T265 checks, and five-second red warning remain mandatory.
+WAREHOUSE_MISSION_READY = os.getenv("DRONE_WAREHOUSE_MISSION_READY", "0") == "1"
 
 
 def wait_for_start_button():
-    """只初始化GPIO，绿灯等待用户完成T265拔插后按键。"""
+    """Initialize only the button and green LED before the physical press."""
     try:
         from Lcode.gpio_button import GpioButton
         from Lcode.gpio_led import set_rgb_led
-    except Exception as e:
-        logger.error(f"一键起飞GPIO模块加载失败: {e}")
+    except Exception as exc:
+        logger.error(f"起飞 GPIO 模块加载失败: {exc}")
         return False
 
     button = GpioButton()
@@ -45,83 +52,168 @@ def wait_for_start_button():
             logger.error("一键起飞按钮初始化失败")
             return False
         led_is_off = False
-        if not set_rgb_led('G'):
+        if not set_rgb_led("G"):
             logger.error("一键起飞绿灯点亮失败")
             return False
-
-        logger.info("绿灯常亮：请完成T265拔插，然后按下一键起飞按钮")
+        logger.info("绿灯常亮：请完成 T265 拔插，然后按下一键起飞按钮")
         while not button.was_pressed():
             time.sleep(START_BUTTON_POLL_S)
-
-        logger.info("一键起飞按钮已按下（单次按键已锁存），开始初始化T265和飞控串口")
-        if not set_rgb_led('OFF'):
+        logger.info("一键起飞按钮已按下，开始初始化完整盘点任务")
+        if not set_rgb_led("OFF"):
             logger.error("按键确认后关闭绿灯失败")
             return False
         led_is_off = True
         return True
     except KeyboardInterrupt:
-        logger.info("等待一键起飞按钮时收到用户中断")
         raise
-    except Exception as e:
-        logger.error(f"一键起飞按钮等待失败: {e}")
+    except Exception as exc:
+        logger.error(f"一键起飞按钮等待失败: {exc}")
         return False
     finally:
         if not led_is_off:
             try:
-                set_rgb_led('OFF')
-            except Exception as e:
-                logger.error(f"一键起飞等待结束时关灯失败: {e}")
-        try:
-            button.stop()
-        except Exception as e:
-            logger.error(f"一键起飞按钮资源释放失败: {e}")
+                set_rgb_led("OFF")
+            except Exception:
+                pass
+        button.stop()
+
+
+def _close_resources(camera, gimbal, laser, ground, trace):
+    for resource in (camera, gimbal, laser):
+        if resource is not None:
+            try:
+                resource.close()
+            except Exception as exc:
+                logger.warning(f"盘点硬件关闭失败: {exc}")
+    if ground is not None:
+        ground.close()
+    if trace is not None:
+        trace.close()
 
 
 def main():
     logger.info("=" * 40)
-    logger.info("warehouse_inventory — 立体货架盘点控制器")
+    logger.info("warehouse_inventory — 完整立体货架盘点控制器")
     logger.info("=" * 40)
 
     if not WAREHOUSE_MISSION_READY:
-        logger.error(
-            "赛题状态机尚未接入，入口保持安全锁定；不会初始化按钮、T265或飞控串口"
-        )
+        logger.error("完整盘点状态机未通过代码验收，保持安全锁定")
         return
 
-    # 先等待用户完成T265拔插并按键；此时不创建T265、不打开飞控串口。
-    if not wait_for_start_button():
-        logger.error("一键起飞门禁失败，程序退出；飞控不会解锁")
-        return
+    base_dir = Path(__file__).resolve().parent
+    config = default_inventory_config(base_dir)
+    trace = StateTrace(
+        path=base_dir / "inventory_state.jsonl",
+        config=StateDebugConfig.from_env(),
+    )
+    ground = BroadcastGroundLink()
+    ground.start()
+    state_machine = InventoryStateMachine(trace, ground)
+    state_machine.transition(InventoryState.WAIT_BUTTON, "full_inventory")
 
-    # 按键通过后才创建通信缓冲区和硬件对象。
-    re_fc = [0] * 14
-    # com_z(索引5)必须保持0；takeoff()会在触发task_sta前写入本次目标高度。
-    se_fc = [170, 2, 0, sp_side, sp_side, 0, sp_side, 0, sp_side, 0, 255]
-    realsense = t265_class()
-
-    serial_fc = None
-    mission1 = None
+    camera = gimbal = laser = None
+    serial_fc = mission1 = None
+    store = None
     try:
+        if not wait_for_start_button():
+            state_machine.fault("button_gate_failed", recover_to_return=False)
+            return
+        state_machine.transition(InventoryState.INIT_FLIGHT_HW, "button_pressed")
+
+        camera = CameraSource(config)
+        gimbal = SensorGimbal()
+        laser = LaserPointer()
+        if not camera.start():
+            state_machine.fault("camera_init_failed", recover_to_return=False)
+            return
+        if not gimbal.start():
+            state_machine.fault("gimbal_init_failed", recover_to_return=False)
+            return
+        if not laser.start():
+            state_machine.fault("laser_init_failed", recover_to_return=False)
+            return
+
+        planner = InventoryPlanner()
+        requested_slot = os.getenv("DRONE_INVENTORY_SLOT", "").strip().upper()
+        if requested_slot:
+            if requested_slot not in planner.model.slots:
+                raise ValueError(f"unknown inventory test slot: {requested_slot}")
+            route = planner.plan_target(requested_slot)
+            expected_slots = {requested_slot}
+        else:
+            route = planner.plan_full_inventory()
+            expected_slots = set(planner.model.slots)
+        mapping = QRMapping(config.qr_mapping_file)
+        decoder = QRDecoder(mapping)
+        consensus = QRConsensus()
+        store = InventoryStore(expected_slots)
+        state_machine.transition(
+            InventoryState.PREFLIGHT,
+            "hardware_ready",
+            route_waypoints=len(route),
+            inspect_slots=sum(waypoint.kind.value == "inspect" for waypoint in route),
+            test_slot=requested_slot or None,
+        )
+
+        re_fc = [0] * 14
+        se_fc = [170, 2, 0, sp_side, sp_side, 0, sp_side, 0, sp_side, 0, 255]
+        realsense = t265_class()
         port = os.getenv("DRONE_FC_PORT", "/dev/ttyS6")
         serial_fc = Lcode.Lprotocol.Serial_fc(port, 460800)
         serial_fc.listen_start(re_fc)
         serial_fc.send_start(se_fc, realsense, vel_freq=100, cmd_freq=50)
 
-        mission1 = mission(re_fc, se_fc, realsense, serial_fc)
+        coordinator = InventoryMissionCoordinator(
+            route,
+            state_machine,
+            gimbal,
+            laser,
+            camera,
+            decoder,
+            consensus,
+            store,
+            ground,
+            config,
+        )
+        mission1 = InventoryFlightMission(
+            re_fc, se_fc, realsense, serial_fc, route, coordinator
+        )
         mission1.start()
         while mission1.task_running:
             time.sleep(0.1)
-        logger.info("任务已结束，程序退出")
+
+        store.save(base_dir / "inventory_results.json")
+        trace.summary(
+            complete=store.is_complete(),
+            result_count=len(store.by_slot),
+            missing_slots=store.missing_slots(),
+        )
+        logger.info(
+            f"盘点结束：{len(store.by_slot)}/{len(expected_slots)}，完整={store.is_complete()}"
+        )
     except KeyboardInterrupt:
-        logger.info("用户中断")
-        if mission1 is not None:
+        logger.info("完整盘点收到用户中断")
+        if mission1 is not None and mission1.task_running:
             mission1.emergency()
-            if not mission1.task_running:
-                mission1.stop_all()
+    except Exception as exc:
+        logger.exception("完整盘点启动或运行失败")
+        if state_machine.state not in {InventoryState.FAULT, InventoryState.END}:
+            try:
+                state_machine.fault("mission_exception", error=str(exc))
+            except Exception:
+                pass
+        if mission1 is not None and mission1.task_running:
+            mission1.emergency()
     finally:
+        if store is not None:
+            try:
+                store.save(base_dir / "inventory_results.json")
+            except Exception:
+                pass
         if serial_fc is not None:
             serial_fc.send_end()
             serial_fc.close()
+        _close_resources(camera, gimbal, laser, ground, trace)
 
 
 if __name__ == "__main__":

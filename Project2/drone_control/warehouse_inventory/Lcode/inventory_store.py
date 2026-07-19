@@ -65,6 +65,21 @@ class InventoryStore:
         self.by_cargo[cargo_id] = result
         return result
 
+    def check_available(self, cargo_id: int, slot_label: str) -> None:
+        """Validate uniqueness without persisting a result."""
+        cargo_id = int(cargo_id)
+        slot_label = slot_label.strip().upper()
+        existing_slot = self.by_slot.get(slot_label)
+        existing_cargo = self.by_cargo.get(cargo_id)
+        if existing_slot and existing_slot.cargo_id != cargo_id:
+            raise InventoryConflict(
+                f"slot {slot_label} already contains cargo {existing_slot.cargo_id}"
+            )
+        if existing_cargo and existing_cargo.slot_label != slot_label:
+            raise InventoryConflict(
+                f"cargo {cargo_id} already belongs to slot {existing_cargo.slot_label}"
+            )
+
     def query_cargo(self, cargo_id: int) -> Optional[InventoryResult]:
         return self.by_cargo.get(int(cargo_id))
 
