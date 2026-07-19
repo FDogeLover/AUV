@@ -34,3 +34,4 @@
 - [视觉调试必须基于真实飞行参照](feedback_vision_debug_flight_reference.md) — 固定点先实飞拍照、长航程按频率留图、拍照调试开关正式任务默认关闭；参数必须用真实飞行素材离线回放验证
 - [立体货架盘点赛题坐标系](project_warehouse_inventory_coordinate_frame.md) — 起飞点为T265局部原点，+Y沿场地5m长边，-X沿场地4m宽边，+Z向上；图纸坐标统一转换，禁止散落轴交换/正负号
 - [立体货架盘点地面站通信](project_warehouse_inventory_ground_link.md) — 端口/dev/bt_serial，训练阶段只广播且无接收端，不能等待ACK或阻塞飞行；正式地面站可靠模式以后配置化接入
+- [立体货架盘点QR视觉解码实测](project_warehouse_inventory_qr_vision.md) — pyzbar裸调用飞行帧零成功率；adaptiveThreshold(block=31,C=5)是唯一有效预处理；QR内容为URL需qr_mapping.txt映射；原detect()early-return已修复，fallback到_fast_geometry_search+_decode_localized但不落入_decode_search慢路径
