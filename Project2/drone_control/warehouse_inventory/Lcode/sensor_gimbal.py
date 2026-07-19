@@ -20,8 +20,10 @@ class SysfsPWM:
         if not self.path.exists():
             (self.base / "export").write_text(str(self.channel), encoding="ascii")
             time.sleep(0.2)
-        self._write("enable", 0)
+        # On this board, pwm0 starts with period=0 after boot. Writing
+        # enable=0 first then raises EINVAL; initialize the period first.
         self._write("period", self.period_ns)
+        self._write("enable", 0)
 
     def _write(self, name, value):
         (self.path / name).write_text(str(int(value)), encoding="ascii")

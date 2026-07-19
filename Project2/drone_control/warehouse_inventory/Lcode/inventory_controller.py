@@ -30,7 +30,9 @@ except ImportError:
 
 @dataclass(frozen=True)
 class InventoryMissionConfig:
-    camera_device: str = "/dev/video32"
+    # The deployed UVC camera enumerates as video0 on the flight board.
+    # Keep DRONE_CAMERA_DEVICE as an override for alternate capture nodes.
+    camera_device: str = "/dev/video0"
     camera_width: int = 1280
     camera_height: int = 720
     camera_fps: int = 15
@@ -54,7 +56,7 @@ class InventoryMissionConfig:
     def from_env(cls, environ: Optional[Mapping[str, str]] = None):
         env = os.environ if environ is None else environ
         return cls(
-            camera_device=env.get("DRONE_CAMERA_DEVICE", "/dev/video32"),
+            camera_device=env.get("DRONE_CAMERA_DEVICE", "/dev/video0"),
             camera_width=int(env.get("DRONE_CAMERA_WIDTH", "1280")),
             camera_height=int(env.get("DRONE_CAMERA_HEIGHT", "720")),
             camera_fps=int(env.get("DRONE_CAMERA_FPS", "15")),
@@ -92,6 +94,13 @@ class CameraSource:
                 self.close()
                 return False
             if hasattr(self._capture, "set") and cv2 is not None:
+                # The UVC camera opens as 320x240 YUYV by default. Select
+                # MJPEG before requesting the scan resolution; otherwise
+                # OpenCV may silently keep the low-resolution mode.
+                self._capture.set(
+                    cv2.CAP_PROP_FOURCC,
+                    cv2.VideoWriter_fourcc(*"MJPG"),
+                )
                 self._capture.set(cv2.CAP_PROP_FRAME_WIDTH, self.config.camera_width)
                 self._capture.set(cv2.CAP_PROP_FRAME_HEIGHT, self.config.camera_height)
                 self._capture.set(cv2.CAP_PROP_FPS, self.config.camera_fps)
