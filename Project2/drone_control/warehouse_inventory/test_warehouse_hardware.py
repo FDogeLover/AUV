@@ -107,6 +107,18 @@ def test_qr_consensus_requires_multiple_frames_and_safe_laser_point():
         assert consensus.update(_detection(), (105, 150)) is None
 
 
+def test_qr_consensus_can_accept_one_frame_without_laser_gate():
+    consensus = QRConsensus(
+        QRConsensusConfig(
+            window_size=1,
+            required_count=1,
+            require_laser_inside=False,
+        )
+    )
+    accepted = consensus.update(_detection(number=11), (0, 0))
+    assert accepted.number == 11
+
+
 def test_vision_debug_capture_switch_and_transit_throttle(tmp_path):
     writes = []
 
@@ -136,3 +148,26 @@ def test_vision_debug_capture_switch_and_transit_throttle(tmp_path):
     assert second is not None
     metadata = json.loads(second.with_suffix(".json").read_text(encoding="utf-8"))
     assert metadata["state"] == "TRANSIT"
+
+
+def test_vision_debug_capture_scan_is_throttled_and_marked_scan(tmp_path):
+    writes = []
+
+    def writer(path, frame):
+        writes.append(path)
+        open(path, "wb").write(b"jpg")
+        return True
+
+    capture = VisionDebugCapture(
+        tmp_path,
+        VisionDebugConfig(enabled=True, scan_interval_s=0.5),
+        image_writer=writer,
+    )
+    frame = np.zeros((10, 10, 3), dtype=np.uint8)
+    first = capture.capture_scan(frame, {"state": "VERIFY_QR"}, now=0.0)
+    assert first is not None
+    assert capture.capture_scan(frame, {"state": "TAKEOFF"}, now=0.2) is None
+    second = capture.capture_scan(frame, {"state": "VERIFY_QR"}, now=0.6)
+    assert second is not None
+    assert all("_scan.jpg" in path for path in writes)
+    assert json.loads(second.with_suffix(".json").read_text(encoding="utf-8"))["state"] == "VERIFY_QR"

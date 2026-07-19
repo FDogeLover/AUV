@@ -46,3 +46,213 @@
 {"t": 1784430833.794, "event": "fault", "state": "WAIT_BUTTON", "code": "button_gate_failed"}
 {"t": 1784430833.794, "event": "state_exit", "state": "WAIT_BUTTON", "next_state": "FAULT", "duration_s": 0.0, "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
 {"t": 1784430833.794, "event": "state_enter", "state": "FAULT", "previous": "WAIT_BUTTON", "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784431721.499, "event": "state_enter", "state": "BOOT", "previous": null}
+{"t": 1784431721.499, "event": "state_exit", "state": "BOOT", "next_state": "WAIT_BUTTON", "duration_s": 0.0, "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784431721.499, "event": "state_enter", "state": "WAIT_BUTTON", "previous": "BOOT", "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784431721.499, "event": "fault", "state": "WAIT_BUTTON", "code": "button_gate_failed"}
+{"t": 1784431721.499, "event": "state_exit", "state": "WAIT_BUTTON", "next_state": "FAULT", "duration_s": 0.0, "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784431721.499, "event": "state_enter", "state": "FAULT", "previous": "WAIT_BUTTON", "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784432631.68, "event": "state_enter", "state": "BOOT", "previous": null}
+{"t": 1784432631.68, "event": "state_exit", "state": "BOOT", "next_state": "WAIT_BUTTON", "duration_s": 0.0, "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784432631.68, "event": "state_enter", "state": "WAIT_BUTTON", "previous": "BOOT", "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784432631.68, "event": "fault", "state": "WAIT_BUTTON", "code": "button_gate_failed"}
+{"t": 1784432631.68, "event": "state_exit", "state": "WAIT_BUTTON", "next_state": "FAULT", "duration_s": 0.0, "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784432631.68, "event": "state_enter", "state": "FAULT", "previous": "WAIT_BUTTON", "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784432668.862, "event": "state_enter", "state": "BOOT", "previous": null}
+{"t": 1784432668.862, "event": "state_exit", "state": "BOOT", "next_state": "WAIT_BUTTON", "duration_s": 0.0, "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784432668.862, "event": "state_enter", "state": "WAIT_BUTTON", "previous": "BOOT", "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784432668.862, "event": "fault", "state": "WAIT_BUTTON", "code": "button_gate_failed"}
+{"t": 1784432668.862, "event": "state_exit", "state": "WAIT_BUTTON", "next_state": "FAULT", "duration_s": 0.0, "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784432668.862, "event": "state_enter", "state": "FAULT", "previous": "WAIT_BUTTON", "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784434674.514, "event": "state_enter", "state": "BOOT", "previous": null}
+{"t": 1784434674.515, "event": "state_exit", "state": "BOOT", "next_state": "WAIT_BUTTON", "duration_s": 0.0, "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784434674.515, "event": "state_enter", "state": "WAIT_BUTTON", "previous": "BOOT", "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784434674.515, "event": "fault", "state": "WAIT_BUTTON", "code": "button_gate_failed"}
+{"t": 1784434674.515, "event": "state_exit", "state": "WAIT_BUTTON", "next_state": "FAULT", "duration_s": 0.0, "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784434674.515, "event": "state_enter", "state": "FAULT", "previous": "WAIT_BUTTON", "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784434708.064, "event": "state_enter", "state": "BOOT", "previous": null}
+{"t": 1784434708.065, "event": "state_exit", "state": "BOOT", "next_state": "WAIT_BUTTON", "duration_s": 0.0, "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784434708.065, "event": "state_enter", "state": "WAIT_BUTTON", "previous": "BOOT", "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784434708.065, "event": "fault", "state": "WAIT_BUTTON", "code": "button_gate_failed"}
+{"t": 1784434708.065, "event": "state_exit", "state": "WAIT_BUTTON", "next_state": "FAULT", "duration_s": 0.0, "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784434708.065, "event": "state_enter", "state": "FAULT", "previous": "WAIT_BUTTON", "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784434809.448, "event": "state_enter", "state": "BOOT", "previous": null}
+{"t": 1784434809.449, "event": "state_exit", "state": "BOOT", "next_state": "WAIT_BUTTON", "duration_s": 0.0, "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784434809.449, "event": "state_enter", "state": "WAIT_BUTTON", "previous": "BOOT", "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784434809.449, "event": "fault", "state": "WAIT_BUTTON", "code": "button_gate_failed"}
+{"t": 1784434809.449, "event": "state_exit", "state": "WAIT_BUTTON", "next_state": "FAULT", "duration_s": 0.0, "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784434809.449, "event": "state_enter", "state": "FAULT", "previous": "WAIT_BUTTON", "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784434879.216, "event": "state_enter", "state": "BOOT", "previous": null}
+{"t": 1784434879.216, "event": "state_exit", "state": "BOOT", "next_state": "WAIT_BUTTON", "duration_s": 0.0, "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784434879.216, "event": "state_enter", "state": "WAIT_BUTTON", "previous": "BOOT", "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784434879.216, "event": "fault", "state": "WAIT_BUTTON", "code": "button_gate_failed"}
+{"t": 1784434879.216, "event": "state_exit", "state": "WAIT_BUTTON", "next_state": "FAULT", "duration_s": 0.0, "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784434879.216, "event": "state_enter", "state": "FAULT", "previous": "WAIT_BUTTON", "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784434919.057, "event": "state_enter", "state": "BOOT", "previous": null}
+{"t": 1784434919.057, "event": "state_exit", "state": "BOOT", "next_state": "WAIT_BUTTON", "duration_s": 0.0, "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784434919.057, "event": "state_enter", "state": "WAIT_BUTTON", "previous": "BOOT", "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784434919.057, "event": "fault", "state": "WAIT_BUTTON", "code": "button_gate_failed"}
+{"t": 1784434919.057, "event": "state_exit", "state": "WAIT_BUTTON", "next_state": "FAULT", "duration_s": 0.0, "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784434919.057, "event": "state_enter", "state": "FAULT", "previous": "WAIT_BUTTON", "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784435782.157, "event": "state_enter", "state": "BOOT", "previous": null}
+{"t": 1784435782.157, "event": "state_exit", "state": "BOOT", "next_state": "WAIT_BUTTON", "duration_s": 0.0, "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784435782.157, "event": "state_enter", "state": "WAIT_BUTTON", "previous": "BOOT", "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784435782.157, "event": "fault", "state": "WAIT_BUTTON", "code": "button_gate_failed"}
+{"t": 1784435782.157, "event": "state_exit", "state": "WAIT_BUTTON", "next_state": "FAULT", "duration_s": 0.0, "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784435782.157, "event": "state_enter", "state": "FAULT", "previous": "WAIT_BUTTON", "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784437615.794, "event": "state_enter", "state": "BOOT", "previous": null}
+{"t": 1784437615.794, "event": "state_exit", "state": "BOOT", "next_state": "WAIT_BUTTON", "duration_s": 0.0, "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784437615.794, "event": "state_enter", "state": "WAIT_BUTTON", "previous": "BOOT", "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784437615.794, "event": "fault", "state": "WAIT_BUTTON", "code": "button_gate_failed"}
+{"t": 1784437615.794, "event": "state_exit", "state": "WAIT_BUTTON", "next_state": "FAULT", "duration_s": 0.0, "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784437615.794, "event": "state_enter", "state": "FAULT", "previous": "WAIT_BUTTON", "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784438683.447, "event": "state_enter", "state": "BOOT", "previous": null}
+{"t": 1784438683.447, "event": "state_exit", "state": "BOOT", "next_state": "WAIT_BUTTON", "duration_s": 0.0, "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784438683.447, "event": "state_enter", "state": "WAIT_BUTTON", "previous": "BOOT", "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784438683.447, "event": "fault", "state": "WAIT_BUTTON", "code": "button_gate_failed"}
+{"t": 1784438683.447, "event": "state_exit", "state": "WAIT_BUTTON", "next_state": "FAULT", "duration_s": 0.0, "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784438683.447, "event": "state_enter", "state": "FAULT", "previous": "WAIT_BUTTON", "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784439712.685, "event": "state_enter", "state": "BOOT", "previous": null}
+{"t": 1784439712.685, "event": "state_exit", "state": "BOOT", "next_state": "WAIT_BUTTON", "duration_s": 0.0, "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784439712.685, "event": "state_enter", "state": "WAIT_BUTTON", "previous": "BOOT", "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784439712.685, "event": "fault", "state": "WAIT_BUTTON", "code": "button_gate_failed"}
+{"t": 1784439712.685, "event": "state_exit", "state": "WAIT_BUTTON", "next_state": "FAULT", "duration_s": 0.0, "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784439712.685, "event": "state_enter", "state": "FAULT", "previous": "WAIT_BUTTON", "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784439756.712, "event": "state_enter", "state": "BOOT", "previous": null}
+{"t": 1784439756.712, "event": "state_exit", "state": "BOOT", "next_state": "WAIT_BUTTON", "duration_s": 0.0, "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784439756.712, "event": "state_enter", "state": "WAIT_BUTTON", "previous": "BOOT", "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784439756.712, "event": "fault", "state": "WAIT_BUTTON", "code": "button_gate_failed"}
+{"t": 1784439756.712, "event": "state_exit", "state": "WAIT_BUTTON", "next_state": "FAULT", "duration_s": 0.0, "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784439756.712, "event": "state_enter", "state": "FAULT", "previous": "WAIT_BUTTON", "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784439870.11, "event": "state_enter", "state": "BOOT", "previous": null}
+{"t": 1784439870.11, "event": "state_exit", "state": "BOOT", "next_state": "WAIT_BUTTON", "duration_s": 0.0, "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784439870.11, "event": "state_enter", "state": "WAIT_BUTTON", "previous": "BOOT", "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784439870.11, "event": "fault", "state": "WAIT_BUTTON", "code": "button_gate_failed"}
+{"t": 1784439870.11, "event": "state_exit", "state": "WAIT_BUTTON", "next_state": "FAULT", "duration_s": 0.0, "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784439870.11, "event": "state_enter", "state": "FAULT", "previous": "WAIT_BUTTON", "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784440974.617, "event": "state_enter", "state": "BOOT", "previous": null}
+{"t": 1784440974.617, "event": "state_exit", "state": "BOOT", "next_state": "WAIT_BUTTON", "duration_s": 0.0, "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784440974.617, "event": "state_enter", "state": "WAIT_BUTTON", "previous": "BOOT", "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784440974.617, "event": "fault", "state": "WAIT_BUTTON", "code": "button_gate_failed"}
+{"t": 1784440974.617, "event": "state_exit", "state": "WAIT_BUTTON", "next_state": "FAULT", "duration_s": 0.0, "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784440974.617, "event": "state_enter", "state": "FAULT", "previous": "WAIT_BUTTON", "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784441973.907, "event": "state_enter", "state": "BOOT", "previous": null}
+{"t": 1784441973.907, "event": "state_exit", "state": "BOOT", "next_state": "WAIT_BUTTON", "duration_s": 0.0, "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784441973.907, "event": "state_enter", "state": "WAIT_BUTTON", "previous": "BOOT", "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784441973.907, "event": "fault", "state": "WAIT_BUTTON", "code": "button_gate_failed"}
+{"t": 1784441973.907, "event": "state_exit", "state": "WAIT_BUTTON", "next_state": "FAULT", "duration_s": 0.0, "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784441973.907, "event": "state_enter", "state": "FAULT", "previous": "WAIT_BUTTON", "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784442027.855, "event": "state_enter", "state": "BOOT", "previous": null}
+{"t": 1784442027.855, "event": "state_exit", "state": "BOOT", "next_state": "WAIT_BUTTON", "duration_s": 0.0, "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784442027.855, "event": "state_enter", "state": "WAIT_BUTTON", "previous": "BOOT", "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784442027.855, "event": "fault", "state": "WAIT_BUTTON", "code": "button_gate_failed"}
+{"t": 1784442027.855, "event": "state_exit", "state": "WAIT_BUTTON", "next_state": "FAULT", "duration_s": 0.0, "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784442027.855, "event": "state_enter", "state": "FAULT", "previous": "WAIT_BUTTON", "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784443389.142, "event": "state_enter", "state": "BOOT", "previous": null}
+{"t": 1784443389.142, "event": "state_exit", "state": "BOOT", "next_state": "WAIT_BUTTON", "duration_s": 0.0, "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784443389.142, "event": "state_enter", "state": "WAIT_BUTTON", "previous": "BOOT", "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784443389.142, "event": "fault", "state": "WAIT_BUTTON", "code": "button_gate_failed"}
+{"t": 1784443389.142, "event": "state_exit", "state": "WAIT_BUTTON", "next_state": "FAULT", "duration_s": 0.0, "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784443389.142, "event": "state_enter", "state": "FAULT", "previous": "WAIT_BUTTON", "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784443450.737, "event": "state_enter", "state": "BOOT", "previous": null}
+{"t": 1784443450.737, "event": "state_exit", "state": "BOOT", "next_state": "WAIT_BUTTON", "duration_s": 0.0, "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784443450.737, "event": "state_enter", "state": "WAIT_BUTTON", "previous": "BOOT", "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784443450.737, "event": "fault", "state": "WAIT_BUTTON", "code": "button_gate_failed"}
+{"t": 1784443450.737, "event": "state_exit", "state": "WAIT_BUTTON", "next_state": "FAULT", "duration_s": 0.0, "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784443450.737, "event": "state_enter", "state": "FAULT", "previous": "WAIT_BUTTON", "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784443854.085, "event": "state_enter", "state": "BOOT", "previous": null}
+{"t": 1784443854.085, "event": "state_exit", "state": "BOOT", "next_state": "WAIT_BUTTON", "duration_s": 0.0, "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784443854.085, "event": "state_enter", "state": "WAIT_BUTTON", "previous": "BOOT", "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784443854.085, "event": "fault", "state": "WAIT_BUTTON", "code": "button_gate_failed"}
+{"t": 1784443854.085, "event": "state_exit", "state": "WAIT_BUTTON", "next_state": "FAULT", "duration_s": 0.0, "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784443854.085, "event": "state_enter", "state": "FAULT", "previous": "WAIT_BUTTON", "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784445664.684, "event": "state_enter", "state": "BOOT", "previous": null}
+{"t": 1784445664.684, "event": "state_exit", "state": "BOOT", "next_state": "WAIT_BUTTON", "duration_s": 0.0, "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784445664.684, "event": "state_enter", "state": "WAIT_BUTTON", "previous": "BOOT", "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784445664.684, "event": "fault", "state": "WAIT_BUTTON", "code": "button_gate_failed"}
+{"t": 1784445664.684, "event": "state_exit", "state": "WAIT_BUTTON", "next_state": "FAULT", "duration_s": 0.0, "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784445664.684, "event": "state_enter", "state": "FAULT", "previous": "WAIT_BUTTON", "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784445737.153, "event": "state_enter", "state": "BOOT", "previous": null}
+{"t": 1784445737.153, "event": "state_exit", "state": "BOOT", "next_state": "WAIT_BUTTON", "duration_s": 0.0, "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784445737.153, "event": "state_enter", "state": "WAIT_BUTTON", "previous": "BOOT", "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784445737.153, "event": "fault", "state": "WAIT_BUTTON", "code": "button_gate_failed"}
+{"t": 1784445737.153, "event": "state_exit", "state": "WAIT_BUTTON", "next_state": "FAULT", "duration_s": 0.0, "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784445737.153, "event": "state_enter", "state": "FAULT", "previous": "WAIT_BUTTON", "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784446053.854, "event": "state_enter", "state": "BOOT", "previous": null}
+{"t": 1784446053.854, "event": "state_exit", "state": "BOOT", "next_state": "WAIT_BUTTON", "duration_s": 0.0, "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784446053.854, "event": "state_enter", "state": "WAIT_BUTTON", "previous": "BOOT", "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784446053.854, "event": "fault", "state": "WAIT_BUTTON", "code": "button_gate_failed"}
+{"t": 1784446053.854, "event": "state_exit", "state": "WAIT_BUTTON", "next_state": "FAULT", "duration_s": 0.0, "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784446053.854, "event": "state_enter", "state": "FAULT", "previous": "WAIT_BUTTON", "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784446405.375, "event": "state_enter", "state": "BOOT", "previous": null}
+{"t": 1784446405.375, "event": "state_exit", "state": "BOOT", "next_state": "WAIT_BUTTON", "duration_s": 0.0, "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784446405.375, "event": "state_enter", "state": "WAIT_BUTTON", "previous": "BOOT", "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784446405.375, "event": "fault", "state": "WAIT_BUTTON", "code": "button_gate_failed"}
+{"t": 1784446405.375, "event": "state_exit", "state": "WAIT_BUTTON", "next_state": "FAULT", "duration_s": 0.0, "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784446405.375, "event": "state_enter", "state": "FAULT", "previous": "WAIT_BUTTON", "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784446880.636, "event": "state_enter", "state": "BOOT", "previous": null}
+{"t": 1784446880.636, "event": "state_exit", "state": "BOOT", "next_state": "WAIT_BUTTON", "duration_s": 0.0, "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784446880.636, "event": "state_enter", "state": "WAIT_BUTTON", "previous": "BOOT", "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784446880.636, "event": "fault", "state": "WAIT_BUTTON", "code": "button_gate_failed"}
+{"t": 1784446880.636, "event": "state_exit", "state": "WAIT_BUTTON", "next_state": "FAULT", "duration_s": 0.0, "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784446880.636, "event": "state_enter", "state": "FAULT", "previous": "WAIT_BUTTON", "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784447896.376, "event": "state_enter", "state": "BOOT", "previous": null}
+{"t": 1784447896.376, "event": "state_exit", "state": "BOOT", "next_state": "WAIT_BUTTON", "duration_s": 0.0, "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784447896.376, "event": "state_enter", "state": "WAIT_BUTTON", "previous": "BOOT", "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784447896.376, "event": "fault", "state": "WAIT_BUTTON", "code": "button_gate_failed"}
+{"t": 1784447896.376, "event": "state_exit", "state": "WAIT_BUTTON", "next_state": "FAULT", "duration_s": 0.0, "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784447896.376, "event": "state_enter", "state": "FAULT", "previous": "WAIT_BUTTON", "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784449945.395, "event": "state_enter", "state": "BOOT", "previous": null}
+{"t": 1784449945.395, "event": "state_exit", "state": "BOOT", "next_state": "WAIT_BUTTON", "duration_s": 0.0, "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784449945.395, "event": "state_enter", "state": "WAIT_BUTTON", "previous": "BOOT", "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784449945.395, "event": "fault", "state": "WAIT_BUTTON", "code": "button_gate_failed"}
+{"t": 1784449945.395, "event": "state_exit", "state": "WAIT_BUTTON", "next_state": "FAULT", "duration_s": 0.0, "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784449945.395, "event": "state_enter", "state": "FAULT", "previous": "WAIT_BUTTON", "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784450034.857, "event": "state_enter", "state": "BOOT", "previous": null}
+{"t": 1784450034.857, "event": "state_exit", "state": "BOOT", "next_state": "WAIT_BUTTON", "duration_s": 0.0, "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784450034.857, "event": "state_enter", "state": "WAIT_BUTTON", "previous": "BOOT", "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784450034.857, "event": "fault", "state": "WAIT_BUTTON", "code": "button_gate_failed"}
+{"t": 1784450034.858, "event": "state_exit", "state": "WAIT_BUTTON", "next_state": "FAULT", "duration_s": 0.0, "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784450034.858, "event": "state_enter", "state": "FAULT", "previous": "WAIT_BUTTON", "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784450568.363, "event": "state_enter", "state": "BOOT", "previous": null}
+{"t": 1784450568.363, "event": "state_exit", "state": "BOOT", "next_state": "WAIT_BUTTON", "duration_s": 0.0, "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784450568.363, "event": "state_enter", "state": "WAIT_BUTTON", "previous": "BOOT", "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784450568.363, "event": "fault", "state": "WAIT_BUTTON", "code": "button_gate_failed"}
+{"t": 1784450568.363, "event": "state_exit", "state": "WAIT_BUTTON", "next_state": "FAULT", "duration_s": 0.0, "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784450568.363, "event": "state_enter", "state": "FAULT", "previous": "WAIT_BUTTON", "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784451548.724, "event": "state_enter", "state": "BOOT", "previous": null}
+{"t": 1784451548.724, "event": "state_exit", "state": "BOOT", "next_state": "WAIT_BUTTON", "duration_s": 0.0, "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784451548.724, "event": "state_enter", "state": "WAIT_BUTTON", "previous": "BOOT", "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784451548.724, "event": "fault", "state": "WAIT_BUTTON", "code": "button_gate_failed"}
+{"t": 1784451548.724, "event": "state_exit", "state": "WAIT_BUTTON", "next_state": "FAULT", "duration_s": 0.0, "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784451548.724, "event": "state_enter", "state": "FAULT", "previous": "WAIT_BUTTON", "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784451635.7, "event": "state_enter", "state": "BOOT", "previous": null}
+{"t": 1784451635.701, "event": "state_exit", "state": "BOOT", "next_state": "WAIT_BUTTON", "duration_s": 0.0, "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784451635.701, "event": "state_enter", "state": "WAIT_BUTTON", "previous": "BOOT", "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784451635.701, "event": "fault", "state": "WAIT_BUTTON", "code": "button_gate_failed"}
+{"t": 1784451635.701, "event": "state_exit", "state": "WAIT_BUTTON", "next_state": "FAULT", "duration_s": 0.0, "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784451635.701, "event": "state_enter", "state": "FAULT", "previous": "WAIT_BUTTON", "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784452101.441, "event": "state_enter", "state": "BOOT", "previous": null}
+{"t": 1784452101.441, "event": "state_exit", "state": "BOOT", "next_state": "WAIT_BUTTON", "duration_s": 0.0, "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784452101.441, "event": "state_enter", "state": "WAIT_BUTTON", "previous": "BOOT", "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784452101.441, "event": "fault", "state": "WAIT_BUTTON", "code": "button_gate_failed"}
+{"t": 1784452101.441, "event": "state_exit", "state": "WAIT_BUTTON", "next_state": "FAULT", "duration_s": 0.0, "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784452101.441, "event": "state_enter", "state": "FAULT", "previous": "WAIT_BUTTON", "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784452538.569, "event": "state_enter", "state": "BOOT", "previous": null}
+{"t": 1784452538.569, "event": "state_exit", "state": "BOOT", "next_state": "WAIT_BUTTON", "duration_s": 0.0, "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784452538.569, "event": "state_enter", "state": "WAIT_BUTTON", "previous": "BOOT", "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784452538.569, "event": "fault", "state": "WAIT_BUTTON", "code": "button_gate_failed"}
+{"t": 1784452538.569, "event": "state_exit", "state": "WAIT_BUTTON", "next_state": "FAULT", "duration_s": 0.0, "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784452538.569, "event": "state_enter", "state": "FAULT", "previous": "WAIT_BUTTON", "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784453122.433, "event": "state_enter", "state": "BOOT", "previous": null}
+{"t": 1784453122.433, "event": "state_exit", "state": "BOOT", "next_state": "WAIT_BUTTON", "duration_s": 0.0, "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784453122.433, "event": "state_enter", "state": "WAIT_BUTTON", "previous": "BOOT", "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784453122.433, "event": "fault", "state": "WAIT_BUTTON", "code": "button_gate_failed"}
+{"t": 1784453122.433, "event": "state_exit", "state": "WAIT_BUTTON", "next_state": "FAULT", "duration_s": 0.0, "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784453122.433, "event": "state_enter", "state": "FAULT", "previous": "WAIT_BUTTON", "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784455955.819, "event": "state_enter", "state": "BOOT", "previous": null}
+{"t": 1784455955.819, "event": "state_exit", "state": "BOOT", "next_state": "WAIT_BUTTON", "duration_s": 0.0, "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784455955.819, "event": "state_enter", "state": "WAIT_BUTTON", "previous": "BOOT", "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784455955.819, "event": "fault", "state": "WAIT_BUTTON", "code": "button_gate_failed"}
+{"t": 1784455955.819, "event": "state_exit", "state": "WAIT_BUTTON", "next_state": "FAULT", "duration_s": 0.0, "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784455955.819, "event": "state_enter", "state": "FAULT", "previous": "WAIT_BUTTON", "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}

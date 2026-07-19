@@ -17,6 +17,7 @@ class InventoryState(str, Enum):
     SET_GIMBAL = "SET_GIMBAL"
     APPROACH_SLOT = "APPROACH_SLOT"
     VISUAL_ALIGN = "VISUAL_ALIGN"
+    VISUAL_SERVO = "VISUAL_SERVO"
     VERIFY_QR = "VERIFY_QR"
     ILLUMINATE = "ILLUMINATE"
     REPORT = "REPORT"
@@ -43,7 +44,8 @@ ALLOWED_TRANSITIONS = {
     },
     InventoryState.SET_GIMBAL: {InventoryState.APPROACH_SLOT, InventoryState.RETURN, InventoryState.FAULT},
     InventoryState.APPROACH_SLOT: {InventoryState.VISUAL_ALIGN, InventoryState.RETURN, InventoryState.FAULT},
-    InventoryState.VISUAL_ALIGN: {InventoryState.VERIFY_QR, InventoryState.RETURN, InventoryState.FAULT},
+    InventoryState.VISUAL_ALIGN: {InventoryState.VISUAL_SERVO, InventoryState.VERIFY_QR, InventoryState.RETURN, InventoryState.FAULT},
+    InventoryState.VISUAL_SERVO: {InventoryState.VERIFY_QR, InventoryState.RETURN, InventoryState.FAULT},
     InventoryState.VERIFY_QR: {
         InventoryState.VISUAL_ALIGN,
         InventoryState.ILLUMINATE,

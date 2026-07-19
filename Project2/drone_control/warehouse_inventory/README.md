@@ -37,6 +37,13 @@
 - 当前没有地面站接收端，训练模式只广播，绝不等待 ACK 或阻塞飞行；
 - `DRONE_STATE_DEBUG_LOG=1`：记录每个状态的进入、周期数据、退出、持续时间和原因；
 - `DRONE_VISION_DEBUG_CAPTURE=1`：按固定点或航行频率保存调试图片；
+- `DRONE_CAMERA_ZOOM=1`：可选的 UVC 数字/光学变焦级别；用于二维码过小或相邻二维码过多时的单货位测试，默认不设置；
+- `DRONE_VISION_SERVO=1`：在每个货位先进入 `VISUAL_SERVO`，利用二维码几何框
+  做有界的 X 横向微调和 Z 高度微调，稳定后再进入现有 3/5 帧内容确认；默认
+  关闭。伺服不会控制朝货架的 Y 深度，且受目标丢失、超时、速度和位移上限保护。
+  方向/增益可用 `DRONE_VISION_SERVO_X_SIGN`、`DRONE_VISION_SERVO_Z_SIGN`、
+  `DRONE_VISION_SERVO_X_KP`、`DRONE_VISION_SERVO_Z_KP` 调整；首次真机测试建议先
+  开启调试照片并用单货位。
 - 正式任务可关闭高频状态数据和图片，但状态转换、故障、急停与结果摘要始终保留。
 
 ## 已确认视觉原型

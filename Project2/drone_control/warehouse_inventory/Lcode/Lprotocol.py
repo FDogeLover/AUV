@@ -25,19 +25,45 @@ class Serial_fc(object):
         self.fclisten_running = False
         self.t265send_running = False
         self.cmdsend_running = False
+        self._listen_thread = None
+        self._t265_thread = None
+        self._cmd_thread = None
         self._last_laser_height_cm = 0.0  # 最后已知激光高度 (m)
         self.debug_data = {}  # 调试扩展帧(0x02)最新数据: fc_vel/of_acc/of_gyr
 
     def listen_start(self, rxbuffer: List[int]):
         self.fclisten_running = True
         self.ser.reset_input_buffer()  # 丢弃启动前残留在缓冲区里的陈旧字节
-        t = threading.Thread(target=Serial_fc.listen_fc, args=(self, rxbuffer))
-        t.daemon = True
-        t.start()
+        self._listen_thread = threading.Thread(
+            target=Serial_fc.listen_fc,
+            args=(self, rxbuffer),
+            daemon=True,
+            name="fc-listen",
+        )
+        self._listen_thread.start()
         logger.info("飞控串口监听线程启动")
 
-    def listen_end(self):
+    @staticmethod
+    def _join_thread(thread, timeout):
+        if (
+            thread is not None
+            and thread.is_alive()
+            and thread is not threading.current_thread()
+        ):
+            thread.join(timeout=timeout)
+
+    def listen_end(self, timeout=1.5):
         self.fclisten_running = False
+        # pyserial在POSIX上支持cancel_read()，可立即唤醒最长1秒的阻塞read；
+        # 不支持时等待串口自身timeout。必须先等监听线程退出再close fd，否则
+        # read()可能在fd已变成None后抛TypeError（2026-07-19实飞稳定复现）。
+        cancel_read = getattr(self.ser, "cancel_read", None)
+        if callable(cancel_read):
+            try:
+                cancel_read()
+            except (serial.SerialException, OSError):
+                pass
+        self._join_thread(getattr(self, "_listen_thread", None), timeout)
         logger.info("飞控串口监听线程关闭")
 
     def listen_fc(self, rxbuffer: List[int]):
@@ -48,8 +74,9 @@ class Serial_fc(object):
         while self.fclisten_running:
             try:
                 byte_data = self.ser.read()
-            except serial.SerialException as e:
-                logger.error(f"飞控串口读取失败: {e}")
+            except (serial.SerialException, OSError, TypeError) as e:
+                if self.fclisten_running:
+                    logger.error(f"飞控串口读取失败: {e}")
                 break
             if not byte_data:
                 time.sleep(0.01)  # 真正空闲(超时无数据)才睡，避免忙等
@@ -175,7 +202,7 @@ class Serial_fc(object):
                 try:
                     self.ser.write(bytes(frame))
                     self.ser.write(bytes(pos_frame))
-                except serial.SerialException as e:
+                except (serial.SerialException, OSError, TypeError) as e:
                     logger.error(f"T265速度/位置帧发送失败，发送线程退出: {e}")
                     break
             time.sleep(sleep_time)
@@ -192,7 +219,7 @@ class Serial_fc(object):
             values[-2] = ck
             try:
                 self.ser.write(bytes(values))
-            except serial.SerialException as e:
+            except (serial.SerialException, OSError, TypeError) as e:
                 logger.error(f"指令帧发送失败，发送线程退出: {e}")
                 break
             time.sleep(sleep_time)
@@ -202,14 +229,22 @@ class Serial_fc(object):
         self.cmdsend_running = True
 
         if t265_obj is not None:
-            t = threading.Thread(target=self._send_t265_loop, args=(t265_obj, vel_freq))
-            t.daemon = True
-            t.start()
+            self._t265_thread = threading.Thread(
+                target=self._send_t265_loop,
+                args=(t265_obj, vel_freq),
+                daemon=True,
+                name="fc-t265-send",
+            )
+            self._t265_thread.start()
 
         if comlist is not None:
-            t = threading.Thread(target=self._send_command_loop, args=(comlist, cmd_freq))
-            t.daemon = True
-            t.start()
+            self._cmd_thread = threading.Thread(
+                target=self._send_command_loop,
+                args=(comlist, cmd_freq),
+                daemon=True,
+                name="fc-command-send",
+            )
+            self._cmd_thread.start()
 
         parts = []
         if t265_obj is not None:
@@ -218,12 +253,18 @@ class Serial_fc(object):
             parts.append("指令帧 %dHz" % cmd_freq)
         logger.info("飞控串口发送线程启动（%s）" % " + ".join(parts))
 
-    def send_end(self):
+    def send_end(self, timeout=1.5):
         self.t265send_running = False
         self.cmdsend_running = False
+        self._join_thread(getattr(self, "_t265_thread", None), timeout)
+        self._join_thread(getattr(self, "_cmd_thread", None), timeout)
         logger.info("飞控串口发送线程关闭")
 
     def close(self):
+        # close()是最终兜底，也必须保证所有线程先停。main.py正常路径会先调用
+        # send_end()，重复调用是幂等的。
+        self.send_end()
+        self.listen_end()
         if self.ser.is_open:
             self.ser.close()
             logger.info("飞控串口已关闭")

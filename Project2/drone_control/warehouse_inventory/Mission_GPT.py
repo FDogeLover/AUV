@@ -36,6 +36,7 @@ FLIGHT_LOG_INTERVAL = 0.05
 RAMP_STEP = 1.5
 TAKEOFF_CONFIRM_NEED = 10
 TAKEOFF_TIMEOUT_S = 15.0
+TAKEOFF_CONFIDENCE_ABORT_S = 0.3  # 起飞阶段T265持续丢失超过此时间就安全中止，不进入导航
 TAKEOFF_LIFTOFF_CM = 35.0  # 一键起飞只负责盲飞离地这一小段，其余交给navigate()的x/y PID+高度ramp爬升到真正目标高度
                             # 不能设太低：2026-07-06实测15cm时T265/激光近地面定位质量下降，起飞confirm超时+机体水平旋转
 LAND_CONFIRM_TIMEOUT_S = 25.0  # 降落触发后最多等待多久确认unlock_sta==0(已上锁)，超时也强制退出，避免卡死
@@ -110,6 +111,7 @@ class mission:
         self.targets = self.load_waypoints(route_file)
         self.target_index = 0
         self.emergency_stop = False
+        self._takeoff_abort_reason = None
 
         # 到达判断
         self._arrival_window = deque(maxlen=arrival_confirm_need)
@@ -167,6 +169,7 @@ class mission:
     def start(self):
         self.heading_hold.reset_for_new_mission()
         self._last_heading_fault_logged = None
+        self.t265_ok = False
         # 按键门禁已在 main.py 中完成；蓝灯表示正在初始化，不是第二次按键门禁。
         self._set_status_led("B")
         if DRY_RUN:
@@ -187,23 +190,20 @@ class mission:
                 confidence = self.realsense.get_tracking_confidence()
 
             if confidence < T265_CONFIDENCE_MIN:
-                logger.error(f"T265 置信度 {T265_CONFIDENCE_WAIT_S:.0f} 秒内仍偏低(confidence={confidence})，定点可能不稳定")
-                confirm = input(f"T265置信度过低(confidence={confidence})，输入 YES 强制起飞，其他任意键取消任务: ")
-                if confirm.strip() != "YES":
-                    logger.error("任务已取消（T265置信度未确认）")
-                    self._set_status_led("OFF")
-                    return
-                logger.warning("已人工确认，强制以低置信度T265数据起飞")
+                logger.error(
+                    f"T265 置信度 {T265_CONFIDENCE_WAIT_S:.0f} 秒内仍偏低"
+                    f"(confidence={confidence})，任务取消；仓储盘点禁止降级起飞"
+                )
+                self.realsense.stop()
+                self.t265_ok = False
+                self._set_status_led("OFF")
+                return
             else:
                 logger.info(f"T265 追踪置信度已稳定 (confidence={confidence})")
         else:
-            logger.error("T265 FAILED — 无水平位置反馈，仅高度模式起飞有失控风险")
-            confirm = input("T265 未连接，输入 YES 强制以仅高度模式起飞，其他任意键取消任务: ")
-            if confirm.strip() != "YES":
-                logger.error("任务已取消（T265 未确认）")
-                self._set_status_led("OFF")
-                return
-            logger.warning("已人工确认，强制以仅高度模式起飞")
+            logger.error("T265 FAILED — 仓储盘点禁止仅高度模式起飞，任务取消")
+            self._set_status_led("OFF")
+            return
 
         if not self._blink_warning_led():
             logger.error("起飞前红灯警示失败，任务取消；飞控不会解锁")
@@ -326,23 +326,30 @@ class mission:
         else:
             logger.info("takeoff: started")
 
-        # 解锁前锁存当前机头方向。T265不可用或置信度不足时不阻断基本飞行，
-        # 航向保持维持未armed并输出0°/s。
-        if self.t265_ok and self.realsense:
-            try:
-                takeoff_confidence = self.realsense.get_tracking_confidence()
-                takeoff_yaw = self.realsense.get_orientation()[2]
-                if takeoff_confidence >= T265_CONFIDENCE_MIN:
-                    self._heading_status = self.heading_hold.arm(takeoff_yaw, time.time())
-                    if self.heading_hold.config.enabled:
-                        logger.info(
-                            f"航向保持已锁存起飞方向 "
-                            f"{self._heading_status.target_deg:+.2f}°"
-                        )
-                else:
-                    logger.warning(f"航向保持未启用：起飞前T265置信度不足({takeoff_confidence})")
-            except Exception as e:
-                logger.warning(f"航向保持未启用：起飞前读取T265 yaw失败({e})")
+        # 解锁前最后一次检查T265。红灯5秒期间设备可能掉追踪；仓储路线没有
+        # 仅高度模式的安全退化能力，所以此门禁失败时绝不能发送解锁指令。
+        if not (self.t265_ok and self.realsense):
+            self._abort_takeoff_safely("t265_unavailable")
+            return
+        try:
+            takeoff_confidence = self.realsense.get_tracking_confidence()
+            takeoff_yaw = self.realsense.get_orientation()[2]
+        except Exception as exc:
+            logger.error(f"takeoff: 解锁前读取T265失败: {exc}")
+            self._abort_takeoff_safely("t265_preunlock_read_error")
+            return
+        if takeoff_confidence < T265_CONFIDENCE_MIN:
+            self._abort_takeoff_safely(
+                f"t265_confidence_{takeoff_confidence}"
+            )
+            return
+
+        self._heading_status = self.heading_hold.arm(takeoff_yaw, time.time())
+        if self.heading_hold.config.enabled:
+            logger.info(
+                f"航向保持已锁存起飞方向 "
+                f"{self._heading_status.target_deg:+.2f}°"
+            )
 
         target_h_cm = TAKEOFF_LIFTOFF_CM  # 一键起飞只爬升到离地高度，真正目标高度交给 navigate() 闭环爬升
 
@@ -352,6 +359,7 @@ class mission:
 
         confirm_count = 0
         t_start = time.time()
+        confidence_lost_since = None
 
         while True:
             elapsed = time.time() - t_start
@@ -362,14 +370,27 @@ class mission:
                 try:
                     yaw = self.realsense.get_orientation()[2]
                     confidence = self.realsense.get_tracking_confidence()
+                    if confidence < T265_CONFIDENCE_MIN:
+                        if confidence_lost_since is None:
+                            confidence_lost_since = time.time()
+                            logger.warning(
+                                f"takeoff: T265置信度丢失(confidence={confidence})，暂停起飞确认"
+                            )
+                        elif time.time() - confidence_lost_since >= TAKEOFF_CONFIDENCE_ABORT_S:
+                            self._abort_takeoff_safely(
+                                f"t265_confidence_{confidence}"
+                            )
+                            return
+                    else:
+                        confidence_lost_since = None
                     self._heading_status = self._update_heading_hold(yaw, confidence)
                     yaw_cmd = self._heading_status.command_dps
                     with lock:
                         self.se_fc[6] = yaw_cmd + sp_side
                 except Exception as e:
-                    logger.warning(f"起飞阶段航向保持读取失败，当前tick输出0: {e}")
-                    with lock:
-                        self.se_fc[6] = sp_side
+                    logger.error(f"takeoff: 起飞阶段T265读取失败: {e}")
+                    self._abort_takeoff_safely("t265_takeoff_read_error")
+                    return
             else:
                 with lock:
                     self.se_fc[6] = sp_side
@@ -409,13 +430,26 @@ class mission:
                 break
 
             if elapsed >= TAKEOFF_TIMEOUT_S:
-                logger.warning("takeoff: 超时，强制切换")
-                break
+                self._abort_takeoff_safely("liftoff_height_timeout")
+                return
 
             time.sleep(0.03)
 
         self._ramp_z_cm = target_h_cm
         self.state = "NAVIGATE"
+
+    def _abort_takeoff_safely(self, reason):
+        """Stop the takeoff attempt and route it through the normal landing path."""
+        self._takeoff_abort_reason = str(reason)
+        logger.error(f"takeoff: 未确认安全离地，进入安全降落(reason={reason})")
+        with lock:
+            self.se_fc[2] = 0
+            self.se_fc[3] = sp_side
+            self.se_fc[4] = sp_side
+            self.se_fc[5] = 0
+            self.se_fc[6] = sp_side
+        self._ramp_z_cm = 0.0
+        self.state = "LAND"
 
     # ================= 导航 =================
     def navigate(self, pos, yaw):
@@ -708,9 +742,13 @@ class mission:
     # ================= 降落 =================
     def land(self):
         logger.info("降落")
-        self.heading_hold.disarm("land")
         with lock:
             self.se_fc[2] = 0
+
+        # Keep the T265 heading outer loop active until the flight controller
+        # confirms that the motors are locked.  A zero yaw-rate command is not
+        # an angle hold: during descent, thrust asymmetry or ground effect can
+        # still rotate the aircraft.  Disarm only after the landing loop exits.
 
         # 不能一触发就关串口退出：凌霄IMU定点悬停依赖Pi持续喂T265速度参考(CMD 0x33)，
         # 串口一关这个参考直接断流，而OneKey_Land()的物理下降通常要持续数秒。
@@ -730,8 +768,7 @@ class mission:
         unlock_confirm_count = 0
         gaveup_logged = False
         while True:
-            self.set_speed(0, 0, 0, int(self._ramp_z_cm))
-
+            yaw_cmd = 0
             if self.t265_ok and self.realsense:
                 try:
                     land_pos = list(self.realsense.get_position())
@@ -741,9 +778,28 @@ class mission:
                 except Exception:
                     land_pos, land_yaw, land_tv = [0.0, 0.0, 0.0], 0.0, (0.0, 0.0, 0.0)
                     land_raw_imu = [0.0] * 6
+                else:
+                    # Older test doubles and alternate T265 wrappers may not
+                    # expose confidence; preserve the landing telemetry while
+                    # treating that case as usable for the bounded controller.
+                    confidence_reader = getattr(
+                        self.realsense, "get_tracking_confidence", None
+                    )
+                    confidence = confidence_reader() if confidence_reader else 3
+                    try:
+                        self._heading_status = self._update_heading_hold(
+                            land_yaw, confidence
+                        )
+                        yaw_cmd = self._heading_status.command_dps
+                    except Exception as exc:
+                        logger.warning(f"降落阶段航向保持更新失败，当前tick输出0: {exc}")
             else:
                 land_pos, land_yaw, land_tv = [0.0, 0.0, 0.0], 0.0, (0.0, 0.0, 0.0)
                 land_raw_imu = [0.0] * 6
+
+            # Keep XY stopped and the descent setpoint unchanged, while
+            # applying only the bounded heading correction from T265.
+            self.set_speed(0, 0, yaw_cmd, int(self._ramp_z_cm))
 
             # 激光高度覆盖Z：跟 loop()/takeoff() 一样，T265自身Z轴未标定不是真实高度，
             # 这里如果继续用原始T265 Z，降落阶段记录的"高度"会是假数据，没法验证物理降落过程。
@@ -790,6 +846,8 @@ class mission:
                             "unlock_sta": unlock_sta,
                             "motor_pwm_mask": motor_pwm_mask,
                             "motor_pwm_mask_t": motor_pwm_mask_t,
+                            "yaw_cmd_sent": yaw_cmd,
+                            **self._heading_log_fields(),
                         }) + "\n")
                         self._log_file.flush()
                 except Exception:
@@ -814,6 +872,7 @@ class mission:
                 break
             time.sleep(0.03)
 
+        self.heading_hold.disarm("land")
         self.state = "END"
 
     # ================= 停止 =================

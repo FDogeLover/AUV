@@ -7,7 +7,7 @@ from pathlib import Path
 
 import Lcode.Lprotocol
 from Lcode.ground_link import BroadcastGroundLink
-from Lcode.inventory_planner import InventoryPlanner
+from Lcode.inventory_planner import InventoryPlanner, MissionWaypoint, WaypointKind
 from Lcode.inventory_state import InventoryState, InventoryStateMachine
 from Lcode.inventory_store import InventoryStore
 from Lcode.inventory_controller import (
@@ -19,11 +19,18 @@ from Lcode.inventory_controller import (
 )
 from Lcode.laser_pointer import LaserPointer
 from Lcode.Logger import logger
-from Lcode.qr_vision import QRConsensus, QRMapping, QRDecoder, VisionDebugCapture
+from Lcode.qr_vision import (
+    QRConsensus,
+    QRConsensusConfig,
+    QRMapping,
+    QRDecoder,
+    VisionDebugCapture,
+)
 from Lcode.sensor_gimbal import SensorGimbal
 from Lcode.state_debug_logger import StateDebugConfig, StateTrace
 from Lcode.global_variable import sp_side
 from t265 import t265_class
+from Lcode.warehouse_model import FlightPoint
 
 
 START_BUTTON_POLL_S = 0.05
@@ -108,6 +115,22 @@ def _apply_scan_height_override(route):
     ], scan_z
 
 
+def _hover_qr_test_route():
+    """Build a fixed-point QR test route; never enabled by default."""
+    raw = os.getenv("DRONE_HOVER_QR_Z", "1.30").strip()
+    hover_z = float(raw)
+    if not 0.5 <= hover_z <= 2.0:
+        raise ValueError("DRONE_HOVER_QR_Z must be between 0.5 and 2.0 m")
+    origin = FlightPoint(0.0, 0.0, hover_z)
+    landing = FlightPoint(0.0, 0.0, 0.20)
+    return [
+        MissionWaypoint(origin, WaypointKind.TAKEOFF),
+        MissionWaypoint(origin, WaypointKind.INSPECT, slot_label="HOVER"),
+        MissionWaypoint(origin, WaypointKind.LAND_APPROACH),
+        MissionWaypoint(landing, WaypointKind.LAND),
+    ]
+
+
 def main():
     logger.info("=" * 40)
     logger.info("warehouse_inventory — 完整立体货架盘点控制器")
@@ -155,7 +178,14 @@ def main():
 
         planner = InventoryPlanner()
         requested_slot = os.getenv("DRONE_INVENTORY_SLOT", "").strip().upper()
-        if requested_slot:
+        hover_qr_test = os.getenv("DRONE_HOVER_QR_TEST", "0").strip().lower() in {
+            "1", "true", "yes", "on"
+        }
+        if hover_qr_test:
+            route = _hover_qr_test_route()
+            expected_slots = {"HOVER"}
+            requested_slot = "HOVER"
+        elif requested_slot:
             if requested_slot not in planner.model.slots:
                 raise ValueError(f"unknown inventory test slot: {requested_slot}")
             route = planner.plan_target(requested_slot)
@@ -164,9 +194,21 @@ def main():
             route = planner.plan_full_inventory()
             expected_slots = set(planner.model.slots)
         route, scan_z_override = _apply_scan_height_override(route)
+        first_face = next(
+            (
+                waypoint.face
+                for waypoint in route
+                if waypoint.kind == WaypointKind.SET_GIMBAL and waypoint.face is not None
+            ),
+            None,
+        )
+        if first_face is not None:
+            logger.info(f"起飞前预置云台: face={first_face.value}")
+            if not gimbal.set_face(first_face):
+                raise RuntimeError("起飞前云台预置失败")
         mapping = QRMapping(config.qr_mapping_file)
         decoder = QRDecoder(mapping)
-        consensus = QRConsensus()
+        consensus = QRConsensus(QRConsensusConfig.from_env())
         store = InventoryStore(expected_slots)
         state_machine.transition(
             InventoryState.PREFLIGHT,

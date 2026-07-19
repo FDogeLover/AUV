@@ -11,6 +11,7 @@ import sys
 sys.path.insert(0, os.path.dirname(__file__))
 
 from Mission_GPT import mission
+from Lcode.heading_hold import HeadingHoldConfig, HeadingHoldController
 
 
 class FakeRealsense:
@@ -69,6 +70,28 @@ class TestLandLogging:
         assert entry["state"] == "LAND"
         assert entry["pos"][0] == 0.12
         assert entry["pos"][1] == -0.05
+
+    def test_land_keeps_heading_hold_until_lock_confirmation(self):
+        """闄嶈惤绛夊緟涓婇攣鏃朵粛搴旇鍙戦€佽埅鍚戞洿姝ｆ寚浠ゃ€?"""
+        m = _make_mission_for_land()
+        m._log_file = io.StringIO()
+        m.re_fc[5] = 0
+        m.heading_hold = HeadingHoldController(
+            HeadingHoldConfig(enabled=True, fault_error_deg=20.0)
+        )
+        m.heading_hold.arm(0.0, 0.0)
+        m.realsense = FakeRealsense(
+            pos=(0.12, -0.05, 0.03), yaw=0.0872665
+        )
+
+        m.land()
+
+        m._log_file.seek(0)
+        entry = json.loads([l for l in m._log_file.readlines() if l.strip()][-1])
+        assert entry["heading_hold_enabled"] is True
+        assert entry["heading_hold_armed"] is True
+        assert entry["yaw_cmd_sent"] == -1
+        assert m.heading_hold.armed is False
 
     def test_land_logs_raw_imu(self):
         """2026-07-10问题7新增：给T265加了原始加速度计/陀螺仪接口(get_raw_imu())，

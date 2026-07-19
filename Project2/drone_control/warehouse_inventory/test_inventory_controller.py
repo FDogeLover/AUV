@@ -1,7 +1,7 @@
 import io
 from types import SimpleNamespace
 
-import pytest
+import numpy as np
 
 from Lcode import inventory_controller as controller
 from Lcode.inventory_planner import MissionWaypoint, WaypointKind
@@ -9,6 +9,7 @@ from Lcode.inventory_state import InventoryState, InventoryStateMachine
 from Lcode.inventory_store import InventoryStore
 from Lcode.qr_vision import QRConsensus, QRConsensusConfig, QRDetection
 from Lcode.state_debug_logger import StateDebugConfig, StateTrace
+from Lcode.vision_servo import VisionServoConfig
 from Lcode.warehouse_model import FaceId, FlightPoint
 
 
@@ -65,11 +66,26 @@ class FakeCamera:
         return self.aim
 
 
+class SequencedCamera(FakeCamera):
+    def __init__(self, samples):
+        super().__init__([])
+        self.samples = list(samples)
+        self.last_sample = (None, None, None)
+
+    def read_with_sequence(self):
+        if self.samples:
+            self.last_sample = self.samples.pop(0)
+        return self.last_sample
+
+
 class FakeDecoder:
     def __init__(self, detection):
         self.detection = detection
 
     def detect(self, frame):
+        return self.detection
+
+    def detect_geometry(self, frame):
         return self.detection
 
 
@@ -97,12 +113,16 @@ class FakeDriver:
     def __init__(self):
         self.holds = []
         self.aborted = False
+        self.commands = []
 
     def hold_position(self, z_m):
         self.holds.append(z_m)
 
     def abort_to_land(self):
         self.aborted = True
+
+    def set_speed(self, x, y, yaw, z):
+        self.commands.append((x, y, yaw, z))
 
 
 class CallbackCoordinator:
@@ -140,7 +160,16 @@ def _detection(number=1):
     return QRDetection(number, f"qr-{number}", corners)
 
 
-def _coordinator(route, laser, camera=None, store=None, clock=None):
+def _coordinator(
+    route,
+    laser,
+    camera=None,
+    store=None,
+    clock=None,
+    config=None,
+    decoder=None,
+    consensus=None,
+):
     events = laser.events
     return controller.InventoryMissionCoordinator(
         route=route,
@@ -148,10 +177,12 @@ def _coordinator(route, laser, camera=None, store=None, clock=None):
         gimbal=FakeGimbal(),
         laser=laser,
         camera=camera or FakeCamera([FakeFrame()] * 5),
-        decoder=FakeDecoder(_detection()),
-        consensus=QRConsensus(QRConsensusConfig(window_size=3, required_count=2, laser_margin_px=0)),
+        decoder=decoder or FakeDecoder(_detection()),
+        consensus=consensus or QRConsensus(
+            QRConsensusConfig(window_size=3, required_count=2, laser_margin_px=0)
+        ),
         store=store or EventStore({"A1"}, events),
-        config=controller.InventoryMissionConfig(scan_timeout_s=1.0, scan_poll_s=0.0),
+        config=config or controller.InventoryMissionConfig(scan_timeout_s=1.0, scan_poll_s=0.0),
         clock=clock or FakeClock(),
         sleep_fn=lambda _: None,
     )
@@ -175,6 +206,76 @@ def test_camera_fake_capture_does_not_require_cv2_constants(monkeypatch):
     )
     assert camera.start() is True
     camera.close()
+
+
+def test_camera_source_returns_latest_warmed_frame_and_closes_capture_thread():
+    class Capture:
+        def __init__(self):
+            self.released = False
+            self.reads = 0
+
+        def isOpened(self):
+            return True
+
+        def read(self):
+            self.reads += 1
+            return True, np.full((4, 4, 3), self.reads, dtype=np.uint8)
+
+        def set(self, *_):
+            return True
+
+        def release(self):
+            self.released = True
+
+    capture = Capture()
+    camera = controller.CameraSource(
+        controller.InventoryMissionConfig(camera_warmup_frames=1),
+        capture_factory=lambda device: capture,
+    )
+    assert camera.start() is True
+    first = camera.read()
+    assert first is not None
+    assert int(first[0, 0, 0]) >= 1
+    camera.close()
+    assert capture.released is True
+    assert camera.read() is None
+
+
+def test_scan_skips_duplicate_latest_frame_and_processes_next_sequence():
+    laser = FakeLaser([])
+    frame = FakeFrame()
+    camera = SequencedCamera(
+        [
+            (1, frame, 10.0),
+            (1, frame, 10.0),  # Same frame must not be decoded twice.
+            (2, frame, 10.1),
+        ]
+    )
+
+    class OneClearFrameDecoder(FakeDecoder):
+        def __init__(self):
+            super().__init__(None)
+            self.calls = 0
+
+        def detect(self, frame, target_point=None):
+            self.calls += 1
+            return _detection(1) if self.calls == 2 else None
+
+    decoder = OneClearFrameDecoder()
+    route = [MissionWaypoint(FlightPoint(0, 0, 1.4), WaypointKind.INSPECT, FaceId.A, "A1")]
+    coordinator = _coordinator(
+        route,
+        laser,
+        camera=camera,
+        decoder=decoder,
+        consensus=QRConsensus(
+            QRConsensusConfig(window_size=1, required_count=1, laser_margin_px=0)
+        ),
+        config=controller.InventoryMissionConfig(scan_timeout_s=1.0, scan_poll_s=0.0),
+    )
+
+    assert coordinator.on_waypoint_arrived(0, [0, 0, 1.4], "arrival") is True
+    assert decoder.calls == 2
 
 
 def test_inspect_pulses_laser_before_persisting_and_reaches_end():
@@ -244,6 +345,97 @@ def test_scan_timeout_faults_and_keeps_store_empty():
     )
     assert coordinator.on_waypoint_arrived(0, [0, 0, 1.4], "arrival") is False
     assert coordinator.store.by_slot == {}
+    assert coordinator.state_machine.state == InventoryState.LAND
+
+
+def test_visual_servo_centers_geometry_before_qr_consensus():
+    laser = FakeLaser([])
+    route = [
+        MissionWaypoint(FlightPoint(0, 0, 1.4), WaypointKind.INSPECT, FaceId.A, "A1")
+    ]
+    detection = QRDetection(1, "qr-1", ((40.0, 20.0), (80.0, 20.0), (80.0, 60.0), (40.0, 60.0)))
+    centered_detection = QRDetection(
+        1, "qr-1", ((30.0, 30.0), (70.0, 30.0), (70.0, 70.0), (30.0, 70.0))
+    )
+
+    class MovingDecoder(FakeDecoder):
+        def __init__(self):
+            super().__init__(detection)
+            self.geometry_calls = 0
+
+        def detect_geometry(self, frame):
+            self.geometry_calls += 1
+            return detection if self.geometry_calls == 1 else centered_detection
+    config = controller.InventoryMissionConfig(
+        scan_timeout_s=1.0,
+        scan_poll_s=0.0,
+        vision_servo=VisionServoConfig(
+            enabled=True,
+            timeout_s=1.0,
+            lost_timeout_s=0.2,
+            center_tolerance_px=2.0,
+            stable_frames=2,
+            x_kp_cmd_per_px=0.1,
+            z_kp_m_per_px=0.001,
+        ),
+    )
+    coordinator = _coordinator(
+        route,
+        laser,
+        camera=FakeCamera([FakeFrame()] * 8),
+        clock=FakeClock(step=0.01),
+        config=config,
+        decoder=MovingDecoder(),
+    )
+    driver = FakeDriver()
+    coordinator.attach_driver(driver)
+    assert coordinator.on_waypoint_arrived(0, [0, 0, 1.4], "arrival") is True
+    assert any(command[0] == 1 for command in driver.commands)
+    assert coordinator.state_machine.state == InventoryState.TRANSIT
+
+
+def test_visual_servo_ignores_large_target_jump():
+    laser = FakeLaser([])
+    route = [
+        MissionWaypoint(FlightPoint(0, 0, 1.4), WaypointKind.INSPECT, FaceId.A, "A1")
+    ]
+    first = QRDetection(
+        None, "", ((250.0, 250.0), (350.0, 250.0), (350.0, 350.0), (250.0, 350.0))
+    )
+    second = QRDetection(
+        None, "", ((650.0, 250.0), (750.0, 250.0), (750.0, 350.0), (650.0, 350.0))
+    )
+
+    class JumpingDecoder(FakeDecoder):
+        def __init__(self):
+            super().__init__(None)
+            self.calls = 0
+
+        def detect_geometry(self, frame, decode_content=False):
+            self.calls += 1
+            return first if self.calls == 1 else second
+
+    config = controller.InventoryMissionConfig(
+        scan_timeout_s=1.0,
+        scan_poll_s=0.0,
+        vision_servo=VisionServoConfig(
+            enabled=True,
+            timeout_s=0.08,
+            lost_timeout_s=1.0,
+            max_center_jump_px=100.0,
+        ),
+    )
+    coordinator = _coordinator(
+        route,
+        laser,
+        camera=FakeCamera([FakeFrame()] * 8),
+        clock=FakeClock(step=0.01),
+        config=config,
+        decoder=JumpingDecoder(),
+    )
+    driver = FakeDriver()
+    coordinator.attach_driver(driver)
+    assert coordinator.on_waypoint_arrived(0, [0, 0, 1.4], "arrival") is False
     assert coordinator.state_machine.state == InventoryState.LAND
 
 

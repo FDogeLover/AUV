@@ -108,6 +108,10 @@ class SensorGimbal:
             self._pwm.set_duty_ns(pulse)
             self.current_angle_deg = angle
             self.current_face = face
+            logger.info(
+                f"云台设置完成: face={face.value}, angle={angle:.1f}deg, "
+                f"pulse={pulse}ns"
+            )
             if wait:
                 self._sleep(self.config.settle_s)
             return True

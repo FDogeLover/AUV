@@ -169,3 +169,67 @@ def test_takeoff_latches_current_heading_before_unlock(monkeypatch):
     assert m.heading_hold.armed is True
     assert m.heading_hold.target_deg == pytest.approx(12.0)
     assert m.se_fc[6] - sp_side == 0
+
+
+def test_takeoff_aborts_safely_when_t265_confidence_is_lost(monkeypatch):
+    m = _make_mission()
+    m.realsense.confidence = 0
+    monkeypatch.setattr(mg, "DRY_RUN", True)
+    monkeypatch.setattr(mg, "TAKEOFF_CONFIDENCE_ABORT_S", 0.0)
+    monkeypatch.setattr(mg.time, "sleep", lambda _seconds: None)
+
+    m.takeoff()
+
+    assert m.state == "LAND"
+    assert m._takeoff_abort_reason == "t265_confidence_0"
+    assert m.se_fc[2] == 0
+    assert m.se_fc[5] == 0
+    assert m.se_fc[3] == sp_side
+    assert m.se_fc[4] == sp_side
+    assert m.se_fc[6] == sp_side
+
+
+def test_takeoff_never_unlocks_without_t265(monkeypatch):
+    m = _make_mission()
+    m.t265_ok = False
+    m.realsense = None
+    monkeypatch.setattr(mg, "DRY_RUN", False)
+
+    m.takeoff()
+
+    assert m.state == "LAND"
+    assert m._takeoff_abort_reason == "t265_unavailable"
+    assert m.se_fc[2] == 0
+
+
+def test_takeoff_never_unlocks_when_preunlock_t265_read_fails(monkeypatch):
+    class BrokenRealsense(FakeRealsense):
+        def get_orientation(self):
+            raise RuntimeError("camera stopped")
+
+    m = _make_mission()
+    m.realsense = BrokenRealsense(confidence=3)
+    monkeypatch.setattr(mg, "DRY_RUN", False)
+
+    m.takeoff()
+
+    assert m.state == "LAND"
+    assert m._takeoff_abort_reason == "t265_preunlock_read_error"
+    assert m.se_fc[2] == 0
+
+
+def test_takeoff_aborts_safely_when_liftoff_height_times_out(monkeypatch):
+    m = _make_mission()
+    monkeypatch.setattr(mg, "DRY_RUN", True)
+    monkeypatch.setattr(mg, "TAKEOFF_TIMEOUT_S", 0.0)
+    monkeypatch.setattr(mg.time, "sleep", lambda _seconds: None)
+
+    m.takeoff()
+
+    assert m.state == "LAND"
+    assert m._takeoff_abort_reason == "liftoff_height_timeout"
+    assert m.se_fc[2] == 0
+    assert m.se_fc[5] == 0
+    assert m.se_fc[3] == sp_side
+    assert m.se_fc[4] == sp_side
+    assert m.se_fc[6] == sp_side
