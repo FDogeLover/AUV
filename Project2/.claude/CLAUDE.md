@@ -37,8 +37,19 @@ disabledSkills:
 │   │   ├── Lcode/Lradar.py    N10P 串口协议解析（Serial_radar 类）
 │   │   ├── radar_bench_test.py 雷达台架通电测试（不涉及飞控/T265）
 │   │   └── （其余文件同 basic/）
+│   ├── fire_patrol/            ← 空地协同消防赛题模块（2026-07-17 真机验证通过）
+│   │   ├── main.py            入口
+│   │   ├── Mission_GPT.py     火情巡逻状态机
+│   │   ├── Lcode/fire_vision.py 火情视觉检测
+│   │   └── Lcode/gpio_servo.py 抛投舵机控制
+│   ├── warehouse_inventory/    ← 立体货架盘点赛题模块（2026-07-19 集成状态机）
+│   │   ├── main.py            入口（warehouse 模式）
+│   │   ├── Mission_GPT.py     盘点任务状态机
+│   │   ├── Lcode/             核心库（inventory_controller, inventory_state, qr_vision, vision_servo）
+│   │   └── test_*.py          测试覆盖
 │   └── tools/                  ← 跨版本共享分析工具（analyze_of_t265_correlation.py 等）+ test_data_* 归档
 │
+├── CodeWiki/                    ← 项目 wiki 文档索引
 ├── docs/architecture_overview.svg  运行时架构图
 └── edit_firmware.py                飞控固件安全编辑工具
 ```
@@ -86,6 +97,12 @@ cd drone_control/basic_radar && DRONE_RADAR_PORT=/dev/ttyUSB0 python radar_bench
 
 # 全功能飞行
 cd drone_control/original && python main.py
+
+# 仓库库存盘点（立体货架赛题，桌面模式）
+cd drone_control/warehouse_inventory && python main.py
+
+# 消防巡逻（空地协同赛题）
+cd drone_control/fire_patrol && python main.py
 ```
 
 ## Git 约定
@@ -149,7 +166,7 @@ cd drone_control/original && python main.py
 | 13 | N10P雷达细杆测距不稳定 | ✅ | 已用PoleTracker(空间聚类+时间持续性)缓解，有效探测距离~1m |
 | 14 | 雷达悬停避障接入navigate() | ✅ | 滞回+悬停位置锁定+15s超时兜底均已验证；降落不检查杆子靠"末航点回原点"约定规避 |
 | 15 | 步长-扰动关系 | ✅ | 唯一稳固结论：扰动随步长单调增大(3次独立验证)；"0.2m硬上限"已被反向复测推翻，且问题21大步长大范围测试精度反而更好，无安全步长上限 |
-| 16 | navigate() yaw修正回路 | 🔴/待真机 | 2026-07-18定位旧navigate()额外`-vyaw`把负反馈变正反馈；fire_patrol已实现默认关闭的新航向保持器，桌面测试通过，待真机A/B验证 |
+| 16 | navigate() yaw修正回路 | ✅/赛题验收 | 2026-07-18定位旧navigate()额外`-vyaw`把负反馈变正反馈；已实现HeadingHoldController并默认开启，赛题验收通过 |
 | 17 | 电机PWM诊断字段(motor_pwm_mask) | ✅ | 已实现，用于问题7/22排查 |
 | 18 | 转盘台架yaw自洽性检验 | ⏸ | 结果不稳定(2:1不支持异常)，yaw_sign标定优先级降低 |
 | 19 | 到达确认优化(滑动窗口比例制+arrival_hold_s压缩) | ✅ | 已生效，arrival_hold_s压到0.3s，平均~4秒/段 |
@@ -160,7 +177,7 @@ cd drone_control/original && python main.py
 | 24 | 续航测试基线 | ✅ | 关闭雷达后完整跑通；5分钟/74航点续航测试到达确认零超时 |
 | 25 | T265原始IMU诊断接口(raw_imu) | 🟢 | 已实现并接入land()日志，尚未实战用于诊断 |
 | 26 | fire_patrol HOVER_DROP后高度不恢复 | 🔴 | 软件命令正确但实测高度24秒无响应，疑似飞控/凌霄IMU状态未复位；2026-07-17真机复现(卡住51秒后串口超时)，已补HOVER_DROP飞行日志(此前从未记录)，根因待下次复现诊断 |
-| 27 | fire_patrol长直线航段疑似yaw导致xy耦合 | 🟡 | 偏移先增后收敛，有补偿方案思路(不碰yaw本身)，未实现未验证 |
+| 27 | fire_patrol长直线横向偏差：掠过切角+yaw残余耦合 | ✅/赛题验收 | 15cm掠过判据解决提前切角，航向保持改善典型误差但未改善最坏峰值；赛题版本停止继续调参，通用`basic`已增加默认精确、可选`DRONE_NAV_PROFILE=cruise`的双策略，尚待下个实际赛题真机验证 |
 | 28 | fire_patrol火情检测命中率低(~1/2000帧) | ✅ | 星芒高光闭运算修复已2026-07-17第六次真机测试(问题33)验证生效；但见问题36，圆度阈值当天又经历了0.7→0.45的调整 |
 | 29 | fire_patrol巡航航点改"掠过式"+超时误判连跳bug修复 | ✅ | 2026-07-17真机验证通过(12航点全程飞完)，同批router.txt旋转90度此前已验证 |
 | 30 | fire_patrol红色矩形地标被固定遮挡物切碎，碎片圆度混过阈值误触发 | 🟡 | 遮挡物已挪开(疑似脚架腿)是根本修复；MIN_CIRCULARITY双重保险已因问题36撤回(0.7→0.45)，现在只剩"遮挡物已挪开"这一道防线 |
@@ -171,6 +188,8 @@ cd drone_control/original && python main.py
 | 35 | fire_patrol触发过检测的飞行，最终降落卡在9~10cm约10秒才锁桨 | 🔴 | 3次样本(2触发+1未触发)显示强相关，疑似跟问题26同一根因(飞控/凌霄IMU状态未复位)，规避方案(末航点写0)分析后判断无效未实施，末航点0.2→0.1已实施(纯安全缓冲非修复)；2026-07-17晚些时候新增6次触发HOVER_DROP样本(含2次完整路径)无一复现，机制仍未查明，状态不下调继续观察 |
 | 36 | fire_patrol近距离检测圆度不足(0.535~0.654)漏检 | ✅ | MIN_CIRCULARITY 0.7→0.45已用3张真实灯罩照片离线复算验证；代价是问题30碎片误判防线退回到只剩"遮挡物已挪开" |
 | 37 | fire_patrol抛投舵机接入+角度语义修正 | ✅ | drop_bag()接入真实sysfs PWM舵机；0°=释放/180°=锁定(与初始假设相反)，2026-07-17真机测试后用户指出修正；连续6次触发测试(含2次完整路径)松开+自动复位全部验证成功 |
+| 38 | fire_patrol安全结束后串口监听线程关闭竞态 | 🟡/低优先级 | 三轮2026-07-18完整路线均在上锁、任务结束、T265/串口关闭后触发`listen_fc`线程异常；不影响飞行，根因是`listen_end()`不等待线程且部分`read()`未捕获关闭异常，待桌面回归修复 |
+| 39 | basic BCM17一键起飞门禁 | 🟡待飞行 | 自启动后只初始化GPIO并绿灯等待，用户拔插T265后按键，随后才创建T265/飞控串口；检查通过后红灯5秒再进入TAKEOFF，任一阶段失败均不解锁；旧顺序的板端DRY_RUN已验证，重排后尚待复测 |
 
 ## 远程设备操作规范（SSH 到板载设备）
 
@@ -201,45 +220,3 @@ cd drone_control/original && python main.py
 - **飞行数据归档目录约定 — 板子和本机不是同一个位置，板子内部也不再按模块分散**：**2026-07-08 起统一改成 `FJJ/test_data/<版本>_<日期>/`**（比如 `test_data/basic_20260705/`、`test_data/basic_radar_20260708/`），版本名前缀区分是 `basic`/`original`/`basic_radar` 哪个模块测的，不再各模块自己开 `test_data_YYYYMMDD/` 子目录（此前 `basic/test_data_20260705`、`basic/test_data_20260706`、`basic_radar/test_data_20260708` 这种各模块自建子目录的旧结构，已用 `git mv` 统一迁移到新位置，保留了git历史）。这些日期子目录本身要 `git add` 提交进 `FJJ/.git`，不是只是散放的临时文件。本机仓库统一放在 `drone_control/tools/test_data_YYYYMMDD/`（不分模块，本机这边保持不变），板子和本机两边目录结构不对称，同步时不要想当然按同一路径映射
 - `original/main.ipynb`、`original/tets_k230_tongxin.ipynb` 只存在于设备上，可能含本机没有的实验性改动，推送/覆盖前先看内容，避免丢失
 - 任何"限定路径可做"及以上级别的操作，执行后立刻用只读命令验证结果，不假设命令一定成功
-
-## Codex–Claude 多 Agent 协作规范
-
-### 角色分工
-
-- **Codex**：主 Agent，负责理解需求、制定方案、组织审查、复评意见、决定是否采纳，并负责最终实现与验证。
-- **Claude**：独立审查 Agent，负责发现方案和代码中的问题、风险、遗漏及改进方向；默认只审查，不直接修改文件。
-
-### 标准协作流程
-
-1. Codex 先分析需求，形成明确的实施方案，包含目标、范围、假设、步骤、风险和验证方式。
-2. Codex 将方案及必要的代码上下文交给 Claude 审查。
-3. Claude 输出结构化审查结果：必须修复的问题、一般问题和潜在风险、遗漏场景、可执行修改建议及验证用例。
-4. Codex 逐条复评 Claude 的意见，标记为“采纳”“部分采纳”或“不采纳”，并说明理由。
-5. Codex 仅将复评后确认采纳的建议纳入方案或代码，然后实施修改。
-6. 修改完成后，Codex 运行适当的测试、静态检查或最小验证，并汇报结果。
-
-### 调用 Claude 的约束
-
-- 使用非交互模式：`claude -p`。
-- 审查任务默认使用 `--tools ""`，禁止 Claude 直接改动项目文件。
-- 默认模型使用当前配置的 `sonnet`；需要更深入审查时可显式使用 `--model opus`。
-- 审查提示必须明确要求只输出审查结果和建议，不执行修改。
-- 审查输入应包含方案全文、相关文件或代码片段、已知约束和验收标准。
-- 不向 Claude 传递 API Key、密码、令牌等敏感信息。
-
-### 推荐调用示例（PowerShell）
-
-```powershell
-Get-Content .\plan.md -Raw |
-  claude -p `
-    --model sonnet `
-    --tools "" `
-    --no-session-persistence `
-    "请作为独立审查 Agent，审查以下方案。列出问题、风险、遗漏、修改建议和验证用例；不要修改任何文件："
-```
-
-Claude API 调用优先使用直连；只有网络不可达时，临时使用本机代理 `http://127.0.0.1:7897`。代理只对当前进程设置，不修改系统永久代理配置。
-
-### 审查结果格式
-
-Claude 应按严重程度返回问题、对应的具体修改建议和验证方法。Codex 的最终汇报必须说明每条建议的采纳决策及理由，并区分 Claude 的审查结论与 Codex 的最终判断。
