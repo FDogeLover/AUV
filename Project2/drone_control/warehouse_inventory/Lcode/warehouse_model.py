@@ -58,12 +58,12 @@ class WarehouseConfig:
     bottom_qr_z_m: float = 1.00
     camera_z_offset_m: float = 0.0
     scan_standoff_m: float = 0.70
-    cruise_z_m: float = 1.50
-    landing_approach_z_m: float = 1.50
+    cruise_z_m: float = 1.40
+    landing_approach_z_m: float = 1.40
     landing_final_z_m: float = 0.20
 
     # 用户依据实际机体外廓确认的下端通道；上端值仍是图纸初值，待实物确认。
-    lower_bypass_x_m: float = -0.15
+    lower_bypass_x_m: float = 0.15
     upper_bypass_x_m: float = -2.65
 
     # 云台原型当前使用0/180度。实际角度和回差之后标定。

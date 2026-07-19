@@ -83,7 +83,7 @@ class mission:
 
     def __init__(self, re_fc: List[int], se_fc: List[int],
                  realsense_obj: Optional[t265_class] = None,
-                 serial_fc_ref=None):
+                 serial_fc_ref=None, route_file: Optional[str] = None):
         self.re_fc = re_fc
         self.se_fc = se_fc
         self.serial_fc_ref = serial_fc_ref
@@ -107,7 +107,7 @@ class mission:
         self.navigation_profile = NavigationProfileConfig.from_env()
 
         # 航点
-        self.targets = self.load_waypoints()
+        self.targets = self.load_waypoints(route_file)
         self.target_index = 0
         self.emergency_stop = False
 
@@ -132,9 +132,10 @@ class mission:
         # yaw方向测试(问题16)
         self._yaw_burst_done = False
 
-    def load_waypoints(self):
+    def load_waypoints(self, route_file: Optional[str] = None):
+        route_path = route_file or "router.txt"
         try:
-            with open('router.txt', 'r') as f:
+            with open(route_path, 'r') as f:
                 waypoints = []
                 for line in f:
                     line = line.strip()
@@ -152,9 +153,9 @@ class mission:
                     logger.info(f"加载 {len(waypoints)} 个航点")
                     return waypoints
         except FileNotFoundError:
-            logger.warning("router.txt 不存在，使用默认航点")
+            logger.warning(f"{route_path} 不存在，使用默认航点")
         except Exception as e:
-            logger.warning(f"读取 router.txt 失败: {e}，使用默认航点")
+            logger.warning(f"读取 {route_path} 失败: {e}，使用默认航点")
 
         default = [[0.0, 0.0, put_height/100],
                    [0.5, 0.0, put_height/100],
@@ -166,6 +167,8 @@ class mission:
     def start(self):
         self.heading_hold.reset_for_new_mission()
         self._last_heading_fault_logged = None
+        # 按键门禁已在 main.py 中完成；蓝灯表示正在初始化，不是第二次按键门禁。
+        self._set_status_led("B")
         if DRY_RUN:
             logger.warning("=" * 40)
             logger.warning("DRY_RUN 模式已启用 — 飞控不会解锁，电机不会转")
@@ -188,6 +191,7 @@ class mission:
                 confirm = input(f"T265置信度过低(confidence={confidence})，输入 YES 强制起飞，其他任意键取消任务: ")
                 if confirm.strip() != "YES":
                     logger.error("任务已取消（T265置信度未确认）")
+                    self._set_status_led("OFF")
                     return
                 logger.warning("已人工确认，强制以低置信度T265数据起飞")
             else:
@@ -197,6 +201,7 @@ class mission:
             confirm = input("T265 未连接，输入 YES 强制以仅高度模式起飞，其他任意键取消任务: ")
             if confirm.strip() != "YES":
                 logger.error("任务已取消（T265 未确认）")
+                self._set_status_led("OFF")
                 return
             logger.warning("已人工确认，强制以仅高度模式起飞")
 
@@ -283,6 +288,16 @@ class mission:
             time.sleep(0.03)
 
     # ================= 起飞 =================
+    @staticmethod
+    def _set_status_led(color):
+        """设置初始化状态灯；状态灯故障不改变飞行安全门禁结果。"""
+        try:
+            from Lcode.gpio_led import set_rgb_led
+            return bool(set_rgb_led(color))
+        except Exception as exc:
+            logger.warning(f"状态灯{color}设置失败: {exc}")
+            return False
+
     def _blink_warning_led(self):
         """起飞前红灯常亮TAKEOFF_WARN_LED_DURATION_S秒提醒周围人员，阻塞调用
         (起飞前的安全等待本来就该是阻塞的，给人反应时间)。GPIO不可用时静默
@@ -520,7 +535,10 @@ class mission:
                 else:
                     self.arrival_confirmed_time = None
             else:
-                if arrival_distance <= self.navigation_profile.cruise_radius_m:
+                cruise_position_ok = arrival_distance <= self.navigation_profile.cruise_radius_m
+                if self.navigation_profile.cruise_require_z:
+                    cruise_position_ok = cruise_position_ok and dz < posthreshold_z
+                if cruise_position_ok:
                     self._cruise_arrival_count += 1
                 else:
                     self._cruise_arrival_count = 0

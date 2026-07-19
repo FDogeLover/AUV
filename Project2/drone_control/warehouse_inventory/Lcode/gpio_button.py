@@ -39,7 +39,13 @@ class GpioButton:
         self._gpio = GPIO
         GPIO.setwarnings(False)
         GPIO.setmode(GPIO.BCM)
-        GPIO.setup(self.pin, GPIO.IN)
+        # 按键默认上拉、按下接地；显式配置上拉，避免输入浮空造成
+        # 首次按键漏检或额外下降沿。旧版 Hobot.GPIO 不接受该参数时，
+        # 回退到原始配置，兼容已验证的外部上拉接线。
+        try:
+            GPIO.setup(self.pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+        except (AttributeError, TypeError):
+            GPIO.setup(self.pin, GPIO.IN)
         GPIO.add_event_detect(
             self.pin, GPIO.FALLING,
             callback=self._on_press, bouncetime=self.bouncetime_ms,

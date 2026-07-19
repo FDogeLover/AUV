@@ -58,22 +58,25 @@ class InventoryPlanner:
 
     def _safe_transit(self, start: FlightPoint, end: FlightPoint) -> List[MissionWaypoint]:
         cruise_z = self.model.config.cruise_z_m
-        start_cruise = FlightPoint(start.x, start.y, cruise_z)
-        end_cruise = FlightPoint(end.x, end.y, cruise_z)
+        # 两端高度一致时，跨货架绕行保持当前高度；只有需要改变高度的
+        # 过渡才使用巡航高度，避免每次绕行都先爬回1.40m。
+        transit_z = start.z if math.isclose(start.z, end.z, abs_tol=1e-9) else cruise_z
+        start_transit = FlightPoint(start.x, start.y, transit_z)
+        end_transit = FlightPoint(end.x, end.y, transit_z)
         points: List[FlightPoint] = []
-        if abs(start.z - cruise_z) > 1e-9:
-            points.append(start_cruise)
+        if not math.isclose(start.z, transit_z, abs_tol=1e-9):
+            points.append(start_transit)
 
         if self._crossed_shelf_planes(start.y, end.y):
-            bypass_x = self._choose_bypass_x(start_cruise, end_cruise)
+            bypass_x = self._choose_bypass_x(start_transit, end_transit)
             points.extend(
                 (
-                    FlightPoint(bypass_x, start.y, cruise_z),
-                    FlightPoint(bypass_x, end.y, cruise_z),
+                    FlightPoint(bypass_x, start.y, transit_z),
+                    FlightPoint(bypass_x, end.y, transit_z),
                 )
             )
 
-        points.append(end_cruise)
+        points.append(end_transit)
         result: List[MissionWaypoint] = []
         for point in points:
             if result and point == result[-1].point:
@@ -81,14 +84,20 @@ class InventoryPlanner:
             result.append(MissionWaypoint(point, WaypointKind.TRANSIT))
         return result
 
-    def _scan_slots(self, face_id: FaceId, start_from_lower_end: bool) -> List[Slot]:
+    def _scan_slots(
+        self,
+        face_id: FaceId,
+        start_from_lower_end: bool,
+        start_with_top: bool,
+    ) -> List[Slot]:
         slots = list(self.model.slots_for_face(face_id))
         xs = sorted({slot.point.x for slot in slots}, reverse=start_from_lower_end)
         result: List[Slot] = []
         for index, x in enumerate(xs):
             column = [slot for slot in slots if abs(slot.point.x - x) < 1e-9]
-            # 从1.5m巡航高度接近时先扫上层；下一列反向，减少Z方向空行程。
-            column.sort(key=lambda slot: slot.point.z, reverse=(index % 2 == 0))
+            # 从1.4m巡航高度接近时先扫上层；下一列反向，减少Z方向空行程。
+            reverse_z = start_with_top if index % 2 == 0 else not start_with_top
+            column.sort(key=lambda slot: slot.point.z, reverse=reverse_z)
             result.extend(column)
         return result
 
@@ -97,15 +106,16 @@ class InventoryPlanner:
         route: List[MissionWaypoint],
         face_id: FaceId,
         start_from_lower_end: bool,
+        start_with_top: bool,
     ) -> None:
         face = self.model.faces[face_id]
-        slots = self._scan_slots(face_id, start_from_lower_end)
+        slots = self._scan_slots(face_id, start_from_lower_end, start_with_top)
         first = slots[0].point
         current = route[-1].point
         route.extend(self._safe_transit(current, first))
         route.append(
             MissionWaypoint(
-                point=FlightPoint(first.x, first.y, self.model.config.cruise_z_m),
+                point=first,
                 kind=WaypointKind.SET_GIMBAL,
                 face=face_id,
                 gimbal_angle_deg=face.gimbal_angle_deg,
@@ -125,7 +135,14 @@ class InventoryPlanner:
     def plan_full_inventory(self) -> List[MissionWaypoint]:
         route = [MissionWaypoint(self.model.takeoff, WaypointKind.TAKEOFF)]
         for index, face_id in enumerate(self.FULL_FACE_ORDER):
-            self._append_face(route, face_id, start_from_lower_end=(index % 2 == 0))
+            # 反向选择每面的扫描端点，使跨货架前后的端点更靠近下端通道，
+            # 避免在 X=-1.75 与 X=+0.15 之间往返绕远。
+            self._append_face(
+                route,
+                face_id,
+                start_from_lower_end=(index % 2 == 1),
+                start_with_top=(index % 2 == 0),
+            )
 
         route.extend(self._safe_transit(route[-1].point, self.model.landing_approach))
         route.append(MissionWaypoint(self.model.landing_approach, WaypointKind.LAND_APPROACH))

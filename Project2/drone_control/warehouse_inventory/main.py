@@ -53,7 +53,7 @@ def wait_for_start_button():
         while not button.was_pressed():
             time.sleep(START_BUTTON_POLL_S)
 
-        logger.info("一键起飞按钮已按下，开始初始化T265和飞控串口")
+        logger.info("一键起飞按钮已按下（单次按键已锁存），开始初始化T265和飞控串口")
         if not set_rgb_led('OFF'):
             logger.error("按键确认后关闭绿灯失败")
             return False
