@@ -1,0 +1,23 @@
+{
+  "state": "VERIFY_QR",
+  "capture": "first",
+  "waypoint_index": 3,
+  "slot_label": "A1",
+  "position": [
+    -1.795789797938435,
+    0.0926047000505891,
+    1.3
+  ],
+  "laser_aim_px": [
+    640.0,
+    360.0
+  ],
+  "detected_number": null,
+  "accepted_number": null,
+  "frame_shape": [
+    720,
+    1280,
+    3
+  ],
+  "timestamp": 1784438287.706545
+}

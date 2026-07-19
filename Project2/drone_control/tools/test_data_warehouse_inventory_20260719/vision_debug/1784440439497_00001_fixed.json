@@ -1,0 +1,23 @@
+{
+  "state": "VERIFY_QR",
+  "capture": "first",
+  "waypoint_index": 1,
+  "slot_label": "HOVER",
+  "position": [
+    -3.950793643176556e-06,
+    0.01662578172339417,
+    1.3
+  ],
+  "laser_aim_px": [
+    640.0,
+    360.0
+  ],
+  "detected_number": null,
+  "accepted_number": null,
+  "frame_shape": [
+    720,
+    1280,
+    3
+  ],
+  "timestamp": 1784440439.4973383
+}

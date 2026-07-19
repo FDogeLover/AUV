@@ -1,0 +1,9 @@
+{
+  "state": "GROUND_CAMERA_CHECK",
+  "capture": "single_frame",
+  "frame_shape": [
+    720,
+    1280,
+    3
+  ]
+}

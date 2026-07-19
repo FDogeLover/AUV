@@ -1,0 +1,12 @@
+{
+  "state": "VISUAL_SERVO",
+  "capture": "servo_first",
+  "waypoint_index": 3,
+  "slot_label": "A1",
+  "position": [
+    -1.7005345202527395,
+    0.11468903799387986,
+    1.33
+  ],
+  "timestamp": 1784437876.3862333
+}
