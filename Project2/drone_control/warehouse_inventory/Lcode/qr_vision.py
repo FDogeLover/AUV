@@ -659,27 +659,10 @@ class QRDecoder:
 
     def detect(self, frame, target_point=None) -> Optional[QRDetection]:
         if target_point is not None:
-            fast_detection = self._decode_target_roi(frame, target_point)
-            if fast_detection is not None:
-                return fast_detection
-            # pyzbar fast path failed.  Try the geometry search which adds
-            # perspective correction (warp) and multi-scale retry.  This is
-            # more expensive than raw pyzbar but far cheaper than the
-            # full-frame _decode_search tile scan.  Crucially, we do NOT fall
-            # through to _decode_search here: when target_point is provided we
-            # are in the airborne scan loop and must return quickly enough for
-            # multi-frame sampling.  If the geometry search finds nothing, the
-            # consensus layer will retry on the next frame.
-            geometry = self._fast_geometry_search(frame, target_point)
-            if geometry is not None:
-                content = self._decode_localized(frame, geometry.corners)
-                if content:
-                    return QRDetection(
-                        self.mapping.content_to_number.get(content),
-                        content,
-                        geometry.corners,
-                    )
-            return None
+            # Airborne VERIFY_QR is latency-bounded.  Only use the pyzbar ROI
+            # variants here; OpenCV geometry/localized fallback can take many
+            # seconds on the board and belongs to offline target_point=None use.
+            return self._decode_target_roi(frame, target_point)
 
         # target_point is None: full search without airborne latency constraint.
         # First localize the QR near the optical axis. The same localized

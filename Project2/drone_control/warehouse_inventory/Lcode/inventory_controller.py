@@ -407,6 +407,23 @@ class InventoryMissionCoordinator:
                     continue
                 last_frame_sequence = frame_sequence
                 last_frame = frame
+                processed_frame_count += 1
+                debug_metadata = {
+                    "state": InventoryState.VERIFY_QR.value,
+                    "capture": "scan_frame",
+                    "waypoint_index": index,
+                    "slot_label": waypoint.slot_label,
+                    "position": list(position),
+                    "frame_sequence": frame_sequence,
+                    "capture_timestamp": frame_timestamp,
+                    "processed_frame_count": processed_frame_count,
+                    "frame_shape": list(frame.shape),
+                    "timestamp": time.time(),
+                }
+                # Save the raw frame before decoding.  A slow/failing decoder
+                # must not prevent flight evidence from being archived.
+                if self.vision_debug is not None:
+                    self.vision_debug.capture_scan(frame, debug_metadata)
                 try:
                     laser_aim_px = self.camera.laser_aim_point(frame)
                     try:
@@ -423,24 +440,6 @@ class InventoryMissionCoordinator:
                     return self._abort(
                         "vision_exception", waypoint_index=index, error=str(exc)
                     )
-                processed_frame_count += 1
-                debug_metadata = {
-                    "state": InventoryState.VERIFY_QR.value,
-                    "capture": "scan_frame",
-                    "waypoint_index": index,
-                    "slot_label": waypoint.slot_label,
-                    "position": list(position),
-                    "laser_aim_px": list(laser_aim_px),
-                    "detected_number": detection.number if detection else None,
-                    "accepted_number": accepted.number if accepted else None,
-                    "frame_sequence": frame_sequence,
-                    "capture_timestamp": frame_timestamp,
-                    "processed_frame_count": processed_frame_count,
-                    "frame_shape": list(frame.shape),
-                    "timestamp": time.time(),
-                }
-                if self.vision_debug is not None:
-                    self.vision_debug.capture_scan(frame, debug_metadata)
                 self.state_machine.sample(
                     waypoint_index=index,
                     slot_label=waypoint.slot_label,

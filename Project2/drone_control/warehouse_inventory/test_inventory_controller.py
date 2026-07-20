@@ -278,6 +278,36 @@ def test_scan_skips_duplicate_latest_frame_and_processes_next_sequence():
     assert decoder.calls == 2
 
 
+def test_verify_qr_captures_frame_before_decoding():
+    calls = []
+
+    class OrderedDecoder:
+        def detect(self, frame, target_point=None):
+            calls.append("decoder.detect")
+            return _detection(1)
+
+    class OrderedVisionDebug:
+        def capture_scan(self, frame, metadata):
+            calls.append("capture_scan")
+            assert metadata["state"] == InventoryState.VERIFY_QR.value
+
+    laser = FakeLaser([])
+    route = [MissionWaypoint(FlightPoint(0, 0, 1.4), WaypointKind.INSPECT, FaceId.A, "A1")]
+    coordinator = _coordinator(
+        route,
+        laser,
+        camera=FakeCamera([FakeFrame()]),
+        decoder=OrderedDecoder(),
+        consensus=QRConsensus(
+            QRConsensusConfig(window_size=1, required_count=1, laser_margin_px=0)
+        ),
+    )
+    coordinator.vision_debug = OrderedVisionDebug()
+
+    assert coordinator.on_waypoint_arrived(0, [0, 0, 1.4], "arrival") is True
+    assert calls[:2] == ["capture_scan", "decoder.detect"]
+
+
 def test_inspect_pulses_laser_before_persisting_and_reaches_end():
     events = []
     laser = FakeLaser(events)
