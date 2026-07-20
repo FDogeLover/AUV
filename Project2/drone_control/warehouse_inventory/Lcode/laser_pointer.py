@@ -100,6 +100,12 @@ class LaserPointer:
         on_time = self.config.pwm_period_s * self.config.duty_ratio
         off_time = self.config.pwm_period_s - on_time
         deadline = time.monotonic() + duration
+        # 激光照射时同步点亮绿灯，便于地面观察确认扫码触发
+        try:
+            from Lcode.gpio_led import set_rgb_led
+            set_rgb_led('G')
+        except Exception:
+            pass
         try:
             while not self._stop_event.is_set() and time.monotonic() < deadline:
                 self._gpio.output(self.config.pin, self._gpio.HIGH)
@@ -118,6 +124,11 @@ class LaserPointer:
             finally:
                 with self._lock:
                     self.active = False
+            try:
+                from Lcode.gpio_led import set_rgb_led
+                set_rgb_led('OFF')
+            except Exception:
+                pass
 
     def off(self):
         self._stop_event.set()

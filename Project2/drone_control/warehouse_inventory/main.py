@@ -181,6 +181,7 @@ def main():
 
         planner = InventoryPlanner()
         requested_slot = os.getenv("DRONE_INVENTORY_SLOT", "").strip().upper()
+        requested_face = os.getenv("DRONE_INVENTORY_FACE", "").strip().upper()
         hover_qr_test = os.getenv("DRONE_HOVER_QR_TEST", "0").strip().lower() in {
             "1", "true", "yes", "on"
         }
@@ -188,6 +189,14 @@ def main():
             route = _hover_qr_test_route()
             expected_slots = {"HOVER"}
             requested_slot = "HOVER"
+        elif requested_face:
+            face_id = FaceId(requested_face)
+            route = planner.plan_face(face_id)
+            expected_slots = {
+                slot.label
+                for slot in planner.model.slots.values()
+                if slot.face == face_id
+            }
         elif requested_slot:
             if requested_slot not in planner.model.slots:
                 raise ValueError(f"unknown inventory test slot: {requested_slot}")
