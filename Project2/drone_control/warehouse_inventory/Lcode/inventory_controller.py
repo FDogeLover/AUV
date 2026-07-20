@@ -520,7 +520,11 @@ class InventoryMissionCoordinator:
         last_frame = None
         last_center = None
         face_sign = config.x_direction(waypoint.face)
-        start_x = float(position[0]) if position else None
+        # 用伺服启动时的实时位置作为横向基准，而非 APPROACH 传入的历史位置
+        _servo_start_pos = self._current_position()
+        start_x = float(_servo_start_pos[0]) if _servo_start_pos is not None else (
+            float(position[0]) if position else None
+        )
         last_debug_capture_t = started
         _debug_interval = 0.5  # 周期性存图间隔（秒）
 
