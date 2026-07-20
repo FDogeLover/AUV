@@ -92,6 +92,42 @@ def test_same_x_crossing_uses_upper_bypass_when_it_is_shorter():
     assert math.isclose(planner._choose_bypass_x(start, end_point), -2.65)
 
 
+
+def test_safe_return_from_each_face_uses_required_bypass():
+    planner = InventoryPlanner()
+    for label in ("A1", "B1", "C1", "D1"):
+        slot = planner.model.slots[label]
+        route = planner.plan_safe_return(slot.point)
+        assert route[-1].kind == WaypointKind.LAND_APPROACH
+        crossed = planner._crossed_shelf_planes(
+            slot.point.y, planner.model.landing_approach.y
+        )
+        if crossed:
+            bypass_xs = {
+                planner.model.config.lower_bypass_x_m,
+                planner.model.config.upper_bypass_x_m,
+            }
+            assert any(w.point.x in bypass_xs for w in route[:-1])
+
+
+def test_safe_return_ends_at_land_approach_without_land_final():
+    planner = InventoryPlanner()
+    route = planner.plan_safe_return(FlightPoint(-1.75, 0.05, 1.25))
+    assert route[-1].kind == WaypointKind.LAND_APPROACH
+    assert route[-1].point == planner.model.landing_approach
+    assert all(w.kind != WaypointKind.LAND for w in route)
+
+
+def test_safe_return_without_shelf_crossing_is_direct():
+    planner = InventoryPlanner()
+    approach = planner.model.landing_approach
+    current = FlightPoint(approach.x + 0.2, approach.y, approach.z)
+    route = planner.plan_safe_return(current)
+    assert len(route) == 1
+    assert route[0].point == approach
+    assert route[0].kind == WaypointKind.LAND_APPROACH
+
+
 def test_invalid_bypass_inside_shelf_is_rejected():
     try:
         WarehouseConfig(lower_bypass_x_m=-0.50)

@@ -149,6 +149,18 @@ class InventoryPlanner:
         route.append(MissionWaypoint(self.model.landing_final, WaypointKind.LAND))
         return self._deduplicate_adjacent(route)
 
+    def plan_safe_return(self, current: FlightPoint) -> List[MissionWaypoint]:
+        """Plan collision-safe transit to landing approach without descending."""
+        approach = self.model.landing_approach
+        transit = self._safe_transit(current, approach)
+        route = [
+            MissionWaypoint(waypoint.point, WaypointKind.TRANSIT)
+            for waypoint in transit
+            if waypoint.point != approach
+        ]
+        route.append(MissionWaypoint(approach, WaypointKind.LAND_APPROACH))
+        return self._deduplicate_adjacent(route)
+
     def plan_target(self, slot_label: str) -> List[MissionWaypoint]:
         label = slot_label.strip().upper()
         if label not in self.model.slots:
