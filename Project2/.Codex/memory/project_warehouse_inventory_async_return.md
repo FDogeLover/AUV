@@ -11,74 +11,48 @@
 - 动态换路同步更新 `inventory_route`、`coordinator.route`、`targets`、索引、到达窗口和 PID；
 - `scan_tick()` 异常会进入 `LAND`，不再静默杀死主循环线程。
 
-## 2026-07-20 A1 真机证据：不是“视觉失败所以没有返航”
+## 返航修复历程
 
-A1 单货位测试状态日志：
+| 轮次 | 问题 | 修复 |
+|------|------|------|
+| 1 | 扫码阻塞主控制 | 异步worker+SCAN定点控制 |
+| 2 | 扫码失败无安全路径 | `plan_safe_return()` |
+| 3 | `coordinator.route`未同步 | `replace_inventory_navigation_route()`同步路线 |
+| 4 | 激光高度抖动制造冗余首航点 | 5cm高度容差 |
+| 5 | precision速度窗口卡住返航点 | 中间点cruise到达 |
+| 6 | RETURN→TRANSIT非法转移 | 保持RETURN不转TRANSIT |
+| 7 | 飞行线程异常静默死亡 | loop顶层traceback+清零XY+LAND |
+| 8 | LAND诊断不明确 | land_start/land_exit/land_wait_manual事件 |
 
-```text
-14:18:41 进入 VERIFY_QR
-14:18:49 qr_timeout
-14:18:49 VERIFY_QR → FAULT → RETURN
-```
+## 2026-07-20 实飞最终验证
 
-飞行日志随即把目标从 A1 替换为返航点：
-
-```text
-起始位置约 (-1.7609, 0.0623, 1.43)
-返航目标   (-2.65,   0.0625, 1.40)
-最终位置约 (-2.6369, 0.0703, 1.40)
-目标距离   0.0152 m
-```
-
-因此下列链路均已发生：扫码 worker 超时 → 结果发布 → 主线程轮询/消费 →
-状态机进入 RETURN → 动态返航路线安装 → 无人机飞完第一返航航段。
-
-**后续路线未继续的直接原因不是二维码解码失败**：第一返航航点虽然已经接近到
-1.52 cm，但 precision 到达条件还包含速度窗口和停留确认，最终以 `timeout` 结束；
-`Mission_GPT._advance_waypoint()` 对 return-purpose timeout 的策略是立即切到 `LAND`，
-不会推进第二返航点。随后 LAND 未正常结束，约1分钟后用户中断。返航到达策略与
-LAND完成/确认是两个独立于视觉解码的问题，不能归因成单一视觉故障。
-
-## 返航规划修复
-
-扫码点高度来自主循环传入的 `pos[2]`；正常情况下 T265 三维位置读出后，Z 会被
-飞控回传的有效激光高度覆盖。激光高度在1.40m附近的厘米级波动曾生成当前位置XY
-重合的原地爬升首航点。现已按5cm容差处理：接近巡航高度时直接规划水平返航；
-低层1.00m货位仍先爬升至1.40m。
-
-A1 高度1.39m或1.40m时安全返航均为：
+三次A1实飞（高度1.25m）均完整走通返航链路：
 
 ```text
-(-2.65, 0.05, 1.40)
-(-2.65, 3.50, 1.40)
-(-2.50, 3.50, 1.40)  LAND_APPROACH
+qr_timeout → FAULT → RETURN
+→ 首返航点(-2.65, ...) cruise_arrival
+→ 第二返航点(-2.65, 3.50, ...) cruise_arrival
+→ LAND_APPROACH(-2.50, 3.50, ...) precision_arrival
+→ LAND → 降落确认 ✓
 ```
 
-## 2026-07-20 后续修复（待真机验证）
+其中一次（低电量）A1 qr_timeout后heading fault触发紧急LAND，其余两次返航全流程正常。
 
-- 返航中间点强制使用cruise到达模式，复用15cm半径和连续周期确认，并始终要求Z合格；最终LAND_APPROACH保持precision。
-- timeout近距离推进只允许中间点且confidence>=2、XY<=15cm、Z误差<20cm；其他情况及末点timeout原地LAND。
-- `return_timeout_near`仍经过`InventoryFlightMission._advance_waypoint()`和coordinator，coordinator返回ADVANCE后索引只推进一次；返回LAND时索引不变。
-- waypoint事件新增`navigation_purpose`。
-- LAND新增结构化`land_start`、周期诊断、`land_exit(confirmed/python_timeout)`与`land_wait_manual(firmware_timeout_gaveup)`；周期字段包括激光高度有效性、确认计数、PWM新鲜度、gaveup和实际命令。
-- 未改变unlock+pwm双条件确认，也未改变固件gaveup后保持通信、永久等待人工介入的安全语义。
-- 桌面全量测试：184 passed, 1 skipped；Qoder计划与实现两轮审查通过。
+## LAND诊断字段
 
-## 2026-07-20 第二次实飞：首返航点后静默停止根因与修复
+每次降落周期日志包含：`land_elapsed_s`、`laser_height_m/valid`、`unlock_confirm_count`、`motor_pwm_mask/age_s/ok`、`land_timeout_gaveup`、`task_command`、`z_command_cm`、`yaw_cmd_sent`
 
-首返航点cruise已经生效，终端打印“航点0掠过”；随后没有waypoint_advance或land_start，只有独立ResourceMonitor继续写日志。代码追踪确认根因：`InventoryMissionCoordinator.on_waypoint_arrived()`在RETURN期间到达TRANSIT仍调用`_go(TRANSIT)`，触发状态机禁止的`RETURN→TRANSIT`并抛ValueError，未捕获异常杀死daemon飞行循环，发送线程继续重放旧指令。
+## 当前状态
 
-修复：RETURN期间TRANSIT只采样并返回ADVANCE，业务状态持续RETURN；LAND_APPROACH才转LAND。新增飞行loop顶层异常边界：完整traceback+结构化`flight_loop_exception`，先清零XY再转LAND；LAND自身异常先补发task=0再emergency；hook二次失败不依赖封装，裸写中性/disarm并无条件`task_running=False`。真实`InventoryFlightMission+InventoryMissionCoordinator`经`navigate()`完整走通两个TRANSIT和LAND_APPROACH。全量192 passed/1 skipped，Qoder两轮审查通过，待真机。
+- ✅ 返航安全链路已验证通过
+- ✅ QR解码在1.25m高度通过，共识门槛已降为window=3/required=2
+- ✅ 二维码解码统计已加入ScanResult.decode_stats
+- ⏸ 视觉伺服因板端性能限制+飞行抖动暂不启用，激光待物理调正
+- 🟡 A面完整6点飞行待复飞（上次因共识门槛过高未过A2~A6）
 
-## 下一步（按优先级）
+## 后续
 
-1. 修复返航中间点到达策略：位置已很近但速度确认超时时应继续下一返航点；只有
-   距离仍明显过大时才原地 LAND。优先考虑返航中间点使用 cruise 语义，末点保持
-   precision。
-2. 单独诊断 LAND：记录一键降落是否发送、`unlock_sta`、`motor_pwm_mask`、
-   `land_timeout_gaveup` 和实际激光高度轨迹，解释为何进入LAND后未结束。
-3. 改善二维码：ROI内 pyzbar 失败后增加一次有界 OpenCV `detectAndDecode` 回退，
-   不能恢复曾耗时约17秒的全帧几何搜索。
-4. 增加逐帧诊断，区分 `decode_none`、未知内容、激光点不在码内、consensus等待和
-   accepted；目前最终只有 `qr_timeout`，无法判断卡在哪一层。
-5. 使用真实飞行图离线验证后再调 ROI、确认帧数和货位坐标。
+1. 物理调正激光
+2. A面6点复飞验证降低后的共识门槛
+3. 逐货位微调扫码坐标（如果需要）
+4. K230作为后续赛题升级路径
