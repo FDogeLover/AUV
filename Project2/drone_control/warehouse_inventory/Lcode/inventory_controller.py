@@ -110,6 +110,7 @@ class InventoryMissionConfig:
     laser_aim_x_ratio: float = 0.5
     laser_aim_y_ratio: float = 0.5
     vision_servo: VisionServoConfig = None
+    async_qr_scan: bool = True
 
     def __post_init__(self):
         if self.vision_servo is None:
@@ -133,6 +134,9 @@ class InventoryMissionConfig:
             raw = env.get(name, "").strip()
             return None if not raw else float(raw)
 
+        raw_async = env.get("DRONE_ASYNC_QR_SCAN", "1").strip().lower()
+        if raw_async not in {"0", "1", "false", "true"}:
+            raise ValueError("DRONE_ASYNC_QR_SCAN只能是0/1/false/true")
         return cls(
             camera_device=env.get("DRONE_CAMERA_DEVICE", "/dev/video0"),
             camera_width=int(env.get("DRONE_CAMERA_WIDTH", "1280")),
@@ -151,7 +155,13 @@ class InventoryMissionConfig:
             laser_aim_x_ratio=float(env.get("DRONE_LASER_AIM_X_RATIO", "0.5")),
             laser_aim_y_ratio=float(env.get("DRONE_LASER_AIM_Y_RATIO", "0.5")),
             vision_servo=VisionServoConfig.from_env(env),
+            async_qr_scan=raw_async in {"1", "true"},
         )
+
+
+def require_async_scan_for_flight(config, dry_run=False):
+    if not dry_run and not config.async_qr_scan:
+        raise RuntimeError("async_scan_required")
 
 
 class CameraSource:
@@ -955,6 +965,7 @@ def default_inventory_config(base_dir=None):
         laser_aim_x_ratio=config.laser_aim_x_ratio,
         laser_aim_y_ratio=config.laser_aim_y_ratio,
         vision_servo=config.vision_servo,
+        async_qr_scan=config.async_qr_scan,
     )
 
 

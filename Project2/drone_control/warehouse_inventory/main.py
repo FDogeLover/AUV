@@ -15,6 +15,7 @@ from Lcode.inventory_controller import (
     InventoryFlightMission,
     InventoryMissionConfig,
     InventoryMissionCoordinator,
+    require_async_scan_for_flight,
     default_inventory_config,
 )
 from Lcode.laser_pointer import LaserPointer
@@ -142,6 +143,8 @@ def main():
 
     base_dir = Path(__file__).resolve().parent
     config = default_inventory_config(base_dir)
+    dry_run = os.getenv("DRONE_DRY_RUN", "0").strip().lower() in {"1", "true"}
+    require_async_scan_for_flight(config, dry_run=dry_run)
     vision_debug = VisionDebugCapture(
         base_dir / os.getenv("DRONE_VISION_DEBUG_DIR", "vision_debug")
     )

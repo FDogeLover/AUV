@@ -111,6 +111,8 @@ class mission:
         self.targets = self.load_waypoints(route_file)
         self.target_index = 0
         self._scan_target = None
+        self._scan_tick_last_t = None
+        self._scan_tick_max_jitter_s = 0.0
         self._navigation_purpose = "normal"
         self._navigation_generation = 0
         self.emergency_stop = False
@@ -506,7 +508,18 @@ class mission:
         """Default SCAN safety action when position control is unavailable."""
         self.state = "LAND"
 
+    def _record_scan_tick_jitter(self):
+        now = time.monotonic()
+        if self._scan_tick_last_t is not None:
+            interval = now - self._scan_tick_last_t
+            self._scan_tick_max_jitter_s = max(
+                self._scan_tick_max_jitter_s,
+                max(0.0, interval - 0.03),
+            )
+        self._scan_tick_last_t = now
+
     def scan_tick(self, pos, yaw):
+        self._record_scan_tick_jitter()
         target = self._scan_target
         if target is None:
             self.on_scan_tracking_lost(pos, yaw)
