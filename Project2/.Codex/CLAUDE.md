@@ -112,6 +112,80 @@ cd drone_control/fire_patrol && python main.py
 - 提交格式：`模块: 改动简述`
 - 2026-07-09起：本机提交后主动push到远程，不用等用户每次要求；板子(`ubuntu-pi`)`FJJ/.git`独立历史，本地commit要及时但依然不push（跟本机仓库无push/pull关联）
 
+## ZCode × Qoder 协作规范
+
+> 设计依据：Anthropic Evaluator-Optimizer 模式 + Andrew Ng Reflection 循环 + MetaGPT 结构化文档 + AutoGen human-in-the-loop
+
+### 触发阈值
+
+| 场景 | 是否走完整流程 |
+|------|--------------|
+| 参数调整、注释、重命名、单函数小改动 | ❌ 直接改 |
+| bug 修复（已有测试覆盖） | ❌ 直接改 |
+| **新增功能**（新状态、新传感器、新赛题模块） | ✅ 完整流程 |
+| **大规模重构**（跨 3+ 文件或改变接口/状态机结构） | ✅ 完整流程 |
+| 安全关键路径改动（land/QR解码/通信协议） | ✅ 完整流程（即使改动小） |
+
+### 完整协作流程（Evaluator-Optimizer 双轮）
+
+```
+Step 1  ZCode 撰写结构化计划文档
+        ─ 问题描述 & 目标
+        ─ 方案选择（列出备选方案及取舍理由）
+        ─ 改动范围（受影响的文件/函数/接口）
+        ─ 风险点（安全隐患/边界条件/回退方案）
+        ─ 验证方式（测试/飞行实验设计）
+            ↓
+Step 2  【第一轮 Qoder 审查】提交计划文档
+        Qoder 角色：逻辑完整性 + 安全性评审员
+        要求 Qoder 按以下格式输出：
+          [高风险] / [中风险] / [低风险] / [通过]
+          每条注明：问题描述 + 所在计划的哪一部分
+        ─ 循环上限：若 Qoder 连续两轮仍标注[高风险]，停下来让用户决策
+            ↓
+Step 3  【决策检查点 — human-in-the-loop】
+        ─ [高风险] 条目：必须呈现给用户，由用户决定是否继续
+        ─ [中风险] 条目：ZCode 可自行判断是否修改计划后继续
+        ─ [低风险]/[通过]：ZCode 直接继续
+            ↓
+Step 4  按确认方案实施代码改动
+        ─ 每次提交前对照计划的"改动范围"自查
+            ↓
+Step 5  【第二轮 Qoder 审查】提交 diff + 原始计划
+        Qoder 角色：实现核查员（对照计划查偏差，不重新评审计划）
+        要求 Qoder 检查：
+          ① 实现是否与计划一致（有无遗漏/超出范围）
+          ② 有无新引入的逻辑错误或边界遗漏
+          ③ 给出 [实现符合计划] / [存在偏差: <说明>]
+            ↓
+Step 6  根据第二轮结果处理
+        ─ [实现符合计划]：提交，推进
+        ─ [存在偏差]：按偏差描述修正后再次自查，不再触发第三轮 Qoder
+```
+
+**审查轮次上限：2轮**（Plan Review + Implementation Review）。超出上限说明方案本身需要重新设计，停下来重新走 Step 1，不在原方案上无限迭代。
+
+### 差异化 Qoder Prompt（按改动类型）
+
+| 改动类型 | Qoder 审查侧重 |
+|---------|--------------|
+| 状态机（Mission_GPT.py） | 死锁/降落保障/超时覆盖（用 `/qoder-statemachine`） |
+| 安全关键（land/QR/通信） | 异常路径、竞态、资源释放（用 `/qoder-review`） |
+| 上板前 | 全量 diff 安全扫描（用 `/qoder-preflight`） |
+| 新功能计划文档 | 逻辑完整性 + 备选方案遗漏（在流程 Step 2 手动构造） |
+
+### 机动提醒（小改动场景的安全兜底）
+
+| 触发条件 | 行动 |
+|---------|------|
+| 准备 scp 到 ubuntu-pi 前 | 提醒运行 `/qoder-preflight <模块目录>` |
+| 修改了 `Mission_GPT.py` | 提醒运行 `/qoder-statemachine <文件路径>` |
+| 修改了安全关键模块 | 提醒运行 `/qoder-review <文件路径>` |
+
+Qoder CLI：`C:\Users\FJJ\.qoder-cn\bin\qoderclicn\qoderclicn.exe`
+命令文件：`.zcode/commands/`（`qoder-review.md` / `qoder-preflight.md` / `qoder-statemachine.md`）
+
+
 ## 关键设计决策
 
 ### 下行帧协议（飞控 → Pi，`my_protocol.c` `pi_send()`）— 2026-07-04 已重构并真机验证通过

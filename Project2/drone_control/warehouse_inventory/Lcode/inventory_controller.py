@@ -444,6 +444,7 @@ class InventoryMissionCoordinator:
                 self.state_machine.sample(
                     waypoint_index=index,
                     slot_label=waypoint.slot_label,
+                    position=list(position),
                     detected_number=(detection.number if detection else None),
                     accepted_number=(accepted.number if accepted else None),
                 )
@@ -517,6 +518,8 @@ class InventoryMissionCoordinator:
         last_center = None
         face_sign = config.x_direction(waypoint.face)
         start_x = float(position[0]) if position else None
+        last_debug_capture_t = started
+        _debug_interval = 0.5  # 周期性存图间隔（秒）
 
         while self._clock() < deadline:
             frames += 1
@@ -594,6 +597,28 @@ class InventoryMissionCoordinator:
                         continue
                 last_center = center
                 last_error = (error_x, error_y)
+                _cur_pos = self._current_position()
+
+                # 每隔 _debug_interval 秒存一张伺服过程帧，用于离线分析收敛质量
+                _now_t = self._clock()
+                if self.vision_debug is not None and (_now_t - last_debug_capture_t) >= _debug_interval:
+                    last_debug_capture_t = _now_t
+                    self.vision_debug.capture_scan(
+                        frame,
+                        {
+                            "state": InventoryState.VISUAL_SERVO.value,
+                            "capture": "servo_periodic",
+                            "waypoint_index": index,
+                            "slot_label": waypoint.slot_label,
+                            "position": list(_cur_pos) if _cur_pos is not None else None,
+                            "error_px": [round(error_x, 1), round(error_y, 1)],
+                            "geometry_number": geometry.number,
+                            "stable": stable,
+                            "frame": frames,
+                            "timestamp": time.time(),
+                        },
+                    )
+
                 centered = (
                     abs(error_x) <= config.center_tolerance_px
                     and abs(error_y) <= config.center_tolerance_px
@@ -621,6 +646,7 @@ class InventoryMissionCoordinator:
                 self.state_machine.sample(
                     waypoint_index=index,
                     slot_label=waypoint.slot_label,
+                    position=list(_cur_pos) if _cur_pos is not None else None,
                     visual_servo_error_px=[round(error_x, 1), round(error_y, 1)],
                     visual_servo_centered=centered,
                     visual_servo_target_number=geometry.number,
