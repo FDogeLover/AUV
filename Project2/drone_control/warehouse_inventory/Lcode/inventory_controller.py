@@ -17,7 +17,7 @@ from typing import Optional, Tuple
 
 from Lcode.ground_link import GroundMessageType
 from Lcode.inventory_planner import InventoryPlanner, MissionWaypoint, WaypointKind
-from Lcode.inventory_state import InventoryState, InventoryStateMachine
+from Lcode.inventory_state import ALLOWED_TRANSITIONS, InventoryState, InventoryStateMachine
 from Lcode.inventory_store import InventoryConflict, InventoryStore
 from Lcode.laser_pointer import LaserPointer
 from Lcode.Logger import logger
@@ -563,7 +563,11 @@ class InventoryMissionCoordinator:
         )
 
         if waypoint.kind in {WaypointKind.TAKEOFF, WaypointKind.TRANSIT}:
-            self._go(InventoryState.TRANSIT, "transit_arrival", waypoint_index=index)
+            if self.state_machine.state == InventoryState.RETURN:
+                if waypoint.kind == WaypointKind.TAKEOFF:
+                    logger.warning("返航路线意外包含TAKEOFF航点，保持RETURN并继续")
+            else:
+                self._go(InventoryState.TRANSIT, "transit_arrival", waypoint_index=index)
             return WaypointArrivalAction.ADVANCE
 
         if waypoint.kind == WaypointKind.SET_GIMBAL:
@@ -1020,6 +1024,37 @@ class InventoryFlightMission(FlightMission):
         if action != WaypointArrivalAction.ADVANCE:
             return
         super()._advance_waypoint(reason, pos, target, arrival_distance)
+
+    def on_flight_loop_exception(self, exc, failed_state):
+        if failed_state == "SCAN":
+            self.coordinator.cancel_scan("flight_loop_exception", join_timeout_s=0.0)
+            self.end_scan_hold()
+        super().on_flight_loop_exception(exc, failed_state)
+        if failed_state == "LAND":
+            return
+        machine_state = self.coordinator.state_machine.state
+        if machine_state in {InventoryState.LAND, InventoryState.END}:
+            return
+        if InventoryState.LAND in ALLOWED_TRANSITIONS[machine_state]:
+            self.coordinator._go(
+                InventoryState.LAND,
+                "flight_loop_exception",
+                error=str(exc),
+                flight_state=failed_state,
+            )
+            return
+        self.coordinator.state_machine.fault(
+            "flight_loop_exception",
+            recover_to_return=False,
+            error=str(exc),
+            flight_state=failed_state,
+        )
+        if InventoryState.LAND in ALLOWED_TRANSITIONS[self.coordinator.state_machine.state]:
+            self.coordinator._go(
+                InventoryState.LAND,
+                "flight_loop_exception_land",
+                flight_state=failed_state,
+            )
 
     def on_scan_tick(self, pos, yaw, control):
         result = self.coordinator.poll_scan_result(self._scan_generation)

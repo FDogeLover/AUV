@@ -539,6 +539,8 @@
 
     LAND新增统一入口`land_start`、周期诊断（激光高度/有效性、持续时间、unlock确认计数、motor PWM及新鲜度、gaveup、实际task/z/yaw命令）、`land_exit(confirmed/python_timeout)`和`land_wait_manual(firmware_timeout_gaveup)`事件。没有修改unlock+pwm双条件确认，也没有修改固件gaveup后保持通信等待人工介入的安全行为。下一次真机可直接从结构化事件判断此前一分钟不结束是否是固件gaveup永久等待。
 
+    **2026-07-20第二次实飞追加根因与修复（192 passed/1 skipped，待真机）**：首返航点cruise已生效并打印“航点0掠过”，但随后只有ResourceMonitor继续写日志、无LAND事件。确定根因是coordinator在业务状态RETURN时到达TRANSIT仍调用`_go(TRANSIT)`，触发禁止的`RETURN→TRANSIT` ValueError并杀死无顶层异常保护的daemon飞行循环；发送线程继续重放旧指令造成现场悬停假象。现已改为RETURN期间TRANSIT只采样并ADVANCE，状态保持RETURN。新增loop顶层traceback/结构化异常事件、先清零XY再转LAND、LAND异常先补发task=0再emergency、hook二次失败裸写disarm并停止假活任务。真实InventoryFlightMission+真实coordinator通过navigate完整走通三点返航桌面测试。
+
 42. **2026-07-20 warehouse_inventory完整route-only路线首次走完全程；下端净空按现场观察扩大，扫码点待逐点标定**：
 
     独立`route_only_main.py`不执行二维码、云台和激光业务，40个XYZ航点已完整实飞走完，证明完整几何航线基本可飞。现场观察原`X=+0.15m`下端绕行有擦到板子的风险，用户明确确认向外移动到`X=+0.30m`；模型配置、规划器、route-only文件四个下绕点及测试已统一修改并同步板端。注意飞行坐标是正X，不能误写成`-0.30m`（会进入模型货架范围）。其他24个扫码货位坐标不从route-only结果一次性调整，待收集各货位真实二维码画面后逐点微调。

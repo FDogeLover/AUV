@@ -243,6 +243,69 @@ class mission:
         threading.Thread(target=self.loop, daemon=True).start()
 
     # ================= 主循环 =================
+    def _log_flight_loop_exception(self, exc, failed_state):
+        if not self._log_file:
+            return
+        try:
+            target = (
+                list(self.targets[self.target_index])
+                if self.target_index < len(self.targets)
+                else None
+            )
+            with self._log_lock:
+                self._log_file.write(json.dumps({
+                    "t": round(time.time(), 3),
+                    "event": "flight_loop_exception",
+                    "state": failed_state,
+                    "exception_type": type(exc).__name__,
+                    "error": str(exc),
+                    "navigation_purpose": self._navigation_purpose,
+                    "target_idx": self.target_index,
+                    "target": target,
+                }) + "\n")
+                self._log_file.flush()
+        except Exception:
+            pass
+
+    def on_flight_loop_exception(self, exc, failed_state):
+        yaw_cmd = getattr(self._heading_status, "command_dps", 0)
+        z_setpoint = self.se_fc[5] if len(self.se_fc) > 5 else int(self._ramp_z_cm)
+        self.set_speed(0, 0, yaw_cmd, z_setpoint)
+        if failed_state == "LAND":
+            with lock:
+                self.se_fc[2] = 0
+                self.se_fc[3] = sp_side
+                self.se_fc[4] = sp_side
+                self.se_fc[6] = sp_side
+            self.emergency_stop = True
+        else:
+            self.state = "LAND"
+
+    def _flight_loop_unrecoverable(self):
+        try:
+            with lock:
+                self.se_fc[2] = 0
+                self.se_fc[3] = sp_side
+                self.se_fc[4] = sp_side
+                self.se_fc[6] = sp_side
+                self.se_fc[7] = 101
+        except Exception:
+            pass
+        finally:
+            self.task_running = False
+
+    def _dispatch_state_tick(self, pos, yaw):
+        if self.state == "TAKEOFF":
+            self.takeoff()
+        elif self.state == "NAVIGATE":
+            self.navigate(pos, yaw)
+        elif self.state == "SCAN":
+            self.scan_tick(pos, yaw)
+        elif self.state == "LAND":
+            self.land()
+        elif self.state == "END":
+            self.stop_all()
+
     def loop(self):
         while self.task_running:
 
@@ -282,16 +345,19 @@ class mission:
                     pos[2] = laser_h
 
             # 状态机
-            if self.state == "TAKEOFF":
-                self.takeoff()
-            elif self.state == "NAVIGATE":
-                self.navigate(pos, yaw)
-            elif self.state == "SCAN":
-                self.scan_tick(pos, yaw)
-            elif self.state == "LAND":
-                self.land()
-            elif self.state == "END":
-                self.stop_all()
+            failed_state = self.state
+            try:
+                self._dispatch_state_tick(pos, yaw)
+            except Exception as exc:
+                logger.exception(
+                    f"飞行主循环状态处理异常(state={failed_state})，进入安全处理: {exc}"
+                )
+                self._log_flight_loop_exception(exc, failed_state)
+                try:
+                    self.on_flight_loop_exception(exc, failed_state)
+                except Exception:
+                    logger.critical("飞行异常处理器再次失败，执行裸写锁定保底", exc_info=True)
+                    self._flight_loop_unrecoverable()
 
             time.sleep(0.03)
 

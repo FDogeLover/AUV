@@ -50,6 +50,74 @@ def _make_mission(profile="cruise"):
     return m
 
 
+def test_dispatch_exception_neutralizes_xy_and_enters_land(monkeypatch):
+    m = _make_mission()
+    m.state = "NAVIGATE"
+    m.se_fc[3] = sp_side + 20
+    m.se_fc[4] = sp_side - 20
+    m.task_running = True
+    monkeypatch.setattr(m, "navigate", lambda *_: (_ for _ in ()).throw(RuntimeError("boom")))
+
+    try:
+        m._dispatch_state_tick([0.0, 0.0, 1.0], 0.0)
+    except RuntimeError as exc:
+        m.on_flight_loop_exception(exc, "NAVIGATE")
+
+    assert m.se_fc[3] == sp_side
+    assert m.se_fc[4] == sp_side
+    assert m.state == "LAND"
+    assert m.task_running is True
+
+
+def test_land_exception_requests_land_before_emergency_stop():
+    m = _make_mission()
+    m.state = "LAND"
+    m.se_fc[2] = 1
+    m.se_fc[3] = sp_side + 20
+    m.se_fc[4] = sp_side - 20
+
+    m.on_flight_loop_exception(RuntimeError("land failed"), "LAND")
+
+    assert m.se_fc[2] == 0
+    assert m.se_fc[3] == sp_side
+    assert m.se_fc[4] == sp_side
+    assert m.se_fc[6] == sp_side
+    assert m.emergency_stop is True
+
+
+def test_unrecoverable_loop_handler_bare_writes_disarm_and_stops_task():
+    m = _make_mission()
+    m.task_running = True
+    m.se_fc[2] = 1
+    m.se_fc[3] = sp_side + 20
+    m.se_fc[4] = sp_side - 20
+
+    m._flight_loop_unrecoverable()
+
+    assert m.se_fc[2] == 0
+    assert m.se_fc[3] == sp_side
+    assert m.se_fc[4] == sp_side
+    assert m.se_fc[6] == sp_side
+    assert m.se_fc[7] == 101
+    assert m.task_running is False
+
+
+def test_flight_loop_exception_event_records_context():
+    m = _make_mission()
+    m._log_file = io.StringIO()
+    m._navigation_purpose = "return"
+    m.target_index = 1
+
+    m._log_flight_loop_exception(ValueError("bad transition"), "NAVIGATE")
+
+    event = json.loads(m._log_file.getvalue())
+    assert event["event"] == "flight_loop_exception"
+    assert event["state"] == "NAVIGATE"
+    assert event["exception_type"] == "ValueError"
+    assert event["navigation_purpose"] == "return"
+    assert event["target_idx"] == 1
+
+
 def test_scan_tick_uses_xy_pid_against_latched_target():
     m = _make_mission()
     m.realsense = ScanRealsense(position=(0.20, -0.10, 1.20))

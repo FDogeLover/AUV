@@ -2,12 +2,14 @@ import io
 import threading
 from types import SimpleNamespace
 
+import Mission_GPT as mg
 import numpy as np
 import pytest
 
 from Lcode import inventory_controller as controller
 from Lcode.inventory_planner import MissionWaypoint, WaypointKind
 from Lcode.inventory_state import InventoryState, InventoryStateMachine
+from Lcode.navigation_profile import NavigationProfileConfig
 from Lcode.inventory_store import InventoryStore
 from Lcode.qr_vision import QRConsensus, QRConsensusConfig, QRDetection
 from Lcode.state_debug_logger import StateDebugConfig, StateTrace
@@ -109,6 +111,18 @@ class EventStore(InventoryStore):
     def add(self, *args, **kwargs):
         self.events.append("store_add")
         return super().add(*args, **kwargs)
+
+
+class FlightRealsense:
+    def __init__(self):
+        self.confidence = 3
+        self.velocity = (0.0, 0.0, 0.0)
+
+    def get_tracking_confidence(self):
+        return self.confidence
+
+    def get_velocity(self):
+        return self.velocity
 
 
 class FakeDriver:
@@ -649,6 +663,31 @@ def test_duplicate_qr_faults_before_laser():
     assert coordinator.state_machine.state == InventoryState.VERIFY_QR
 
 
+def test_return_transit_arrival_keeps_return_state():
+    route = [MissionWaypoint(FlightPoint(-2.65, 0.05, 1.4), WaypointKind.TRANSIT)]
+    coordinator = _coordinator(route, FakeLaser([]))
+    coordinator.state_machine.transition(InventoryState.RETURN, "test_return")
+
+    action = coordinator.on_waypoint_arrived(0, [-2.65, 0.05, 1.4], "cruise_arrival")
+
+    assert action == controller.WaypointArrivalAction.ADVANCE
+    assert coordinator.state_machine.state == InventoryState.RETURN
+
+
+def test_return_takeoff_waypoint_warns_but_keeps_return_state(monkeypatch):
+    route = [MissionWaypoint(FlightPoint(0, 0, 1.4), WaypointKind.TAKEOFF)]
+    coordinator = _coordinator(route, FakeLaser([]))
+    coordinator.state_machine.transition(InventoryState.RETURN, "test_return")
+    warnings = []
+    monkeypatch.setattr(controller.logger, "warning", warnings.append)
+
+    action = coordinator.on_waypoint_arrived(0, [0, 0, 1.4], "arrival")
+
+    assert action == controller.WaypointArrivalAction.ADVANCE
+    assert coordinator.state_machine.state == InventoryState.RETURN
+    assert any("TAKEOFF" in message for message in warnings)
+
+
 def test_flight_driver_routes_base_arrival_callback_through_coordinator():
     route = [MissionWaypoint(FlightPoint(0, 0, 1.4), WaypointKind.TRANSIT)]
     callback = CallbackCoordinator()
@@ -664,6 +703,71 @@ def test_flight_driver_routes_base_arrival_callback_through_coordinator():
     assert callback.driver is mission
     assert callback.calls == [(0, [0.0, 0.0, 1.4], "test_arrival")]
     assert mission.target_index == 1
+
+
+def test_inventory_loop_exception_hook_syncs_return_to_land():
+    route = [MissionWaypoint(FlightPoint(-2.65, 0.05, 1.4), WaypointKind.TRANSIT)]
+    coordinator = _coordinator(route, FakeLaser([]))
+    coordinator.state_machine.transition(InventoryState.RETURN, "test_return")
+    mission = controller.InventoryFlightMission(
+        [0] * 14,
+        [170, 2, 0, 51, 51, 140, 51, 0, 51, 0, 255],
+        None,
+        None,
+        route,
+        coordinator,
+    )
+    mission.state = "NAVIGATE"
+    mission._navigation_purpose = "return"
+
+    mission.on_flight_loop_exception(ValueError("bad transition"), "NAVIGATE")
+
+    assert mission.state == "LAND"
+    assert mission.se_fc[3] == 51
+    assert mission.se_fc[4] == 51
+    assert coordinator.state_machine.state == InventoryState.LAND
+
+
+def test_real_mission_navigates_complete_return_route(monkeypatch):
+    route = [
+        MissionWaypoint(FlightPoint(-2.65, 0.05, 1.4), WaypointKind.TRANSIT),
+        MissionWaypoint(FlightPoint(-2.65, 3.5, 1.4), WaypointKind.TRANSIT),
+        MissionWaypoint(FlightPoint(-2.5, 3.5, 1.4), WaypointKind.LAND_APPROACH),
+    ]
+    coordinator = _coordinator(route, FakeLaser([]))
+    coordinator.state_machine.transition(InventoryState.RETURN, "test_return")
+    realsense = FlightRealsense()
+    mission = controller.InventoryFlightMission(
+        [0] * 14,
+        [170, 2, 0, 51, 51, 140, 51, 0, 51, 0, 255],
+        realsense,
+        None,
+        route,
+        coordinator,
+    )
+    mission.t265_ok = True
+    mission._navigation_purpose = "return"
+    mission.navigation_profile = NavigationProfileConfig(
+        profile="precision", cruise_confirm_cycles=2, cruise_radius_m=0.15
+    )
+    monkeypatch.setattr(mg, "arrival_confirm_need", 1)
+    monkeypatch.setattr(mg, "arrival_hold_s", 0.0)
+
+    for _ in range(2):
+        mission.navigate([-2.64, 0.05, 1.4], 0.0)
+    assert mission.target_index == 1
+    assert coordinator.state_machine.state == InventoryState.RETURN
+
+    for _ in range(2):
+        mission.navigate([-2.65, 3.49, 1.4], 0.0)
+    assert mission.target_index == 2
+    assert coordinator.state_machine.state == InventoryState.RETURN
+
+    mission.navigate([-2.5, 3.5, 1.4], 0.0)
+    mission.navigate([-2.5, 3.5, 1.4], 0.0)
+    assert mission.state == "LAND"
+    assert mission.target_index == 2
+    assert coordinator.state_machine.state == InventoryState.LAND
 
 
 def test_return_timeout_near_advances_once_through_coordinator():
