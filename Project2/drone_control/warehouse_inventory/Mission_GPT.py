@@ -732,6 +732,10 @@ class mission:
 
     def _advance_waypoint(self, reason, pos, target, arrival_distance):
         """统一推进航点并原子重置到达状态，避免同tick连跳和日志目标错位。"""
+        if reason == "timeout" and self._navigation_purpose == "return":
+            logger.warning("返航航点超时，切换当前位置受控降落")
+            self.state = "LAND"
+            return
         completed_index = self.target_index
         if YAW_TEST_BURST_ENABLED and self.target_index == 0 and not self._yaw_burst_done:
             self._yaw_burst_done = True

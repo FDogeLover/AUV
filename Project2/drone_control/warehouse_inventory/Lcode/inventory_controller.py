@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Optional, Tuple
 
 from Lcode.ground_link import GroundMessageType
-from Lcode.inventory_planner import MissionWaypoint, WaypointKind
+from Lcode.inventory_planner import InventoryPlanner, MissionWaypoint, WaypointKind
 from Lcode.inventory_state import InventoryState, InventoryStateMachine
 from Lcode.inventory_store import InventoryConflict, InventoryStore
 from Lcode.laser_pointer import LaserPointer
@@ -326,6 +326,7 @@ class InventoryMissionCoordinator:
         clock=time.monotonic,
         sleep_fn=time.sleep,
         vision_debug=None,
+        planner=None,
     ):
         self.route = list(route)
         self.state_machine = state_machine
@@ -340,6 +341,7 @@ class InventoryMissionCoordinator:
         self._clock = clock
         self._sleep = sleep_fn
         self.vision_debug = vision_debug
+        self.planner = planner or InventoryPlanner()
         self.driver = None
         self.last_detection = None
         self._scan_lock = threading.Lock()
@@ -568,6 +570,9 @@ class InventoryMissionCoordinator:
             return self._inspect_slot(index, waypoint, position)
 
         if waypoint.kind == WaypointKind.LAND_APPROACH:
+            if self.state_machine.state == InventoryState.RETURN:
+                self._go(InventoryState.LAND, "return_arrived")
+                return WaypointArrivalAction.LAND
             self._go(InventoryState.RETURN, "landing_approach")
             return WaypointArrivalAction.ADVANCE
 
@@ -622,8 +627,16 @@ class InventoryMissionCoordinator:
             )
 
         if result.status == ScanTaskStatus.FAILED:
+            self.state_machine.fault(
+                result.error_code or "scan_failed",
+                waypoint_index=result.waypoint_index,
+                slot_label=result.slot_label,
+            )
+            current = FlightPoint(*[float(value) for value in current_position])
+            route = tuple(self.planner.plan_safe_return(current))
             return ScanConsumeResult(
                 ScanConsumeOutcome.RETURN,
+                return_route=route,
                 error_code=result.error_code or "scan_failed",
             )
         accepted = result.detection
@@ -1004,9 +1017,22 @@ class InventoryFlightMission(FlightMission):
                 self.targets[self.target_index],
                 0.0,
             )
+        elif consumed.outcome == ScanConsumeOutcome.RETURN:
+            self.end_scan_hold()
+            self.replace_inventory_navigation_route(consumed.return_route, pos)
         elif consumed.outcome == ScanConsumeOutcome.EMERGENCY_LAND:
             self.end_scan_hold()
             self.state = "LAND"
+
+    def replace_inventory_navigation_route(self, route, current_pos):
+        self.inventory_route = list(route)
+        generation = self.replace_navigation_targets(
+            [waypoint.point.as_list() for waypoint in self.inventory_route],
+            current_pos,
+            purpose="return",
+        )
+        self.state = "NAVIGATE"
+        return generation
 
     def hold_position(self, z_m):
         yaw_cmd = self._heading_status.command_dps
