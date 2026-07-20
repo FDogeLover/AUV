@@ -268,7 +268,9 @@ Qoder CLI：`C:\Users\FJJ\.qoder-cn\bin\qoderclicn\qoderclicn.exe`
 | 37 | fire_patrol抛投舵机接入+角度语义修正 | ✅ | drop_bag()接入真实sysfs PWM舵机；0°=释放/180°=锁定(与初始假设相反)，2026-07-17真机测试后用户指出修正；连续6次触发测试(含2次完整路径)松开+自动复位全部验证成功 |
 | 38 | fire_patrol安全结束后串口监听线程关闭竞态 | 🟡/低优先级 | 三轮2026-07-18完整路线均在上锁、任务结束、T265/串口关闭后触发`listen_fc`线程异常；不影响飞行，根因是`listen_end()`不等待线程且部分`read()`未捕获关闭异常，待桌面回归修复 |
 | 39 | basic BCM17一键起飞门禁 | 🟡待飞行 | 自启动后只初始化GPIO并绿灯等待，用户拔插T265后按键，随后才创建T265/飞控串口；检查通过后红灯5秒再进入TAKEOFF，任一阶段失败均不解锁；旧顺序的板端DRY_RUN已验证，重排后尚待复测 |
-| 40 | warehouse_inventory QR码解码：pyzbar裸调用零成功率 | ✅ | 2026-07-19飞行图像离线分析：pyzbar直接调用对1280×720飞行帧全部失败(79张零解码)；adaptiveThreshold(block=31,C=5)+pyzbar可成功；原`detect()`第668行early-return阻断了OpenCV几何+透视矫正fallback；已修复：target_point分支内独立走_fast_geometry_search+_decode_localized，明确不落入_decode_search慢路径；QR内容为URL格式，通过qr_mapping.txt映射到1~24 |
+| 40 | warehouse_inventory QR码解码 | 🔴 | 裸pyzbar/OpenCV对79张飞行帧均0成功，adaptiveThreshold+pyzbar有效；当前实飞路径为ROI+pyzbar-only，A1仍qr_timeout；待加有界OpenCV ROI回退和分层拒绝原因日志，禁止恢复约17秒全帧搜索 |
+| 41 | warehouse_inventory异步扫码后安全返航 | 🔴 | A1日志证实qr_timeout已被主线程消费并进入RETURN，实际飞到首返航点1.52cm内；precision速度/停留确认仍超时，return timeout策略立即LAND导致不走后续点；LAND随后未正常结束，视觉/返航到达/降落须分开修 |
+| 42 | warehouse_inventory完整路线净空与扫码点 | 🟡 | route-only 40航点完整实飞走完；下绕通道按现场观察从X=+0.15外移到+0.30并已同步板端；其他24个扫码货位坐标待按真实二维码画面逐点微调 |
 
 ## 远程设备操作规范（SSH 到板载设备）
 

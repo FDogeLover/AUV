@@ -256,3 +256,15 @@
 {"t": 1784455955.819, "event": "fault", "state": "WAIT_BUTTON", "code": "button_gate_failed"}
 {"t": 1784455955.819, "event": "state_exit", "state": "WAIT_BUTTON", "next_state": "FAULT", "duration_s": 0.0, "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
 {"t": 1784455955.819, "event": "state_enter", "state": "FAULT", "previous": "WAIT_BUTTON", "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784523222.768, "event": "state_enter", "state": "BOOT", "previous": null}
+{"t": 1784523222.768, "event": "state_exit", "state": "BOOT", "next_state": "WAIT_BUTTON", "duration_s": 0.0, "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784523222.768, "event": "state_enter", "state": "WAIT_BUTTON", "previous": "BOOT", "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784523222.768, "event": "fault", "state": "WAIT_BUTTON", "code": "button_gate_failed"}
+{"t": 1784523222.768, "event": "state_exit", "state": "WAIT_BUTTON", "next_state": "FAULT", "duration_s": 0.0, "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784523222.768, "event": "state_enter", "state": "FAULT", "previous": "WAIT_BUTTON", "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784526112.363, "event": "state_enter", "state": "BOOT", "previous": null}
+{"t": 1784526112.363, "event": "state_exit", "state": "BOOT", "next_state": "WAIT_BUTTON", "duration_s": 0.0, "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784526112.363, "event": "state_enter", "state": "WAIT_BUTTON", "previous": "BOOT", "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784526112.363, "event": "fault", "state": "WAIT_BUTTON", "code": "button_gate_failed"}
+{"t": 1784526112.363, "event": "state_exit", "state": "WAIT_BUTTON", "next_state": "FAULT", "duration_s": 0.0, "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784526112.363, "event": "state_enter", "state": "FAULT", "previous": "WAIT_BUTTON", "reason": "button_gate_failed", "previous_state": "WAIT_BUTTON"}
