@@ -34,8 +34,10 @@ class InventoryPlanner:
     """生成安全通道路径。
 
     只有线段跨过货架平面Y时才加入上下端绕行点。上下端通道的选择按XY路程代价
-    比较，其中下端X=-0.15是用户确认值。
+    比较，其中下端X=+0.30是完整实飞后确认的安全值。
     """
+
+    SAFE_RETURN_CRUISE_Z_TOLERANCE_M = 0.05
 
     FULL_FACE_ORDER: Sequence[FaceId] = (
         FaceId.A,
@@ -136,7 +138,7 @@ class InventoryPlanner:
         route = [MissionWaypoint(self.model.takeoff, WaypointKind.TAKEOFF)]
         for index, face_id in enumerate(self.FULL_FACE_ORDER):
             # 反向选择每面的扫描端点，使跨货架前后的端点更靠近下端通道，
-            # 避免在 X=-1.75 与 X=+0.15 之间往返绕远。
+            # 避免在 X=-1.75 与 X=+0.30 之间往返绕远。
             self._append_face(
                 route,
                 face_id,
@@ -152,7 +154,18 @@ class InventoryPlanner:
     def plan_safe_return(self, current: FlightPoint) -> List[MissionWaypoint]:
         """Plan collision-safe transit to landing approach without descending."""
         approach = self.model.landing_approach
-        transit = self._safe_transit(current, approach)
+        cruise_z = self.model.config.cruise_z_m
+        # 飞控回传的激光高度在定点悬停时会有厘米级波动。已接近巡航高度时直接
+        # 规划水平路径；低层货位仍先原地爬升，再进入货架外侧通道。
+        if math.isclose(
+            current.z,
+            cruise_z,
+            abs_tol=self.SAFE_RETURN_CRUISE_Z_TOLERANCE_M,
+        ):
+            start = FlightPoint(current.x, current.y, cruise_z)
+        else:
+            start = current
+        transit = self._safe_transit(start, approach)
         route = [
             MissionWaypoint(waypoint.point, WaypointKind.TRANSIT)
             for waypoint in transit

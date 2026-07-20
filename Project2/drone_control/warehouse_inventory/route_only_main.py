@@ -37,8 +37,8 @@ def validate_route(path: Path):
         points.append(point)
     if len(points) != 40:
         raise ValueError(f"完整路线必须有 40 个航点，实际为 {len(points)}")
-    if sum(abs(point[0] - 0.15) < 1e-9 for point in points) != 4:
-        raise ValueError("完整路线必须包含 4 个 X=+0.15m 下端绕行点")
+    if sum(abs(point[0] - 0.30) < 1e-9 for point in points) != 4:
+        raise ValueError("完整路线必须包含 4 个 X=+0.30m 下端绕行点")
     if points[-1] != (-2.5, 3.5, 0.2):
         raise ValueError(f"降落终点不符合预期：{points[-1]}")
     return points

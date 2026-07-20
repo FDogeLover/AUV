@@ -8,7 +8,7 @@ def test_coordinate_axes_and_confirmed_lower_bypass():
     config = WarehouseConfig()
     assert config.flight_y(config.start_u_m + 1.0) == 1.0
     assert config.flight_x(config.start_v_m + 1.0) == -1.0
-    assert config.lower_bypass_x_m == 0.15
+    assert config.lower_bypass_x_m == 0.30
 
 
 def test_builds_24_unique_slots_and_expected_face_directions():
@@ -60,7 +60,7 @@ def test_face_scan_starts_at_previous_face_height_and_bypass_keeps_it():
     lower_bypass_z = [
         p.point.z
         for p in route
-        if p.kind == WaypointKind.TRANSIT and math.isclose(p.point.x, 0.15)
+        if p.kind == WaypointKind.TRANSIT and math.isclose(p.point.x, 0.30)
     ]
     assert lower_bypass_z == [1.0, 1.0, 1.0, 1.0]
 
@@ -69,7 +69,7 @@ def test_full_plan_uses_nearest_bypass_for_reversed_scan_endpoints():
     planner = InventoryPlanner()
     route = planner.plan_full_inventory()
     transit_x = [p.point.x for p in route if p.kind == WaypointKind.TRANSIT]
-    assert any(math.isclose(x, 0.15) for x in transit_x)
+    assert any(math.isclose(x, 0.30) for x in transit_x)
     assert not any(math.isclose(x, -2.65) for x in transit_x)
 
 
@@ -77,7 +77,7 @@ def test_target_on_far_side_uses_confirmed_lower_bypass_when_shorter():
     planner = InventoryPlanner()
     route = planner.plan_target("D3")
     transit_x = [p.point.x for p in route if p.kind == WaypointKind.TRANSIT]
-    assert any(math.isclose(x, 0.15) for x in transit_x)
+    assert any(math.isclose(x, 0.30) for x in transit_x)
     assert [p.slot_label for p in route if p.kind == WaypointKind.INSPECT] == ["D3"]
 
 
@@ -126,6 +126,30 @@ def test_safe_return_without_shelf_crossing_is_direct():
     assert len(route) == 1
     assert route[0].point == approach
     assert route[0].kind == WaypointKind.LAND_APPROACH
+
+
+def test_safe_return_ignores_small_cruise_height_measurement_error():
+    planner = InventoryPlanner()
+    slot = planner.model.slots["A1"]
+    current = FlightPoint(slot.point.x, slot.point.y, planner.model.config.cruise_z_m - 0.01)
+    route = planner.plan_safe_return(current)
+
+    assert route[0].point.x != current.x
+    assert route[0].point.y == current.y
+    assert route[0].kind == WaypointKind.TRANSIT
+
+
+def test_safe_return_from_lower_slot_climbs_before_horizontal_transit():
+    planner = InventoryPlanner()
+    slot = planner.model.slots["A4"]
+    route = planner.plan_safe_return(slot.point)
+
+    assert route[0].point == FlightPoint(
+        slot.point.x,
+        slot.point.y,
+        planner.model.config.cruise_z_m,
+    )
+    assert route[0].kind == WaypointKind.TRANSIT
 
 
 def test_invalid_bypass_inside_shelf_is_rejected():

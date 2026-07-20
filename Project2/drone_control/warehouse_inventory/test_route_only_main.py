@@ -10,7 +10,7 @@ def test_validate_full_route():
     points = validate_route(route)
     assert len(points) == 40
     assert max(point[2] for point in points) == 1.4
-    assert sum(abs(point[0] - 0.15) < 1e-9 for point in points) == 4
+    assert sum(abs(point[0] - 0.30) < 1e-9 for point in points) == 4
     assert points[-1] == (-2.5, 3.5, 0.2)
 
 

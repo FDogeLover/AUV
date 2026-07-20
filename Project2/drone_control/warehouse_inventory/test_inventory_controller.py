@@ -663,3 +663,36 @@ def test_flight_driver_routes_base_arrival_callback_through_coordinator():
     assert callback.driver is mission
     assert callback.calls == [(0, [0.0, 0.0, 1.4], "test_arrival")]
     assert mission.target_index == 1
+
+
+def test_flight_driver_atomically_replaces_return_route():
+    original = [MissionWaypoint(FlightPoint(0, 0, 1.4), WaypointKind.TRANSIT)]
+    return_route = [
+        MissionWaypoint(FlightPoint(-2.65, 0.05, 1.4), WaypointKind.TRANSIT),
+        MissionWaypoint(FlightPoint(-2.5, 3.5, 1.4), WaypointKind.LAND_APPROACH),
+    ]
+    callback = CallbackCoordinator()
+    callback.route = list(original)
+    mission = controller.InventoryFlightMission(
+        [0] * 14,
+        [170, 2, 0, 0, 0, 0, 0, 0, 0, 0, 255],
+        None,
+        None,
+        original,
+        callback,
+    )
+    mission.target_index = 1
+    mission.last_target_index = 0
+
+    generation = mission.replace_inventory_navigation_route(
+        return_route, [-1.75, 0.05, 1.4]
+    )
+
+    assert mission.inventory_route == return_route
+    assert callback.route == return_route
+    assert mission.targets == [tuple(waypoint.point.as_list()) for waypoint in return_route]
+    assert mission.target_index == 0
+    assert mission.last_target_index == -1
+    assert mission._navigation_purpose == "return"
+    assert mission.state == "NAVIGATE"
+    assert generation == 1
