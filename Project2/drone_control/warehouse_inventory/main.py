@@ -31,7 +31,7 @@ from Lcode.sensor_gimbal import SensorGimbal
 from Lcode.state_debug_logger import StateDebugConfig, StateTrace
 from Lcode.global_variable import sp_side
 from t265 import t265_class
-from Lcode.warehouse_model import FlightPoint
+from Lcode.warehouse_model import FaceId, FlightPoint
 
 
 START_BUTTON_POLL_S = 0.05
