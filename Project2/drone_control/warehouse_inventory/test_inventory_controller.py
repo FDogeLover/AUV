@@ -138,7 +138,7 @@ class CallbackCoordinator:
 
     def on_waypoint_arrived(self, index, position, reason):
         self.calls.append((index, position, reason))
-        return True
+        return controller.WaypointArrivalAction.ADVANCE
 
 
 def _machine():
@@ -379,6 +379,42 @@ def test_new_scan_is_refused_while_old_worker_is_alive():
     assert first.generation == 1
     release.set()
     coordinator.cancel_scan("cleanup", join_timeout_s=1.0)
+
+
+def test_inspect_arrival_enters_scan_without_waiting():
+    route = [MissionWaypoint(FlightPoint(0, 0, 1.25), WaypointKind.INSPECT, FaceId.A, "A1")]
+    coordinator = _coordinator(route, FakeLaser([]))
+
+    action = coordinator.on_waypoint_arrived(0, [0, 0, 1.25], "arrival")
+
+    assert action == controller.WaypointArrivalAction.ENTER_SCAN
+    assert coordinator.active_scan_generation == 1
+    coordinator.cancel_scan("cleanup", join_timeout_s=1.0)
+
+
+def test_scan_success_side_effects_are_consumed_once_on_flight_thread():
+    events = []
+    route = [MissionWaypoint(FlightPoint(0, 0, 1.25), WaypointKind.INSPECT, FaceId.A, "A1")]
+    coordinator = _coordinator(
+        route,
+        FakeLaser(events),
+        consensus=QRConsensus(
+            QRConsensusConfig(window_size=1, required_count=1, laser_margin_px=0)
+        ),
+    )
+    request = coordinator.start_scan(0, route[0], [0, 0, 1.25])
+    coordinator._go(InventoryState.APPROACH_SLOT, "test")
+    coordinator._go(InventoryState.VISUAL_ALIGN, "test")
+    coordinator._go(InventoryState.VERIFY_QR, "test")
+    result = coordinator.wait_scan_for_test(request.generation, timeout_s=1.0)
+
+    first = coordinator.consume_scan_result(result, [0, 0, 1.25])
+    second = coordinator.consume_scan_result(result, [0, 0, 1.25])
+
+    assert first.outcome == controller.ScanConsumeOutcome.ADVANCE
+    assert second.outcome == controller.ScanConsumeOutcome.IGNORED
+    assert events.count("laser_pulse") == 1
+    assert events.count("store_add") == 1
 
 
 def test_verify_qr_captures_frame_before_decoding():

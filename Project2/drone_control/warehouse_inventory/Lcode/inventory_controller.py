@@ -32,6 +32,28 @@ except ImportError:
     cv2 = None
 
 
+class WaypointArrivalAction(str, Enum):
+    ADVANCE = "advance"
+    ENTER_SCAN = "enter_scan"
+    LAND = "land"
+    STOP = "stop"
+
+
+class ScanConsumeOutcome(str, Enum):
+    RUNNING = "running"
+    ADVANCE = "advance"
+    RETURN = "return"
+    EMERGENCY_LAND = "emergency_land"
+    IGNORED = "ignored"
+
+
+@dataclass(frozen=True)
+class ScanConsumeResult:
+    outcome: ScanConsumeOutcome
+    return_route: tuple = ()
+    error_code: Optional[str] = None
+
+
 class ScanTaskStatus(str, Enum):
     IDLE = "idle"
     RUNNING = "running"
@@ -426,7 +448,10 @@ class InventoryMissionCoordinator:
 
             try:
                 aim = self.camera.laser_aim_point(frame)
-                detection = self.decoder.detect(frame, target_point=aim)
+                try:
+                    detection = self.decoder.detect(frame, target_point=aim)
+                except TypeError:
+                    detection = self.decoder.detect(frame)
                 accepted = consensus.update(detection, aim)
             except Exception as exc:
                 publish_failure("decode_exception", str(exc))
@@ -495,6 +520,11 @@ class InventoryMissionCoordinator:
             time.sleep(0.001)
         return self.poll_scan_result(generation)
 
+    @property
+    def active_scan_generation(self):
+        with self._scan_lock:
+            return self._scan_request.generation if self._scan_request is not None else None
+
     def _go(self, state, reason, **fields):
         state = InventoryState(state)
         if self.state_machine.state != state:
@@ -515,7 +545,7 @@ class InventoryMissionCoordinator:
 
         if waypoint.kind in {WaypointKind.TAKEOFF, WaypointKind.TRANSIT}:
             self._go(InventoryState.TRANSIT, "transit_arrival", waypoint_index=index)
-            return True
+            return WaypointArrivalAction.ADVANCE
 
         if waypoint.kind == WaypointKind.SET_GIMBAL:
             self._go(
@@ -532,18 +562,18 @@ class InventoryMissionCoordinator:
             if not gimbal_ok:
                 return self._abort("gimbal_set_failed", waypoint_index=index)
             self._go(InventoryState.APPROACH_SLOT, "gimbal_set")
-            return True
+            return WaypointArrivalAction.ADVANCE
 
         if waypoint.kind == WaypointKind.INSPECT:
             return self._inspect_slot(index, waypoint, position)
 
         if waypoint.kind == WaypointKind.LAND_APPROACH:
             self._go(InventoryState.RETURN, "landing_approach")
-            return True
+            return WaypointArrivalAction.ADVANCE
 
         if waypoint.kind == WaypointKind.LAND:
             self._go(InventoryState.LAND, "landing_point")
-            return True
+            return WaypointArrivalAction.LAND
 
         return self._abort("unknown_waypoint_kind", waypoint_index=index)
 
@@ -554,157 +584,89 @@ class InventoryMissionCoordinator:
             slot_label=waypoint.slot_label,
         )
         self._go(InventoryState.VISUAL_ALIGN, "hold_position_for_scan")
-        scan_z_m = waypoint.point.z
         if self.config.vision_servo.enabled:
-            self._go(InventoryState.VISUAL_SERVO, "geometry_alignment_start")
-            servo_result = self._run_visual_servo(index, waypoint, position)
-            if not servo_result.success:
-                return self._abort(
-                    "vision_servo_" + (servo_result.reason or "failed"),
-                    waypoint_index=index,
-                    slot_label=waypoint.slot_label,
-                    servo_frames=servo_result.frames,
-                )
-            scan_z_m = servo_result.z_target_m
-            self.state_machine.sample(
+            return self._abort(
+                "vision_servo_not_supported_with_async_scan",
                 waypoint_index=index,
                 slot_label=waypoint.slot_label,
-                visual_servo_frames=servo_result.frames,
-                visual_servo_stable_frames=servo_result.stable_frames,
-                visual_servo_z_target_m=round(scan_z_m, 3),
-                visual_servo_error_px=[
-                    round(servo_result.error_x_px, 1)
-                    if servo_result.error_x_px is not None else None,
-                    round(servo_result.error_y_px, 1)
-                    if servo_result.error_y_px is not None else None,
-                ],
             )
         self._go(InventoryState.VERIFY_QR, "visual_alignment_ready")
-        self.consensus.reset()
-        deadline = self._clock() + self.config.scan_timeout_s
-        accepted = None
-        last_frame = None
-        last_frame_sequence = None
-        processed_frame_count = 0
+        self.start_scan(index, waypoint, position)
+        return WaypointArrivalAction.ENTER_SCAN
 
-        while self._clock() < deadline:
-            try:
-                self._hold_position(scan_z_m)
-                if hasattr(self.camera, "read_with_sequence"):
-                    frame_sequence, frame, frame_timestamp = self.camera.read_with_sequence()
-                else:
-                    # Keep injected/test cameras and older camera adapters
-                    # compatible; they have no sequence, so every read is
-                    # treated as a new sample.
-                    frame_sequence, frame_timestamp = None, None
-                    frame = self.camera.read()
-            except Exception as exc:
-                return self._abort(
-                    "camera_read_exception", waypoint_index=index, error=str(exc)
-                )
-            if frame is not None:
-                if (
-                    frame_sequence is not None
-                    and frame_sequence == last_frame_sequence
-                ):
-                    self._sleep(self.config.scan_poll_s)
-                    continue
-                last_frame_sequence = frame_sequence
-                last_frame = frame
-                processed_frame_count += 1
-                debug_metadata = {
-                    "state": InventoryState.VERIFY_QR.value,
-                    "capture": "scan_frame",
-                    "waypoint_index": index,
-                    "slot_label": waypoint.slot_label,
-                    "position": list(position),
-                    "frame_sequence": frame_sequence,
-                    "capture_timestamp": frame_timestamp,
-                    "processed_frame_count": processed_frame_count,
-                    "frame_shape": list(frame.shape),
-                    "timestamp": time.time(),
-                }
-                # Save the raw frame before decoding.  A slow/failing decoder
-                # must not prevent flight evidence from being archived.
-                if self.vision_debug is not None:
-                    self.vision_debug.capture_scan(frame, debug_metadata)
-                try:
-                    laser_aim_px = self.camera.laser_aim_point(frame)
-                    try:
-                        detection = self.decoder.detect(
-                            frame,
-                            target_point=laser_aim_px,
-                        )
-                    except TypeError:
-                        # Keep older/test decoder adapters compatible with the
-                        # new target-aware API.
-                        detection = self.decoder.detect(frame)
-                    accepted = self.consensus.update(detection, laser_aim_px)
-                except Exception as exc:
-                    return self._abort(
-                        "vision_exception", waypoint_index=index, error=str(exc)
-                    )
-                self.state_machine.sample(
-                    waypoint_index=index,
-                    slot_label=waypoint.slot_label,
-                    position=list(position),
-                    detected_number=(detection.number if detection else None),
-                    accepted_number=(accepted.number if accepted else None),
-                )
-                if accepted is not None:
-                    break
-            self._sleep(self.config.scan_poll_s)
+    def consume_scan_result(self, result, current_position):
+        if result is None:
+            return ScanConsumeResult(ScanConsumeOutcome.RUNNING)
+        with self._scan_lock:
+            request = self._scan_request
+            if request is None or result.generation != request.generation:
+                return ScanConsumeResult(ScanConsumeOutcome.IGNORED)
+            if result.generation != self._scan_generation:
+                return ScanConsumeResult(ScanConsumeOutcome.IGNORED)
+            if (
+                self._scan_result is not None
+                and self._scan_result.status == ScanTaskStatus.CONSUMED
+            ):
+                return ScanConsumeResult(ScanConsumeOutcome.IGNORED)
+            self._scan_result = ScanResult(
+                result.generation,
+                result.waypoint_index,
+                result.slot_label,
+                ScanTaskStatus.CONSUMED,
+                detection=result.detection,
+                error_code=result.error_code,
+                error_detail=result.error_detail,
+                processed_frames=result.processed_frames,
+                started_monotonic=result.started_monotonic,
+                finished_monotonic=result.finished_monotonic,
+            )
 
+        if result.status == ScanTaskStatus.FAILED:
+            return ScanConsumeResult(
+                ScanConsumeOutcome.RETURN,
+                error_code=result.error_code or "scan_failed",
+            )
+        accepted = result.detection
         if accepted is None:
-            return self._abort("qr_timeout", waypoint_index=index, slot_label=waypoint.slot_label)
-
+            return ScanConsumeResult(ScanConsumeOutcome.RETURN, error_code="scan_no_detection")
         try:
-            self.store.check_available(
-                accepted.number,
-                waypoint.slot_label,
-            )
+            self.store.check_available(accepted.number, result.slot_label)
         except InventoryConflict:
-            # A stable but already-used number is treated as a visual false
-            # positive. Keep the drone hovering and retry this same slot.
-            logger.warning(f"货位 {waypoint.slot_label} 识别到重复编号 {accepted.number}，重试")
-            self.consensus.reset()
-            return self._abort(
-                "qr_duplicate", waypoint_index=index, slot_label=waypoint.slot_label
-            )
+            return ScanConsumeResult(ScanConsumeOutcome.RETURN, error_code="qr_duplicate")
 
         self._go(InventoryState.ILLUMINATE, "qr_verified", cargo_id=accepted.number)
         try:
             if not self.laser.pulse_async():
-                return self._abort("laser_pulse_failed", waypoint_index=index)
+                return ScanConsumeResult(ScanConsumeOutcome.RETURN, error_code="laser_pulse_failed")
             if not self.laser.wait(timeout=self.laser.config.duration_s + 0.5):
-                return self._abort("laser_pulse_timeout", waypoint_index=index)
-        except Exception as exc:
-            return self._abort(
-                "laser_pulse_exception", waypoint_index=index, error=str(exc)
-            )
+                return ScanConsumeResult(ScanConsumeOutcome.RETURN, error_code="laser_pulse_timeout")
+        except Exception:
+            return ScanConsumeResult(ScanConsumeOutcome.RETURN, error_code="laser_pulse_exception")
 
-        result = self.store.add(
+        stored = self.store.add(
             accepted.number,
-            waypoint.slot_label,
+            result.slot_label,
             self.consensus.config.required_count / self.consensus.config.window_size,
         )
-
         self._go(
             InventoryState.REPORT,
             "laser_complete",
-            cargo_id=result.cargo_id,
-            slot_label=result.slot_label,
+            cargo_id=stored.cargo_id,
+            slot_label=stored.slot_label,
         )
-        self._publish_result(result)
-
-        next_kind = self.route[index + 1].kind if index + 1 < len(self.route) else None
+        self._publish_result(stored)
+        next_kind = (
+            self.route[result.waypoint_index + 1].kind
+            if result.waypoint_index + 1 < len(self.route)
+            else None
+        )
         if next_kind == WaypointKind.SET_GIMBAL:
             self._go(InventoryState.SET_GIMBAL, "next_face")
         elif next_kind in {WaypointKind.LAND_APPROACH, WaypointKind.LAND}:
             self._go(InventoryState.RETURN, "inventory_complete")
         else:
             self._go(InventoryState.TRANSIT, "next_slot")
-        return True
+        return ScanConsumeResult(ScanConsumeOutcome.ADVANCE)
 
     def _run_visual_servo(self, index, waypoint, position):
         """Center QR geometry with bounded X velocity and Z setpoint changes."""
@@ -1014,9 +976,37 @@ class InventoryFlightMission(FlightMission):
         index = self.target_index
         if index >= len(self.inventory_route):
             return super()._advance_waypoint(reason, pos, target, arrival_distance)
-        if not self.coordinator.on_waypoint_arrived(index, pos, reason):
+        action = self.coordinator.on_waypoint_arrived(index, pos, reason)
+        if action == WaypointArrivalAction.ENTER_SCAN:
+            waypoint = self.inventory_route[index]
+            self._scan_route_index = index
+            self._scan_generation = self.coordinator.active_scan_generation
+            self.begin_scan_hold(waypoint.point.as_list())
+            return
+        if action == WaypointArrivalAction.LAND:
+            self.state = "LAND"
+            return
+        if action != WaypointArrivalAction.ADVANCE:
             return
         super()._advance_waypoint(reason, pos, target, arrival_distance)
+
+    def on_scan_tick(self, pos, yaw, control):
+        result = self.coordinator.poll_scan_result(self._scan_generation)
+        if result is None:
+            return
+        consumed = self.coordinator.consume_scan_result(result, pos)
+        if consumed.outcome == ScanConsumeOutcome.ADVANCE:
+            self.end_scan_hold()
+            self.state = "NAVIGATE"
+            super()._advance_waypoint(
+                "scan_complete",
+                pos,
+                self.targets[self.target_index],
+                0.0,
+            )
+        elif consumed.outcome == ScanConsumeOutcome.EMERGENCY_LAND:
+            self.end_scan_hold()
+            self.state = "LAND"
 
     def hold_position(self, z_m):
         yaw_cmd = self._heading_status.command_dps
