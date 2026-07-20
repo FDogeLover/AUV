@@ -524,11 +524,15 @@ class mission:
         if target is None:
             self.on_scan_tracking_lost(pos, yaw)
             return
-        control = self.position_control_tick(target, pos, yaw)
-        if control is None:
-            self.on_scan_tracking_lost(pos, yaw)
-            return
-        self.on_scan_tick(pos, yaw, control)
+        try:
+            control = self.position_control_tick(target, pos, yaw)
+            if control is None:
+                self.on_scan_tracking_lost(pos, yaw)
+                return
+            self.on_scan_tick(pos, yaw, control)
+        except Exception as exc:
+            logger.exception(f"SCAN控制tick异常，转入安全降落: {exc}")
+            self.state = "LAND"
 
     def navigate(self, pos, yaw):
         if self.target_index >= len(self.targets):
