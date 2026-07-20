@@ -1049,6 +1049,7 @@ class InventoryFlightMission(FlightMission):
 
     def replace_inventory_navigation_route(self, route, current_pos):
         self.inventory_route = list(route)
+        self.coordinator.route = list(route)
         generation = self.replace_navigation_targets(
             [waypoint.point.as_list() for waypoint in self.inventory_route],
             current_pos,
