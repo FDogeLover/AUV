@@ -44,6 +44,7 @@ LAND_CONFIRM_TIMEOUT_S = 25.0  # 降落触发后最多等待多久确认unlock_s
                                 # 全程未变但用户确认物理已自动降落成功，怀疑是超时定太短、真实上锁发生在
                                 # 断开串口之后——调长验证这个假设，同时避免后续测试的"超时"结果继续有歧义
 LAND_UNLOCK_CONFIRM_COUNT = 5  # 降落确认去抖：要连续读到N次unlock_sta==0才真正确认已上锁，不是单次就退出。
+RETURN_CRUISE_ENABLED = True  # 返航中间通道点用巡航到达；末点仍保持精确到达。
                                 # 2026-07-09真机观察到疑似假阳性——终端打印"已上锁"退出，但用户确认电机实际
                                 # 未停转/没有真正降落；飞行日志显示确认发生的那一刻之前unlock_sta全程是1，
                                 # 说明原逻辑单次读到0就退出，容易被单帧通信噪声/校验巧合触发误判
@@ -542,9 +543,7 @@ class mission:
 
         target = self.targets[self.target_index]
 
-        waypoint_mode = self.navigation_profile.waypoint_mode(
-            self.target_index, len(self.targets)
-        )
+        waypoint_mode = self._waypoint_mode()
         arrival_distance = math.hypot(pos[0] - target[0], pos[1] - target[1])
 
         if self.target_index != self.last_target_index:
@@ -641,7 +640,10 @@ class mission:
                     self.arrival_confirmed_time = None
             else:
                 cruise_position_ok = arrival_distance <= self.navigation_profile.cruise_radius_m
-                if self.navigation_profile.cruise_require_z:
+                if (
+                    self.navigation_profile.cruise_require_z
+                    or self._navigation_purpose == "return"
+                ):
                     cruise_position_ok = cruise_position_ok and dz < posthreshold_z
                 if cruise_position_ok:
                     self._cruise_arrival_count += 1
@@ -657,6 +659,27 @@ class mission:
 
             timeout_s = self._waypoint_timeout_s(waypoint_mode)
             if time.time() - self.arrival_start_time >= timeout_s:
+                if self._navigation_purpose == "return":
+                    is_intermediate = self.target_index < len(self.targets) - 1
+                    near_target = (
+                        confidence >= T265_CONFIDENCE_MIN
+                        and arrival_distance <= self.navigation_profile.cruise_radius_m
+                        and dz < posthreshold_z
+                    )
+                    if RETURN_CRUISE_ENABLED and is_intermediate and near_target:
+                        logger.warning(
+                            f"返航中间航点 {self.target_index} 超时但已接近，继续下一航点"
+                        )
+                        self._advance_waypoint(
+                            "return_timeout_near", pos, target, arrival_distance
+                        )
+                    else:
+                        logger.warning(
+                            f"返航航点 {self.target_index} 超时且未满足安全推进条件，"
+                            "切换当前位置受控降落"
+                        )
+                        self.state = "LAND"
+                    return
                 logger.warning(f"航点 {self.target_index} 超时，强制跳过")
                 self._advance_waypoint("timeout", pos, target, arrival_distance)
                 return
@@ -721,6 +744,16 @@ class mission:
         )
 
     # ================= 到达处理 =================
+    def _waypoint_mode(self, target_index=None):
+        index = self.target_index if target_index is None else int(target_index)
+        if (
+            RETURN_CRUISE_ENABLED
+            and self._navigation_purpose == "return"
+            and index < len(self.targets) - 1
+        ):
+            return "cruise"
+        return self.navigation_profile.waypoint_mode(index, len(self.targets))
+
     def replace_navigation_targets(self, new_targets, current_pos, *, purpose="normal"):
         """Atomically install a new route and reset route-specific control state."""
         normalized = [tuple(float(value) for value in target) for target in new_targets]
@@ -749,10 +782,6 @@ class mission:
 
     def _advance_waypoint(self, reason, pos, target, arrival_distance):
         """统一推进航点并原子重置到达状态，避免同tick连跳和日志目标错位。"""
-        if reason == "timeout" and self._navigation_purpose == "return":
-            logger.warning("返航航点超时，切换当前位置受控降落")
-            self.state = "LAND"
-            return
         completed_index = self.target_index
         if YAW_TEST_BURST_ENABLED and self.target_index == 0 and not self._yaw_burst_done:
             self._yaw_burst_done = True
@@ -807,9 +836,8 @@ class mission:
                     "target": [round(target[0], 4), round(target[1], 4), round(target[2], 4)],
                     "arrival_distance_m": round(distance, 4),
                     "nav_profile": self.navigation_profile.profile,
-                    "waypoint_mode": self.navigation_profile.waypoint_mode(
-                        target_index, len(self.targets)
-                    ),
+                    "waypoint_mode": self._waypoint_mode(target_index),
+                    "navigation_purpose": self._navigation_purpose,
                 }) + "\n")
                 self._log_file.flush()
         except Exception:
@@ -840,9 +868,37 @@ class mission:
             f"（vyaw为负，若变化为负=方向符合固件'逆时针为正'约定；若变化为正=方向相反，疑似正反馈根因）"
         )
 
+    def _log_land_event(self, event, **fields):
+        if not self._log_file:
+            return
+        try:
+            with self._log_lock:
+                self._log_file.write(json.dumps({
+                    "t": round(time.time(), 3),
+                    "event": event,
+                    "state": "LAND",
+                    **fields,
+                }) + "\n")
+                self._log_file.flush()
+        except Exception:
+            pass
+
     # ================= 降落 =================
     def land(self):
         logger.info("降落")
+        land_started_monotonic = time.monotonic()
+        self._log_land_event(
+            "land_start",
+            navigation_purpose=self._navigation_purpose,
+            target_idx=self.target_index,
+            target=(
+                list(self.targets[self.target_index])
+                if self.target_index < len(self.targets)
+                else None
+            ),
+            ramp_z_cm=round(self._ramp_z_cm, 1),
+            task_command=0,
+        )
         with lock:
             self.se_fc[2] = 0
 
@@ -906,7 +962,8 @@ class mission:
             # 这里如果继续用原始T265 Z，降落阶段记录的"高度"会是假数据，没法验证物理降落过程。
             with lock:
                 laser_h = self.serial_fc_ref._last_laser_height_cm if self.serial_fc_ref else 0.0
-            if laser_height_valid(laser_h):
+            laser_height_is_valid = laser_height_valid(laser_h)
+            if laser_height_is_valid:
                 land_pos[2] = laser_h
 
             with lock:
@@ -931,8 +988,22 @@ class mission:
                     land_timeout_gaveup = self.serial_fc_ref.debug_data.get("land_timeout_gaveup")
             if land_timeout_gaveup and not gaveup_logged:
                 logger.warning("降落纯超时兜底判定高度仍偏高，已放弃自动锁桨，需要人工介入")
+                self._log_land_event(
+                    "land_wait_manual",
+                    reason="firmware_timeout_gaveup",
+                    land_elapsed_s=round(time.monotonic() - land_started_monotonic, 3),
+                    laser_height_m=laser_h if laser_height_is_valid else None,
+                    unlock_sta=unlock_sta,
+                    motor_pwm_mask=motor_pwm_mask,
+                )
                 gaveup_logged = True
 
+            motor_pwm_age_s = None
+            if motor_pwm_mask_t is not None:
+                age = time.time() - motor_pwm_mask_t
+                if age >= 0:
+                    motor_pwm_age_s = round(age, 3)
+            motor_pwm_ok = motor_pwm_mask is None or motor_pwm_mask == 0
             now = time.time()
             if self._log_file and now - self._last_log_time >= FLIGHT_LOG_INTERVAL:
                 try:
@@ -947,6 +1018,17 @@ class mission:
                             "unlock_sta": unlock_sta,
                             "motor_pwm_mask": motor_pwm_mask,
                             "motor_pwm_mask_t": motor_pwm_mask_t,
+                            "motor_pwm_age_s": motor_pwm_age_s,
+                            "motor_pwm_ok": motor_pwm_ok,
+                            "unlock_confirm_count": unlock_confirm_count,
+                            "land_elapsed_s": round(
+                                time.monotonic() - land_started_monotonic, 3
+                            ),
+                            "laser_height_m": laser_h if laser_height_is_valid else None,
+                            "laser_height_valid": laser_height_is_valid,
+                            "land_timeout_gaveup": land_timeout_gaveup,
+                            "task_command": self.se_fc[2],
+                            "z_command_cm": self.se_fc[5],
                             "yaw_cmd_sent": yaw_cmd,
                             **self._heading_log_fields(),
                         }) + "\n")
@@ -965,11 +1047,39 @@ class mission:
                 unlock_confirm_count += 1
                 if unlock_confirm_count >= LAND_UNLOCK_CONFIRM_COUNT:
                     logger.info("降落确认：已上锁")
+                    self._log_land_event(
+                        "land_exit",
+                        reason="confirmed",
+                        land_elapsed_s=round(
+                            time.monotonic() - land_started_monotonic, 3
+                        ),
+                        pos=[round(land_pos[0], 4), round(land_pos[1], 4), round(land_pos[2], 4)],
+                        raw_imu=[round(v, 4) for v in land_raw_imu],
+                        heading_hold_enabled=self.heading_hold.config.enabled,
+                        heading_hold_armed=self.heading_hold.armed,
+                        yaw_cmd_sent=yaw_cmd,
+                        motor_pwm_mask_t=motor_pwm_mask_t,
+                        laser_height_m=laser_h if laser_height_is_valid else None,
+                        unlock_sta=unlock_sta,
+                        motor_pwm_mask=motor_pwm_mask,
+                        unlock_confirm_count=unlock_confirm_count,
+                    )
                     break
             else:
                 unlock_confirm_count = 0
             if not gaveup_logged and time.time() - t_start >= LAND_CONFIRM_TIMEOUT_S:
                 logger.warning("降落确认超时，强制退出")
+                self._log_land_event(
+                    "land_exit",
+                    reason="python_timeout",
+                    land_elapsed_s=round(
+                        time.monotonic() - land_started_monotonic, 3
+                    ),
+                    laser_height_m=laser_h if laser_height_is_valid else None,
+                    unlock_sta=unlock_sta,
+                    motor_pwm_mask=motor_pwm_mask,
+                    unlock_confirm_count=unlock_confirm_count,
+                )
                 break
             time.sleep(0.03)
 

@@ -269,7 +269,7 @@ Qoder CLI：`C:\Users\FJJ\.qoder-cn\bin\qoderclicn\qoderclicn.exe`
 | 38 | fire_patrol安全结束后串口监听线程关闭竞态 | 🟡/低优先级 | 三轮2026-07-18完整路线均在上锁、任务结束、T265/串口关闭后触发`listen_fc`线程异常；不影响飞行，根因是`listen_end()`不等待线程且部分`read()`未捕获关闭异常，待桌面回归修复 |
 | 39 | basic BCM17一键起飞门禁 | 🟡待飞行 | 自启动后只初始化GPIO并绿灯等待，用户拔插T265后按键，随后才创建T265/飞控串口；检查通过后红灯5秒再进入TAKEOFF，任一阶段失败均不解锁；旧顺序的板端DRY_RUN已验证，重排后尚待复测 |
 | 40 | warehouse_inventory QR码解码 | 🔴 | 裸pyzbar/OpenCV对79张飞行帧均0成功，adaptiveThreshold+pyzbar有效；当前实飞路径为ROI+pyzbar-only，A1仍qr_timeout；待加有界OpenCV ROI回退和分层拒绝原因日志，禁止恢复约17秒全帧搜索 |
-| 41 | warehouse_inventory异步扫码后安全返航 | 🔴 | A1日志证实qr_timeout已被主线程消费并进入RETURN，实际飞到首返航点1.52cm内；precision速度/停留确认仍超时，return timeout策略立即LAND导致不走后续点；LAND随后未正常结束，视觉/返航到达/降落须分开修 |
+| 41 | warehouse_inventory异步扫码后安全返航 | 🟡待飞行 | 已修复：返航中间点强制cruise且要求Z合格，末点保持precision；timeout仅在confidence≥2且XY≤0.15m、Z合格时推进，否则原地LAND；推进仍经coordinator。LAND新增start/cycle/confirmed/python_timeout/gaveup结构化诊断，184 passed/1 skipped，待真机验证 |
 | 42 | warehouse_inventory完整路线净空与扫码点 | 🟡 | route-only 40航点完整实飞走完；下绕通道按现场观察从X=+0.15外移到+0.30并已同步板端；其他24个扫码货位坐标待按真实二维码画面逐点微调 |
 
 ## 远程设备操作规范（SSH 到板载设备）

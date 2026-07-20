@@ -535,6 +535,10 @@
 
     直接中断点是precision到达语义：即便XY已经很近，速度窗口/确认停留仍未完成，首返航点最后以`timeout`结束。`Mission_GPT._advance_waypoint()`对`purpose=return`的timeout策略是立即切`LAND`而不是推进下一点，所以不会继续飞向第二返航点和`LAND_APPROACH`。进入LAND后又没有正常完成/确认，约1分钟后用户人工中断。后续需分别修复：返航中间点应采用cruise或“超时但已很近则推进”的判据；LAND需记录一键降落发送、`unlock_sta`、`motor_pwm_mask`、`land_timeout_gaveup`及激光高度轨迹。
 
+    **2026-07-20后续修复（184 passed/1 skipped，Qoder两轮审查通过，待真机）**：返航中间点现在强制使用cruise到达语义并始终要求Z合格，最终LAND_APPROACH保持precision。timeout只有在中间点、confidence>=2、XY距离<=15cm且Z误差<20cm时才以`return_timeout_near`经InventoryFlightMission/coordinator正常推进；距离仍远、Z不合格、低confidence或末点timeout均原地LAND。推进不绕过coordinator，索引只增加一次。
+
+    LAND新增统一入口`land_start`、周期诊断（激光高度/有效性、持续时间、unlock确认计数、motor PWM及新鲜度、gaveup、实际task/z/yaw命令）、`land_exit(confirmed/python_timeout)`和`land_wait_manual(firmware_timeout_gaveup)`事件。没有修改unlock+pwm双条件确认，也没有修改固件gaveup后保持通信等待人工介入的安全行为。下一次真机可直接从结构化事件判断此前一分钟不结束是否是固件gaveup永久等待。
+
 42. **2026-07-20 warehouse_inventory完整route-only路线首次走完全程；下端净空按现场观察扩大，扫码点待逐点标定**：
 
     独立`route_only_main.py`不执行二维码、云台和激光业务，40个XYZ航点已完整实飞走完，证明完整几何航线基本可飞。现场观察原`X=+0.15m`下端绕行有擦到板子的风险，用户明确确认向外移动到`X=+0.30m`；模型配置、规划器、route-only文件四个下绕点及测试已统一修改并同步板端。注意飞行坐标是正X，不能误写成`-0.30m`（会进入模型货架范围）。其他24个扫码货位坐标不从route-only结果一次性调整，待收集各货位真实二维码画面后逐点微调。

@@ -54,6 +54,16 @@ A1 高度1.39m或1.40m时安全返航均为：
 (-2.50, 3.50, 1.40)  LAND_APPROACH
 ```
 
+## 2026-07-20 后续修复（待真机验证）
+
+- 返航中间点强制使用cruise到达模式，复用15cm半径和连续周期确认，并始终要求Z合格；最终LAND_APPROACH保持precision。
+- timeout近距离推进只允许中间点且confidence>=2、XY<=15cm、Z误差<20cm；其他情况及末点timeout原地LAND。
+- `return_timeout_near`仍经过`InventoryFlightMission._advance_waypoint()`和coordinator，coordinator返回ADVANCE后索引只推进一次；返回LAND时索引不变。
+- waypoint事件新增`navigation_purpose`。
+- LAND新增结构化`land_start`、周期诊断、`land_exit(confirmed/python_timeout)`与`land_wait_manual(firmware_timeout_gaveup)`；周期字段包括激光高度有效性、确认计数、PWM新鲜度、gaveup和实际命令。
+- 未改变unlock+pwm双条件确认，也未改变固件gaveup后保持通信、永久等待人工介入的安全语义。
+- 桌面全量测试：184 passed, 1 skipped；Qoder计划与实现两轮审查通过。
+
 ## 下一步（按优先级）
 
 1. 修复返航中间点到达策略：位置已很近但速度确认超时时应继续下一返航点；只有

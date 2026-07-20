@@ -8,6 +8,8 @@ import json
 import os
 import sys
 
+import pytest
+
 sys.path.insert(0, os.path.dirname(__file__))
 
 from Mission_GPT import mission
@@ -47,9 +49,21 @@ def _make_mission_for_land():
 
 class FakeSerialFcRef:
     """伪造串口对象，只提供 land() 需要读取的激光高度属性。"""
-    def __init__(self, laser_height_m, motor_pwm_mask=None):
+    def __init__(
+        self,
+        laser_height_m,
+        motor_pwm_mask=None,
+        motor_pwm_mask_t=None,
+        land_timeout_gaveup=None,
+    ):
         self._last_laser_height_cm = laser_height_m
-        self.debug_data = {"motor_pwm_mask": motor_pwm_mask} if motor_pwm_mask is not None else {}
+        self.debug_data = {}
+        if motor_pwm_mask is not None:
+            self.debug_data["motor_pwm_mask"] = motor_pwm_mask
+        if motor_pwm_mask_t is not None:
+            self.debug_data["motor_pwm_mask_t"] = motor_pwm_mask_t
+        if land_timeout_gaveup is not None:
+            self.debug_data["land_timeout_gaveup"] = land_timeout_gaveup
 
 
 class TestLandLogging:
@@ -188,6 +202,80 @@ class TestLandLogging:
         m._log_file.seek(0)
         entry = json.loads([l for l in m._log_file.readlines() if l.strip()][-1])
         assert entry["motor_pwm_mask"] is None
+
+
+class TestLandDiagnostics:
+    def test_land_records_start_cycle_and_confirmed_exit(self):
+        m = _make_mission_for_land()
+        m._log_file = io.StringIO()
+        m.re_fc[5] = 0
+        m.serial_fc_ref = FakeSerialFcRef(
+            laser_height_m=0.07,
+            motor_pwm_mask=0,
+            motor_pwm_mask_t=__import__("time").time(),
+            land_timeout_gaveup=False,
+        )
+
+        m.land()
+
+        events = [json.loads(line) for line in m._log_file.getvalue().splitlines()]
+        assert events[0]["event"] == "land_start"
+        cycle = next(entry for entry in events if entry.get("event") is None)
+        assert cycle["land_elapsed_s"] >= 0
+        assert cycle["laser_height_m"] == 0.07
+        assert cycle["laser_height_valid"] is True
+        assert cycle["motor_pwm_ok"] is True
+        assert cycle["motor_pwm_age_s"] is not None
+        assert cycle["land_timeout_gaveup"] is False
+        assert cycle["task_command"] == 0
+        assert cycle["z_command_cm"] == 0
+        exit_event = [entry for entry in events if entry.get("event") == "land_exit"][-1]
+        assert exit_event["reason"] == "confirmed"
+        assert exit_event["unlock_confirm_count"] == 5
+
+    def test_land_records_python_timeout_exit(self, monkeypatch):
+        import Mission_GPT as mg
+        monkeypatch.setattr(mg, "LAND_CONFIRM_TIMEOUT_S", 0.05)
+        m = _make_mission_for_land()
+        m._log_file = io.StringIO()
+        m.re_fc[5] = 1
+        m.serial_fc_ref = FakeSerialFcRef(0.8, motor_pwm_mask=15)
+
+        m.land()
+
+        events = [json.loads(line) for line in m._log_file.getvalue().splitlines()]
+        exit_event = [entry for entry in events if entry.get("event") == "land_exit"][-1]
+        assert exit_event["reason"] == "python_timeout"
+        assert exit_event["unlock_sta"] == 1
+        assert exit_event["motor_pwm_mask"] == 15
+
+    def test_land_records_manual_wait_without_forcing_exit(self):
+        m = _make_mission_for_land()
+        m._log_file = io.StringIO()
+        m.re_fc[5] = 1
+        m.serial_fc_ref = FakeSerialFcRef(
+            0.8, motor_pwm_mask=15, land_timeout_gaveup=True
+        )
+
+        class StopLoop(Exception):
+            pass
+
+        calls = {"count": 0}
+
+        def stop_after_diagnostic(*_args):
+            calls["count"] += 1
+            if calls["count"] >= 3:
+                raise StopLoop()
+
+        m.set_speed = stop_after_diagnostic
+        with pytest.raises(StopLoop):
+            m.land()
+
+        events = [json.loads(line) for line in m._log_file.getvalue().splitlines()]
+        wait_events = [entry for entry in events if entry.get("event") == "land_wait_manual"]
+        assert len(wait_events) == 1
+        assert wait_events[0]["reason"] == "firmware_timeout_gaveup"
+        assert not any(entry.get("event") == "land_exit" for entry in events)
 
 
 class TransientUnlockList(list):

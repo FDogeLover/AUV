@@ -144,6 +144,113 @@ def test_replace_navigation_targets_resets_all_arrival_and_pid_state(monkeypatch
     assert generation == 1
 
 
+def test_return_middle_waypoints_use_cruise_and_final_remains_precision():
+    m = _make_mission(profile="precision")
+    m.replace_navigation_targets(
+        [(-2.65, 0.05, 1.4), (-2.65, 3.5, 1.4), (-2.5, 3.5, 1.4)],
+        [-1.75, 0.05, 1.4],
+        purpose="return",
+    )
+
+    assert m._waypoint_mode() == "cruise"
+    m.target_index = 1
+    assert m._waypoint_mode() == "cruise"
+    m.target_index = 2
+    assert m._waypoint_mode() == "precision"
+
+
+def test_return_middle_waypoint_advances_at_a1_logged_position():
+    m = _make_mission(profile="precision")
+    m.navigation_profile = NavigationProfileConfig(
+        profile="precision", cruise_confirm_cycles=3, cruise_require_z=False
+    )
+    m.replace_navigation_targets(
+        [(-2.65, 0.0625, 1.4), (-2.65, 3.5, 1.4), (-2.5, 3.5, 1.4)],
+        [-1.7609, 0.0623, 1.43],
+        purpose="return",
+    )
+    m.realsense.vel = (0.5, 0.0, 0.0)
+
+    for _ in range(3):
+        m.navigate([-2.6369, 0.0703, 1.4], 0.0)
+
+    assert m.target_index == 1
+    assert m.state != "LAND"
+
+
+@pytest.mark.parametrize(
+    "position,confidence",
+    [
+        ([-2.49, 0.0, 1.4], 3),
+        ([-2.65, 0.0, 1.19], 3),
+        ([-2.64, 0.0, 1.4], 1),
+    ],
+)
+def test_return_timeout_only_advances_when_safely_near(position, confidence):
+    m = _make_mission(profile="precision")
+    m.replace_navigation_targets(
+        [(-2.65, 0.0, 1.4), (-2.5, 3.5, 1.4)],
+        [-1.75, 0.0, 1.4],
+        purpose="return",
+    )
+    m.realsense.confidence = confidence
+    m.last_target_index = 0
+    m.arrival_start_time = time.time() - 100.0
+
+    m.navigate(position, 0.0)
+
+    assert m.state == "LAND"
+    assert m.target_index == 0
+
+
+def test_return_timeout_near_advances_middle_waypoint():
+    m = _make_mission(profile="precision")
+    m.replace_navigation_targets(
+        [(-2.65, 0.0, 1.4), (-2.5, 3.5, 1.4)],
+        [-1.75, 0.0, 1.4],
+        purpose="return",
+    )
+    m.last_target_index = 0
+    m.arrival_start_time = time.time() - 100.0
+
+    m.navigate([-2.64, 0.0, 1.4], 0.0)
+
+    assert m.target_index == 1
+    assert m.state != "LAND"
+
+
+def test_return_final_timeout_lands_even_when_near():
+    m = _make_mission(profile="precision")
+    m.replace_navigation_targets(
+        [(-2.5, 3.5, 1.4)], [-2.65, 3.5, 1.4], purpose="return"
+    )
+    m.last_target_index = 0
+    m.arrival_start_time = time.time() - 100.0
+
+    m.navigate([-2.49, 3.5, 1.4], 0.0)
+
+    assert m.state == "LAND"
+    assert m.target_index == 0
+
+
+def test_return_waypoint_event_records_effective_mode_and_purpose():
+    m = _make_mission(profile="precision")
+    m.replace_navigation_targets(
+        [(-2.65, 0.0, 1.4), (-2.5, 3.5, 1.4)],
+        [-1.75, 0.0, 1.4],
+        purpose="return",
+    )
+    m._log_file = io.StringIO()
+
+    for _ in range(3):
+        m.navigate([-2.64, 0.0, 1.4], 0.0)
+
+    entries = [json.loads(line) for line in m._log_file.getvalue().splitlines()]
+    event = [entry for entry in entries if entry.get("event") == "waypoint_advance"][-1]
+    assert event["waypoint_mode"] == "cruise"
+    assert event["navigation_purpose"] == "return"
+
+
 def test_replace_navigation_targets_rejects_empty_route():
     m = _make_mission()
 

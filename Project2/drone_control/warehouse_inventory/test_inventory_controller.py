@@ -128,17 +128,18 @@ class FakeDriver:
 
 
 class CallbackCoordinator:
-    def __init__(self):
+    def __init__(self, action=controller.WaypointArrivalAction.ADVANCE):
         self.state_machine = SimpleNamespace(state=InventoryState.TRANSIT)
         self.calls = []
         self.driver = None
+        self.action = action
 
     def attach_driver(self, driver):
         self.driver = driver
 
     def on_waypoint_arrived(self, index, position, reason):
         self.calls.append((index, position, reason))
-        return controller.WaypointArrivalAction.ADVANCE
+        return self.action
 
 
 def _machine():
@@ -663,6 +664,67 @@ def test_flight_driver_routes_base_arrival_callback_through_coordinator():
     assert callback.driver is mission
     assert callback.calls == [(0, [0.0, 0.0, 1.4], "test_arrival")]
     assert mission.target_index == 1
+
+
+def test_return_timeout_near_advances_once_through_coordinator():
+    route = [
+        MissionWaypoint(FlightPoint(-2.65, 0.05, 1.4), WaypointKind.TRANSIT),
+        MissionWaypoint(FlightPoint(-2.5, 3.5, 1.4), WaypointKind.LAND_APPROACH),
+    ]
+    callback = CallbackCoordinator()
+    callback.route = list(route)
+    mission = controller.InventoryFlightMission(
+        [0] * 14,
+        [170, 2, 0, 0, 0, 0, 0, 0, 0, 0, 255],
+        None,
+        None,
+        route,
+        callback,
+    )
+    mission._navigation_purpose = "return"
+
+    mission._advance_waypoint(
+        "return_timeout_near",
+        [-2.64, 0.05, 1.4],
+        [-2.65, 0.05, 1.4],
+        0.01,
+    )
+
+    assert callback.calls == [
+        (0, [-2.64, 0.05, 1.4], "return_timeout_near")
+    ]
+    assert mission.target_index == 1
+    assert mission.inventory_route == route
+    assert callback.route == route
+    assert mission.targets == [waypoint.point.as_list() for waypoint in route]
+
+
+def test_return_timeout_near_does_not_advance_when_coordinator_lands():
+    route = [
+        MissionWaypoint(FlightPoint(-2.65, 0.05, 1.4), WaypointKind.TRANSIT),
+        MissionWaypoint(FlightPoint(-2.5, 3.5, 1.4), WaypointKind.LAND_APPROACH),
+    ]
+    callback = CallbackCoordinator(controller.WaypointArrivalAction.LAND)
+    mission = controller.InventoryFlightMission(
+        [0] * 14,
+        [170, 2, 0, 0, 0, 0, 0, 0, 0, 0, 255],
+        None,
+        None,
+        route,
+        callback,
+    )
+    mission._navigation_purpose = "return"
+
+    mission._advance_waypoint(
+        "return_timeout_near",
+        [-2.64, 0.05, 1.4],
+        [-2.65, 0.05, 1.4],
+        0.01,
+    )
+
+    assert len(callback.calls) == 1
+    assert mission.target_index == 0
+    assert mission.state == "LAND"
 
 
 def test_flight_driver_atomically_replaces_return_route():
