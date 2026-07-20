@@ -599,7 +599,32 @@ class InventoryMissionCoordinator:
                 last_error = (error_x, error_y)
                 _cur_pos = self._current_position()
 
-                # 每隔 _debug_interval 秒存一张伺服过程帧，用于离线分析收敛质量
+                centered = (
+                    abs(error_x) <= config.center_tolerance_px
+                    and abs(error_y) <= config.center_tolerance_px
+                )
+                if centered:
+                    stable += 1
+                else:
+                    stable = 0
+                x_cmd, z_target_m = servo_command(
+                    config,
+                    error_x,
+                    error_y,
+                    base_z_m,
+                    z_target_m,
+                    face_sign,
+                )
+                # 复用已读取的 _cur_pos，避免再次串口读取（Fix 中风险1）
+                if start_x is not None and _cur_pos is not None:
+                    if abs(_cur_pos[0] - start_x) > config.max_lateral_adjust_m:
+                        return VisionServoResult(
+                            False, z_target_m, frames, stable,
+                            error_x, error_y, "lateral_limit"
+                        )
+                self._send_servo_command(0.0 if centered else x_cmd, z_target_m)
+
+                # 每隔 _debug_interval 秒存一张伺服过程帧，移到指令下发后避免 I/O 阻塞（Fix 中风险2）
                 _now_t = self._clock()
                 if self.vision_debug is not None and (_now_t - last_debug_capture_t) >= _debug_interval:
                     last_debug_capture_t = _now_t
@@ -618,31 +643,6 @@ class InventoryMissionCoordinator:
                             "timestamp": time.time(),
                         },
                     )
-
-                centered = (
-                    abs(error_x) <= config.center_tolerance_px
-                    and abs(error_y) <= config.center_tolerance_px
-                )
-                if centered:
-                    stable += 1
-                else:
-                    stable = 0
-                x_cmd, z_target_m = servo_command(
-                    config,
-                    error_x,
-                    error_y,
-                    base_z_m,
-                    z_target_m,
-                    face_sign,
-                )
-                if start_x is not None:
-                    current = self._current_position()
-                    if current is not None and abs(current[0] - start_x) > config.max_lateral_adjust_m:
-                        return VisionServoResult(
-                            False, z_target_m, frames, stable,
-                            error_x, error_y, "lateral_limit"
-                        )
-                self._send_servo_command(0.0 if centered else x_cmd, z_target_m)
                 self.state_machine.sample(
                     waypoint_index=index,
                     slot_label=waypoint.slot_label,
