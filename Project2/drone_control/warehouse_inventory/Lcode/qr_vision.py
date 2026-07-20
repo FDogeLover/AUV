@@ -80,7 +80,7 @@ class QRDecoder:
     def __init__(
         self,
         mapping: QRMapping,
-        detection_width=800,
+        detection_width=1280,
         detector=None,
         geometry_roi_width=560,
         geometry_roi_height=600,
@@ -462,39 +462,67 @@ class QRDecoder:
         return frame[oy : oy + roi_height, ox : ox + roi_width], (ox, oy)
 
     def _decode_target_roi(self, frame, target_point):
-        """Airborne QR decode: pyzbar first, OpenCV fallback on downscaled frame.
+        """Fast pyzbar-only decode for the airborne target region.
 
-        Exact match of the desktop QR recognizer's proven approach:
-        1. Downscale frame to detection_width (800px) for speed + noise reduction.
-        2. pyzbar decode on grayscale (fast).
-        3. OpenCV QRCodeDetector on same grayscale as fallback.
+        The full geometry search is useful for visual servoing but is too
+        expensive to run once per airborne frame on the board.  QR content is
+        decoded here from a bounded ROI, with only a few cheap image variants;
+        the returned polygon is mapped back to full-frame coordinates.
         """
-        detection_frame, scale = self._detection_frame(frame)
-        if detection_frame.ndim == 3:
-            gray = cv2.cvtColor(detection_frame, cv2.COLOR_BGR2GRAY)
-        else:
-            gray = detection_frame
+        roi, offset = self._target_roi(frame, target_point)
+        variants = [(roi, 1.0)]
+        if cv2 is not None:
+            gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
+            variants.extend(((gray, 1.0), (cv2.createCLAHE(2.0, (8, 8)).apply(gray), 1.0)))
+            enlarged = cv2.resize(
+                roi,
+                (round(roi.shape[1] * 2.0), round(roi.shape[0] * 2.0)),
+                interpolation=cv2.INTER_CUBIC,
+            )
+            variants.append((enlarged, 2.0))
 
-        scaled_target = (
-            (float(target_point[0]) * scale, float(target_point[1]) * scale)
-            if target_point is not None else None
-        )
-
-        # 1. pyzbar first
-        content, points = self._decode_pyzbar_image(gray, scaled_target)
-        if content:
-            candidate = self._candidate(content, points, scale, (0, 0))
+            # Airborne frames can contain enough motion/illumination
+            # variation that the QR is visible to a phone but the raw UVC
+            # image is not decodable by ZBar.  Keep the fast ROI path, but
+            # add the cheap adaptive-threshold variants that recover the
+            # small modules without returning to the expensive full-frame
+            # multi-pass search.
+            for scale in (1.0, 2.0, 3.0):
+                if scale == 1.0:
+                    scaled_gray = gray
+                else:
+                    scaled_gray = cv2.resize(
+                        gray,
+                        (round(roi.shape[1] * scale), round(roi.shape[0] * scale)),
+                        interpolation=cv2.INTER_CUBIC,
+                    )
+                variants.append(
+                    (
+                        cv2.adaptiveThreshold(
+                            scaled_gray,
+                            255,
+                            cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                            cv2.THRESH_BINARY,
+                            31,
+                            5,
+                        ),
+                        scale,
+                    )
+                )
+        for image, scale in variants:
+            local_target = (
+                (float(target_point[0]) - offset[0]) * scale,
+                (float(target_point[1]) - offset[1]) * scale,
+            )
+            content, points = self._decode_pyzbar_image(
+                image,
+                target_point=local_target,
+            )
+            if not content:
+                continue
+            candidate = self._candidate(content, points, scale, offset)
             if candidate is not None and candidate.number is not None:
                 return candidate
-
-        # 2. OpenCV fallback
-        ret, data, opencv_points = self.detector.detectAndDecode(gray)
-        data = str(data or "").strip()
-        if data:
-            candidate = self._candidate(data, opencv_points, scale, (0, 0))
-            if candidate is not None and candidate.number is not None:
-                return candidate
-
         return None
 
     def _decode_search(self, frame, target_point=None):
@@ -731,8 +759,8 @@ def point_inside_qr(corners: Sequence[Point2D], point: Point2D, margin_px=0.0) -
 
 @dataclass(frozen=True)
 class QRConsensusConfig:
-    window_size: int = 3
-    required_count: int = 2
+    window_size: int = 5
+    required_count: int = 3
     laser_margin_px: float = 12.0
     require_laser_inside: bool = True
 
@@ -743,8 +771,8 @@ class QRConsensusConfig:
         if enabled not in {"0", "1", "false", "true"}:
             raise ValueError("DRONE_QR_REQUIRE_LASER_INSIDE must be 0/1/false/true")
         return cls(
-            window_size=int(env.get("DRONE_QR_CONSENSUS_WINDOW", "3")),
-            required_count=int(env.get("DRONE_QR_REQUIRED_COUNT", "2")),
+            window_size=int(env.get("DRONE_QR_CONSENSUS_WINDOW", "5")),
+            required_count=int(env.get("DRONE_QR_REQUIRED_COUNT", "3")),
             laser_margin_px=float(env.get("DRONE_QR_LASER_MARGIN_PX", "12")),
             require_laser_inside=enabled in {"1", "true"},
         )

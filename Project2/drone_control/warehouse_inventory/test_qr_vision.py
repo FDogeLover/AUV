@@ -1,7 +1,6 @@
 from types import SimpleNamespace
 
 import numpy as np
-import pytest
 
 from Lcode import qr_vision
 
@@ -24,15 +23,15 @@ def _result(content, left, top, size=80):
 
 
 def test_target_roi_selects_nearest_qr_not_pyzbar_result_order(monkeypatch):
-    # detection_width=800 → scale=0.625 for 1280px frame.
-    # Full-frame QR at (620,340,size=80) has downscaled center (413,238).
-    # Mapping back to full frame: (413/0.625, 238/0.625) ≈ (661, 381).
+    # In the 560x600 center ROI, the optical target (640,360 full-frame) is
+    # (280,300). Return the far code first to reproduce pyzbar's unspecified
+    # multi-code ordering.
     monkeypatch.setattr(
         qr_vision,
         "pyzbar_decode",
         lambda _image: [
-            _result("far", 438, 63, size=50),
-            _result("near", 388, 213, size=50),
+            _result("far", 450, 260),
+            _result("near", 240, 260),
         ],
     )
     decoder = qr_vision.QRDecoder(Mapping())
@@ -41,51 +40,46 @@ def test_target_roi_selects_nearest_qr_not_pyzbar_result_order(monkeypatch):
     detection = decoder.detect(frame, target_point=(640.0, 360.0))
 
     assert detection.number == 11
-    assert detection.center[0] == pytest.approx(661.0, abs=1.0)
-    assert detection.center[1] == pytest.approx(381.0, abs=1.0)
+    assert detection.center == (640.0, 360.0)
 
 
-def test_opencv_fallback_decodes_when_pyzbar_fails(monkeypatch):
-    import cv2
+def test_adaptive_three_x_variant_maps_polygon_back_to_full_frame(monkeypatch):
     calls = []
 
-    monkeypatch.setattr(qr_vision, "pyzbar_decode", lambda _image: [])
+    def decode(image):
+        calls.append((image.ndim, image.shape[:2]))
+        # Only the final 3x adaptive-threshold image succeeds.
+        if image.ndim == 2 and image.shape[:2] == (1800, 1680):
+            return [_result("near", 720, 780, size=240)]
+        return []
 
-    original_detectAndDecode = cv2.QRCodeDetector.detectAndDecode
-    def fake_detect_and_decode(self, image):
-        calls.append(("ocv", image.shape[:2]))
-        if image.shape[:2] == (450, 800):
-            return True, "near", np.array([[[0, 0], [100, 0], [100, 100], [0, 100]]], dtype=np.float32)
-        return False, "", None
-
-    monkeypatch.setattr(cv2.QRCodeDetector, "detectAndDecode", fake_detect_and_decode)
+    monkeypatch.setattr(qr_vision, "pyzbar_decode", decode)
     decoder = qr_vision.QRDecoder(Mapping())
     frame = np.zeros((720, 1280, 3), dtype=np.uint8)
 
     detection = decoder.detect(frame, target_point=(640.0, 360.0))
 
     assert detection.number == 11
-    assert ("ocv", (450, 800)) in calls
+    assert detection.center == (640.0, 360.0)
+    assert (2, (1800, 1680)) in calls
 
 
-def test_airborne_path_does_not_call_slow_decode_search(monkeypatch):
-    """When both pyzbar and OpenCV fail, detect() returns None without _decode_search."""
+def test_pyzbar_failure_in_airborne_path_does_not_run_opencv_fallback(monkeypatch):
+    """Target-aware flight decode must remain bounded when pyzbar finds nothing."""
     monkeypatch.setattr(qr_vision, "pyzbar_decode", lambda _image: [])
 
     decoder = qr_vision.QRDecoder(Mapping())
     frame = np.zeros((720, 1280, 3), dtype=np.uint8)
 
-    decode_search_called = []
-    monkeypatch.setattr(
-        decoder,
-        "_decode_search",
-        lambda *a, **kw: decode_search_called.append(True) or None,
-    )
+    def forbidden(*args, **kwargs):
+        raise AssertionError("slow OpenCV fallback must not run in airborne path")
+
+    monkeypatch.setattr(decoder, "_fast_geometry_search", forbidden)
+    monkeypatch.setattr(decoder, "_decode_search", forbidden)
 
     result = decoder.detect(frame, target_point=(640.0, 360.0))
 
     assert result is None
-    assert not decode_search_called, "_decode_search must NOT be called in airborne scan loop"
 
 
 def test_pyzbar_failure_with_no_geometry_does_not_trigger_decode_search(monkeypatch):
@@ -95,6 +89,9 @@ def test_pyzbar_failure_with_no_geometry_does_not_trigger_decode_search(monkeypa
 
     decoder = qr_vision.QRDecoder(Mapping())
     frame = np.zeros((720, 1280, 3), dtype=np.uint8)
+
+    # Geometry search finds nothing (common when QR not in FOV / overexposed)
+    monkeypatch.setattr(decoder, "_fast_geometry_search", lambda *a, **kw: None)
 
     decode_search_called = []
     monkeypatch.setattr(
