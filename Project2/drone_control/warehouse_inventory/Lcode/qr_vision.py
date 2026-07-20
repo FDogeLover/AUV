@@ -80,7 +80,7 @@ class QRDecoder:
     def __init__(
         self,
         mapping: QRMapping,
-        detection_width=1280,
+        detection_width=800,
         detector=None,
         geometry_roi_width=560,
         geometry_roi_height=600,
@@ -462,37 +462,39 @@ class QRDecoder:
         return frame[oy : oy + roi_height, ox : ox + roi_width], (ox, oy)
 
     def _decode_target_roi(self, frame, target_point):
-        """Real-time QR decode for airborne scan worker.
+        """Airborne QR decode: pyzbar first, OpenCV fallback on downscaled frame.
 
-        The previous approach tried many ROI-internal variants (color, gray,
-        CLAHE, enlarge, adaptiveThreshold) but offline analysis of real flight
-        frames showed none of them could decode the QR because the ROI crop
-        alone removes finder-pattern context that pyzbar needs.
-
-        Verified working path (on 1280x720 flight frames):
-          full_frame → adaptiveThreshold(block=31/51, C=5) → pyzbar
-
-        This function skips the ROI variants entirely and goes straight to the
-        proven full-frame adaptiveThreshold + pyzbar path.  The geometry_offset
-        logic is retained from the original ROI era but operates on the full
-        frame (offset = (0,0)).
+        Exact match of the desktop QR recognizer's proven approach:
+        1. Downscale frame to detection_width (800px) for speed + noise reduction.
+        2. pyzbar decode on grayscale (fast).
+        3. OpenCV QRCodeDetector on same grayscale as fallback.
         """
-        if cv2 is None:
-            full_gray = frame
+        detection_frame, scale = self._detection_frame(frame)
+        if detection_frame.ndim == 3:
+            gray = cv2.cvtColor(detection_frame, cv2.COLOR_BGR2GRAY)
         else:
-            full_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        for bs in (31, 51):
-            th = cv2.adaptiveThreshold(
-                full_gray, 255,
-                cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY,
-                bs, 5,
-            )
-            content, points = self._decode_pyzbar_image(th, target_point)
-            if not content:
-                continue
-            candidate = self._candidate(content, points, 1.0, (0, 0))
+            gray = detection_frame
+
+        scaled_target = (
+            (float(target_point[0]) * scale, float(target_point[1]) * scale)
+            if target_point is not None else None
+        )
+
+        # 1. pyzbar first
+        content, points = self._decode_pyzbar_image(gray, scaled_target)
+        if content:
+            candidate = self._candidate(content, points, scale, (0, 0))
             if candidate is not None and candidate.number is not None:
                 return candidate
+
+        # 2. OpenCV fallback
+        ret, data, opencv_points = self.detector.detectAndDecode(gray)
+        data = str(data or "").strip()
+        if data:
+            candidate = self._candidate(data, opencv_points, scale, (0, 0))
+            if candidate is not None and candidate.number is not None:
+                return candidate
+
         return None
 
     def _decode_search(self, frame, target_point=None):
@@ -729,8 +731,8 @@ def point_inside_qr(corners: Sequence[Point2D], point: Point2D, margin_px=0.0) -
 
 @dataclass(frozen=True)
 class QRConsensusConfig:
-    window_size: int = 5
-    required_count: int = 3
+    window_size: int = 3
+    required_count: int = 2
     laser_margin_px: float = 12.0
     require_laser_inside: bool = True
 
@@ -741,8 +743,8 @@ class QRConsensusConfig:
         if enabled not in {"0", "1", "false", "true"}:
             raise ValueError("DRONE_QR_REQUIRE_LASER_INSIDE must be 0/1/false/true")
         return cls(
-            window_size=int(env.get("DRONE_QR_CONSENSUS_WINDOW", "5")),
-            required_count=int(env.get("DRONE_QR_REQUIRED_COUNT", "3")),
+            window_size=int(env.get("DRONE_QR_CONSENSUS_WINDOW", "3")),
+            required_count=int(env.get("DRONE_QR_REQUIRED_COUNT", "2")),
             laser_margin_px=float(env.get("DRONE_QR_LASER_MARGIN_PX", "12")),
             require_laser_inside=enabled in {"1", "true"},
         )
