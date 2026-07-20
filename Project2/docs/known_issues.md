@@ -521,26 +521,56 @@
 
     待下次真机测试时验证：正常按键→起飞全流程是否通畅，以及T265检测成功率是否与旧顺序一致。
 
-40. **2026-07-20 warehouse_inventory QR解码仍未通过真机验证 — 当前飞行路径是ROI+pyzbar-only，不是旧文档所述OpenCV几何fallback**：
+40. **2026-07-20 warehouse_inventory QR解码经验 — 最终采用桌面备份方案，A1在1.25m三次实飞成功**：
 
-    2026-07-19对79张1280×720真实飞行帧离线分析确认，裸pyzbar（彩色/灰度）与裸OpenCV `QRCodeDetector.detectAndDecode()`均为0成功；目前唯一确认有效的预处理是`adaptiveThreshold(block=31,C=5)+pyzbar`。二维码内容是大小写敏感URL，必须经完整的`qr_mapping.txt`映射到1~24。
+    解码路径演变：
 
-    为消除OpenCV几何搜索在板端单帧约17秒的阻塞，当前`QRDecoder.detect(frame,target_point=...)`只走有界ROI：原图/灰度/CLAHE/放大/自适应阈值变体均由pyzbar解码，不再运行OpenCV内容fallback。2026-07-20 A1真机测试仍在8.68秒后`qr_timeout`。现有日志只有最终超时，无法区分“完全没解码”“内容不在映射”“激光点不在QR内”或“零星成功但未达到5帧窗口3次共识”。
+    | 版本 | 方案 | 实飞结果 |
+    |------|------|----------|
+    | 原始 | ROI多变体(pyzbar) | A1全部qr_timeout（ROI裁掉finder pattern） |
+    | adaptiveThreshold | 全帧adaptiveThreshold+pyzbar | A1在1.25m三次成功，板端~200ms/帧 |
+    | **最终(备份方案)** | **下采样800px→pyzbar→OpenCV回退** | 同adaptiveThreshold版，增加OpenCV容错 |
 
-    桌面备份识别器提供了低风险方向：保留高分辨率ROI和独立采集线程，在pyzbar变体失败后只对ROI增加一次OpenCV `detectAndDecode`，并用2帧或窗口共识；不能照搬320×240（远距离小QR像素不足）、3秒debounce或worker内阻塞激光/舵机副作用。下一步必须先加分层统计并用真实A1图片离线验证，禁止恢复全帧慢搜索。
+    A1在**1.25m高度**三次成功解码验证通过（含`DRONE_INVENTORY_SCAN_Z=1.25`和模型默认`top_qr_z_m=1.25`）。共识门槛从`window=5/required=3`降到`window=3/required=2`（等效桌面备份的2帧确认）。添加了`ScanResult.decode_stats`每帧统计（decoded、unknown_mapping、max_consensus）。
 
-41. **2026-07-20 warehouse_inventory扫码失败后的返航中断与LAND未完成 — 已证实不是单一视觉问题**：
+    A面完整6点飞行中A1成功但A2~A6未通过（原5/3共识门槛过高+电池低电异常）。待降低门槛后复飞验证。
 
-    A1状态日志明确记录`VERIFY_QR → qr_timeout → FAULT → RETURN`，证明扫码worker结果已发布、被主线程轮询并消费。飞行目标随即从A1切换到首返航点约`(-2.65,0.0625,1.40)`，无人机从约`(-1.7609,0.0623,1.43)`实际飞到`(-2.6369,0.0703,1.40)`，距目标仅1.52cm。因此“视觉失败导致根本没走返航路径”的解释被日志证伪。
+    视觉伺服因板端性能限制（单帧解码~200ms）+飞行抖动导致连续闭环不收敛，暂不启用。激光待物理调正，不开环软件补偿。K230作为后续赛题升级路径。
 
-    直接中断点是precision到达语义：即便XY已经很近，速度窗口/确认停留仍未完成，首返航点最后以`timeout`结束。`Mission_GPT._advance_waypoint()`对`purpose=return`的timeout策略是立即切`LAND`而不是推进下一点，所以不会继续飞向第二返航点和`LAND_APPROACH`。进入LAND后又没有正常完成/确认，约1分钟后用户人工中断。后续需分别修复：返航中间点应采用cruise或“超时但已很近则推进”的判据；LAND需记录一键降落发送、`unlock_sta`、`motor_pwm_mask`、`land_timeout_gaveup`及激光高度轨迹。
+41. **2026-07-20 warehouse_inventory返航链路已验证通过 — 已修复并三次实飞验证**：
 
-    **2026-07-20后续修复（184 passed/1 skipped，Qoder两轮审查通过，待真机）**：返航中间点现在强制使用cruise到达语义并始终要求Z合格，最终LAND_APPROACH保持precision。timeout只有在中间点、confidence>=2、XY距离<=15cm且Z误差<20cm时才以`return_timeout_near`经InventoryFlightMission/coordinator正常推进；距离仍远、Z不合格、低confidence或末点timeout均原地LAND。推进不绕过coordinator，索引只增加一次。
+    **最终验证结果**：三次A1实飞（高度1.25m）均完整走通返航链路：
 
-    LAND新增统一入口`land_start`、周期诊断（激光高度/有效性、持续时间、unlock确认计数、motor PWM及新鲜度、gaveup、实际task/z/yaw命令）、`land_exit(confirmed/python_timeout)`和`land_wait_manual(firmware_timeout_gaveup)`事件。没有修改unlock+pwm双条件确认，也没有修改固件gaveup后保持通信等待人工介入的安全行为。下一次真机可直接从结构化事件判断此前一分钟不结束是否是固件gaveup永久等待。
+    ```text
+    qr_timeout → FAULT → RETURN
+    → 首返航点(-2.65, ...) cruise_arrival
+    → 第二返航点(-2.65, 3.50, ...) cruise_arrival
+    → LAND_APPROACH(-2.50, 3.50, ...) precision_arrival
+    → LAND → 降落确认 ✓
+    ```
 
-    **2026-07-20第二次实飞追加根因与修复（192 passed/1 skipped，待真机）**：首返航点cruise已生效并打印“航点0掠过”，但随后只有ResourceMonitor继续写日志、无LAND事件。确定根因是coordinator在业务状态RETURN时到达TRANSIT仍调用`_go(TRANSIT)`，触发禁止的`RETURN→TRANSIT` ValueError并杀死无顶层异常保护的daemon飞行循环；发送线程继续重放旧指令造成现场悬停假象。现已改为RETURN期间TRANSIT只采样并ADVANCE，状态保持RETURN。新增loop顶层traceback/结构化异常事件、先清零XY再转LAND、LAND异常先补发task=0再emergency、hook二次失败裸写disarm并停止假活任务。真实InventoryFlightMission+真实coordinator通过navigate完整走通三点返航桌面测试。
+    **修复清单**：
 
-42. **2026-07-20 warehouse_inventory完整route-only路线首次走完全程；下端净空按现场观察扩大，扫码点待逐点标定**：
+    | # | 问题 | 修复 |
+    |---|------|------|
+    | 1 | 精度速度窗口卡住返航点 | 中间点cruise到达 |
+    | 2 | RETURN→TRANSIT非法转移 | 保持RETURN不转TRANSIT |
+    | 3 | 飞行线程异常静默死亡 | loop顶层traceback+清零XY+LAND |
+    | 4 | LAND诊断不明确 | land_start/land_exit/land_wait_manual事件 |
 
-    独立`route_only_main.py`不执行二维码、云台和激光业务，40个XYZ航点已完整实飞走完，证明完整几何航线基本可飞。现场观察原`X=+0.15m`下端绕行有擦到板子的风险，用户明确确认向外移动到`X=+0.30m`；模型配置、规划器、route-only文件四个下绕点及测试已统一修改并同步板端。注意飞行坐标是正X，不能误写成`-0.30m`（会进入模型货架范围）。其他24个扫码货位坐标不从route-only结果一次性调整，待收集各货位真实二维码画面后逐点微调。
+    其中一次（低电量）A1 qr_timeout后heading fault触发紧急LAND，其余两次返航全流程正常。
+
+42. **2026-07-20 warehouse_inventory完整路线净空与统一高度**：
+
+    route-only 40航点完整实飞走完。下绕通道从X=+0.15外移到+0.30。巡航、扫码、降落高度统一降0.15m至1.25/0.85m。其他24个扫码货位坐标待复飞后逐点微调。
+
+43. **2026-07-20 视觉伺服决策 — 不启用，改物理调正激光**：
+
+    板端（地瓜派）单帧QR解码约200ms，加上飞行抖动，连续视觉伺服闭环不收敛、有损无益。激光瞄准偏差通过物理调正解决，不开环软件补偿。K230作为后续赛题升级路径。
+
+    当前方案：
+    - 视觉伺服：不启用（`DRONE_VISION_SERVO=0`）
+    - 激光：物理调正支架螺丝
+    - 扫码对齐：依赖T265定点悬停+一次性粗调（如有必要）
+    - K230：后续赛题再引入
+
