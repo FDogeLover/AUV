@@ -8,6 +8,10 @@ disabledSkills:
   - claude-api
 ---
 
+## 交互偏好
+
+- **不使用交互式提问组件**（AskUserQuestion 工具）。需要用户提供信息时，直接在对话中以文字写出问题，等用户打字回复。
+
 # Project2 - 无人机工程
 
 无人机工程项目，包含飞控固件（C/Keil）、Python 上位机控制端、基本飞行测试模块。
