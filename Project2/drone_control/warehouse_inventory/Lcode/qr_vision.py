@@ -855,7 +855,10 @@ class VisionDebugConfig:
 
 class VisionDebugCapture:
     def __init__(self, directory, config: VisionDebugConfig = None, image_writer=None):
-        self.directory = Path(directory)
+        # 每次启动自动创建时间戳子目录，避免多次飞行图片混在一起
+        base = Path(directory)
+        session_tag = time.strftime("%Y%m%d_%H%M%S")
+        self.directory = base / session_tag
         self.config = config or VisionDebugConfig.from_env()
         self._image_writer = image_writer or (cv2.imwrite if cv2 is not None else None)
         self._last_time = None
