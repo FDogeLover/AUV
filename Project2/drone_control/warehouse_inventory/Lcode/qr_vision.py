@@ -759,8 +759,8 @@ def point_inside_qr(corners: Sequence[Point2D], point: Point2D, margin_px=0.0) -
 
 @dataclass(frozen=True)
 class QRConsensusConfig:
-    window_size: int = 5
-    required_count: int = 3
+    window_size: int = 3
+    required_count: int = 2
     laser_margin_px: float = 12.0
     require_laser_inside: bool = True
 
@@ -771,8 +771,8 @@ class QRConsensusConfig:
         if enabled not in {"0", "1", "false", "true"}:
             raise ValueError("DRONE_QR_REQUIRE_LASER_INSIDE must be 0/1/false/true")
         return cls(
-            window_size=int(env.get("DRONE_QR_CONSENSUS_WINDOW", "5")),
-            required_count=int(env.get("DRONE_QR_REQUIRED_COUNT", "3")),
+            window_size=int(env.get("DRONE_QR_CONSENSUS_WINDOW", "3")),
+            required_count=int(env.get("DRONE_QR_REQUIRED_COUNT", "2")),
             laser_margin_px=float(env.get("DRONE_QR_LASER_MARGIN_PX", "12")),
             require_laser_inside=enabled in {"1", "true"},
         )

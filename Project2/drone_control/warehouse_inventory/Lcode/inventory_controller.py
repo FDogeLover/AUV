@@ -9,6 +9,7 @@ import math
 import os
 import threading
 import time
+from collections import Counter
 from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import Enum
@@ -85,6 +86,7 @@ class ScanResult:
     processed_frames: int = 0
     started_monotonic: float = 0.0
     finished_monotonic: float = 0.0
+    decode_stats: Optional[dict] = None
 
 
 @dataclass(frozen=True)
@@ -406,8 +408,18 @@ class InventoryMissionCoordinator:
         consensus = QRConsensus(self.consensus.config)
         last_sequence = None
         processed = 0
+        stats = {"decoded": 0, "laser_outside": 0, "unknown_mapping": 0, "max_consensus": 0}
 
         def publish_failure(code, detail=None):
+            stats["max_consensus"] = max(
+                stats["max_consensus"],
+                max(
+                    (v for v in Counter(
+                        item.number for item in consensus._window if item is not None
+                    ).values()),
+                    default=0,
+                ),
+            )
             self._publish_scan_result(
                 ScanResult(
                     request.generation,
@@ -419,6 +431,7 @@ class InventoryMissionCoordinator:
                     processed_frames=processed,
                     started_monotonic=request.started_monotonic,
                     finished_monotonic=self._clock(),
+                    decode_stats=dict(stats),
                 )
             )
 
@@ -466,6 +479,17 @@ class InventoryMissionCoordinator:
                 except TypeError:
                     detection = self.decoder.detect(frame)
                 accepted = consensus.update(detection, aim)
+                # 每帧解码统计
+                if detection is not None and detection.number is not None:
+                    stats["decoded"] += 1
+                elif detection is not None:
+                    stats["unknown_mapping"] += 1
+                # 跟踪当前共识最高计数
+                cur_counts = Counter(
+                    item.number for item in consensus._window if item is not None
+                ).values() if consensus._window else ()
+                if cur_counts:
+                    stats["max_consensus"] = max(stats["max_consensus"], max(cur_counts))
             except Exception as exc:
                 publish_failure("decode_exception", str(exc))
                 return
@@ -480,6 +504,7 @@ class InventoryMissionCoordinator:
                         processed_frames=processed,
                         started_monotonic=request.started_monotonic,
                         finished_monotonic=self._clock(),
+                        decode_stats=dict(stats),
                     )
                 )
                 return
