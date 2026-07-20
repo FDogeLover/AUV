@@ -520,3 +520,21 @@
     - 飞控串口延迟打开是否会导致飞控端缓存旧数据或影响状态同步
 
     待下次真机测试时验证：正常按键→起飞全流程是否通畅，以及T265检测成功率是否与旧顺序一致。
+
+40. **2026-07-20 warehouse_inventory QR解码仍未通过真机验证 — 当前飞行路径是ROI+pyzbar-only，不是旧文档所述OpenCV几何fallback**：
+
+    2026-07-19对79张1280×720真实飞行帧离线分析确认，裸pyzbar（彩色/灰度）与裸OpenCV `QRCodeDetector.detectAndDecode()`均为0成功；目前唯一确认有效的预处理是`adaptiveThreshold(block=31,C=5)+pyzbar`。二维码内容是大小写敏感URL，必须经完整的`qr_mapping.txt`映射到1~24。
+
+    为消除OpenCV几何搜索在板端单帧约17秒的阻塞，当前`QRDecoder.detect(frame,target_point=...)`只走有界ROI：原图/灰度/CLAHE/放大/自适应阈值变体均由pyzbar解码，不再运行OpenCV内容fallback。2026-07-20 A1真机测试仍在8.68秒后`qr_timeout`。现有日志只有最终超时，无法区分“完全没解码”“内容不在映射”“激光点不在QR内”或“零星成功但未达到5帧窗口3次共识”。
+
+    桌面备份识别器提供了低风险方向：保留高分辨率ROI和独立采集线程，在pyzbar变体失败后只对ROI增加一次OpenCV `detectAndDecode`，并用2帧或窗口共识；不能照搬320×240（远距离小QR像素不足）、3秒debounce或worker内阻塞激光/舵机副作用。下一步必须先加分层统计并用真实A1图片离线验证，禁止恢复全帧慢搜索。
+
+41. **2026-07-20 warehouse_inventory扫码失败后的返航中断与LAND未完成 — 已证实不是单一视觉问题**：
+
+    A1状态日志明确记录`VERIFY_QR → qr_timeout → FAULT → RETURN`，证明扫码worker结果已发布、被主线程轮询并消费。飞行目标随即从A1切换到首返航点约`(-2.65,0.0625,1.40)`，无人机从约`(-1.7609,0.0623,1.43)`实际飞到`(-2.6369,0.0703,1.40)`，距目标仅1.52cm。因此“视觉失败导致根本没走返航路径”的解释被日志证伪。
+
+    直接中断点是precision到达语义：即便XY已经很近，速度窗口/确认停留仍未完成，首返航点最后以`timeout`结束。`Mission_GPT._advance_waypoint()`对`purpose=return`的timeout策略是立即切`LAND`而不是推进下一点，所以不会继续飞向第二返航点和`LAND_APPROACH`。进入LAND后又没有正常完成/确认，约1分钟后用户人工中断。后续需分别修复：返航中间点应采用cruise或“超时但已很近则推进”的判据；LAND需记录一键降落发送、`unlock_sta`、`motor_pwm_mask`、`land_timeout_gaveup`及激光高度轨迹。
+
+42. **2026-07-20 warehouse_inventory完整route-only路线首次走完全程；下端净空按现场观察扩大，扫码点待逐点标定**：
+
+    独立`route_only_main.py`不执行二维码、云台和激光业务，40个XYZ航点已完整实飞走完，证明完整几何航线基本可飞。现场观察原`X=+0.15m`下端绕行有擦到板子的风险，用户明确确认向外移动到`X=+0.30m`；模型配置、规划器、route-only文件四个下绕点及测试已统一修改并同步板端。注意飞行坐标是正X，不能误写成`-0.30m`（会进入模型货架范围）。其他24个扫码货位坐标不从route-only结果一次性调整，待收集各货位真实二维码画面后逐点微调。
