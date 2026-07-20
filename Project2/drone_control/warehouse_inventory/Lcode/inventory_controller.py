@@ -23,6 +23,7 @@ from Lcode.laser_pointer import LaserPointer
 from Lcode.Logger import logger
 from Lcode.qr_vision import QRConsensus, QRDecoder, QRDetection
 from Lcode.sensor_gimbal import SensorGimbal
+from Lcode.warehouse_model import FlightPoint
 from Lcode.vision_servo import VisionServoConfig, VisionServoResult, servo_command
 from Mission_GPT import mission as FlightMission
 

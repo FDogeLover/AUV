@@ -190,6 +190,14 @@ def _coordinator(
     )
 
 
+def _finish_scan(coordinator, index, position):
+    action = coordinator.on_waypoint_arrived(index, position, "arrival")
+    assert action == controller.WaypointArrivalAction.ENTER_SCAN
+    result = coordinator.wait_scan_for_test(coordinator.active_scan_generation, timeout_s=1.0)
+    assert result is not None
+    return coordinator.consume_scan_result(result, position)
+
+
 def test_camera_fake_capture_does_not_require_cv2_constants(monkeypatch):
     class Capture:
         def isOpened(self):
@@ -276,7 +284,11 @@ def test_scan_skips_duplicate_latest_frame_and_processes_next_sequence():
         config=controller.InventoryMissionConfig(scan_timeout_s=1.0, scan_poll_s=0.0),
     )
 
-    assert coordinator.on_waypoint_arrived(0, [0, 0, 1.4], "arrival") is True
+    action = coordinator.on_waypoint_arrived(0, [0, 0, 1.4], "arrival")
+    assert action == controller.WaypointArrivalAction.ENTER_SCAN
+    result = coordinator.wait_scan_for_test(coordinator.active_scan_generation, timeout_s=1.0)
+    consumed = coordinator.consume_scan_result(result, [0, 0, 1.4])
+    assert consumed.outcome == controller.ScanConsumeOutcome.ADVANCE
     assert decoder.calls == 2
 
 
@@ -443,7 +455,10 @@ def test_verify_qr_captures_frame_before_decoding():
     )
     coordinator.vision_debug = OrderedVisionDebug()
 
-    assert coordinator.on_waypoint_arrived(0, [0, 0, 1.4], "arrival") is True
+    action = coordinator.on_waypoint_arrived(0, [0, 0, 1.4], "arrival")
+    assert action == controller.WaypointArrivalAction.ENTER_SCAN
+    result = coordinator.wait_scan_for_test(coordinator.active_scan_generation, timeout_s=1.0)
+    assert result.status == controller.ScanTaskStatus.SUCCEEDED
     assert calls[:2] == ["capture_scan", "decoder.detect"]
 
 
@@ -458,7 +473,8 @@ def test_inspect_pulses_laser_before_persisting_and_reaches_end():
     ]
     coordinator = _coordinator(route, laser)
     assert coordinator.on_waypoint_arrived(0, [0, 0, 1.4], "arrival")
-    assert coordinator.on_waypoint_arrived(1, [0, 0, 1.4], "arrival")
+    consumed = _finish_scan(coordinator, 1, [0, 0, 1.4])
+    assert consumed.outcome == controller.ScanConsumeOutcome.ADVANCE
     assert events == ["laser_pulse", "laser_wait", "store_add"]
     assert coordinator.store.query_cargo(1).slot_label == "A1"
     assert coordinator.state_machine.state == InventoryState.RETURN
@@ -478,7 +494,8 @@ def test_face_change_transit_is_allowed_after_report():
     ]
     coordinator = _coordinator(route, laser)
     assert coordinator.on_waypoint_arrived(0, [0, 0, 1.4], "arrival")
-    assert coordinator.on_waypoint_arrived(1, [0, 0, 1.4], "arrival")
+    consumed = _finish_scan(coordinator, 1, [0, 0, 1.4])
+    assert consumed.outcome == controller.ScanConsumeOutcome.ADVANCE
     assert coordinator.state_machine.state == InventoryState.TRANSIT
     assert coordinator.on_waypoint_arrived(2, [0, 1, 1.4], "arrival")
     assert coordinator.on_waypoint_arrived(3, [0, 1, 1.4], "arrival")
@@ -497,10 +514,11 @@ def test_laser_failure_does_not_persist_result_and_faults():
     driver = FakeDriver()
     coordinator.attach_driver(driver)
     coordinator.on_waypoint_arrived(0, [0, 0, 1.4], "arrival")
-    assert coordinator.on_waypoint_arrived(1, [0, 0, 1.4], "arrival") is False
+    consumed = _finish_scan(coordinator, 1, [0, 0, 1.4])
+    assert consumed.outcome == controller.ScanConsumeOutcome.RETURN
+    assert consumed.error_code == "laser_pulse_failed"
     assert coordinator.store.by_slot == {}
-    assert driver.aborted is True
-    assert coordinator.state_machine.state == InventoryState.LAND
+    assert driver.aborted is False
 
 
 def test_scan_timeout_faults_and_keeps_store_empty():
@@ -512,12 +530,17 @@ def test_scan_timeout_faults_and_keeps_store_empty():
         camera=FakeCamera([]),
         clock=FakeClock(step=0.2),
     )
-    assert coordinator.on_waypoint_arrived(0, [0, 0, 1.4], "arrival") is False
+    action = coordinator.on_waypoint_arrived(0, [0, 0, 1.4], "arrival")
+    assert action == controller.WaypointArrivalAction.ENTER_SCAN
+    result = coordinator.wait_scan_for_test(coordinator.active_scan_generation, timeout_s=1.0)
+    consumed = coordinator.consume_scan_result(result, [0, 0, 1.4])
+    assert consumed.outcome == controller.ScanConsumeOutcome.RETURN
+    assert consumed.error_code == "qr_timeout"
     assert coordinator.store.by_slot == {}
-    assert coordinator.state_machine.state == InventoryState.LAND
+    assert coordinator.state_machine.state == InventoryState.RETURN
 
 
-def test_visual_servo_centers_geometry_before_qr_consensus():
+def test_visual_servo_is_rejected_with_async_scan():
     laser = FakeLaser([])
     route = [
         MissionWaypoint(FlightPoint(0, 0, 1.4), WaypointKind.INSPECT, FaceId.A, "A1")
@@ -558,9 +581,9 @@ def test_visual_servo_centers_geometry_before_qr_consensus():
     )
     driver = FakeDriver()
     coordinator.attach_driver(driver)
-    assert coordinator.on_waypoint_arrived(0, [0, 0, 1.4], "arrival") is True
-    assert any(command[0] == 1 for command in driver.commands)
-    assert coordinator.state_machine.state == InventoryState.TRANSIT
+    assert coordinator.on_waypoint_arrived(0, [0, 0, 1.4], "arrival") is False
+    assert coordinator.state_machine.state == InventoryState.LAND
+    assert driver.aborted is True
 
 
 def test_visual_servo_ignores_large_target_jump():
@@ -618,9 +641,11 @@ def test_duplicate_qr_faults_before_laser():
         FakeLaser(events),
         store=store,
     )
-    assert coordinator.on_waypoint_arrived(0, [0, 0, 1.4], "arrival") is False
+    consumed = _finish_scan(coordinator, 0, [0, 0, 1.4])
+    assert consumed.outcome == controller.ScanConsumeOutcome.RETURN
+    assert consumed.error_code == "qr_duplicate"
     assert events == []
-    assert coordinator.state_machine.state == InventoryState.LAND
+    assert coordinator.state_machine.state == InventoryState.VERIFY_QR
 
 
 def test_flight_driver_routes_base_arrival_callback_through_coordinator():
