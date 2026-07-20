@@ -28,6 +28,15 @@ class FakeRealsense:
         return [0.0, 0.0, self.yaw]
 
 
+class ScanRealsense(FakeRealsense):
+    def __init__(self, position=(0.2, -0.1, 1.2), confidence=3, yaw=0.0):
+        super().__init__(confidence=confidence, vel=(0.0, 0.0, 0.0), yaw=yaw)
+        self.position = position
+
+    def get_position(self):
+        return self.position
+
+
 def _make_mission(profile="cruise"):
     m = mission([0] * 14, [0] * 11, realsense_obj=None, serial_fc_ref=None)
     m.targets = [
@@ -39,6 +48,107 @@ def _make_mission(profile="cruise"):
     m.t265_ok = True
     m.realsense = FakeRealsense()
     return m
+
+
+def test_scan_tick_uses_xy_pid_against_latched_target():
+    m = _make_mission()
+    m.realsense = ScanRealsense(position=(0.20, -0.10, 1.20))
+    m._ramp_z_cm = 120.0
+    m.begin_scan_hold((0.0, 0.0, 1.25))
+    commands = []
+    m.set_speed = lambda x, y, yaw, z: commands.append((x, y, yaw, z))
+
+    # SCAN must use its latched target, not the mutable navigation targets.
+    m.targets = [(9.0, 9.0, 2.0)]
+    m.scan_tick([0.20, -0.10, 1.20], 0.0)
+
+    assert m.state == "SCAN"
+    assert commands
+    assert commands[-1][0] < 0
+    assert commands[-1][1] > 0
+    assert commands[-1][3] >= 120
+
+
+def test_scan_tick_preserves_z_ramp_and_heading_hold():
+    m = _make_mission()
+    m.realsense = ScanRealsense(position=(0.0, 0.0, 1.20), yaw=0.05)
+    m._ramp_z_cm = 120.0
+    m.begin_scan_hold((0.0, 0.0, 1.25))
+    commands = []
+    m.set_speed = lambda x, y, yaw, z: commands.append((x, y, yaw, z))
+
+    m.scan_tick([0.0, 0.0, 1.20], 0.05)
+
+    assert commands[-1][3] >= 120
+    assert commands[-1][3] <= 125
+    assert commands[-1][2] == m._heading_status.command_dps
+
+
+def test_scan_tracking_loss_calls_hook_without_waypoint_advance():
+    m = _make_mission()
+    m.realsense = ScanRealsense(confidence=0)
+    m.target_index = 2
+    events = []
+    m.on_scan_tracking_lost = lambda pos, yaw: events.append((pos, yaw))
+    m.begin_scan_hold((0.0, 0.0, 1.25))
+
+    m.scan_tick([0.0, 0.0, 1.25], 0.0)
+
+    assert events == [([0.0, 0.0, 1.25], 0.0)]
+    assert m.target_index == 2
+
+
+def test_end_scan_hold_clears_latched_target():
+    m = _make_mission()
+    m.begin_scan_hold((0.0, 0.0, 1.25))
+
+    m.end_scan_hold()
+
+    assert m._scan_target is None
+
+
+def test_replace_navigation_targets_resets_all_arrival_and_pid_state(monkeypatch):
+    m = _make_mission()
+    m.target_index = 3
+    m.last_target_index = 3
+    m._arrival_window.extend([True, True])
+    m._vel_window.extend([(0.1, 0.1)])
+    m.arrival_confirmed_time = 12.0
+    m.arrival_start_time = 11.0
+    m._cruise_arrival_count = 4
+    m._active_segment_distance_m = 99.0
+    m._ramp_z_cm = 123.0
+    m.x_pid.pid._integral = 7.0
+    m.y_pid.pid._integral = -3.0
+    monkeypatch.setattr(mg.time, "time", lambda: 50.0)
+
+    generation = m.replace_navigation_targets(
+        [(0.1, 0.2, 1.4), (0.0, 0.0, 1.4)],
+        [0.3, 0.4, 1.2],
+        purpose="return",
+    )
+
+    assert m.targets == [(0.1, 0.2, 1.4), (0.0, 0.0, 1.4)]
+    assert m.target_index == 0
+    assert m.last_target_index == -1
+    assert not m._arrival_window
+    assert not m._vel_window
+    assert m.arrival_confirmed_time is None
+    assert m.arrival_start_time == 50.0
+    assert m._cruise_arrival_count == 0
+    assert m._active_segment_distance_m == pytest.approx(math.hypot(0.2, 0.2))
+    assert m.x_pid.pid.components == (0, 0, 0)
+    assert m.y_pid.pid.components == (0, 0, 0)
+    assert m._navigation_purpose == "return"
+    assert m._ramp_z_cm == 123.0
+    assert generation == 1
+
+
+def test_replace_navigation_targets_rejects_empty_route():
+    m = _make_mission()
+
+    with pytest.raises(ValueError, match="cannot be empty"):
+        m.replace_navigation_targets([], [0.0, 0.0, 1.0])
 
 
 def test_cruise_head_waypoint_does_not_ignore_height():

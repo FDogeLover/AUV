@@ -110,6 +110,9 @@ class mission:
         # 航点
         self.targets = self.load_waypoints(route_file)
         self.target_index = 0
+        self._scan_target = None
+        self._navigation_purpose = "normal"
+        self._navigation_generation = 0
         self.emergency_stop = False
         self._takeoff_abort_reason = None
 
@@ -280,6 +283,8 @@ class mission:
                 self.takeoff()
             elif self.state == "NAVIGATE":
                 self.navigate(pos, yaw)
+            elif self.state == "SCAN":
+                self.scan_tick(pos, yaw)
             elif self.state == "LAND":
                 self.land()
             elif self.state == "END":
@@ -452,6 +457,66 @@ class mission:
         self.state = "LAND"
 
     # ================= 导航 =================
+    def position_control_tick(self, target, pos, yaw):
+        """Run one reusable XY PID, Z ramp, and heading-hold control tick."""
+        confidence = (
+            self.realsense.get_tracking_confidence()
+            if self.t265_ok and self.realsense
+            else 0
+        )
+        self._heading_status = self._update_heading_hold(yaw, confidence)
+        yaw_cmd = self._heading_status.command_dps
+
+        if confidence == 0 and self.t265_ok:
+            self.set_speed(0, 0, yaw_cmd, int(self._ramp_z_cm))
+            return None
+
+        if self.t265_ok and self.realsense:
+            self.x_pid.set_target(target[0])
+            self.y_pid.set_target(target[1])
+            vx = int(self.limit(self.x_pid.get_pid(pos[0]) * 100 * VEL_SCALE, 40))
+            vy = int(self.limit(self.y_pid.get_pid(pos[1]) * 100 * VEL_SCALE, 40))
+        else:
+            vx, vy = 0, 0
+
+        self._step_ramp_z(int(target[2] * 100))
+        self.set_speed(vx, vy, yaw_cmd, int(self._ramp_z_cm))
+        return {
+            "confidence": confidence,
+            "vx": vx,
+            "vy": vy,
+            "yaw_cmd": yaw_cmd,
+            "z_setpoint_cm": int(self._ramp_z_cm),
+        }
+
+    def begin_scan_hold(self, target):
+        """Latch an explicit hold target and enter SCAN control."""
+        if len(target) != 3:
+            raise ValueError("scan target must contain x, y, z")
+        self._scan_target = tuple(float(value) for value in target)
+        self.state = "SCAN"
+
+    def end_scan_hold(self):
+        self._scan_target = None
+
+    def on_scan_tick(self, pos, yaw, control):
+        """Extension hook invoked after a successful SCAN control tick."""
+
+    def on_scan_tracking_lost(self, pos, yaw):
+        """Default SCAN safety action when position control is unavailable."""
+        self.state = "LAND"
+
+    def scan_tick(self, pos, yaw):
+        target = self._scan_target
+        if target is None:
+            self.on_scan_tracking_lost(pos, yaw)
+            return
+        control = self.position_control_tick(target, pos, yaw)
+        if control is None:
+            self.on_scan_tracking_lost(pos, yaw)
+            return
+        self.on_scan_tick(pos, yaw, control)
+
     def navigate(self, pos, yaw):
         if self.target_index >= len(self.targets):
             logger.info("全部航点完成")
@@ -459,11 +524,7 @@ class mission:
             return
 
         target = self.targets[self.target_index]
-        target_z = int(target[2] * 100)
 
-        confidence = self.realsense.get_tracking_confidence() if (self.t265_ok and self.realsense) else 0
-        self._heading_status = self._update_heading_hold(yaw, confidence)
-        yaw_cmd = self._heading_status.command_dps
         waypoint_mode = self.navigation_profile.waypoint_mode(
             self.target_index, len(self.targets)
         )
@@ -472,9 +533,11 @@ class mission:
         if self.target_index != self.last_target_index:
             self._reset_arrival_tracking(pos)
 
-        if confidence == 0 and self.t265_ok:
+        control = self.position_control_tick(target, pos, yaw)
+        yaw_cmd = self._heading_status.command_dps
+        if control is None:
+            confidence = 0
             logger.warning("T265 追踪丢失，悬停等待")
-            self.set_speed(0, 0, yaw_cmd, int(self._ramp_z_cm))
             # 定位丢失期间暂停航点超时和到达确认。否则恢复追踪后的第一帧可能
             # 带着失联前的旧计时立即跳点，或沿用过期的确认窗口。
             self.arrival_start_time = time.time()
@@ -509,19 +572,10 @@ class mission:
                 self._last_log_time = now
             return
 
-        if self.t265_ok and self.realsense:
-            self.x_pid.set_target(target[0])
-            self.y_pid.set_target(target[1])
-            vx = self.x_pid.get_pid(pos[0]) * 100 * VEL_SCALE
-            vy = self.y_pid.get_pid(pos[1]) * 100 * VEL_SCALE
-            vx = int(self.limit(vx, 40))
-            vy = int(self.limit(vy, 40))
-        else:
-            vx, vy = 0, 0
-
-        self._step_ramp_z(target_z)
-        # HeadingHoldController已经生成target-current的正确符号，必须原样发送。
-        self.set_speed(vx, vy, yaw_cmd, int(self._ramp_z_cm))
+        confidence = control["confidence"]
+        vx = control["vx"]
+        vy = control["vy"]
+        yaw_cmd = control["yaw_cmd"]
 
         # T265 速度（到达检测的速度门槛 + 后面日志/终端输出共用，避免重复取值）
         if self.t265_ok and self.realsense:
@@ -650,6 +704,32 @@ class mission:
         )
 
     # ================= 到达处理 =================
+    def replace_navigation_targets(self, new_targets, current_pos, *, purpose="normal"):
+        """Atomically install a new route and reset route-specific control state."""
+        normalized = [tuple(float(value) for value in target) for target in new_targets]
+        if not normalized:
+            raise ValueError("navigation targets cannot be empty")
+        if any(len(target) != 3 for target in normalized):
+            raise ValueError("each navigation target must contain x, y, z")
+
+        self.targets = normalized
+        self.target_index = 0
+        self.last_target_index = -1
+        self._arrival_window.clear()
+        self._vel_window.clear()
+        self.arrival_confirmed_time = None
+        self.arrival_start_time = time.time()
+        self._cruise_arrival_count = 0
+        self._active_segment_distance_m = math.hypot(
+            current_pos[0] - normalized[0][0],
+            current_pos[1] - normalized[0][1],
+        )
+        self.x_pid.reset()
+        self.y_pid.reset()
+        self._navigation_purpose = str(purpose)
+        self._navigation_generation += 1
+        return self._navigation_generation
+
     def _advance_waypoint(self, reason, pos, target, arrival_distance):
         """统一推进航点并原子重置到达状态，避免同tick连跳和日志目标错位。"""
         completed_index = self.target_index
