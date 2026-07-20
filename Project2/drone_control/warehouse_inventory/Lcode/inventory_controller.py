@@ -11,8 +11,9 @@ import threading
 import time
 from collections.abc import Mapping
 from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Tuple
 
 from Lcode.ground_link import GroundMessageType
 from Lcode.inventory_planner import MissionWaypoint, WaypointKind
@@ -20,7 +21,7 @@ from Lcode.inventory_state import InventoryState, InventoryStateMachine
 from Lcode.inventory_store import InventoryConflict, InventoryStore
 from Lcode.laser_pointer import LaserPointer
 from Lcode.Logger import logger
-from Lcode.qr_vision import QRConsensus, QRDecoder
+from Lcode.qr_vision import QRConsensus, QRDecoder, QRDetection
 from Lcode.sensor_gimbal import SensorGimbal
 from Lcode.vision_servo import VisionServoConfig, VisionServoResult, servo_command
 from Mission_GPT import mission as FlightMission
@@ -29,6 +30,38 @@ try:
     import cv2
 except ImportError:
     cv2 = None
+
+
+class ScanTaskStatus(str, Enum):
+    IDLE = "idle"
+    RUNNING = "running"
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
+    CONSUMED = "consumed"
+
+
+@dataclass(frozen=True)
+class ScanRequest:
+    generation: int
+    waypoint_index: int
+    slot_label: str
+    hold_target: Tuple[float, float, float]
+    timeout_s: float
+    started_monotonic: float
+
+
+@dataclass(frozen=True)
+class ScanResult:
+    generation: int
+    waypoint_index: int
+    slot_label: str
+    status: ScanTaskStatus
+    detection: Optional[QRDetection] = None
+    error_code: Optional[str] = None
+    error_detail: Optional[str] = None
+    processed_frames: int = 0
+    started_monotonic: float = 0.0
+    finished_monotonic: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -287,9 +320,180 @@ class InventoryMissionCoordinator:
         self.vision_debug = vision_debug
         self.driver = None
         self.last_detection = None
+        self._scan_lock = threading.Lock()
+        self._scan_generation = 0
+        self._scan_request = None
+        self._scan_result = None
+        self._scan_thread = None
+        self._scan_cancel = None
+        self._scan_hard_deadline = None
 
     def attach_driver(self, driver):
         self.driver = driver
+
+    def start_scan(self, waypoint_index, waypoint: MissionWaypoint, position):
+        """Start one isolated QR worker without performing mission side effects."""
+        hold_target = tuple(float(value) for value in position)
+        if len(hold_target) != 3:
+            raise ValueError("scan hold target must contain x, y, z")
+        if waypoint.slot_label is None:
+            raise ValueError("scan waypoint must have a slot label")
+
+        with self._scan_lock:
+            if self._scan_thread is not None and self._scan_thread.is_alive():
+                raise RuntimeError("scan worker still active")
+            self._scan_generation += 1
+            started = self._clock()
+            request = ScanRequest(
+                generation=self._scan_generation,
+                waypoint_index=int(waypoint_index),
+                slot_label=waypoint.slot_label,
+                hold_target=hold_target,
+                timeout_s=self.config.scan_timeout_s,
+                started_monotonic=started,
+            )
+            cancel_event = threading.Event()
+            worker = threading.Thread(
+                target=self._scan_worker,
+                args=(request, cancel_event),
+                name=f"inventory-qr-scan-{request.generation}",
+                daemon=True,
+            )
+            self._scan_request = request
+            self._scan_result = None
+            self._scan_cancel = cancel_event
+            self._scan_thread = worker
+            self._scan_hard_deadline = started + request.timeout_s
+            worker.start()
+            return request
+
+    def _scan_worker(self, request, cancel_event):
+        consensus = QRConsensus(self.consensus.config)
+        last_sequence = None
+        processed = 0
+
+        def publish_failure(code, detail=None):
+            self._publish_scan_result(
+                ScanResult(
+                    request.generation,
+                    request.waypoint_index,
+                    request.slot_label,
+                    ScanTaskStatus.FAILED,
+                    error_code=code,
+                    error_detail=detail,
+                    processed_frames=processed,
+                    started_monotonic=request.started_monotonic,
+                    finished_monotonic=self._clock(),
+                )
+            )
+
+        while not cancel_event.is_set():
+            if self._clock() >= request.started_monotonic + request.timeout_s:
+                publish_failure("qr_timeout")
+                return
+            try:
+                if hasattr(self.camera, "read_with_sequence"):
+                    sequence, frame, frame_timestamp = self.camera.read_with_sequence()
+                else:
+                    sequence, frame_timestamp = None, None
+                    frame = self.camera.read()
+            except Exception as exc:
+                publish_failure("camera_read_exception", str(exc))
+                return
+
+            if frame is None or (sequence is not None and sequence == last_sequence):
+                self._sleep(self.config.scan_poll_s)
+                continue
+            last_sequence = sequence
+            processed += 1
+            metadata = {
+                "state": InventoryState.VERIFY_QR.value,
+                "capture": "scan_frame",
+                "waypoint_index": request.waypoint_index,
+                "slot_label": request.slot_label,
+                "position": list(request.hold_target),
+                "frame_sequence": sequence,
+                "capture_timestamp": frame_timestamp,
+                "processed_frame_count": processed,
+                "frame_shape": list(frame.shape),
+                "timestamp": time.time(),
+            }
+            if self.vision_debug is not None:
+                try:
+                    self.vision_debug.capture_scan(frame, metadata)
+                except Exception as exc:
+                    logger.warning(f"二维码调试图保存失败: {exc}")
+
+            try:
+                aim = self.camera.laser_aim_point(frame)
+                detection = self.decoder.detect(frame, target_point=aim)
+                accepted = consensus.update(detection, aim)
+            except Exception as exc:
+                publish_failure("decode_exception", str(exc))
+                return
+            if accepted is not None:
+                self._publish_scan_result(
+                    ScanResult(
+                        request.generation,
+                        request.waypoint_index,
+                        request.slot_label,
+                        ScanTaskStatus.SUCCEEDED,
+                        detection=accepted,
+                        processed_frames=processed,
+                        started_monotonic=request.started_monotonic,
+                        finished_monotonic=self._clock(),
+                    )
+                )
+                return
+            self._sleep(self.config.scan_poll_s)
+
+    def _publish_scan_result(self, result):
+        with self._scan_lock:
+            if self._scan_request is None:
+                return
+            if result.generation != self._scan_request.generation:
+                return
+            if result.generation != self._scan_generation:
+                return
+            if self._scan_result is not None:
+                return
+            self._scan_result = result
+
+    def poll_scan_result(self, generation):
+        with self._scan_lock:
+            if generation != self._scan_generation:
+                return None
+            if self._scan_request is None or generation != self._scan_request.generation:
+                return None
+            return self._scan_result
+
+    def cancel_scan(self, reason, join_timeout_s=2.0):
+        """Invalidate the active generation and wait at most two seconds."""
+        with self._scan_lock:
+            worker = self._scan_thread
+            cancel_event = self._scan_cancel
+            self._scan_generation += 1
+            self._scan_request = None
+            self._scan_result = None
+            self._scan_hard_deadline = None
+            if cancel_event is not None:
+                cancel_event.set()
+        if worker is not None and worker is not threading.current_thread():
+            worker.join(timeout=max(0.0, min(float(join_timeout_s), 2.0)))
+        exited = worker is None or not worker.is_alive()
+        if not exited:
+            logger.warning(f"二维码扫码线程取消超时: {reason}")
+        return exited
+
+    def wait_scan_for_test(self, generation, timeout_s=2.0):
+        """Bounded test helper; production code must poll from the flight thread."""
+        deadline = time.monotonic() + max(0.0, float(timeout_s))
+        while time.monotonic() < deadline:
+            result = self.poll_scan_result(generation)
+            if result is not None:
+                return result
+            time.sleep(0.001)
+        return self.poll_scan_result(generation)
 
     def _go(self, state, reason, **fields):
         state = InventoryState(state)

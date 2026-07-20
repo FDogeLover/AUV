@@ -1,7 +1,9 @@
 import io
+import threading
 from types import SimpleNamespace
 
 import numpy as np
+import pytest
 
 from Lcode import inventory_controller as controller
 from Lcode.inventory_planner import MissionWaypoint, WaypointKind
@@ -276,6 +278,107 @@ def test_scan_skips_duplicate_latest_frame_and_processes_next_sequence():
 
     assert coordinator.on_waypoint_arrived(0, [0, 0, 1.4], "arrival") is True
     assert decoder.calls == 2
+
+
+def test_scan_worker_skips_duplicate_sequences_and_uses_private_consensus():
+    frame = FakeFrame()
+    camera = SequencedCamera(
+        [(1, frame, 10.0), (1, frame, 10.0), (2, frame, 10.1)]
+    )
+
+    class CountingDecoder:
+        def __init__(self):
+            self.calls = 0
+
+        def detect(self, frame, target_point=None):
+            self.calls += 1
+            return _detection(1)
+
+    decoder = CountingDecoder()
+    shared_consensus = QRConsensus(
+        QRConsensusConfig(window_size=2, required_count=2, laser_margin_px=0)
+    )
+    # Poison the injected instance: a worker reusing it would succeed after one frame.
+    shared_consensus.update(_detection(1), (50.0, 50.0))
+    route = [MissionWaypoint(FlightPoint(0, 0, 1.25), WaypointKind.INSPECT, FaceId.A, "A1")]
+    coordinator = _coordinator(
+        route,
+        FakeLaser([]),
+        camera=camera,
+        decoder=decoder,
+        consensus=shared_consensus,
+        config=controller.InventoryMissionConfig(scan_timeout_s=1.0, scan_poll_s=0.0),
+    )
+
+    request = coordinator.start_scan(0, route[0], [0, 0, 1.25])
+    result = coordinator.wait_scan_for_test(request.generation, timeout_s=1.0)
+
+    assert result.status == controller.ScanTaskStatus.SUCCEEDED
+    assert decoder.calls == 2
+    assert result.processed_frames == 2
+    assert coordinator.consensus is shared_consensus
+
+
+def test_scan_worker_converts_decoder_exception_to_failed_result():
+    class BrokenDecoder:
+        def detect(self, frame, target_point=None):
+            raise RuntimeError("decode exploded")
+
+    route = [MissionWaypoint(FlightPoint(0, 0, 1.25), WaypointKind.INSPECT, FaceId.A, "A1")]
+    coordinator = _coordinator(route, FakeLaser([]), decoder=BrokenDecoder())
+    request = coordinator.start_scan(0, route[0], [0, 0, 1.25])
+    result = coordinator.wait_scan_for_test(request.generation, timeout_s=1.0)
+
+    assert result.status == controller.ScanTaskStatus.FAILED
+    assert result.error_code == "decode_exception"
+    assert "decode exploded" in result.error_detail
+
+
+def test_cancelled_generation_rejects_late_worker_result():
+    release = threading.Event()
+
+    class BlockingDecoder:
+        def detect(self, frame, target_point=None):
+            release.wait(1.0)
+            return None
+
+    route = [MissionWaypoint(FlightPoint(0, 0, 1.25), WaypointKind.INSPECT, FaceId.A, "A1")]
+    coordinator = _coordinator(route, FakeLaser([]), decoder=BlockingDecoder())
+    request = coordinator.start_scan(0, route[0], [0, 0, 1.25])
+    coordinator.cancel_scan("test_cancel", join_timeout_s=0.0)
+    coordinator._publish_scan_result(
+        controller.ScanResult(
+            request.generation,
+            request.waypoint_index,
+            request.slot_label,
+            controller.ScanTaskStatus.SUCCEEDED,
+            detection=_detection(1),
+        )
+    )
+
+    assert coordinator.poll_scan_result(request.generation) is None
+    release.set()
+    coordinator.cancel_scan("cleanup", join_timeout_s=1.0)
+
+
+def test_new_scan_is_refused_while_old_worker_is_alive():
+    release = threading.Event()
+
+    class BlockingDecoder:
+        def detect(self, frame, target_point=None):
+            release.wait(1.0)
+            return None
+
+    route = [MissionWaypoint(FlightPoint(0, 0, 1.25), WaypointKind.INSPECT, FaceId.A, "A1")]
+    coordinator = _coordinator(route, FakeLaser([]), decoder=BlockingDecoder())
+    first = coordinator.start_scan(0, route[0], [0, 0, 1.25])
+
+    with pytest.raises(RuntimeError, match="scan worker still active"):
+        coordinator.start_scan(0, route[0], [0, 0, 1.25])
+
+    assert first.generation == 1
+    release.set()
+    coordinator.cancel_scan("cleanup", join_timeout_s=1.0)
 
 
 def test_verify_qr_captures_frame_before_decoding():
