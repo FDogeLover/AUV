@@ -506,6 +506,9 @@ class InventoryMissionCoordinator:
     def _run_visual_servo(self, index, waypoint, position):
         """Center QR geometry with bounded X velocity and Z setpoint changes."""
         config = self.config.vision_servo
+        if not config.enabled:
+            # 未启用时直接跳过，让调用方继续走 VERIFY_QR
+            return VisionServoResult(True, float(waypoint.point.z), 0, 0, reason="disabled")
         started = self._clock()
         deadline = started + config.timeout_s
         last_seen = started
