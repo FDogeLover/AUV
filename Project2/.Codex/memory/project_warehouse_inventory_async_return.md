@@ -64,6 +64,12 @@ A1 高度1.39m或1.40m时安全返航均为：
 - 未改变unlock+pwm双条件确认，也未改变固件gaveup后保持通信、永久等待人工介入的安全语义。
 - 桌面全量测试：184 passed, 1 skipped；Qoder计划与实现两轮审查通过。
 
+## 2026-07-20 第二次实飞：首返航点后静默停止根因与修复
+
+首返航点cruise已经生效，终端打印“航点0掠过”；随后没有waypoint_advance或land_start，只有独立ResourceMonitor继续写日志。代码追踪确认根因：`InventoryMissionCoordinator.on_waypoint_arrived()`在RETURN期间到达TRANSIT仍调用`_go(TRANSIT)`，触发状态机禁止的`RETURN→TRANSIT`并抛ValueError，未捕获异常杀死daemon飞行循环，发送线程继续重放旧指令。
+
+修复：RETURN期间TRANSIT只采样并返回ADVANCE，业务状态持续RETURN；LAND_APPROACH才转LAND。新增飞行loop顶层异常边界：完整traceback+结构化`flight_loop_exception`，先清零XY再转LAND；LAND自身异常先补发task=0再emergency；hook二次失败不依赖封装，裸写中性/disarm并无条件`task_running=False`。真实`InventoryFlightMission+InventoryMissionCoordinator`经`navigate()`完整走通两个TRANSIT和LAND_APPROACH。全量192 passed/1 skipped，Qoder两轮审查通过，待真机。
+
 ## 下一步（按优先级）
 
 1. 修复返航中间点到达策略：位置已很近但速度确认超时时应继续下一返航点；只有
