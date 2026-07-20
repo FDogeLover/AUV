@@ -55,14 +55,14 @@ def test_face_scan_starts_at_previous_face_height_and_bypass_keeps_it():
         next(p.point.z for p in route if p.kind == WaypointKind.INSPECT and p.face == face)
         for face in InventoryPlanner.FULL_FACE_ORDER
     ]
-    assert first_inspect_z == [1.4, 1.0, 1.4, 1.0]
+    assert first_inspect_z == [1.25, 0.85, 1.25, 0.85]
 
     lower_bypass_z = [
         p.point.z
         for p in route
         if p.kind == WaypointKind.TRANSIT and math.isclose(p.point.x, 0.30)
     ]
-    assert lower_bypass_z == [1.0, 1.0, 1.0, 1.0]
+    assert lower_bypass_z == [0.85, 0.85, 0.85, 0.85]
 
 
 def test_full_plan_uses_nearest_bypass_for_reversed_scan_endpoints():

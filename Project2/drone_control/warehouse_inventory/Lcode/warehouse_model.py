@@ -54,12 +54,12 @@ class WarehouseConfig:
     shelf_v_min_m: float = 1.00
     shelf_v_max_m: float = 3.00
     column_v_m: Tuple[float, float, float] = (1.50, 2.00, 2.50)
-    top_qr_z_m: float = 1.40
-    bottom_qr_z_m: float = 1.00
+    top_qr_z_m: float = 1.25
+    bottom_qr_z_m: float = 0.85
     camera_z_offset_m: float = 0.0
     scan_standoff_m: float = 0.70
-    cruise_z_m: float = 1.40
-    landing_approach_z_m: float = 1.40
+    cruise_z_m: float = 1.25
+    landing_approach_z_m: float = 1.25
     landing_final_z_m: float = 0.20
 
     # 用户依据实际机体外廓确认的下端通道；上端值仍是图纸初值，待实物确认。

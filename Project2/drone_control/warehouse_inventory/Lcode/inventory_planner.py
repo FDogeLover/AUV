@@ -151,6 +151,22 @@ class InventoryPlanner:
         route.append(MissionWaypoint(self.model.landing_final, WaypointKind.LAND))
         return self._deduplicate_adjacent(route)
 
+    def plan_face(self, face_id: FaceId) -> List[MissionWaypoint]:
+        """Plan inventory for one face only (6 slots), landing after completion."""
+        route = [MissionWaypoint(self.model.takeoff, WaypointKind.TAKEOFF)]
+        for index, face in enumerate(self.FULL_FACE_ORDER):
+            if face == face_id:
+                self._append_face(
+                    route, face,
+                    start_from_lower_end=False,
+                    start_with_top=(index % 2 == 0),
+                )
+                break
+        route.extend(self._safe_transit(route[-1].point, self.model.landing_approach))
+        route.append(MissionWaypoint(self.model.landing_approach, WaypointKind.LAND_APPROACH))
+        route.append(MissionWaypoint(self.model.landing_final, WaypointKind.LAND))
+        return self._deduplicate_adjacent(route)
+
     def plan_safe_return(self, current: FlightPoint) -> List[MissionWaypoint]:
         """Plan collision-safe transit to landing approach without descending."""
         approach = self.model.landing_approach

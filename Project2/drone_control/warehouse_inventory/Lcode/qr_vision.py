@@ -462,65 +462,35 @@ class QRDecoder:
         return frame[oy : oy + roi_height, ox : ox + roi_width], (ox, oy)
 
     def _decode_target_roi(self, frame, target_point):
-        """Fast pyzbar-only decode for the airborne target region.
+        """Real-time QR decode for airborne scan worker.
 
-        The full geometry search is useful for visual servoing but is too
-        expensive to run once per airborne frame on the board.  QR content is
-        decoded here from a bounded ROI, with only a few cheap image variants;
-        the returned polygon is mapped back to full-frame coordinates.
+        The previous approach tried many ROI-internal variants (color, gray,
+        CLAHE, enlarge, adaptiveThreshold) but offline analysis of real flight
+        frames showed none of them could decode the QR because the ROI crop
+        alone removes finder-pattern context that pyzbar needs.
+
+        Verified working path (on 1280x720 flight frames):
+          full_frame → adaptiveThreshold(block=31/51, C=5) → pyzbar
+
+        This function skips the ROI variants entirely and goes straight to the
+        proven full-frame adaptiveThreshold + pyzbar path.  The geometry_offset
+        logic is retained from the original ROI era but operates on the full
+        frame (offset = (0,0)).
         """
-        roi, offset = self._target_roi(frame, target_point)
-        variants = [(roi, 1.0)]
-        if cv2 is not None:
-            gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
-            variants.extend(((gray, 1.0), (cv2.createCLAHE(2.0, (8, 8)).apply(gray), 1.0)))
-            enlarged = cv2.resize(
-                roi,
-                (round(roi.shape[1] * 2.0), round(roi.shape[0] * 2.0)),
-                interpolation=cv2.INTER_CUBIC,
+        if cv2 is None:
+            full_gray = frame
+        else:
+            full_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        for bs in (31, 51):
+            th = cv2.adaptiveThreshold(
+                full_gray, 255,
+                cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY,
+                bs, 5,
             )
-            variants.append((enlarged, 2.0))
-
-            # Airborne frames can contain enough motion/illumination
-            # variation that the QR is visible to a phone but the raw UVC
-            # image is not decodable by ZBar.  Keep the fast ROI path, but
-            # add the cheap adaptive-threshold variants that recover the
-            # small modules without returning to the expensive full-frame
-            # multi-pass search.
-            for scale in (1.0, 2.0, 3.0):
-                if scale == 1.0:
-                    scaled_gray = gray
-                else:
-                    scaled_gray = cv2.resize(
-                        gray,
-                        (round(roi.shape[1] * scale), round(roi.shape[0] * scale)),
-                        interpolation=cv2.INTER_CUBIC,
-                    )
-                variants.append(
-                    (
-                        cv2.adaptiveThreshold(
-                            scaled_gray,
-                            255,
-                            cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-                            cv2.THRESH_BINARY,
-                            31,
-                            5,
-                        ),
-                        scale,
-                    )
-                )
-        for image, scale in variants:
-            local_target = (
-                (float(target_point[0]) - offset[0]) * scale,
-                (float(target_point[1]) - offset[1]) * scale,
-            )
-            content, points = self._decode_pyzbar_image(
-                image,
-                target_point=local_target,
-            )
+            content, points = self._decode_pyzbar_image(th, target_point)
             if not content:
                 continue
-            candidate = self._candidate(content, points, scale, offset)
+            candidate = self._candidate(content, points, 1.0, (0, 0))
             if candidate is not None and candidate.number is not None:
                 return candidate
         return None

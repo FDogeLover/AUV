@@ -23,15 +23,13 @@ def _result(content, left, top, size=80):
 
 
 def test_target_roi_selects_nearest_qr_not_pyzbar_result_order(monkeypatch):
-    # In the 560x600 center ROI, the optical target (640,360 full-frame) is
-    # (280,300). Return the far code first to reproduce pyzbar's unspecified
-    # multi-code ordering.
+    # 全帧 adaptiveThreshold + pyzbar 路径中，target_point 应选择最近的 QR。
     monkeypatch.setattr(
         qr_vision,
         "pyzbar_decode",
         lambda _image: [
-            _result("far", 450, 260),
-            _result("near", 240, 260),
+            _result("far", 700, 100),
+            _result("near", 620, 340),
         ],
     )
     decoder = qr_vision.QRDecoder(Mapping())
@@ -40,17 +38,17 @@ def test_target_roi_selects_nearest_qr_not_pyzbar_result_order(monkeypatch):
     detection = decoder.detect(frame, target_point=(640.0, 360.0))
 
     assert detection.number == 11
-    assert detection.center == (640.0, 360.0)
+    assert detection.center == (660.0, 380.0)
 
 
-def test_adaptive_three_x_variant_maps_polygon_back_to_full_frame(monkeypatch):
+def test_adaptive_full_frame_variant_decodes_qr(monkeypatch):
     calls = []
 
     def decode(image):
         calls.append((image.ndim, image.shape[:2]))
-        # Only the final 3x adaptive-threshold image succeeds.
-        if image.ndim == 2 and image.shape[:2] == (1800, 1680):
-            return [_result("near", 720, 780, size=240)]
+        # 全帧 adaptiveThreshold(block=31/51) 为灰度且形状为 (720, 1280) 时成功
+        if image.ndim == 2 and image.shape == (720, 1280):
+            return [_result("near", 620, 340, size=120)]
         return []
 
     monkeypatch.setattr(qr_vision, "pyzbar_decode", decode)
@@ -60,8 +58,8 @@ def test_adaptive_three_x_variant_maps_polygon_back_to_full_frame(monkeypatch):
     detection = decoder.detect(frame, target_point=(640.0, 360.0))
 
     assert detection.number == 11
-    assert detection.center == (640.0, 360.0)
-    assert (2, (1800, 1680)) in calls
+    assert detection.center == (680.0, 400.0)
+    assert any(shape == (720, 1280) for (_ndim, shape) in calls)
 
 
 def test_pyzbar_failure_in_airborne_path_does_not_run_opencv_fallback(monkeypatch):
