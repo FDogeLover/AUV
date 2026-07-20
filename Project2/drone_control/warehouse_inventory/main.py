@@ -155,7 +155,7 @@ def main():
     state_machine.transition(InventoryState.WAIT_BUTTON, "full_inventory")
 
     camera = gimbal = laser = None
-    serial_fc = mission1 = None
+    serial_fc = mission1 = coordinator = None
     store = None
     try:
         if not wait_for_start_button():
@@ -239,6 +239,7 @@ def main():
             ground,
             config,
             vision_debug=vision_debug,
+            planner=planner,
         )
         mission1 = InventoryFlightMission(
             re_fc, se_fc, realsense, serial_fc, route, coordinator
@@ -278,6 +279,9 @@ def main():
         if serial_fc is not None:
             serial_fc.send_end()
             serial_fc.close()
+        if coordinator is not None:
+            coordinator.shutdown(join_timeout_s=2.0)
+            camera = None
         _close_resources(camera, gimbal, laser, ground, trace)
 
 

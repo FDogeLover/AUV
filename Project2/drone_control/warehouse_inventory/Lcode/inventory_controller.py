@@ -527,6 +527,12 @@ class InventoryMissionCoordinator:
         with self._scan_lock:
             return self._scan_request.generation if self._scan_request is not None else None
 
+    def shutdown(self, join_timeout_s=2.0):
+        exited = self.cancel_scan("shutdown", join_timeout_s=join_timeout_s)
+        if self.camera is not None:
+            self.camera.close()
+        return exited
+
     def _go(self, state, reason, **fields):
         state = InventoryState(state)
         if self.state_machine.state != state:
@@ -1023,6 +1029,11 @@ class InventoryFlightMission(FlightMission):
         elif consumed.outcome == ScanConsumeOutcome.EMERGENCY_LAND:
             self.end_scan_hold()
             self.state = "LAND"
+
+    def on_scan_tracking_lost(self, pos, yaw):
+        self.coordinator.cancel_scan("tracking_lost", join_timeout_s=0.0)
+        self.end_scan_hold()
+        self.state = "LAND"
 
     def replace_inventory_navigation_route(self, route, current_pos):
         self.inventory_route = list(route)
