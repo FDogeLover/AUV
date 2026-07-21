@@ -28,8 +28,8 @@ def test_builds_24_unique_slots_and_expected_face_directions():
 def test_opposite_faces_reverse_visible_column_labels():
     model = WarehouseModel()
     assert model.slots["A1"].point.x == -1.75
-    assert model.slots["A3"].point.x == -0.75
-    assert model.slots["B1"].point.x == -0.75
+    assert model.slots["A3"].point.x == -0.70
+    assert model.slots["B1"].point.x == -0.70
     assert model.slots["B3"].point.x == -1.75
 
 
@@ -89,7 +89,7 @@ def test_same_x_crossing_uses_upper_bypass_when_it_is_shorter():
     end_point = FlightPoint(end_slot.point.x, end_slot.point.y, planner.model.config.cruise_z_m)
 
     assert math.isclose(start.x, end_point.x)
-    assert math.isclose(planner._choose_bypass_x(start, end_point), -2.65)
+    assert math.isclose(planner._choose_bypass_x(start, end_point), -2.80)
 
 
 

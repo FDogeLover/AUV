@@ -58,6 +58,7 @@ class WarehouseConfig:
     bottom_qr_z_m: float = 0.85
     camera_z_offset_m: float = 0.0
     scan_standoff_m: float = 0.70
+    scan_back_y_offset_m: float = 0.20
     cruise_z_m: float = 1.25
     landing_approach_z_m: float = 1.25
     landing_final_z_m: float = 0.20
@@ -138,7 +139,7 @@ class WarehouseModel:
             FaceId.B: Face(
                 FaceId.B,
                 first,
-                c.flight_y(first + c.scan_standoff_m),
+                c.flight_y(first + c.scan_standoff_m + c.scan_back_y_offset_m),
                 -1,
                 c.look_negative_y_angle_deg,
             ),
@@ -152,7 +153,7 @@ class WarehouseModel:
             FaceId.D: Face(
                 FaceId.D,
                 second,
-                c.flight_y(second + c.scan_standoff_m),
+                c.flight_y(second + c.scan_standoff_m + c.scan_back_y_offset_m),
                 -1,
                 c.look_negative_y_angle_deg,
             ),
