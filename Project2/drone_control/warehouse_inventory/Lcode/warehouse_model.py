@@ -64,7 +64,7 @@ class WarehouseConfig:
 
     # 用户依据实际机体外廓确认的下端通道；上端值仍是图纸初值，待实物确认。
     lower_bypass_x_m: float = 0.30
-    upper_bypass_x_m: float = -2.50
+    upper_bypass_x_m: float = -2.80
 
     # 云台原型当前使用0/180度。实际角度和回差之后标定。
     look_positive_y_angle_deg: float = 0.0
