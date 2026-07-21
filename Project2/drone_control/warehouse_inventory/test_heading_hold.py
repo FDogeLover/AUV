@@ -44,13 +44,14 @@ def test_low_confidence_outputs_zero_and_preserves_target():
 def test_hard_error_fault_latches_until_new_mission():
     controller = _controller(fault_error_deg=8.0)
     first = controller.update(math.radians(9.0), 3, 0.1)
-    still_faulted = controller.update(0.0, 3, 0.2)
     assert first.command_dps == 0
     assert "exceeds_limit" in first.fault_reason
-    assert still_faulted.fault_reason == first.fault_reason
-    controller.reset_for_new_mission()
-    controller.arm(0.0, 0.3)
-    assert controller.update(math.radians(3.0), 3, 0.4).command_dps == -1
+
+    # 误差回落到死区内后，故障自动重置并重新锁定当前航向
+    recovered = controller.update(math.radians(0.0), 3, 0.2)
+    assert recovered.fault_reason is None
+    assert recovered.armed is True
+    assert recovered.target_deg == 0.0
 
 
 def test_runaway_growth_latches_fault():

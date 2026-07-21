@@ -108,7 +108,15 @@ class HeadingHoldController:
             self.degraded_reason = "disabled"
             return self._status(0, current_deg, None)
         if self.fault_reason is not None:
-            return self._status(0, current_deg, self._error_for(current_deg))
+            # 故障锁死后，若误差已回落至死区内，自动重置并重新锁定当前航向。
+            # 主要应对降落时 T265 短时跟丢造成 yaw 跳变触发误锁。
+            error_deg = self._error_for(current_deg)
+            if error_deg is not None and abs(error_deg) < self.config.deadband_deg:
+                self.fault_reason = None
+                self.target_deg = current_deg
+                self._reset_runaway_window()
+                return self._status(0, current_deg, 0.0)
+            return self._status(0, current_deg, error_deg)
         if not self.armed or self.target_deg is None:
             self.degraded_reason = "not_armed"
             self._reset_runaway_window()
