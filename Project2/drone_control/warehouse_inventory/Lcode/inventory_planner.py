@@ -92,15 +92,16 @@ class InventoryPlanner:
         start_from_lower_end: bool,
         start_with_top: bool,
     ) -> List[Slot]:
+        """按行分组+S形路径：先扫完一排（从远到近），换行后反方向扫回来。"""
         slots = list(self.model.slots_for_face(face_id))
-        xs = sorted({slot.point.x for slot in slots}, reverse=start_from_lower_end)
+        z_levels = sorted({slot.point.z for slot in slots}, reverse=start_with_top)
         result: List[Slot] = []
-        for index, x in enumerate(xs):
-            column = [slot for slot in slots if abs(slot.point.x - x) < 1e-9]
-            # 从1.4m巡航高度接近时先扫上层；下一列反向，减少Z方向空行程。
-            reverse_z = start_with_top if index % 2 == 0 else not start_with_top
-            column.sort(key=lambda slot: slot.point.z, reverse=reverse_z)
-            result.extend(column)
+        for row_index, z in enumerate(z_levels):
+            row = [s for s in slots if math.isclose(s.point.z, z)]
+            # 第一行按 start_from_lower_end 方向，第二行反向（S形）
+            reverse_x = start_from_lower_end if row_index == 0 else not start_from_lower_end
+            row.sort(key=lambda s: s.point.x, reverse=reverse_x)
+            result.extend(row)
         return result
 
     def _append_face(

@@ -641,6 +641,24 @@ class InventoryMissionCoordinator:
                 waypoint_index=index,
                 slot_label=waypoint.slot_label,
             )
+
+        # 到位即扫前，快速检测 QR 是否在视野内（~100ms）。
+        # 若不在则跳过该货位，避免 T265 漂移导致 8 秒空等。
+        try:
+            frame = self.camera.read()
+            if frame is not None:
+                aim = self.camera.laser_aim_point(frame)
+                fast_check = self.decoder.detect(frame, target_point=aim)
+                if fast_check is None:
+                    logger.info(
+                        "快速FOV检测无QR，跳过货位 %s",
+                        waypoint.slot_label,
+                    )
+                    self._go(InventoryState.TRANSIT, "next_slot")
+                    return WaypointArrivalAction.ADVANCE
+        except Exception as exc:
+            logger.warning("快速FOV检测异常，继续正常扫码: %s", exc)
+
         self._go(InventoryState.VERIFY_QR, "visual_alignment_ready")
         self.start_scan(index, waypoint, position)
         return WaypointArrivalAction.ENTER_SCAN

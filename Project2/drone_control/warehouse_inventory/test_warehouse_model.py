@@ -45,7 +45,7 @@ def test_full_plan_has_all_slots_once_and_fixed_gimbal_per_face():
     set_gimbal = [p for p in route if p.kind == WaypointKind.SET_GIMBAL]
     assert [p.face for p in set_gimbal] == list(InventoryPlanner.FULL_FACE_ORDER)
     assert [p.gimbal_angle_deg for p in set_gimbal] == [0.0, 180.0, 0.0, 180.0]
-    assert 0 < planner.route_length_m(route) < 22
+    assert 0 < planner.route_length_m(route) < 28
 
 
 def test_face_scan_starts_at_previous_face_height_and_bypass_keeps_it():

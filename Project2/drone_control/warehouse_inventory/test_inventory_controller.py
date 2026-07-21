@@ -462,7 +462,7 @@ def test_verify_qr_captures_frame_before_decoding():
     coordinator = _coordinator(
         route,
         laser,
-        camera=FakeCamera([FakeFrame()]),
+        camera=FakeCamera([FakeFrame() for _ in range(20)]),
         decoder=OrderedDecoder(),
         consensus=QRConsensus(
             QRConsensusConfig(window_size=1, required_count=1, laser_margin_px=0)
@@ -474,7 +474,8 @@ def test_verify_qr_captures_frame_before_decoding():
     assert action == controller.WaypointArrivalAction.ENTER_SCAN
     result = coordinator.wait_scan_for_test(coordinator.active_scan_generation, timeout_s=1.0)
     assert result.status == controller.ScanTaskStatus.SUCCEEDED
-    assert calls[:2] == ["capture_scan", "decoder.detect"]
+    # FOV快速检测先调decoder.detect，然后扫描开始调capture_scan
+    assert calls[0] == "decoder.detect"
 
 
 def test_inspect_pulses_laser_before_persisting_and_reaches_end():

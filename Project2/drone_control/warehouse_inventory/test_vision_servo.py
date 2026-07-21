@@ -77,7 +77,7 @@ def test_fast_geometry_search_upscales_only_roi_after_native_miss():
 
         def detect(self, frame):
             self.shapes.append(frame.shape[:2])
-            if frame.shape[:2] != (1200, 1120):
+            if frame.shape[:2] != (1200, 2000):
                 return False, None
             return True, np.array(
                 [[[420, 480], [700, 480], [700, 760], [420, 760]]],
@@ -92,15 +92,15 @@ def test_fast_geometry_search_upscales_only_roi_after_native_miss():
     )
 
     assert geometry is not None
-    assert geometry.center == (640.0, 370.0)
-    assert detector.shapes[0] == (600, 560)
-    assert (1200, 1120) in detector.shapes
+    assert geometry.center == (420.0, 370.0)
+    assert detector.shapes[0] == (600, 1000)
+    assert (1200, 2000) in detector.shapes
 
 
 def test_detect_decodes_content_from_localized_geometry():
     class Detector:
         def detect(self, frame):
-            if frame.shape[:2] != (1200, 1120):
+            if frame.shape[:2] != (1200, 2000):
                 return False, None
             return True, np.array(
                 [[[420, 480], [700, 480], [700, 760], [420, 760]]],

@@ -94,7 +94,7 @@ def _detection(number=7):
 
 
 def test_qr_consensus_requires_multiple_frames_and_safe_laser_point():
-    consensus = QRConsensus(QRConsensusConfig(window_size=5, required_count=3, laser_margin_px=10))
+    consensus = QRConsensus(QRConsensusConfig(window_size=5, required_count=3, laser_margin_px=10, require_laser_inside=True))
     assert point_inside_qr(_detection().corners, (150, 150), 10) is True
     assert point_inside_qr(_detection().corners, (105, 150), 10) is False
     assert consensus.update(_detection(), (150, 150)) is None

@@ -44,7 +44,7 @@ ALLOWED_TRANSITIONS = {
     },
     InventoryState.SET_GIMBAL: {InventoryState.APPROACH_SLOT, InventoryState.RETURN, InventoryState.FAULT},
     InventoryState.APPROACH_SLOT: {InventoryState.VISUAL_ALIGN, InventoryState.RETURN, InventoryState.FAULT},
-    InventoryState.VISUAL_ALIGN: {InventoryState.VISUAL_SERVO, InventoryState.VERIFY_QR, InventoryState.RETURN, InventoryState.FAULT},
+    InventoryState.VISUAL_ALIGN: {InventoryState.VISUAL_SERVO, InventoryState.VERIFY_QR, InventoryState.TRANSIT, InventoryState.RETURN, InventoryState.FAULT},
     InventoryState.VISUAL_SERVO: {InventoryState.VERIFY_QR, InventoryState.RETURN, InventoryState.FAULT},
     InventoryState.VERIFY_QR: {
         InventoryState.VISUAL_ALIGN,
