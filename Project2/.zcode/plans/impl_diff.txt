@@ -1,0 +1,70 @@
+diff --git a/Project2/drone_control/warehouse_inventory/Lcode/inventory_controller.py b/Project2/drone_control/warehouse_inventory/Lcode/inventory_controller.py
+index abb97cc..652a50b 100644
+--- a/Project2/drone_control/warehouse_inventory/Lcode/inventory_controller.py
++++ b/Project2/drone_control/warehouse_inventory/Lcode/inventory_controller.py
+@@ -641,6 +641,24 @@ class InventoryMissionCoordinator:
+                 waypoint_index=index,
+                 slot_label=waypoint.slot_label,
+             )
++
++        # 到位即扫前，快速检测 QR 是否在视野内（~100ms）。
++        # 若不在则跳过该货位，避免 T265 漂移导致 8 秒空等。
++        try:
++            frame = self.camera.read()
++            if frame is not None:
++                aim = self.camera.laser_aim_point(frame)
++                fast_check = self.decoder.detect(frame, target_point=aim)
++                if fast_check is None:
++                    logger.info(
++                        "快速FOV检测无QR，跳过货位 %s",
++                        waypoint.slot_label,
++                    )
++                    self._go(InventoryState.TRANSIT, "next_slot")
++                    return WaypointArrivalAction.ADVANCE
++        except Exception as exc:
++            logger.warning("快速FOV检测异常，继续正常扫码: %s", exc)
++
+         self._go(InventoryState.VERIFY_QR, "visual_alignment_ready")
+         self.start_scan(index, waypoint, position)
+         return WaypointArrivalAction.ENTER_SCAN
+diff --git a/Project2/drone_control/warehouse_inventory/Lcode/inventory_planner.py b/Project2/drone_control/warehouse_inventory/Lcode/inventory_planner.py
+index f9942d9..059978b 100644
+--- a/Project2/drone_control/warehouse_inventory/Lcode/inventory_planner.py
++++ b/Project2/drone_control/warehouse_inventory/Lcode/inventory_planner.py
+@@ -92,15 +92,16 @@ class InventoryPlanner:
+         start_from_lower_end: bool,
+         start_with_top: bool,
+     ) -> List[Slot]:
++        """按行分组+S形路径：先扫完一排（从远到近），换行后反方向扫回来。"""
+         slots = list(self.model.slots_for_face(face_id))
+-        xs = sorted({slot.point.x for slot in slots}, reverse=start_from_lower_end)
++        z_levels = sorted({slot.point.z for slot in slots}, reverse=start_with_top)
+         result: List[Slot] = []
+-        for index, x in enumerate(xs):
+-            column = [slot for slot in slots if abs(slot.point.x - x) < 1e-9]
+-            # 从1.4m巡航高度接近时先扫上层；下一列反向，减少Z方向空行程。
+-            reverse_z = start_with_top if index % 2 == 0 else not start_with_top
+-            column.sort(key=lambda slot: slot.point.z, reverse=reverse_z)
+-            result.extend(column)
++        for row_index, z in enumerate(z_levels):
++            row = [s for s in slots if math.isclose(s.point.z, z)]
++            # 第一行按 start_from_lower_end 方向，第二行反向（S形）
++            reverse_x = start_from_lower_end if row_index == 0 else not start_from_lower_end
++            row.sort(key=lambda s: s.point.x, reverse=reverse_x)
++            result.extend(row)
+         return result
+ 
+     def _append_face(
+diff --git a/Project2/drone_control/warehouse_inventory/Lcode/inventory_state.py b/Project2/drone_control/warehouse_inventory/Lcode/inventory_state.py
+index 7e926a6..69b8bd1 100644
+--- a/Project2/drone_control/warehouse_inventory/Lcode/inventory_state.py
++++ b/Project2/drone_control/warehouse_inventory/Lcode/inventory_state.py
+@@ -44,7 +44,7 @@ ALLOWED_TRANSITIONS = {
+     },
+     InventoryState.SET_GIMBAL: {InventoryState.APPROACH_SLOT, InventoryState.RETURN, InventoryState.FAULT},
+     InventoryState.APPROACH_SLOT: {InventoryState.VISUAL_ALIGN, InventoryState.RETURN, InventoryState.FAULT},
+-    InventoryState.VISUAL_ALIGN: {InventoryState.VISUAL_SERVO, InventoryState.VERIFY_QR, InventoryState.RETURN, InventoryState.FAULT},
++    InventoryState.VISUAL_ALIGN: {InventoryState.VISUAL_SERVO, InventoryState.VERIFY_QR, InventoryState.TRANSIT, InventoryState.RETURN, InventoryState.FAULT},
+     InventoryState.VISUAL_SERVO: {InventoryState.VERIFY_QR, InventoryState.RETURN, InventoryState.FAULT},
+     InventoryState.VERIFY_QR: {
+         InventoryState.VISUAL_ALIGN,

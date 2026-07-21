@@ -1,0 +1,869 @@
+{"t": 1784536005.489, "event": "state_enter", "state": "BOOT", "previous": null}
+{"t": 1784536005.489, "event": "state_exit", "state": "BOOT", "next_state": "WAIT_BUTTON", "duration_s": 0.0, "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784536005.49, "event": "state_enter", "state": "WAIT_BUTTON", "previous": "BOOT", "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784536039.009, "event": "state_exit", "state": "WAIT_BUTTON", "next_state": "INIT_FLIGHT_HW", "duration_s": 33.52, "reason": "button_pressed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784536039.01, "event": "state_enter", "state": "INIT_FLIGHT_HW", "previous": "WAIT_BUTTON", "reason": "button_pressed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784536040.912, "event": "state_exit", "state": "INIT_FLIGHT_HW", "next_state": "PREFLIGHT", "duration_s": 1.903, "reason": "hardware_ready", "previous_state": "INIT_FLIGHT_HW", "route_waypoints": 9, "inspect_slots": 1, "test_slot": "A1", "scan_z_override": null}
+{"t": 1784536040.913, "event": "state_enter", "state": "PREFLIGHT", "previous": "INIT_FLIGHT_HW", "reason": "hardware_ready", "previous_state": "INIT_FLIGHT_HW", "route_waypoints": 9, "inspect_slots": 1, "test_slot": "A1", "scan_z_override": null}
+{"t": 1784536040.918, "event": "state_exit", "state": "PREFLIGHT", "next_state": "WARNING_5S", "duration_s": 0.006, "reason": "preflight_passed", "previous_state": "PREFLIGHT"}
+{"t": 1784536040.918, "event": "state_enter", "state": "WARNING_5S", "previous": "PREFLIGHT", "reason": "preflight_passed", "previous_state": "PREFLIGHT"}
+{"t": 1784536046.055, "event": "state_exit", "state": "WARNING_5S", "next_state": "TAKEOFF", "duration_s": 5.137, "reason": "flight_task_started", "previous_state": "WARNING_5S"}
+{"t": 1784536046.056, "event": "state_enter", "state": "TAKEOFF", "previous": "WARNING_5S", "reason": "flight_task_started", "previous_state": "WARNING_5S"}
+{"t": 1784536049.29, "event": "state_exit", "state": "TAKEOFF", "next_state": "TRANSIT", "duration_s": 3.235, "reason": "takeoff_complete", "previous_state": "TAKEOFF"}
+{"t": 1784536049.291, "event": "state_enter", "state": "TRANSIT", "previous": "TAKEOFF", "reason": "takeoff_complete", "previous_state": "TAKEOFF"}
+{"t": 1784536065.902, "event": "state_exit", "state": "TRANSIT", "next_state": "SET_GIMBAL", "duration_s": 16.612, "reason": "set_face", "previous_state": "TRANSIT", "face": "A"}
+{"t": 1784536065.903, "event": "state_enter", "state": "SET_GIMBAL", "previous": "TRANSIT", "reason": "set_face", "previous_state": "TRANSIT", "face": "A"}
+{"t": 1784536066.507, "event": "state_exit", "state": "SET_GIMBAL", "next_state": "APPROACH_SLOT", "duration_s": 0.604, "reason": "gimbal_set", "previous_state": "SET_GIMBAL"}
+{"t": 1784536066.507, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "SET_GIMBAL", "reason": "gimbal_set", "previous_state": "SET_GIMBAL"}
+{"t": 1784536068.654, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 2.147, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784536068.654, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784536068.654, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.001, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784536068.655, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784536076.882, "event": "fault", "state": "VERIFY_QR", "code": "qr_timeout", "waypoint_index": 3, "slot_label": "A1"}
+{"t": 1784536076.884, "event": "state_exit", "state": "VERIFY_QR", "next_state": "FAULT", "duration_s": 8.229, "reason": "qr_timeout", "previous_state": "VERIFY_QR", "waypoint_index": 3, "slot_label": "A1"}
+{"t": 1784536076.884, "event": "state_enter", "state": "FAULT", "previous": "VERIFY_QR", "reason": "qr_timeout", "previous_state": "VERIFY_QR", "waypoint_index": 3, "slot_label": "A1"}
+{"t": 1784536076.884, "event": "state_exit", "state": "FAULT", "next_state": "RETURN", "duration_s": 0.001, "reason": "fault_return", "previous_state": "FAULT", "fault_code": "qr_timeout"}
+{"t": 1784536076.884, "event": "state_enter", "state": "RETURN", "previous": "FAULT", "reason": "fault_return", "previous_state": "FAULT", "fault_code": "qr_timeout"}
+{"t": 1784536093.75, "event": "state_exit", "state": "RETURN", "next_state": "LAND", "duration_s": 16.866, "reason": "return_arrived", "previous_state": "RETURN"}
+{"t": 1784536093.75, "event": "state_enter", "state": "LAND", "previous": "RETURN", "reason": "return_arrived", "previous_state": "RETURN"}
+{"t": 1784536104.19, "event": "state_exit", "state": "LAND", "next_state": "END", "duration_s": 10.44, "reason": "land_confirmed", "previous_state": "LAND"}
+{"t": 1784536104.19, "event": "state_enter", "state": "END", "previous": "LAND", "reason": "land_confirmed", "previous_state": "LAND"}
+{"t": 1784536105.437, "event": "mission_summary", "state": "END", "complete": false, "result_count": 0, "missing_slots": ["A1"]}
+{"t": 1784537758.568, "event": "state_enter", "state": "BOOT", "previous": null}
+{"t": 1784537758.57, "event": "state_exit", "state": "BOOT", "next_state": "WAIT_BUTTON", "duration_s": 0.001, "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784537758.57, "event": "state_enter", "state": "WAIT_BUTTON", "previous": "BOOT", "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784537773.594, "event": "state_exit", "state": "WAIT_BUTTON", "next_state": "INIT_FLIGHT_HW", "duration_s": 15.025, "reason": "button_pressed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784537773.595, "event": "state_enter", "state": "INIT_FLIGHT_HW", "previous": "WAIT_BUTTON", "reason": "button_pressed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784537775.751, "event": "state_exit", "state": "INIT_FLIGHT_HW", "next_state": "PREFLIGHT", "duration_s": 2.157, "reason": "hardware_ready", "previous_state": "INIT_FLIGHT_HW", "route_waypoints": 9, "inspect_slots": 1, "test_slot": "A1", "scan_z_override": 1.25}
+{"t": 1784537775.751, "event": "state_enter", "state": "PREFLIGHT", "previous": "INIT_FLIGHT_HW", "reason": "hardware_ready", "previous_state": "INIT_FLIGHT_HW", "route_waypoints": 9, "inspect_slots": 1, "test_slot": "A1", "scan_z_override": 1.25}
+{"t": 1784537775.78, "event": "state_exit", "state": "PREFLIGHT", "next_state": "WARNING_5S", "duration_s": 0.029, "reason": "preflight_passed", "previous_state": "PREFLIGHT"}
+{"t": 1784537775.78, "event": "state_enter", "state": "WARNING_5S", "previous": "PREFLIGHT", "reason": "preflight_passed", "previous_state": "PREFLIGHT"}
+{"t": 1784537780.925, "event": "state_exit", "state": "WARNING_5S", "next_state": "TAKEOFF", "duration_s": 5.146, "reason": "flight_task_started", "previous_state": "WARNING_5S"}
+{"t": 1784537780.927, "event": "state_enter", "state": "TAKEOFF", "previous": "WARNING_5S", "reason": "flight_task_started", "previous_state": "WARNING_5S"}
+{"t": 1784537784.008, "event": "state_exit", "state": "TAKEOFF", "next_state": "TRANSIT", "duration_s": 3.082, "reason": "takeoff_complete", "previous_state": "TAKEOFF"}
+{"t": 1784537784.008, "event": "state_enter", "state": "TRANSIT", "previous": "TAKEOFF", "reason": "takeoff_complete", "previous_state": "TAKEOFF"}
+{"t": 1784537801.519, "event": "state_exit", "state": "TRANSIT", "next_state": "SET_GIMBAL", "duration_s": 17.511, "reason": "set_face", "previous_state": "TRANSIT", "face": "A"}
+{"t": 1784537801.519, "event": "state_enter", "state": "SET_GIMBAL", "previous": "TRANSIT", "reason": "set_face", "previous_state": "TRANSIT", "face": "A"}
+{"t": 1784537802.123, "event": "state_exit", "state": "SET_GIMBAL", "next_state": "APPROACH_SLOT", "duration_s": 0.604, "reason": "gimbal_set", "previous_state": "SET_GIMBAL"}
+{"t": 1784537802.124, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "SET_GIMBAL", "reason": "gimbal_set", "previous_state": "SET_GIMBAL"}
+{"t": 1784537808.638, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 6.515, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784537808.639, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784537808.64, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.002, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784537808.64, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784537816.128, "event": "state_exit", "state": "VERIFY_QR", "next_state": "ILLUMINATE", "duration_s": 7.488, "reason": "qr_verified", "previous_state": "VERIFY_QR", "cargo_id": 11}
+{"t": 1784537816.128, "event": "state_enter", "state": "ILLUMINATE", "previous": "VERIFY_QR", "reason": "qr_verified", "previous_state": "VERIFY_QR", "cargo_id": 11}
+{"t": 1784537816.629, "event": "state_exit", "state": "ILLUMINATE", "next_state": "REPORT", "duration_s": 0.501, "reason": "laser_complete", "previous_state": "ILLUMINATE", "cargo_id": 11, "slot_label": "A1"}
+{"t": 1784537816.63, "event": "state_enter", "state": "REPORT", "previous": "ILLUMINATE", "reason": "laser_complete", "previous_state": "ILLUMINATE", "cargo_id": 11, "slot_label": "A1"}
+{"t": 1784537816.63, "event": "state_exit", "state": "REPORT", "next_state": "TRANSIT", "duration_s": 0.001, "reason": "next_slot", "previous_state": "REPORT"}
+{"t": 1784537816.63, "event": "state_enter", "state": "TRANSIT", "previous": "REPORT", "reason": "next_slot", "previous_state": "REPORT"}
+{"t": 1784537841.865, "event": "state_exit", "state": "TRANSIT", "next_state": "RETURN", "duration_s": 25.235, "reason": "landing_approach", "previous_state": "TRANSIT"}
+{"t": 1784537841.865, "event": "state_enter", "state": "RETURN", "previous": "TRANSIT", "reason": "landing_approach", "previous_state": "TRANSIT"}
+{"t": 1784537848.377, "event": "state_exit", "state": "RETURN", "next_state": "LAND", "duration_s": 6.512, "reason": "landing_point", "previous_state": "RETURN"}
+{"t": 1784537848.377, "event": "state_enter", "state": "LAND", "previous": "RETURN", "reason": "landing_point", "previous_state": "RETURN"}
+{"t": 1784537850.301, "event": "state_exit", "state": "LAND", "next_state": "END", "duration_s": 1.924, "reason": "land_confirmed", "previous_state": "LAND"}
+{"t": 1784537850.302, "event": "state_enter", "state": "END", "previous": "LAND", "reason": "land_confirmed", "previous_state": "LAND"}
+{"t": 1784537850.959, "event": "mission_summary", "state": "END", "complete": true, "result_count": 1, "missing_slots": []}
+{"t": 1784538378.927, "event": "state_enter", "state": "BOOT", "previous": null}
+{"t": 1784538378.927, "event": "state_exit", "state": "BOOT", "next_state": "WAIT_BUTTON", "duration_s": 0.0, "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784538378.927, "event": "state_enter", "state": "WAIT_BUTTON", "previous": "BOOT", "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784538413.143, "event": "state_exit", "state": "WAIT_BUTTON", "next_state": "INIT_FLIGHT_HW", "duration_s": 34.216, "reason": "button_pressed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784538413.144, "event": "state_enter", "state": "INIT_FLIGHT_HW", "previous": "WAIT_BUTTON", "reason": "button_pressed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784538415.177, "event": "state_exit", "state": "INIT_FLIGHT_HW", "next_state": "PREFLIGHT", "duration_s": 2.034, "reason": "hardware_ready", "previous_state": "INIT_FLIGHT_HW", "route_waypoints": 10, "inspect_slots": 1, "test_slot": "A1", "scan_z_override": null}
+{"t": 1784538415.177, "event": "state_enter", "state": "PREFLIGHT", "previous": "INIT_FLIGHT_HW", "reason": "hardware_ready", "previous_state": "INIT_FLIGHT_HW", "route_waypoints": 10, "inspect_slots": 1, "test_slot": "A1", "scan_z_override": null}
+{"t": 1784538415.183, "event": "state_exit", "state": "PREFLIGHT", "next_state": "WARNING_5S", "duration_s": 0.006, "reason": "preflight_passed", "previous_state": "PREFLIGHT"}
+{"t": 1784538415.184, "event": "state_enter", "state": "WARNING_5S", "previous": "PREFLIGHT", "reason": "preflight_passed", "previous_state": "PREFLIGHT"}
+{"t": 1784538420.312, "event": "state_exit", "state": "WARNING_5S", "next_state": "TAKEOFF", "duration_s": 5.128, "reason": "flight_task_started", "previous_state": "WARNING_5S"}
+{"t": 1784538420.313, "event": "state_enter", "state": "TAKEOFF", "previous": "WARNING_5S", "reason": "flight_task_started", "previous_state": "WARNING_5S"}
+{"t": 1784538423.532, "event": "state_exit", "state": "TAKEOFF", "next_state": "TRANSIT", "duration_s": 3.221, "reason": "takeoff_complete", "previous_state": "TAKEOFF"}
+{"t": 1784538423.532, "event": "state_enter", "state": "TRANSIT", "previous": "TAKEOFF", "reason": "takeoff_complete", "previous_state": "TAKEOFF"}
+{"t": 1784538440.722, "event": "state_exit", "state": "TRANSIT", "next_state": "SET_GIMBAL", "duration_s": 17.189, "reason": "set_face", "previous_state": "TRANSIT", "face": "A"}
+{"t": 1784538440.722, "event": "state_enter", "state": "SET_GIMBAL", "previous": "TRANSIT", "reason": "set_face", "previous_state": "TRANSIT", "face": "A"}
+{"t": 1784538441.325, "event": "state_exit", "state": "SET_GIMBAL", "next_state": "APPROACH_SLOT", "duration_s": 0.603, "reason": "gimbal_set", "previous_state": "SET_GIMBAL"}
+{"t": 1784538441.325, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "SET_GIMBAL", "reason": "gimbal_set", "previous_state": "SET_GIMBAL"}
+{"t": 1784538443.298, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 1.973, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784538443.298, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784538443.298, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.001, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784538443.299, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784538446.235, "event": "state_exit", "state": "VERIFY_QR", "next_state": "ILLUMINATE", "duration_s": 2.936, "reason": "qr_verified", "previous_state": "VERIFY_QR", "cargo_id": 11}
+{"t": 1784538446.235, "event": "state_enter", "state": "ILLUMINATE", "previous": "VERIFY_QR", "reason": "qr_verified", "previous_state": "VERIFY_QR", "cargo_id": 11}
+{"t": 1784538446.739, "event": "state_exit", "state": "ILLUMINATE", "next_state": "REPORT", "duration_s": 0.504, "reason": "laser_complete", "previous_state": "ILLUMINATE", "cargo_id": 11, "slot_label": "A1"}
+{"t": 1784538446.739, "event": "state_enter", "state": "REPORT", "previous": "ILLUMINATE", "reason": "laser_complete", "previous_state": "ILLUMINATE", "cargo_id": 11, "slot_label": "A1"}
+{"t": 1784538446.74, "event": "state_exit", "state": "REPORT", "next_state": "TRANSIT", "duration_s": 0.002, "reason": "next_slot", "previous_state": "REPORT"}
+{"t": 1784538446.741, "event": "state_enter", "state": "TRANSIT", "previous": "REPORT", "reason": "next_slot", "previous_state": "REPORT"}
+{"t": 1784538475.218, "event": "state_exit", "state": "TRANSIT", "next_state": "RETURN", "duration_s": 28.478, "reason": "landing_approach", "previous_state": "TRANSIT"}
+{"t": 1784538475.219, "event": "state_enter", "state": "RETURN", "previous": "TRANSIT", "reason": "landing_approach", "previous_state": "TRANSIT"}
+{"t": 1784538481.731, "event": "state_exit", "state": "RETURN", "next_state": "LAND", "duration_s": 6.512, "reason": "landing_point", "previous_state": "RETURN"}
+{"t": 1784538481.731, "event": "state_enter", "state": "LAND", "previous": "RETURN", "reason": "landing_point", "previous_state": "RETURN"}
+{"t": 1784538485.936, "event": "state_exit", "state": "LAND", "next_state": "END", "duration_s": 4.205, "reason": "land_confirmed", "previous_state": "LAND"}
+{"t": 1784538485.936, "event": "state_enter", "state": "END", "previous": "LAND", "reason": "land_confirmed", "previous_state": "LAND"}
+{"t": 1784538487.112, "event": "mission_summary", "state": "END", "complete": true, "result_count": 1, "missing_slots": []}
+{"t": 1784539867.502, "event": "state_enter", "state": "BOOT", "previous": null}
+{"t": 1784539867.503, "event": "state_exit", "state": "BOOT", "next_state": "WAIT_BUTTON", "duration_s": 0.0, "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784539867.503, "event": "state_enter", "state": "WAIT_BUTTON", "previous": "BOOT", "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784539894.396, "event": "state_exit", "state": "WAIT_BUTTON", "next_state": "INIT_FLIGHT_HW", "duration_s": 26.893, "reason": "button_pressed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784539894.396, "event": "state_enter", "state": "INIT_FLIGHT_HW", "previous": "WAIT_BUTTON", "reason": "button_pressed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784539895.802, "event": "fault", "state": "INIT_FLIGHT_HW", "code": "mission_exception", "error": "name 'FaceId' is not defined"}
+{"t": 1784539895.802, "event": "state_exit", "state": "INIT_FLIGHT_HW", "next_state": "FAULT", "duration_s": 1.406, "reason": "mission_exception", "previous_state": "INIT_FLIGHT_HW", "error": "name 'FaceId' is not defined"}
+{"t": 1784539895.803, "event": "state_enter", "state": "FAULT", "previous": "INIT_FLIGHT_HW", "reason": "mission_exception", "previous_state": "INIT_FLIGHT_HW", "error": "name 'FaceId' is not defined"}
+{"t": 1784539895.803, "event": "state_exit", "state": "FAULT", "next_state": "RETURN", "duration_s": 0.0, "reason": "fault_return", "previous_state": "FAULT", "fault_code": "mission_exception"}
+{"t": 1784539895.803, "event": "state_enter", "state": "RETURN", "previous": "FAULT", "reason": "fault_return", "previous_state": "FAULT", "fault_code": "mission_exception"}
+{"t": 1784539979.195, "event": "state_enter", "state": "BOOT", "previous": null}
+{"t": 1784539979.195, "event": "state_exit", "state": "BOOT", "next_state": "WAIT_BUTTON", "duration_s": 0.0, "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784539979.196, "event": "state_enter", "state": "WAIT_BUTTON", "previous": "BOOT", "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784540010.452, "event": "state_exit", "state": "WAIT_BUTTON", "next_state": "INIT_FLIGHT_HW", "duration_s": 31.256, "reason": "button_pressed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784540010.452, "event": "state_enter", "state": "INIT_FLIGHT_HW", "previous": "WAIT_BUTTON", "reason": "button_pressed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784540012.318, "event": "state_exit", "state": "INIT_FLIGHT_HW", "next_state": "PREFLIGHT", "duration_s": 1.866, "reason": "hardware_ready", "previous_state": "INIT_FLIGHT_HW", "route_waypoints": 15, "inspect_slots": 6, "test_slot": null, "scan_z_override": null}
+{"t": 1784540012.318, "event": "state_enter", "state": "PREFLIGHT", "previous": "INIT_FLIGHT_HW", "reason": "hardware_ready", "previous_state": "INIT_FLIGHT_HW", "route_waypoints": 15, "inspect_slots": 6, "test_slot": null, "scan_z_override": null}
+{"t": 1784540012.325, "event": "state_exit", "state": "PREFLIGHT", "next_state": "WARNING_5S", "duration_s": 0.007, "reason": "preflight_passed", "previous_state": "PREFLIGHT"}
+{"t": 1784540012.325, "event": "state_enter", "state": "WARNING_5S", "previous": "PREFLIGHT", "reason": "preflight_passed", "previous_state": "PREFLIGHT"}
+{"t": 1784540017.467, "event": "state_exit", "state": "WARNING_5S", "next_state": "TAKEOFF", "duration_s": 5.143, "reason": "flight_task_started", "previous_state": "WARNING_5S"}
+{"t": 1784540017.469, "event": "state_enter", "state": "TAKEOFF", "previous": "WARNING_5S", "reason": "flight_task_started", "previous_state": "WARNING_5S"}
+{"t": 1784540020.764, "event": "state_exit", "state": "TAKEOFF", "next_state": "TRANSIT", "duration_s": 3.297, "reason": "takeoff_complete", "previous_state": "TAKEOFF"}
+{"t": 1784540020.765, "event": "state_enter", "state": "TRANSIT", "previous": "TAKEOFF", "reason": "takeoff_complete", "previous_state": "TAKEOFF"}
+{"t": 1784540040.344, "event": "state_exit", "state": "TRANSIT", "next_state": "SET_GIMBAL", "duration_s": 19.58, "reason": "set_face", "previous_state": "TRANSIT", "face": "A"}
+{"t": 1784540040.346, "event": "state_enter", "state": "SET_GIMBAL", "previous": "TRANSIT", "reason": "set_face", "previous_state": "TRANSIT", "face": "A"}
+{"t": 1784540040.949, "event": "state_exit", "state": "SET_GIMBAL", "next_state": "APPROACH_SLOT", "duration_s": 0.605, "reason": "gimbal_set", "previous_state": "SET_GIMBAL"}
+{"t": 1784540040.95, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "SET_GIMBAL", "reason": "gimbal_set", "previous_state": "SET_GIMBAL"}
+{"t": 1784540044.469, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 3.519, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784540044.469, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784540044.469, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.001, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784540044.469, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784540054.679, "event": "fault", "state": "VERIFY_QR", "code": "qr_timeout", "waypoint_index": 3, "slot_label": "A1"}
+{"t": 1784540054.679, "event": "state_exit", "state": "VERIFY_QR", "next_state": "FAULT", "duration_s": 10.21, "reason": "qr_timeout", "previous_state": "VERIFY_QR", "waypoint_index": 3, "slot_label": "A1"}
+{"t": 1784540054.679, "event": "state_enter", "state": "FAULT", "previous": "VERIFY_QR", "reason": "qr_timeout", "previous_state": "VERIFY_QR", "waypoint_index": 3, "slot_label": "A1"}
+{"t": 1784540054.68, "event": "state_exit", "state": "FAULT", "next_state": "RETURN", "duration_s": 0.001, "reason": "fault_return", "previous_state": "FAULT", "fault_code": "qr_timeout"}
+{"t": 1784540054.68, "event": "state_enter", "state": "RETURN", "previous": "FAULT", "reason": "fault_return", "previous_state": "FAULT", "fault_code": "qr_timeout"}
+{"t": 1784540076.932, "event": "mission_summary", "state": "RETURN", "complete": false, "result_count": 0, "missing_slots": ["A1", "A2", "A3", "A4", "A5", "A6"]}
+{"t": 1784540322.436, "event": "state_enter", "state": "BOOT", "previous": null}
+{"t": 1784540322.437, "event": "state_exit", "state": "BOOT", "next_state": "WAIT_BUTTON", "duration_s": 0.001, "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784540322.437, "event": "state_enter", "state": "WAIT_BUTTON", "previous": "BOOT", "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784540340.769, "event": "state_exit", "state": "WAIT_BUTTON", "next_state": "INIT_FLIGHT_HW", "duration_s": 18.331, "reason": "button_pressed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784540340.769, "event": "state_enter", "state": "INIT_FLIGHT_HW", "previous": "WAIT_BUTTON", "reason": "button_pressed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784540343.116, "event": "state_exit", "state": "INIT_FLIGHT_HW", "next_state": "PREFLIGHT", "duration_s": 2.348, "reason": "hardware_ready", "previous_state": "INIT_FLIGHT_HW", "route_waypoints": 15, "inspect_slots": 6, "test_slot": null, "scan_z_override": null}
+{"t": 1784540343.117, "event": "state_enter", "state": "PREFLIGHT", "previous": "INIT_FLIGHT_HW", "reason": "hardware_ready", "previous_state": "INIT_FLIGHT_HW", "route_waypoints": 15, "inspect_slots": 6, "test_slot": null, "scan_z_override": null}
+{"t": 1784540343.168, "event": "state_exit", "state": "PREFLIGHT", "next_state": "WARNING_5S", "duration_s": 0.052, "reason": "preflight_passed", "previous_state": "PREFLIGHT"}
+{"t": 1784540343.168, "event": "state_enter", "state": "WARNING_5S", "previous": "PREFLIGHT", "reason": "preflight_passed", "previous_state": "PREFLIGHT"}
+{"t": 1784540348.313, "event": "state_exit", "state": "WARNING_5S", "next_state": "TAKEOFF", "duration_s": 5.145, "reason": "flight_task_started", "previous_state": "WARNING_5S"}
+{"t": 1784540348.314, "event": "state_enter", "state": "TAKEOFF", "previous": "WARNING_5S", "reason": "flight_task_started", "previous_state": "WARNING_5S"}
+{"t": 1784540351.448, "event": "state_exit", "state": "TAKEOFF", "next_state": "TRANSIT", "duration_s": 3.135, "reason": "takeoff_complete", "previous_state": "TAKEOFF"}
+{"t": 1784540351.448, "event": "state_enter", "state": "TRANSIT", "previous": "TAKEOFF", "reason": "takeoff_complete", "previous_state": "TAKEOFF"}
+{"t": 1784540371.025, "event": "state_exit", "state": "TRANSIT", "next_state": "SET_GIMBAL", "duration_s": 19.577, "reason": "set_face", "previous_state": "TRANSIT", "face": "A"}
+{"t": 1784540371.025, "event": "state_enter", "state": "SET_GIMBAL", "previous": "TRANSIT", "reason": "set_face", "previous_state": "TRANSIT", "face": "A"}
+{"t": 1784540371.627, "event": "state_exit", "state": "SET_GIMBAL", "next_state": "APPROACH_SLOT", "duration_s": 0.602, "reason": "gimbal_set", "previous_state": "SET_GIMBAL"}
+{"t": 1784540371.627, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "SET_GIMBAL", "reason": "gimbal_set", "previous_state": "SET_GIMBAL"}
+{"t": 1784540373.623, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 1.996, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784540373.623, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784540373.624, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.0, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784540373.624, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784540374.545, "event": "state_exit", "state": "VERIFY_QR", "next_state": "ILLUMINATE", "duration_s": 0.922, "reason": "qr_verified", "previous_state": "VERIFY_QR", "cargo_id": 11}
+{"t": 1784540374.546, "event": "state_enter", "state": "ILLUMINATE", "previous": "VERIFY_QR", "reason": "qr_verified", "previous_state": "VERIFY_QR", "cargo_id": 11}
+{"t": 1784540375.056, "event": "state_exit", "state": "ILLUMINATE", "next_state": "REPORT", "duration_s": 0.511, "reason": "laser_complete", "previous_state": "ILLUMINATE", "cargo_id": 11, "slot_label": "A1"}
+{"t": 1784540375.061, "event": "state_enter", "state": "REPORT", "previous": "ILLUMINATE", "reason": "laser_complete", "previous_state": "ILLUMINATE", "cargo_id": 11, "slot_label": "A1"}
+{"t": 1784540375.063, "event": "state_exit", "state": "REPORT", "next_state": "TRANSIT", "duration_s": 0.007, "reason": "next_slot", "previous_state": "REPORT"}
+{"t": 1784540375.064, "event": "state_enter", "state": "TRANSIT", "previous": "REPORT", "reason": "next_slot", "previous_state": "REPORT"}
+{"t": 1784540381.586, "event": "state_exit", "state": "TRANSIT", "next_state": "APPROACH_SLOT", "duration_s": 6.523, "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A4"}
+{"t": 1784540381.586, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "TRANSIT", "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A4"}
+{"t": 1784540381.588, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 0.002, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784540381.588, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784540381.588, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.0, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784540381.588, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784540391.809, "event": "fault", "state": "VERIFY_QR", "code": "qr_timeout", "waypoint_index": 4, "slot_label": "A4"}
+{"t": 1784540391.81, "event": "state_exit", "state": "VERIFY_QR", "next_state": "FAULT", "duration_s": 10.222, "reason": "qr_timeout", "previous_state": "VERIFY_QR", "waypoint_index": 4, "slot_label": "A4"}
+{"t": 1784540391.81, "event": "state_enter", "state": "FAULT", "previous": "VERIFY_QR", "reason": "qr_timeout", "previous_state": "VERIFY_QR", "waypoint_index": 4, "slot_label": "A4"}
+{"t": 1784540391.81, "event": "state_exit", "state": "FAULT", "next_state": "RETURN", "duration_s": 0.0, "reason": "fault_return", "previous_state": "FAULT", "fault_code": "qr_timeout"}
+{"t": 1784540391.81, "event": "state_enter", "state": "RETURN", "previous": "FAULT", "reason": "fault_return", "previous_state": "FAULT", "fault_code": "qr_timeout"}
+{"t": 1784540410.431, "event": "state_exit", "state": "RETURN", "next_state": "LAND", "duration_s": 18.62, "reason": "return_arrived", "previous_state": "RETURN"}
+{"t": 1784540410.431, "event": "state_enter", "state": "LAND", "previous": "RETURN", "reason": "return_arrived", "previous_state": "RETURN"}
+{"t": 1784540419.123, "event": "state_exit", "state": "LAND", "next_state": "END", "duration_s": 8.693, "reason": "land_confirmed", "previous_state": "LAND"}
+{"t": 1784540419.124, "event": "state_enter", "state": "END", "previous": "LAND", "reason": "land_confirmed", "previous_state": "LAND"}
+{"t": 1784540420.414, "event": "mission_summary", "state": "END", "complete": false, "result_count": 1, "missing_slots": ["A2", "A3", "A4", "A5", "A6"]}
+{"t": 1784541075.671, "event": "state_enter", "state": "BOOT", "previous": null}
+{"t": 1784541075.672, "event": "state_exit", "state": "BOOT", "next_state": "WAIT_BUTTON", "duration_s": 0.0, "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784541075.672, "event": "state_enter", "state": "WAIT_BUTTON", "previous": "BOOT", "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784541184.037, "event": "state_exit", "state": "WAIT_BUTTON", "next_state": "INIT_FLIGHT_HW", "duration_s": 108.365, "reason": "button_pressed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784541184.037, "event": "state_enter", "state": "INIT_FLIGHT_HW", "previous": "WAIT_BUTTON", "reason": "button_pressed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784541185.912, "event": "state_exit", "state": "INIT_FLIGHT_HW", "next_state": "PREFLIGHT", "duration_s": 1.875, "reason": "hardware_ready", "previous_state": "INIT_FLIGHT_HW", "route_waypoints": 15, "inspect_slots": 6, "test_slot": null, "scan_z_override": null}
+{"t": 1784541185.912, "event": "state_enter", "state": "PREFLIGHT", "previous": "INIT_FLIGHT_HW", "reason": "hardware_ready", "previous_state": "INIT_FLIGHT_HW", "route_waypoints": 15, "inspect_slots": 6, "test_slot": null, "scan_z_override": null}
+{"t": 1784541185.92, "event": "state_exit", "state": "PREFLIGHT", "next_state": "WARNING_5S", "duration_s": 0.008, "reason": "preflight_passed", "previous_state": "PREFLIGHT"}
+{"t": 1784541185.92, "event": "state_enter", "state": "WARNING_5S", "previous": "PREFLIGHT", "reason": "preflight_passed", "previous_state": "PREFLIGHT"}
+{"t": 1784541191.067, "event": "state_exit", "state": "WARNING_5S", "next_state": "TAKEOFF", "duration_s": 5.147, "reason": "flight_task_started", "previous_state": "WARNING_5S"}
+{"t": 1784541191.068, "event": "state_enter", "state": "TAKEOFF", "previous": "WARNING_5S", "reason": "flight_task_started", "previous_state": "WARNING_5S"}
+{"t": 1784541194.175, "event": "state_exit", "state": "TAKEOFF", "next_state": "TRANSIT", "duration_s": 3.108, "reason": "takeoff_complete", "previous_state": "TAKEOFF"}
+{"t": 1784541194.176, "event": "state_enter", "state": "TRANSIT", "previous": "TAKEOFF", "reason": "takeoff_complete", "previous_state": "TAKEOFF"}
+{"t": 1784541211.296, "event": "state_exit", "state": "TRANSIT", "next_state": "SET_GIMBAL", "duration_s": 17.12, "reason": "set_face", "previous_state": "TRANSIT", "face": "A"}
+{"t": 1784541211.296, "event": "state_enter", "state": "SET_GIMBAL", "previous": "TRANSIT", "reason": "set_face", "previous_state": "TRANSIT", "face": "A"}
+{"t": 1784541211.899, "event": "state_exit", "state": "SET_GIMBAL", "next_state": "APPROACH_SLOT", "duration_s": 0.603, "reason": "gimbal_set", "previous_state": "SET_GIMBAL"}
+{"t": 1784541211.899, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "SET_GIMBAL", "reason": "gimbal_set", "previous_state": "SET_GIMBAL"}
+{"t": 1784541213.913, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 2.015, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784541213.914, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784541213.914, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.001, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784541213.914, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784541216.605, "event": "fault", "state": "VERIFY_QR", "code": "decode_exception", "waypoint_index": 3, "slot_label": "A1"}
+{"t": 1784541216.606, "event": "state_exit", "state": "VERIFY_QR", "next_state": "FAULT", "duration_s": 2.692, "reason": "decode_exception", "previous_state": "VERIFY_QR", "waypoint_index": 3, "slot_label": "A1"}
+{"t": 1784541216.606, "event": "state_enter", "state": "FAULT", "previous": "VERIFY_QR", "reason": "decode_exception", "previous_state": "VERIFY_QR", "waypoint_index": 3, "slot_label": "A1"}
+{"t": 1784541216.606, "event": "state_exit", "state": "FAULT", "next_state": "RETURN", "duration_s": 0.001, "reason": "fault_return", "previous_state": "FAULT", "fault_code": "decode_exception"}
+{"t": 1784541216.607, "event": "state_enter", "state": "RETURN", "previous": "FAULT", "reason": "fault_return", "previous_state": "FAULT", "fault_code": "decode_exception"}
+{"t": 1784541237.923, "event": "mission_summary", "state": "RETURN", "complete": false, "result_count": 0, "missing_slots": ["A1", "A2", "A3", "A4", "A5", "A6"]}
+{"t": 1784628112.217, "event": "state_enter", "state": "BOOT", "previous": null}
+{"t": 1784628112.221, "event": "state_exit", "state": "BOOT", "next_state": "WAIT_BUTTON", "duration_s": 0.004, "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784628112.221, "event": "state_enter", "state": "WAIT_BUTTON", "previous": "BOOT", "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784628150.943, "event": "state_exit", "state": "WAIT_BUTTON", "next_state": "INIT_FLIGHT_HW", "duration_s": 38.722, "reason": "button_pressed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784628150.943, "event": "state_enter", "state": "INIT_FLIGHT_HW", "previous": "WAIT_BUTTON", "reason": "button_pressed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784628153.209, "event": "state_exit", "state": "INIT_FLIGHT_HW", "next_state": "PREFLIGHT", "duration_s": 2.266, "reason": "hardware_ready", "previous_state": "INIT_FLIGHT_HW", "route_waypoints": 15, "inspect_slots": 6, "test_slot": null, "scan_z_override": null}
+{"t": 1784628153.209, "event": "state_enter", "state": "PREFLIGHT", "previous": "INIT_FLIGHT_HW", "reason": "hardware_ready", "previous_state": "INIT_FLIGHT_HW", "route_waypoints": 15, "inspect_slots": 6, "test_slot": null, "scan_z_override": null}
+{"t": 1784628153.263, "event": "state_exit", "state": "PREFLIGHT", "next_state": "WARNING_5S", "duration_s": 0.054, "reason": "preflight_passed", "previous_state": "PREFLIGHT"}
+{"t": 1784628153.263, "event": "state_enter", "state": "WARNING_5S", "previous": "PREFLIGHT", "reason": "preflight_passed", "previous_state": "PREFLIGHT"}
+{"t": 1784628158.407, "event": "state_exit", "state": "WARNING_5S", "next_state": "TAKEOFF", "duration_s": 5.144, "reason": "flight_task_started", "previous_state": "WARNING_5S"}
+{"t": 1784628158.407, "event": "state_enter", "state": "TAKEOFF", "previous": "WARNING_5S", "reason": "flight_task_started", "previous_state": "WARNING_5S"}
+{"t": 1784628162.717, "event": "state_exit", "state": "TAKEOFF", "next_state": "TRANSIT", "duration_s": 4.311, "reason": "takeoff_complete", "previous_state": "TAKEOFF"}
+{"t": 1784628162.717, "event": "state_enter", "state": "TRANSIT", "previous": "TAKEOFF", "reason": "takeoff_complete", "previous_state": "TAKEOFF"}
+{"t": 1784628181.72, "event": "state_exit", "state": "TRANSIT", "next_state": "SET_GIMBAL", "duration_s": 19.003, "reason": "set_face", "previous_state": "TRANSIT", "face": "A"}
+{"t": 1784628181.722, "event": "state_enter", "state": "SET_GIMBAL", "previous": "TRANSIT", "reason": "set_face", "previous_state": "TRANSIT", "face": "A"}
+{"t": 1784628182.326, "event": "state_exit", "state": "SET_GIMBAL", "next_state": "APPROACH_SLOT", "duration_s": 0.606, "reason": "gimbal_set", "previous_state": "SET_GIMBAL"}
+{"t": 1784628182.327, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "SET_GIMBAL", "reason": "gimbal_set", "previous_state": "SET_GIMBAL"}
+{"t": 1784628184.327, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 2.001, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784628184.328, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784628184.331, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.004, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784628184.331, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784628188.255, "event": "state_exit", "state": "VERIFY_QR", "next_state": "ILLUMINATE", "duration_s": 3.924, "reason": "qr_verified", "previous_state": "VERIFY_QR", "cargo_id": 11}
+{"t": 1784628188.255, "event": "state_enter", "state": "ILLUMINATE", "previous": "VERIFY_QR", "reason": "qr_verified", "previous_state": "VERIFY_QR", "cargo_id": 11}
+{"t": 1784628188.76, "event": "state_exit", "state": "ILLUMINATE", "next_state": "REPORT", "duration_s": 0.505, "reason": "laser_complete", "previous_state": "ILLUMINATE", "cargo_id": 11, "slot_label": "A1"}
+{"t": 1784628188.76, "event": "state_enter", "state": "REPORT", "previous": "ILLUMINATE", "reason": "laser_complete", "previous_state": "ILLUMINATE", "cargo_id": 11, "slot_label": "A1"}
+{"t": 1784628188.76, "event": "state_exit", "state": "REPORT", "next_state": "TRANSIT", "duration_s": 0.001, "reason": "next_slot", "previous_state": "REPORT"}
+{"t": 1784628188.762, "event": "state_enter", "state": "TRANSIT", "previous": "REPORT", "reason": "next_slot", "previous_state": "REPORT"}
+{"t": 1784628195.279, "event": "state_exit", "state": "TRANSIT", "next_state": "APPROACH_SLOT", "duration_s": 6.519, "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A4"}
+{"t": 1784628195.28, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "TRANSIT", "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A4"}
+{"t": 1784628195.28, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 0.001, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784628195.28, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784628195.28, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.0, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784628195.28, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784628203.479, "event": "state_exit", "state": "VERIFY_QR", "next_state": "ILLUMINATE", "duration_s": 8.199, "reason": "qr_verified", "previous_state": "VERIFY_QR", "cargo_id": 20}
+{"t": 1784628203.48, "event": "state_enter", "state": "ILLUMINATE", "previous": "VERIFY_QR", "reason": "qr_verified", "previous_state": "VERIFY_QR", "cargo_id": 20}
+{"t": 1784628203.986, "event": "state_exit", "state": "ILLUMINATE", "next_state": "REPORT", "duration_s": 0.507, "reason": "laser_complete", "previous_state": "ILLUMINATE", "cargo_id": 20, "slot_label": "A4"}
+{"t": 1784628203.987, "event": "state_enter", "state": "REPORT", "previous": "ILLUMINATE", "reason": "laser_complete", "previous_state": "ILLUMINATE", "cargo_id": 20, "slot_label": "A4"}
+{"t": 1784628203.987, "event": "state_exit", "state": "REPORT", "next_state": "TRANSIT", "duration_s": 0.001, "reason": "next_slot", "previous_state": "REPORT"}
+{"t": 1784628203.989, "event": "state_enter", "state": "TRANSIT", "previous": "REPORT", "reason": "next_slot", "previous_state": "REPORT"}
+{"t": 1784628209.054, "event": "state_exit", "state": "TRANSIT", "next_state": "APPROACH_SLOT", "duration_s": 5.067, "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A5"}
+{"t": 1784628209.056, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "TRANSIT", "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A5"}
+{"t": 1784628209.057, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 0.002, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784628209.057, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784628209.057, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.001, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784628209.057, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784628221.383, "event": "fault", "state": "VERIFY_QR", "code": "flight_loop_exception", "error": "非法状态转移: VERIFY_QR -> APPROACH_SLOT", "flight_state": "NAVIGATE"}
+{"t": 1784628221.383, "event": "state_exit", "state": "VERIFY_QR", "next_state": "FAULT", "duration_s": 12.326, "reason": "flight_loop_exception", "previous_state": "VERIFY_QR", "error": "非法状态转移: VERIFY_QR -> APPROACH_SLOT", "flight_state": "NAVIGATE"}
+{"t": 1784628221.384, "event": "state_enter", "state": "FAULT", "previous": "VERIFY_QR", "reason": "flight_loop_exception", "previous_state": "VERIFY_QR", "error": "非法状态转移: VERIFY_QR -> APPROACH_SLOT", "flight_state": "NAVIGATE"}
+{"t": 1784628221.384, "event": "state_exit", "state": "FAULT", "next_state": "LAND", "duration_s": 0.0, "reason": "flight_loop_exception_land", "previous_state": "FAULT", "flight_state": "NAVIGATE"}
+{"t": 1784628221.384, "event": "state_enter", "state": "LAND", "previous": "FAULT", "reason": "flight_loop_exception_land", "previous_state": "FAULT", "flight_state": "NAVIGATE"}
+{"t": 1784628230.396, "event": "state_exit", "state": "LAND", "next_state": "END", "duration_s": 9.012, "reason": "land_confirmed", "previous_state": "LAND"}
+{"t": 1784628230.396, "event": "state_enter", "state": "END", "previous": "LAND", "reason": "land_confirmed", "previous_state": "LAND"}
+{"t": 1784628231.365, "event": "mission_summary", "state": "END", "complete": false, "result_count": 2, "missing_slots": ["A2", "A3", "A5", "A6"]}
+{"t": 1784628945.983, "event": "state_enter", "state": "BOOT", "previous": null}
+{"t": 1784628945.983, "event": "state_exit", "state": "BOOT", "next_state": "WAIT_BUTTON", "duration_s": 0.0, "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784628945.984, "event": "state_enter", "state": "WAIT_BUTTON", "previous": "BOOT", "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784629029.365, "event": "state_exit", "state": "WAIT_BUTTON", "next_state": "INIT_FLIGHT_HW", "duration_s": 83.381, "reason": "button_pressed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784629029.365, "event": "state_enter", "state": "INIT_FLIGHT_HW", "previous": "WAIT_BUTTON", "reason": "button_pressed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784629031.178, "event": "state_exit", "state": "INIT_FLIGHT_HW", "next_state": "PREFLIGHT", "duration_s": 1.813, "reason": "hardware_ready", "previous_state": "INIT_FLIGHT_HW", "route_waypoints": 15, "inspect_slots": 6, "test_slot": null, "scan_z_override": null}
+{"t": 1784629031.178, "event": "state_enter", "state": "PREFLIGHT", "previous": "INIT_FLIGHT_HW", "reason": "hardware_ready", "previous_state": "INIT_FLIGHT_HW", "route_waypoints": 15, "inspect_slots": 6, "test_slot": null, "scan_z_override": null}
+{"t": 1784629031.185, "event": "state_exit", "state": "PREFLIGHT", "next_state": "WARNING_5S", "duration_s": 0.006, "reason": "preflight_passed", "previous_state": "PREFLIGHT"}
+{"t": 1784629031.185, "event": "state_enter", "state": "WARNING_5S", "previous": "PREFLIGHT", "reason": "preflight_passed", "previous_state": "PREFLIGHT"}
+{"t": 1784629036.328, "event": "state_exit", "state": "WARNING_5S", "next_state": "TAKEOFF", "duration_s": 5.143, "reason": "flight_task_started", "previous_state": "WARNING_5S"}
+{"t": 1784629036.328, "event": "state_enter", "state": "TAKEOFF", "previous": "WARNING_5S", "reason": "flight_task_started", "previous_state": "WARNING_5S"}
+{"t": 1784629039.568, "event": "state_exit", "state": "TAKEOFF", "next_state": "TRANSIT", "duration_s": 3.241, "reason": "takeoff_complete", "previous_state": "TAKEOFF"}
+{"t": 1784629039.568, "event": "state_enter", "state": "TRANSIT", "previous": "TAKEOFF", "reason": "takeoff_complete", "previous_state": "TAKEOFF"}
+{"t": 1784629055.857, "event": "state_exit", "state": "TRANSIT", "next_state": "SET_GIMBAL", "duration_s": 16.289, "reason": "set_face", "previous_state": "TRANSIT", "face": "A"}
+{"t": 1784629055.858, "event": "state_enter", "state": "SET_GIMBAL", "previous": "TRANSIT", "reason": "set_face", "previous_state": "TRANSIT", "face": "A"}
+{"t": 1784629056.461, "event": "state_exit", "state": "SET_GIMBAL", "next_state": "APPROACH_SLOT", "duration_s": 0.604, "reason": "gimbal_set", "previous_state": "SET_GIMBAL"}
+{"t": 1784629056.463, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "SET_GIMBAL", "reason": "gimbal_set", "previous_state": "SET_GIMBAL"}
+{"t": 1784629059.933, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 3.472, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784629059.933, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784629059.934, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.001, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784629059.934, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784629068.232, "event": "state_exit", "state": "VERIFY_QR", "next_state": "TRANSIT", "duration_s": 8.298, "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784629068.232, "event": "state_enter", "state": "TRANSIT", "previous": "VERIFY_QR", "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784629071.687, "event": "state_exit", "state": "TRANSIT", "next_state": "APPROACH_SLOT", "duration_s": 3.455, "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A4"}
+{"t": 1784629071.687, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "TRANSIT", "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A4"}
+{"t": 1784629071.687, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 0.0, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784629071.687, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784629071.687, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.0, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784629071.687, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784629080.409, "event": "state_exit", "state": "VERIFY_QR", "next_state": "TRANSIT", "duration_s": 8.722, "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784629080.409, "event": "state_enter", "state": "TRANSIT", "previous": "VERIFY_QR", "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784629085.968, "event": "state_exit", "state": "TRANSIT", "next_state": "APPROACH_SLOT", "duration_s": 5.559, "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A5"}
+{"t": 1784629085.968, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "TRANSIT", "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A5"}
+{"t": 1784629085.968, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 0.0, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784629085.968, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784629085.969, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.0, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784629085.969, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784629094.648, "event": "state_exit", "state": "VERIFY_QR", "next_state": "TRANSIT", "duration_s": 8.679, "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784629094.648, "event": "state_enter", "state": "TRANSIT", "previous": "VERIFY_QR", "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784629097.807, "event": "state_exit", "state": "TRANSIT", "next_state": "APPROACH_SLOT", "duration_s": 3.159, "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A2"}
+{"t": 1784629097.809, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "TRANSIT", "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A2"}
+{"t": 1784629097.81, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 0.003, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784629097.81, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784629097.811, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.002, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784629097.811, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784629106.488, "event": "state_exit", "state": "VERIFY_QR", "next_state": "TRANSIT", "duration_s": 8.677, "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784629106.489, "event": "state_enter", "state": "TRANSIT", "previous": "VERIFY_QR", "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784629111.78, "event": "state_exit", "state": "TRANSIT", "next_state": "APPROACH_SLOT", "duration_s": 5.292, "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A3"}
+{"t": 1784629111.78, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "TRANSIT", "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A3"}
+{"t": 1784629111.78, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 0.001, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784629111.78, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784629111.781, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.0, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784629111.781, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784629120.914, "event": "state_exit", "state": "VERIFY_QR", "next_state": "TRANSIT", "duration_s": 9.133, "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784629120.914, "event": "state_enter", "state": "TRANSIT", "previous": "VERIFY_QR", "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784629124.186, "event": "state_exit", "state": "TRANSIT", "next_state": "APPROACH_SLOT", "duration_s": 3.273, "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A6"}
+{"t": 1784629124.187, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "TRANSIT", "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A6"}
+{"t": 1784629124.187, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 0.001, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784629124.187, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784629124.187, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.0, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784629124.187, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784629132.664, "event": "state_exit", "state": "VERIFY_QR", "next_state": "TRANSIT", "duration_s": 8.476, "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784629132.664, "event": "state_enter", "state": "TRANSIT", "previous": "VERIFY_QR", "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784629165.252, "event": "state_exit", "state": "TRANSIT", "next_state": "RETURN", "duration_s": 32.589, "reason": "landing_approach", "previous_state": "TRANSIT"}
+{"t": 1784629165.253, "event": "state_enter", "state": "RETURN", "previous": "TRANSIT", "reason": "landing_approach", "previous_state": "TRANSIT"}
+{"t": 1784629171.694, "event": "state_exit", "state": "RETURN", "next_state": "LAND", "duration_s": 6.441, "reason": "landing_point", "previous_state": "RETURN"}
+{"t": 1784629171.694, "event": "state_enter", "state": "LAND", "previous": "RETURN", "reason": "landing_point", "previous_state": "RETURN"}
+{"t": 1784629173.667, "event": "state_exit", "state": "LAND", "next_state": "END", "duration_s": 1.974, "reason": "land_confirmed", "previous_state": "LAND"}
+{"t": 1784629173.667, "event": "state_enter", "state": "END", "previous": "LAND", "reason": "land_confirmed", "previous_state": "LAND"}
+{"t": 1784629174.593, "event": "mission_summary", "state": "END", "complete": false, "result_count": 0, "missing_slots": ["A1", "A2", "A3", "A4", "A5", "A6"]}
+{"t": 1784629873.898, "event": "state_enter", "state": "BOOT", "previous": null}
+{"t": 1784629873.9, "event": "state_exit", "state": "BOOT", "next_state": "WAIT_BUTTON", "duration_s": 0.001, "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784629873.9, "event": "state_enter", "state": "WAIT_BUTTON", "previous": "BOOT", "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784629898.053, "event": "state_exit", "state": "WAIT_BUTTON", "next_state": "INIT_FLIGHT_HW", "duration_s": 24.153, "reason": "button_pressed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784629898.053, "event": "state_enter", "state": "INIT_FLIGHT_HW", "previous": "WAIT_BUTTON", "reason": "button_pressed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784629900.321, "event": "state_exit", "state": "INIT_FLIGHT_HW", "next_state": "PREFLIGHT", "duration_s": 2.268, "reason": "hardware_ready", "previous_state": "INIT_FLIGHT_HW", "route_waypoints": 15, "inspect_slots": 6, "test_slot": null, "scan_z_override": null}
+{"t": 1784629900.321, "event": "state_enter", "state": "PREFLIGHT", "previous": "INIT_FLIGHT_HW", "reason": "hardware_ready", "previous_state": "INIT_FLIGHT_HW", "route_waypoints": 15, "inspect_slots": 6, "test_slot": null, "scan_z_override": null}
+{"t": 1784629900.371, "event": "state_exit", "state": "PREFLIGHT", "next_state": "WARNING_5S", "duration_s": 0.051, "reason": "preflight_passed", "previous_state": "PREFLIGHT"}
+{"t": 1784629900.372, "event": "state_enter", "state": "WARNING_5S", "previous": "PREFLIGHT", "reason": "preflight_passed", "previous_state": "PREFLIGHT"}
+{"t": 1784629905.517, "event": "state_exit", "state": "WARNING_5S", "next_state": "TAKEOFF", "duration_s": 5.145, "reason": "flight_task_started", "previous_state": "WARNING_5S"}
+{"t": 1784629905.519, "event": "state_enter", "state": "TAKEOFF", "previous": "WARNING_5S", "reason": "flight_task_started", "previous_state": "WARNING_5S"}
+{"t": 1784629908.684, "event": "state_exit", "state": "TAKEOFF", "next_state": "TRANSIT", "duration_s": 3.167, "reason": "takeoff_complete", "previous_state": "TAKEOFF"}
+{"t": 1784629908.684, "event": "state_enter", "state": "TRANSIT", "previous": "TAKEOFF", "reason": "takeoff_complete", "previous_state": "TAKEOFF"}
+{"t": 1784629924.484, "event": "state_exit", "state": "TRANSIT", "next_state": "SET_GIMBAL", "duration_s": 15.8, "reason": "set_face", "previous_state": "TRANSIT", "face": "A"}
+{"t": 1784629924.486, "event": "state_enter", "state": "SET_GIMBAL", "previous": "TRANSIT", "reason": "set_face", "previous_state": "TRANSIT", "face": "A"}
+{"t": 1784629925.089, "event": "state_exit", "state": "SET_GIMBAL", "next_state": "APPROACH_SLOT", "duration_s": 0.605, "reason": "gimbal_set", "previous_state": "SET_GIMBAL"}
+{"t": 1784629925.089, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "SET_GIMBAL", "reason": "gimbal_set", "previous_state": "SET_GIMBAL"}
+{"t": 1784629927.083, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 1.994, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784629927.084, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784629927.085, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.002, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784629927.085, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784629934.261, "event": "state_exit", "state": "VERIFY_QR", "next_state": "ILLUMINATE", "duration_s": 7.177, "reason": "qr_verified", "previous_state": "VERIFY_QR", "cargo_id": 11}
+{"t": 1784629934.262, "event": "state_enter", "state": "ILLUMINATE", "previous": "VERIFY_QR", "reason": "qr_verified", "previous_state": "VERIFY_QR", "cargo_id": 11}
+{"t": 1784629934.765, "event": "state_exit", "state": "ILLUMINATE", "next_state": "REPORT", "duration_s": 0.504, "reason": "laser_complete", "previous_state": "ILLUMINATE", "cargo_id": 11, "slot_label": "A1"}
+{"t": 1784629934.766, "event": "state_enter", "state": "REPORT", "previous": "ILLUMINATE", "reason": "laser_complete", "previous_state": "ILLUMINATE", "cargo_id": 11, "slot_label": "A1"}
+{"t": 1784629934.766, "event": "state_exit", "state": "REPORT", "next_state": "TRANSIT", "duration_s": 0.0, "reason": "next_slot", "previous_state": "REPORT"}
+{"t": 1784629934.766, "event": "state_enter", "state": "TRANSIT", "previous": "REPORT", "reason": "next_slot", "previous_state": "REPORT"}
+{"t": 1784629938.0, "event": "state_exit", "state": "TRANSIT", "next_state": "APPROACH_SLOT", "duration_s": 3.234, "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A4"}
+{"t": 1784629938.0, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "TRANSIT", "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A4"}
+{"t": 1784629938.001, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 0.0, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784629938.001, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784629938.001, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.0, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784629938.001, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784629944.07, "event": "state_exit", "state": "VERIFY_QR", "next_state": "ILLUMINATE", "duration_s": 6.069, "reason": "qr_verified", "previous_state": "VERIFY_QR", "cargo_id": 20}
+{"t": 1784629944.071, "event": "state_enter", "state": "ILLUMINATE", "previous": "VERIFY_QR", "reason": "qr_verified", "previous_state": "VERIFY_QR", "cargo_id": 20}
+{"t": 1784629944.574, "event": "state_exit", "state": "ILLUMINATE", "next_state": "REPORT", "duration_s": 0.504, "reason": "laser_complete", "previous_state": "ILLUMINATE", "cargo_id": 20, "slot_label": "A4"}
+{"t": 1784629944.574, "event": "state_enter", "state": "REPORT", "previous": "ILLUMINATE", "reason": "laser_complete", "previous_state": "ILLUMINATE", "cargo_id": 20, "slot_label": "A4"}
+{"t": 1784629944.575, "event": "state_exit", "state": "REPORT", "next_state": "TRANSIT", "duration_s": 0.001, "reason": "next_slot", "previous_state": "REPORT"}
+{"t": 1784629944.575, "event": "state_enter", "state": "TRANSIT", "previous": "REPORT", "reason": "next_slot", "previous_state": "REPORT"}
+{"t": 1784629950.484, "event": "state_exit", "state": "TRANSIT", "next_state": "APPROACH_SLOT", "duration_s": 5.91, "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A5"}
+{"t": 1784629950.484, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "TRANSIT", "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A5"}
+{"t": 1784629950.485, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 0.0, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784629950.485, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784629950.485, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.0, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784629950.485, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784629958.934, "event": "state_exit", "state": "VERIFY_QR", "next_state": "TRANSIT", "duration_s": 8.449, "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784629958.936, "event": "state_enter", "state": "TRANSIT", "previous": "VERIFY_QR", "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784629962.111, "event": "state_exit", "state": "TRANSIT", "next_state": "APPROACH_SLOT", "duration_s": 3.177, "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A2"}
+{"t": 1784629962.111, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "TRANSIT", "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A2"}
+{"t": 1784629962.111, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 0.0, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784629962.111, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784629962.112, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.001, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784629962.112, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784629971.253, "event": "state_exit", "state": "VERIFY_QR", "next_state": "TRANSIT", "duration_s": 9.14, "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784629971.253, "event": "state_enter", "state": "TRANSIT", "previous": "VERIFY_QR", "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784629977.763, "event": "state_exit", "state": "TRANSIT", "next_state": "APPROACH_SLOT", "duration_s": 6.51, "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A3"}
+{"t": 1784629977.763, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "TRANSIT", "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A3"}
+{"t": 1784629977.765, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 0.002, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784629977.765, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784629977.765, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.0, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784629977.765, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784629985.984, "event": "state_exit", "state": "VERIFY_QR", "next_state": "TRANSIT", "duration_s": 8.219, "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784629985.984, "event": "state_enter", "state": "TRANSIT", "previous": "VERIFY_QR", "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784629990.134, "event": "state_exit", "state": "TRANSIT", "next_state": "APPROACH_SLOT", "duration_s": 4.15, "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A6"}
+{"t": 1784629990.134, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "TRANSIT", "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A6"}
+{"t": 1784629990.134, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 0.001, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784629990.136, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784629990.136, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.002, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784629990.137, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784629998.299, "event": "state_exit", "state": "VERIFY_QR", "next_state": "TRANSIT", "duration_s": 8.163, "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784629998.299, "event": "state_enter", "state": "TRANSIT", "previous": "VERIFY_QR", "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784630024.851, "event": "state_exit", "state": "TRANSIT", "next_state": "RETURN", "duration_s": 26.552, "reason": "landing_approach", "previous_state": "TRANSIT"}
+{"t": 1784630024.851, "event": "state_enter", "state": "RETURN", "previous": "TRANSIT", "reason": "landing_approach", "previous_state": "TRANSIT"}
+{"t": 1784630030.414, "event": "state_exit", "state": "RETURN", "next_state": "LAND", "duration_s": 5.563, "reason": "landing_point", "previous_state": "RETURN"}
+{"t": 1784630030.415, "event": "state_enter", "state": "LAND", "previous": "RETURN", "reason": "landing_point", "previous_state": "RETURN"}
+{"t": 1784630033.478, "event": "state_exit", "state": "LAND", "next_state": "END", "duration_s": 3.064, "reason": "land_confirmed", "previous_state": "LAND"}
+{"t": 1784630033.478, "event": "state_enter", "state": "END", "previous": "LAND", "reason": "land_confirmed", "previous_state": "LAND"}
+{"t": 1784630034.109, "event": "mission_summary", "state": "END", "complete": false, "result_count": 2, "missing_slots": ["A2", "A3", "A5", "A6"]}
+{"t": 1784630498.984, "event": "state_enter", "state": "BOOT", "previous": null}
+{"t": 1784630498.984, "event": "state_exit", "state": "BOOT", "next_state": "WAIT_BUTTON", "duration_s": 0.0, "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784630498.985, "event": "state_enter", "state": "WAIT_BUTTON", "previous": "BOOT", "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784630556.412, "event": "state_exit", "state": "WAIT_BUTTON", "next_state": "INIT_FLIGHT_HW", "duration_s": 57.427, "reason": "button_pressed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784630556.412, "event": "state_enter", "state": "INIT_FLIGHT_HW", "previous": "WAIT_BUTTON", "reason": "button_pressed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784630558.422, "event": "state_exit", "state": "INIT_FLIGHT_HW", "next_state": "PREFLIGHT", "duration_s": 2.01, "reason": "hardware_ready", "previous_state": "INIT_FLIGHT_HW", "route_waypoints": 15, "inspect_slots": 6, "test_slot": null, "scan_z_override": null}
+{"t": 1784630558.422, "event": "state_enter", "state": "PREFLIGHT", "previous": "INIT_FLIGHT_HW", "reason": "hardware_ready", "previous_state": "INIT_FLIGHT_HW", "route_waypoints": 15, "inspect_slots": 6, "test_slot": null, "scan_z_override": null}
+{"t": 1784630558.428, "event": "state_exit", "state": "PREFLIGHT", "next_state": "WARNING_5S", "duration_s": 0.006, "reason": "preflight_passed", "previous_state": "PREFLIGHT"}
+{"t": 1784630558.428, "event": "state_enter", "state": "WARNING_5S", "previous": "PREFLIGHT", "reason": "preflight_passed", "previous_state": "PREFLIGHT"}
+{"t": 1784630563.557, "event": "state_exit", "state": "WARNING_5S", "next_state": "TAKEOFF", "duration_s": 5.129, "reason": "flight_task_started", "previous_state": "WARNING_5S"}
+{"t": 1784630563.557, "event": "state_enter", "state": "TAKEOFF", "previous": "WARNING_5S", "reason": "flight_task_started", "previous_state": "WARNING_5S"}
+{"t": 1784630566.807, "event": "state_exit", "state": "TAKEOFF", "next_state": "TRANSIT", "duration_s": 3.25, "reason": "takeoff_complete", "previous_state": "TAKEOFF"}
+{"t": 1784630566.807, "event": "state_enter", "state": "TRANSIT", "previous": "TAKEOFF", "reason": "takeoff_complete", "previous_state": "TAKEOFF"}
+{"t": 1784630586.014, "event": "state_exit", "state": "TRANSIT", "next_state": "SET_GIMBAL", "duration_s": 19.207, "reason": "set_face", "previous_state": "TRANSIT", "face": "A"}
+{"t": 1784630586.014, "event": "state_enter", "state": "SET_GIMBAL", "previous": "TRANSIT", "reason": "set_face", "previous_state": "TRANSIT", "face": "A"}
+{"t": 1784630586.617, "event": "state_exit", "state": "SET_GIMBAL", "next_state": "APPROACH_SLOT", "duration_s": 0.603, "reason": "gimbal_set", "previous_state": "SET_GIMBAL"}
+{"t": 1784630586.617, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "SET_GIMBAL", "reason": "gimbal_set", "previous_state": "SET_GIMBAL"}
+{"t": 1784630588.62, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 2.003, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784630588.62, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784630588.62, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.0, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784630588.62, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784630596.697, "event": "state_exit", "state": "VERIFY_QR", "next_state": "TRANSIT", "duration_s": 8.077, "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784630596.697, "event": "state_enter", "state": "TRANSIT", "previous": "VERIFY_QR", "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784630600.016, "event": "state_exit", "state": "TRANSIT", "next_state": "APPROACH_SLOT", "duration_s": 3.319, "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A4"}
+{"t": 1784630600.018, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "TRANSIT", "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A4"}
+{"t": 1784630600.018, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 0.002, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784630600.018, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784630600.018, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.0, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784630600.019, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784630608.823, "event": "state_exit", "state": "VERIFY_QR", "next_state": "TRANSIT", "duration_s": 8.804, "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784630608.823, "event": "state_enter", "state": "TRANSIT", "previous": "VERIFY_QR", "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784630615.006, "event": "state_exit", "state": "TRANSIT", "next_state": "APPROACH_SLOT", "duration_s": 6.183, "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A5"}
+{"t": 1784630615.006, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "TRANSIT", "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A5"}
+{"t": 1784630615.006, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 0.0, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784630615.006, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784630615.007, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.0, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784630615.008, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784630623.084, "event": "state_exit", "state": "VERIFY_QR", "next_state": "TRANSIT", "duration_s": 8.078, "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784630623.085, "event": "state_enter", "state": "TRANSIT", "previous": "VERIFY_QR", "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784630626.257, "event": "state_exit", "state": "TRANSIT", "next_state": "APPROACH_SLOT", "duration_s": 3.172, "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A2"}
+{"t": 1784630626.257, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "TRANSIT", "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A2"}
+{"t": 1784630626.258, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 0.001, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784630626.258, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784630626.259, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.001, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784630626.259, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784630634.622, "event": "state_exit", "state": "VERIFY_QR", "next_state": "TRANSIT", "duration_s": 8.364, "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784630634.623, "event": "state_enter", "state": "TRANSIT", "previous": "VERIFY_QR", "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784630639.933, "event": "state_exit", "state": "TRANSIT", "next_state": "APPROACH_SLOT", "duration_s": 5.311, "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A3"}
+{"t": 1784630639.934, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "TRANSIT", "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A3"}
+{"t": 1784630639.935, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 0.002, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784630639.935, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784630639.935, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.001, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784630639.936, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784630648.083, "event": "state_exit", "state": "VERIFY_QR", "next_state": "TRANSIT", "duration_s": 8.148, "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784630648.084, "event": "state_enter", "state": "TRANSIT", "previous": "VERIFY_QR", "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784630651.388, "event": "state_exit", "state": "TRANSIT", "next_state": "APPROACH_SLOT", "duration_s": 3.305, "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A6"}
+{"t": 1784630651.39, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "TRANSIT", "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A6"}
+{"t": 1784630651.39, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 0.002, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784630651.391, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784630651.391, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.001, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784630651.391, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784630657.328, "event": "state_exit", "state": "VERIFY_QR", "next_state": "ILLUMINATE", "duration_s": 5.937, "reason": "qr_verified", "previous_state": "VERIFY_QR", "cargo_id": 14}
+{"t": 1784630657.329, "event": "state_enter", "state": "ILLUMINATE", "previous": "VERIFY_QR", "reason": "qr_verified", "previous_state": "VERIFY_QR", "cargo_id": 14}
+{"t": 1784630657.834, "event": "state_exit", "state": "ILLUMINATE", "next_state": "REPORT", "duration_s": 0.506, "reason": "laser_complete", "previous_state": "ILLUMINATE", "cargo_id": 14, "slot_label": "A6"}
+{"t": 1784630657.834, "event": "state_enter", "state": "REPORT", "previous": "ILLUMINATE", "reason": "laser_complete", "previous_state": "ILLUMINATE", "cargo_id": 14, "slot_label": "A6"}
+{"t": 1784630657.834, "event": "state_exit", "state": "REPORT", "next_state": "TRANSIT", "duration_s": 0.001, "reason": "next_slot", "previous_state": "REPORT"}
+{"t": 1784630657.836, "event": "state_enter", "state": "TRANSIT", "previous": "REPORT", "reason": "next_slot", "previous_state": "REPORT"}
+{"t": 1784630683.113, "event": "state_exit", "state": "TRANSIT", "next_state": "RETURN", "duration_s": 25.279, "reason": "landing_approach", "previous_state": "TRANSIT"}
+{"t": 1784630683.114, "event": "state_enter", "state": "RETURN", "previous": "TRANSIT", "reason": "landing_approach", "previous_state": "TRANSIT"}
+{"t": 1784630688.612, "event": "state_exit", "state": "RETURN", "next_state": "LAND", "duration_s": 5.499, "reason": "landing_point", "previous_state": "RETURN"}
+{"t": 1784630688.612, "event": "state_enter", "state": "LAND", "previous": "RETURN", "reason": "landing_point", "previous_state": "RETURN"}
+{"t": 1784630691.324, "event": "state_exit", "state": "LAND", "next_state": "END", "duration_s": 2.713, "reason": "land_confirmed", "previous_state": "LAND"}
+{"t": 1784630691.325, "event": "state_enter", "state": "END", "previous": "LAND", "reason": "land_confirmed", "previous_state": "LAND"}
+{"t": 1784630692.147, "event": "mission_summary", "state": "END", "complete": false, "result_count": 1, "missing_slots": ["A1", "A2", "A3", "A4", "A5"]}
+{"t": 1784631430.479, "event": "state_enter", "state": "BOOT", "previous": null}
+{"t": 1784631430.48, "event": "state_exit", "state": "BOOT", "next_state": "WAIT_BUTTON", "duration_s": 0.001, "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784631430.48, "event": "state_enter", "state": "WAIT_BUTTON", "previous": "BOOT", "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784631447.757, "event": "state_exit", "state": "WAIT_BUTTON", "next_state": "INIT_FLIGHT_HW", "duration_s": 17.277, "reason": "button_pressed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784631447.758, "event": "state_enter", "state": "INIT_FLIGHT_HW", "previous": "WAIT_BUTTON", "reason": "button_pressed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784631450.142, "event": "state_exit", "state": "INIT_FLIGHT_HW", "next_state": "PREFLIGHT", "duration_s": 2.385, "reason": "hardware_ready", "previous_state": "INIT_FLIGHT_HW", "route_waypoints": 15, "inspect_slots": 6, "test_slot": null, "scan_z_override": null}
+{"t": 1784631450.143, "event": "state_enter", "state": "PREFLIGHT", "previous": "INIT_FLIGHT_HW", "reason": "hardware_ready", "previous_state": "INIT_FLIGHT_HW", "route_waypoints": 15, "inspect_slots": 6, "test_slot": null, "scan_z_override": null}
+{"t": 1784631450.186, "event": "state_exit", "state": "PREFLIGHT", "next_state": "WARNING_5S", "duration_s": 0.044, "reason": "preflight_passed", "previous_state": "PREFLIGHT"}
+{"t": 1784631450.186, "event": "state_enter", "state": "WARNING_5S", "previous": "PREFLIGHT", "reason": "preflight_passed", "previous_state": "PREFLIGHT"}
+{"t": 1784631455.315, "event": "state_exit", "state": "WARNING_5S", "next_state": "TAKEOFF", "duration_s": 5.129, "reason": "flight_task_started", "previous_state": "WARNING_5S"}
+{"t": 1784631455.316, "event": "state_enter", "state": "TAKEOFF", "previous": "WARNING_5S", "reason": "flight_task_started", "previous_state": "WARNING_5S"}
+{"t": 1784631458.445, "event": "state_exit", "state": "TAKEOFF", "next_state": "TRANSIT", "duration_s": 3.13, "reason": "takeoff_complete", "previous_state": "TAKEOFF"}
+{"t": 1784631458.445, "event": "state_enter", "state": "TRANSIT", "previous": "TAKEOFF", "reason": "takeoff_complete", "previous_state": "TAKEOFF"}
+{"t": 1784631476.251, "event": "state_exit", "state": "TRANSIT", "next_state": "SET_GIMBAL", "duration_s": 17.806, "reason": "set_face", "previous_state": "TRANSIT", "face": "A"}
+{"t": 1784631476.254, "event": "state_enter", "state": "SET_GIMBAL", "previous": "TRANSIT", "reason": "set_face", "previous_state": "TRANSIT", "face": "A"}
+{"t": 1784631476.858, "event": "state_exit", "state": "SET_GIMBAL", "next_state": "APPROACH_SLOT", "duration_s": 0.607, "reason": "gimbal_set", "previous_state": "SET_GIMBAL"}
+{"t": 1784631476.858, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "SET_GIMBAL", "reason": "gimbal_set", "previous_state": "SET_GIMBAL"}
+{"t": 1784631478.868, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 2.01, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784631478.868, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784631478.869, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.001, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784631478.869, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784631487.543, "event": "state_exit", "state": "VERIFY_QR", "next_state": "TRANSIT", "duration_s": 8.674, "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784631487.543, "event": "state_enter", "state": "TRANSIT", "previous": "VERIFY_QR", "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784631490.843, "event": "state_exit", "state": "TRANSIT", "next_state": "APPROACH_SLOT", "duration_s": 3.3, "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A4"}
+{"t": 1784631490.843, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "TRANSIT", "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A4"}
+{"t": 1784631490.844, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 0.0, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784631490.844, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784631490.844, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.001, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784631490.844, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784631499.79, "event": "state_exit", "state": "VERIFY_QR", "next_state": "TRANSIT", "duration_s": 8.946, "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784631499.79, "event": "state_enter", "state": "TRANSIT", "previous": "VERIFY_QR", "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784631505.254, "event": "state_exit", "state": "TRANSIT", "next_state": "APPROACH_SLOT", "duration_s": 5.464, "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A5"}
+{"t": 1784631505.255, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "TRANSIT", "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A5"}
+{"t": 1784631505.255, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 0.001, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784631505.255, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784631505.255, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.0, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784631505.255, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784631514.135, "event": "state_exit", "state": "VERIFY_QR", "next_state": "TRANSIT", "duration_s": 8.879, "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784631514.135, "event": "state_enter", "state": "TRANSIT", "previous": "VERIFY_QR", "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784631517.203, "event": "state_exit", "state": "TRANSIT", "next_state": "APPROACH_SLOT", "duration_s": 3.069, "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A2"}
+{"t": 1784631517.204, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "TRANSIT", "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A2"}
+{"t": 1784631517.204, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 0.001, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784631517.204, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784631517.204, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.001, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784631517.205, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784631525.557, "event": "state_exit", "state": "VERIFY_QR", "next_state": "TRANSIT", "duration_s": 8.352, "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784631525.557, "event": "state_enter", "state": "TRANSIT", "previous": "VERIFY_QR", "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784631532.088, "event": "state_exit", "state": "TRANSIT", "next_state": "APPROACH_SLOT", "duration_s": 6.531, "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A3"}
+{"t": 1784631532.088, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "TRANSIT", "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A3"}
+{"t": 1784631532.088, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 0.0, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784631532.089, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784631532.089, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.0, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784631532.089, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784631540.163, "event": "state_exit", "state": "VERIFY_QR", "next_state": "TRANSIT", "duration_s": 8.074, "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784631540.163, "event": "state_enter", "state": "TRANSIT", "previous": "VERIFY_QR", "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784631543.367, "event": "state_exit", "state": "TRANSIT", "next_state": "APPROACH_SLOT", "duration_s": 3.204, "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A6"}
+{"t": 1784631543.368, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "TRANSIT", "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A6"}
+{"t": 1784631543.369, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 0.001, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784631543.369, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784631543.369, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.0, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784631543.369, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784631551.864, "event": "state_exit", "state": "VERIFY_QR", "next_state": "TRANSIT", "duration_s": 8.494, "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784631551.864, "event": "state_enter", "state": "TRANSIT", "previous": "VERIFY_QR", "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784631577.028, "event": "state_exit", "state": "TRANSIT", "next_state": "RETURN", "duration_s": 25.164, "reason": "landing_approach", "previous_state": "TRANSIT"}
+{"t": 1784631577.028, "event": "state_enter", "state": "RETURN", "previous": "TRANSIT", "reason": "landing_approach", "previous_state": "TRANSIT"}
+{"t": 1784631582.761, "event": "state_exit", "state": "RETURN", "next_state": "LAND", "duration_s": 5.733, "reason": "landing_point", "previous_state": "RETURN"}
+{"t": 1784631582.761, "event": "state_enter", "state": "LAND", "previous": "RETURN", "reason": "landing_point", "previous_state": "RETURN"}
+{"t": 1784631585.172, "event": "state_exit", "state": "LAND", "next_state": "END", "duration_s": 2.411, "reason": "land_confirmed", "previous_state": "LAND"}
+{"t": 1784631585.172, "event": "state_enter", "state": "END", "previous": "LAND", "reason": "land_confirmed", "previous_state": "LAND"}
+{"t": 1784631586.12, "event": "mission_summary", "state": "END", "complete": false, "result_count": 0, "missing_slots": ["A1", "A2", "A3", "A4", "A5", "A6"]}
+{"t": 1784632150.822, "event": "state_enter", "state": "BOOT", "previous": null}
+{"t": 1784632150.822, "event": "state_exit", "state": "BOOT", "next_state": "WAIT_BUTTON", "duration_s": 0.0, "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784632150.823, "event": "state_enter", "state": "WAIT_BUTTON", "previous": "BOOT", "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784632194.972, "event": "state_exit", "state": "WAIT_BUTTON", "next_state": "INIT_FLIGHT_HW", "duration_s": 44.15, "reason": "button_pressed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784632194.973, "event": "state_enter", "state": "INIT_FLIGHT_HW", "previous": "WAIT_BUTTON", "reason": "button_pressed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784632196.952, "event": "state_exit", "state": "INIT_FLIGHT_HW", "next_state": "PREFLIGHT", "duration_s": 1.98, "reason": "hardware_ready", "previous_state": "INIT_FLIGHT_HW", "route_waypoints": 15, "inspect_slots": 6, "test_slot": null, "scan_z_override": null}
+{"t": 1784632196.952, "event": "state_enter", "state": "PREFLIGHT", "previous": "INIT_FLIGHT_HW", "reason": "hardware_ready", "previous_state": "INIT_FLIGHT_HW", "route_waypoints": 15, "inspect_slots": 6, "test_slot": null, "scan_z_override": null}
+{"t": 1784632196.959, "event": "state_exit", "state": "PREFLIGHT", "next_state": "WARNING_5S", "duration_s": 0.007, "reason": "preflight_passed", "previous_state": "PREFLIGHT"}
+{"t": 1784632196.959, "event": "state_enter", "state": "WARNING_5S", "previous": "PREFLIGHT", "reason": "preflight_passed", "previous_state": "PREFLIGHT"}
+{"t": 1784632202.085, "event": "state_exit", "state": "WARNING_5S", "next_state": "TAKEOFF", "duration_s": 5.126, "reason": "flight_task_started", "previous_state": "WARNING_5S"}
+{"t": 1784632202.086, "event": "state_enter", "state": "TAKEOFF", "previous": "WARNING_5S", "reason": "flight_task_started", "previous_state": "WARNING_5S"}
+{"t": 1784632205.426, "event": "state_exit", "state": "TAKEOFF", "next_state": "TRANSIT", "duration_s": 3.341, "reason": "takeoff_complete", "previous_state": "TAKEOFF"}
+{"t": 1784632205.426, "event": "state_enter", "state": "TRANSIT", "previous": "TAKEOFF", "reason": "takeoff_complete", "previous_state": "TAKEOFF"}
+{"t": 1784632222.646, "event": "state_exit", "state": "TRANSIT", "next_state": "SET_GIMBAL", "duration_s": 17.22, "reason": "set_face", "previous_state": "TRANSIT", "face": "A"}
+{"t": 1784632222.646, "event": "state_enter", "state": "SET_GIMBAL", "previous": "TRANSIT", "reason": "set_face", "previous_state": "TRANSIT", "face": "A"}
+{"t": 1784632223.248, "event": "state_exit", "state": "SET_GIMBAL", "next_state": "APPROACH_SLOT", "duration_s": 0.602, "reason": "gimbal_set", "previous_state": "SET_GIMBAL"}
+{"t": 1784632223.25, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "SET_GIMBAL", "reason": "gimbal_set", "previous_state": "SET_GIMBAL"}
+{"t": 1784632225.718, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 2.47, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784632225.719, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784632225.719, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.001, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784632225.719, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784632233.263, "event": "state_exit", "state": "VERIFY_QR", "next_state": "ILLUMINATE", "duration_s": 7.544, "reason": "qr_verified", "previous_state": "VERIFY_QR", "cargo_id": 11}
+{"t": 1784632233.265, "event": "state_enter", "state": "ILLUMINATE", "previous": "VERIFY_QR", "reason": "qr_verified", "previous_state": "VERIFY_QR", "cargo_id": 11}
+{"t": 1784632233.768, "event": "state_exit", "state": "ILLUMINATE", "next_state": "REPORT", "duration_s": 0.505, "reason": "laser_complete", "previous_state": "ILLUMINATE", "cargo_id": 11, "slot_label": "A1"}
+{"t": 1784632233.769, "event": "state_enter", "state": "REPORT", "previous": "ILLUMINATE", "reason": "laser_complete", "previous_state": "ILLUMINATE", "cargo_id": 11, "slot_label": "A1"}
+{"t": 1784632233.769, "event": "state_exit", "state": "REPORT", "next_state": "TRANSIT", "duration_s": 0.001, "reason": "next_slot", "previous_state": "REPORT"}
+{"t": 1784632233.769, "event": "state_enter", "state": "TRANSIT", "previous": "REPORT", "reason": "next_slot", "previous_state": "REPORT"}
+{"t": 1784632236.972, "event": "state_exit", "state": "TRANSIT", "next_state": "APPROACH_SLOT", "duration_s": 3.203, "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A4"}
+{"t": 1784632236.972, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "TRANSIT", "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A4"}
+{"t": 1784632236.972, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 0.0, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784632236.972, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784632236.972, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.0, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784632236.972, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784632245.965, "event": "state_exit", "state": "VERIFY_QR", "next_state": "TRANSIT", "duration_s": 8.993, "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784632245.966, "event": "state_enter", "state": "TRANSIT", "previous": "VERIFY_QR", "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784632251.15, "event": "state_exit", "state": "TRANSIT", "next_state": "APPROACH_SLOT", "duration_s": 5.184, "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A5"}
+{"t": 1784632251.151, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "TRANSIT", "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A5"}
+{"t": 1784632251.151, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 0.002, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784632251.152, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784632251.152, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.0, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784632251.152, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784632259.46, "event": "state_exit", "state": "VERIFY_QR", "next_state": "TRANSIT", "duration_s": 8.308, "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784632259.46, "event": "state_enter", "state": "TRANSIT", "previous": "VERIFY_QR", "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784632265.974, "event": "state_exit", "state": "TRANSIT", "next_state": "APPROACH_SLOT", "duration_s": 6.514, "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A2"}
+{"t": 1784632265.974, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "TRANSIT", "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A2"}
+{"t": 1784632265.975, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 0.001, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784632265.976, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784632265.976, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.001, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784632265.976, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784632266.852, "event": "state_exit", "state": "VERIFY_QR", "next_state": "ILLUMINATE", "duration_s": 0.876, "reason": "qr_verified", "previous_state": "VERIFY_QR", "cargo_id": 13}
+{"t": 1784632266.852, "event": "state_enter", "state": "ILLUMINATE", "previous": "VERIFY_QR", "reason": "qr_verified", "previous_state": "VERIFY_QR", "cargo_id": 13}
+{"t": 1784632267.355, "event": "state_exit", "state": "ILLUMINATE", "next_state": "REPORT", "duration_s": 0.504, "reason": "laser_complete", "previous_state": "ILLUMINATE", "cargo_id": 13, "slot_label": "A2"}
+{"t": 1784632267.356, "event": "state_enter", "state": "REPORT", "previous": "ILLUMINATE", "reason": "laser_complete", "previous_state": "ILLUMINATE", "cargo_id": 13, "slot_label": "A2"}
+{"t": 1784632267.356, "event": "state_exit", "state": "REPORT", "next_state": "TRANSIT", "duration_s": 0.001, "reason": "next_slot", "previous_state": "REPORT"}
+{"t": 1784632267.356, "event": "state_enter", "state": "TRANSIT", "previous": "REPORT", "reason": "next_slot", "previous_state": "REPORT"}
+{"t": 1784632273.876, "event": "state_exit", "state": "TRANSIT", "next_state": "APPROACH_SLOT", "duration_s": 6.52, "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A3"}
+{"t": 1784632273.877, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "TRANSIT", "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A3"}
+{"t": 1784632273.877, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 0.0, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784632273.877, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784632273.877, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.0, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784632273.877, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784632277.071, "event": "state_exit", "state": "VERIFY_QR", "next_state": "ILLUMINATE", "duration_s": 3.194, "reason": "qr_verified", "previous_state": "VERIFY_QR", "cargo_id": 14}
+{"t": 1784632277.071, "event": "state_enter", "state": "ILLUMINATE", "previous": "VERIFY_QR", "reason": "qr_verified", "previous_state": "VERIFY_QR", "cargo_id": 14}
+{"t": 1784632277.574, "event": "state_exit", "state": "ILLUMINATE", "next_state": "REPORT", "duration_s": 0.503, "reason": "laser_complete", "previous_state": "ILLUMINATE", "cargo_id": 14, "slot_label": "A3"}
+{"t": 1784632277.574, "event": "state_enter", "state": "REPORT", "previous": "ILLUMINATE", "reason": "laser_complete", "previous_state": "ILLUMINATE", "cargo_id": 14, "slot_label": "A3"}
+{"t": 1784632277.575, "event": "state_exit", "state": "REPORT", "next_state": "TRANSIT", "duration_s": 0.001, "reason": "next_slot", "previous_state": "REPORT"}
+{"t": 1784632277.575, "event": "state_enter", "state": "TRANSIT", "previous": "REPORT", "reason": "next_slot", "previous_state": "REPORT"}
+{"t": 1784632279.584, "event": "state_exit", "state": "TRANSIT", "next_state": "APPROACH_SLOT", "duration_s": 2.009, "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A6"}
+{"t": 1784632279.584, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "TRANSIT", "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A6"}
+{"t": 1784632279.585, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 0.001, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784632279.585, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784632279.585, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.0, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784632279.585, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784632288.741, "event": "state_exit", "state": "VERIFY_QR", "next_state": "TRANSIT", "duration_s": 9.156, "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784632288.742, "event": "state_enter", "state": "TRANSIT", "previous": "VERIFY_QR", "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784632296.185, "event": "mission_summary", "state": "TRANSIT", "complete": false, "result_count": 3, "missing_slots": ["A4", "A5", "A6"]}
+{"t": 1784632488.323, "event": "state_enter", "state": "BOOT", "previous": null}
+{"t": 1784632488.324, "event": "state_exit", "state": "BOOT", "next_state": "WAIT_BUTTON", "duration_s": 0.001, "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784632488.325, "event": "state_enter", "state": "WAIT_BUTTON", "previous": "BOOT", "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784632515.975, "event": "state_exit", "state": "WAIT_BUTTON", "next_state": "INIT_FLIGHT_HW", "duration_s": 27.651, "reason": "button_pressed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784632515.976, "event": "state_enter", "state": "INIT_FLIGHT_HW", "previous": "WAIT_BUTTON", "reason": "button_pressed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784632518.2, "event": "state_exit", "state": "INIT_FLIGHT_HW", "next_state": "PREFLIGHT", "duration_s": 2.224, "reason": "hardware_ready", "previous_state": "INIT_FLIGHT_HW", "route_waypoints": 15, "inspect_slots": 6, "test_slot": null, "scan_z_override": null}
+{"t": 1784632518.2, "event": "state_enter", "state": "PREFLIGHT", "previous": "INIT_FLIGHT_HW", "reason": "hardware_ready", "previous_state": "INIT_FLIGHT_HW", "route_waypoints": 15, "inspect_slots": 6, "test_slot": null, "scan_z_override": null}
+{"t": 1784632518.246, "event": "state_exit", "state": "PREFLIGHT", "next_state": "WARNING_5S", "duration_s": 0.046, "reason": "preflight_passed", "previous_state": "PREFLIGHT"}
+{"t": 1784632518.246, "event": "state_enter", "state": "WARNING_5S", "previous": "PREFLIGHT", "reason": "preflight_passed", "previous_state": "PREFLIGHT"}
+{"t": 1784632550.821, "event": "state_exit", "state": "WARNING_5S", "next_state": "TAKEOFF", "duration_s": 32.575, "reason": "flight_task_started", "previous_state": "WARNING_5S"}
+{"t": 1784632550.822, "event": "state_enter", "state": "TAKEOFF", "previous": "WARNING_5S", "reason": "flight_task_started", "previous_state": "WARNING_5S"}
+{"t": 1784632567.996, "event": "state_enter", "state": "BOOT", "previous": null}
+{"t": 1784632567.996, "event": "state_exit", "state": "BOOT", "next_state": "WAIT_BUTTON", "duration_s": 0.0, "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784632567.996, "event": "state_enter", "state": "WAIT_BUTTON", "previous": "BOOT", "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784632601.256, "event": "state_exit", "state": "WAIT_BUTTON", "next_state": "INIT_FLIGHT_HW", "duration_s": 33.26, "reason": "button_pressed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784632601.257, "event": "state_enter", "state": "INIT_FLIGHT_HW", "previous": "WAIT_BUTTON", "reason": "button_pressed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784632603.031, "event": "state_exit", "state": "INIT_FLIGHT_HW", "next_state": "PREFLIGHT", "duration_s": 1.775, "reason": "hardware_ready", "previous_state": "INIT_FLIGHT_HW", "route_waypoints": 15, "inspect_slots": 6, "test_slot": null, "scan_z_override": null}
+{"t": 1784632603.031, "event": "state_enter", "state": "PREFLIGHT", "previous": "INIT_FLIGHT_HW", "reason": "hardware_ready", "previous_state": "INIT_FLIGHT_HW", "route_waypoints": 15, "inspect_slots": 6, "test_slot": null, "scan_z_override": null}
+{"t": 1784632603.038, "event": "state_exit", "state": "PREFLIGHT", "next_state": "WARNING_5S", "duration_s": 0.007, "reason": "preflight_passed", "previous_state": "PREFLIGHT"}
+{"t": 1784632603.038, "event": "state_enter", "state": "WARNING_5S", "previous": "PREFLIGHT", "reason": "preflight_passed", "previous_state": "PREFLIGHT"}
+{"t": 1784632608.183, "event": "state_exit", "state": "WARNING_5S", "next_state": "TAKEOFF", "duration_s": 5.146, "reason": "flight_task_started", "previous_state": "WARNING_5S"}
+{"t": 1784632608.185, "event": "state_enter", "state": "TAKEOFF", "previous": "WARNING_5S", "reason": "flight_task_started", "previous_state": "WARNING_5S"}
+{"t": 1784632611.316, "event": "state_exit", "state": "TAKEOFF", "next_state": "TRANSIT", "duration_s": 3.133, "reason": "takeoff_complete", "previous_state": "TAKEOFF"}
+{"t": 1784632611.316, "event": "state_enter", "state": "TRANSIT", "previous": "TAKEOFF", "reason": "takeoff_complete", "previous_state": "TAKEOFF"}
+{"t": 1784632626.509, "event": "state_exit", "state": "TRANSIT", "next_state": "SET_GIMBAL", "duration_s": 15.193, "reason": "set_face", "previous_state": "TRANSIT", "face": "A"}
+{"t": 1784632626.511, "event": "state_enter", "state": "SET_GIMBAL", "previous": "TRANSIT", "reason": "set_face", "previous_state": "TRANSIT", "face": "A"}
+{"t": 1784632627.112, "event": "state_exit", "state": "SET_GIMBAL", "next_state": "APPROACH_SLOT", "duration_s": 0.603, "reason": "gimbal_set", "previous_state": "SET_GIMBAL"}
+{"t": 1784632627.113, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "SET_GIMBAL", "reason": "gimbal_set", "previous_state": "SET_GIMBAL"}
+{"t": 1784632629.117, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 2.004, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784632629.117, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784632629.117, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.001, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784632629.119, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784632637.475, "event": "state_exit", "state": "VERIFY_QR", "next_state": "TRANSIT", "duration_s": 8.358, "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784632637.475, "event": "state_enter", "state": "TRANSIT", "previous": "VERIFY_QR", "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784632641.953, "event": "state_exit", "state": "TRANSIT", "next_state": "APPROACH_SLOT", "duration_s": 4.478, "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A4"}
+{"t": 1784632641.953, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "TRANSIT", "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A4"}
+{"t": 1784632641.953, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 0.001, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784632641.954, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784632641.956, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.003, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784632641.957, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784632642.573, "event": "state_exit", "state": "VERIFY_QR", "next_state": "ILLUMINATE", "duration_s": 0.617, "reason": "qr_verified", "previous_state": "VERIFY_QR", "cargo_id": 20}
+{"t": 1784632642.574, "event": "state_enter", "state": "ILLUMINATE", "previous": "VERIFY_QR", "reason": "qr_verified", "previous_state": "VERIFY_QR", "cargo_id": 20}
+{"t": 1784632643.077, "event": "state_exit", "state": "ILLUMINATE", "next_state": "REPORT", "duration_s": 0.504, "reason": "laser_complete", "previous_state": "ILLUMINATE", "cargo_id": 20, "slot_label": "A4"}
+{"t": 1784632643.077, "event": "state_enter", "state": "REPORT", "previous": "ILLUMINATE", "reason": "laser_complete", "previous_state": "ILLUMINATE", "cargo_id": 20, "slot_label": "A4"}
+{"t": 1784632643.078, "event": "state_exit", "state": "REPORT", "next_state": "TRANSIT", "duration_s": 0.001, "reason": "next_slot", "previous_state": "REPORT"}
+{"t": 1784632643.078, "event": "state_enter", "state": "TRANSIT", "previous": "REPORT", "reason": "next_slot", "previous_state": "REPORT"}
+{"t": 1784632648.431, "event": "state_exit", "state": "TRANSIT", "next_state": "APPROACH_SLOT", "duration_s": 5.353, "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A5"}
+{"t": 1784632648.432, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "TRANSIT", "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A5"}
+{"t": 1784632648.432, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 0.001, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784632648.432, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784632648.432, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.0, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784632648.432, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784632656.668, "event": "state_exit", "state": "VERIFY_QR", "next_state": "TRANSIT", "duration_s": 8.236, "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784632656.668, "event": "state_enter", "state": "TRANSIT", "previous": "VERIFY_QR", "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784632659.766, "event": "state_exit", "state": "TRANSIT", "next_state": "APPROACH_SLOT", "duration_s": 3.098, "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A2"}
+{"t": 1784632659.766, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "TRANSIT", "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A2"}
+{"t": 1784632659.766, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 0.0, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784632659.766, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784632659.766, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.0, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784632659.766, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784632664.9, "event": "state_exit", "state": "VERIFY_QR", "next_state": "ILLUMINATE", "duration_s": 5.134, "reason": "qr_verified", "previous_state": "VERIFY_QR", "cargo_id": 15}
+{"t": 1784632664.901, "event": "state_enter", "state": "ILLUMINATE", "previous": "VERIFY_QR", "reason": "qr_verified", "previous_state": "VERIFY_QR", "cargo_id": 15}
+{"t": 1784632665.405, "event": "state_exit", "state": "ILLUMINATE", "next_state": "REPORT", "duration_s": 0.505, "reason": "laser_complete", "previous_state": "ILLUMINATE", "cargo_id": 15, "slot_label": "A2"}
+{"t": 1784632665.405, "event": "state_enter", "state": "REPORT", "previous": "ILLUMINATE", "reason": "laser_complete", "previous_state": "ILLUMINATE", "cargo_id": 15, "slot_label": "A2"}
+{"t": 1784632665.406, "event": "state_exit", "state": "REPORT", "next_state": "TRANSIT", "duration_s": 0.001, "reason": "next_slot", "previous_state": "REPORT"}
+{"t": 1784632665.406, "event": "state_enter", "state": "TRANSIT", "previous": "REPORT", "reason": "next_slot", "previous_state": "REPORT"}
+{"t": 1784632671.933, "event": "state_exit", "state": "TRANSIT", "next_state": "APPROACH_SLOT", "duration_s": 6.527, "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A3"}
+{"t": 1784632671.934, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "TRANSIT", "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A3"}
+{"t": 1784632671.934, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 0.001, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784632671.935, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784632671.935, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.001, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784632671.935, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784632680.022, "event": "state_exit", "state": "VERIFY_QR", "next_state": "TRANSIT", "duration_s": 8.087, "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784632680.022, "event": "state_enter", "state": "TRANSIT", "previous": "VERIFY_QR", "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784632683.338, "event": "state_exit", "state": "TRANSIT", "next_state": "APPROACH_SLOT", "duration_s": 3.316, "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A6"}
+{"t": 1784632683.338, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "TRANSIT", "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A6"}
+{"t": 1784632683.339, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 0.001, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784632683.339, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784632683.339, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.001, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784632683.339, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784632692.572, "event": "state_exit", "state": "VERIFY_QR", "next_state": "TRANSIT", "duration_s": 9.233, "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784632692.573, "event": "state_enter", "state": "TRANSIT", "previous": "VERIFY_QR", "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784632712.23, "event": "mission_summary", "state": "TRANSIT", "complete": false, "result_count": 2, "missing_slots": ["A1", "A3", "A5", "A6"]}
+{"t": 1784633184.669, "event": "state_enter", "state": "BOOT", "previous": null}
+{"t": 1784633184.669, "event": "state_exit", "state": "BOOT", "next_state": "WAIT_BUTTON", "duration_s": 0.0, "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784633184.669, "event": "state_enter", "state": "WAIT_BUTTON", "previous": "BOOT", "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784633193.868, "event": "state_exit", "state": "WAIT_BUTTON", "next_state": "INIT_FLIGHT_HW", "duration_s": 9.199, "reason": "button_pressed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784633193.868, "event": "state_enter", "state": "INIT_FLIGHT_HW", "previous": "WAIT_BUTTON", "reason": "button_pressed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784633195.829, "event": "state_exit", "state": "INIT_FLIGHT_HW", "next_state": "PREFLIGHT", "duration_s": 1.961, "reason": "hardware_ready", "previous_state": "INIT_FLIGHT_HW", "route_waypoints": 15, "inspect_slots": 6, "test_slot": null, "scan_z_override": null}
+{"t": 1784633195.829, "event": "state_enter", "state": "PREFLIGHT", "previous": "INIT_FLIGHT_HW", "reason": "hardware_ready", "previous_state": "INIT_FLIGHT_HW", "route_waypoints": 15, "inspect_slots": 6, "test_slot": null, "scan_z_override": null}
+{"t": 1784633195.836, "event": "state_exit", "state": "PREFLIGHT", "next_state": "WARNING_5S", "duration_s": 0.007, "reason": "preflight_passed", "previous_state": "PREFLIGHT"}
+{"t": 1784633195.836, "event": "state_enter", "state": "WARNING_5S", "previous": "PREFLIGHT", "reason": "preflight_passed", "previous_state": "PREFLIGHT"}
+{"t": 1784633200.971, "event": "state_exit", "state": "WARNING_5S", "next_state": "TAKEOFF", "duration_s": 5.136, "reason": "flight_task_started", "previous_state": "WARNING_5S"}
+{"t": 1784633200.973, "event": "state_enter", "state": "TAKEOFF", "previous": "WARNING_5S", "reason": "flight_task_started", "previous_state": "WARNING_5S"}
+{"t": 1784633205.964, "event": "state_exit", "state": "TAKEOFF", "next_state": "TRANSIT", "duration_s": 4.993, "reason": "takeoff_complete", "previous_state": "TAKEOFF"}
+{"t": 1784633205.964, "event": "state_enter", "state": "TRANSIT", "previous": "TAKEOFF", "reason": "takeoff_complete", "previous_state": "TAKEOFF"}
+{"t": 1784633223.88, "event": "state_exit", "state": "TRANSIT", "next_state": "SET_GIMBAL", "duration_s": 17.916, "reason": "set_face", "previous_state": "TRANSIT", "face": "A"}
+{"t": 1784633223.881, "event": "state_enter", "state": "SET_GIMBAL", "previous": "TRANSIT", "reason": "set_face", "previous_state": "TRANSIT", "face": "A"}
+{"t": 1784633224.483, "event": "state_exit", "state": "SET_GIMBAL", "next_state": "APPROACH_SLOT", "duration_s": 0.603, "reason": "gimbal_set", "previous_state": "SET_GIMBAL"}
+{"t": 1784633224.484, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "SET_GIMBAL", "reason": "gimbal_set", "previous_state": "SET_GIMBAL"}
+{"t": 1784633226.486, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 2.003, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784633226.487, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784633226.487, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.0, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784633226.487, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784633233.869, "event": "state_exit", "state": "VERIFY_QR", "next_state": "ILLUMINATE", "duration_s": 7.382, "reason": "qr_verified", "previous_state": "VERIFY_QR", "cargo_id": 11}
+{"t": 1784633233.871, "event": "state_enter", "state": "ILLUMINATE", "previous": "VERIFY_QR", "reason": "qr_verified", "previous_state": "VERIFY_QR", "cargo_id": 11}
+{"t": 1784633234.375, "event": "state_exit", "state": "ILLUMINATE", "next_state": "REPORT", "duration_s": 0.506, "reason": "laser_complete", "previous_state": "ILLUMINATE", "cargo_id": 11, "slot_label": "A1"}
+{"t": 1784633234.376, "event": "state_enter", "state": "REPORT", "previous": "ILLUMINATE", "reason": "laser_complete", "previous_state": "ILLUMINATE", "cargo_id": 11, "slot_label": "A1"}
+{"t": 1784633234.376, "event": "state_exit", "state": "REPORT", "next_state": "TRANSIT", "duration_s": 0.001, "reason": "next_slot", "previous_state": "REPORT"}
+{"t": 1784633234.376, "event": "state_enter", "state": "TRANSIT", "previous": "REPORT", "reason": "next_slot", "previous_state": "REPORT"}
+{"t": 1784633240.881, "event": "state_exit", "state": "TRANSIT", "next_state": "APPROACH_SLOT", "duration_s": 6.505, "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A4"}
+{"t": 1784633240.882, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "TRANSIT", "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A4"}
+{"t": 1784633240.882, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 0.001, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784633240.882, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784633240.882, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.001, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784633240.883, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784633244.436, "event": "state_exit", "state": "VERIFY_QR", "next_state": "ILLUMINATE", "duration_s": 3.554, "reason": "qr_verified", "previous_state": "VERIFY_QR", "cargo_id": 20}
+{"t": 1784633244.437, "event": "state_enter", "state": "ILLUMINATE", "previous": "VERIFY_QR", "reason": "qr_verified", "previous_state": "VERIFY_QR", "cargo_id": 20}
+{"t": 1784633244.94, "event": "state_exit", "state": "ILLUMINATE", "next_state": "REPORT", "duration_s": 0.504, "reason": "laser_complete", "previous_state": "ILLUMINATE", "cargo_id": 20, "slot_label": "A4"}
+{"t": 1784633244.94, "event": "state_enter", "state": "REPORT", "previous": "ILLUMINATE", "reason": "laser_complete", "previous_state": "ILLUMINATE", "cargo_id": 20, "slot_label": "A4"}
+{"t": 1784633244.941, "event": "state_exit", "state": "REPORT", "next_state": "TRANSIT", "duration_s": 0.001, "reason": "next_slot", "previous_state": "REPORT"}
+{"t": 1784633244.941, "event": "state_enter", "state": "TRANSIT", "previous": "REPORT", "reason": "next_slot", "previous_state": "REPORT"}
+{"t": 1784633251.471, "event": "state_exit", "state": "TRANSIT", "next_state": "APPROACH_SLOT", "duration_s": 6.531, "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A5"}
+{"t": 1784633251.473, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "TRANSIT", "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A5"}
+{"t": 1784633251.473, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 0.002, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784633251.473, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784633251.473, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.0, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784633251.474, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784633260.623, "event": "state_exit", "state": "VERIFY_QR", "next_state": "TRANSIT", "duration_s": 9.15, "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784633260.624, "event": "state_enter", "state": "TRANSIT", "previous": "VERIFY_QR", "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784633267.155, "event": "state_exit", "state": "TRANSIT", "next_state": "APPROACH_SLOT", "duration_s": 6.532, "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A2"}
+{"t": 1784633267.156, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "TRANSIT", "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A2"}
+{"t": 1784633267.158, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 0.002, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784633267.159, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784633267.159, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.001, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784633267.159, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784633276.521, "event": "state_exit", "state": "VERIFY_QR", "next_state": "TRANSIT", "duration_s": 9.362, "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784633276.521, "event": "state_enter", "state": "TRANSIT", "previous": "VERIFY_QR", "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784633283.049, "event": "state_exit", "state": "TRANSIT", "next_state": "APPROACH_SLOT", "duration_s": 6.528, "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A3"}
+{"t": 1784633283.05, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "TRANSIT", "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A3"}
+{"t": 1784633283.05, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 0.0, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784633283.051, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784633283.051, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.001, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784633283.051, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784633290.68, "event": "state_exit", "state": "VERIFY_QR", "next_state": "ILLUMINATE", "duration_s": 7.629, "reason": "qr_verified", "previous_state": "VERIFY_QR", "cargo_id": 14}
+{"t": 1784633290.681, "event": "state_enter", "state": "ILLUMINATE", "previous": "VERIFY_QR", "reason": "qr_verified", "previous_state": "VERIFY_QR", "cargo_id": 14}
+{"t": 1784633291.187, "event": "state_exit", "state": "ILLUMINATE", "next_state": "REPORT", "duration_s": 0.507, "reason": "laser_complete", "previous_state": "ILLUMINATE", "cargo_id": 14, "slot_label": "A3"}
+{"t": 1784633291.187, "event": "state_enter", "state": "REPORT", "previous": "ILLUMINATE", "reason": "laser_complete", "previous_state": "ILLUMINATE", "cargo_id": 14, "slot_label": "A3"}
+{"t": 1784633291.187, "event": "state_exit", "state": "REPORT", "next_state": "TRANSIT", "duration_s": 0.001, "reason": "next_slot", "previous_state": "REPORT"}
+{"t": 1784633291.188, "event": "state_enter", "state": "TRANSIT", "previous": "REPORT", "reason": "next_slot", "previous_state": "REPORT"}
+{"t": 1784633293.492, "event": "state_exit", "state": "TRANSIT", "next_state": "APPROACH_SLOT", "duration_s": 2.305, "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A6"}
+{"t": 1784633293.492, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "TRANSIT", "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A6"}
+{"t": 1784633293.492, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 0.0, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784633293.492, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784633293.493, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.0, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784633293.494, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784633302.741, "event": "state_exit", "state": "VERIFY_QR", "next_state": "TRANSIT", "duration_s": 9.249, "reason": "next_{"t": 1784633468.805, "event": "state_enter", "state": "BOOT", "previous": null}
+{"t": 1784633468.805, "event": "state_exit", "state": "BOOT", "next_state": "WAIT_BUTTON", "duration_s": 0.0, "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784633468.805, "event": "state_enter", "state": "WAIT_BUTTON", "previous": "BOOT", "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784633520.478, "event": "state_exit", "state": "WAIT_BUTTON", "next_state": "INIT_FLIGHT_HW", "duration_s": 51.673, "reason": "button_pressed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784633520.478, "event": "state_enter", "state": "INIT_FLIGHT_HW", "previous": "WAIT_BUTTON", "reason": "button_pressed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784633522.897, "event": "state_exit", "state": "INIT_FLIGHT_HW", "next_state": "PREFLIGHT", "duration_s": 2.419, "reason": "hardware_ready", "previous_state": "INIT_FLIGHT_HW", "route_waypoints": 15, "inspect_slots": 6, "test_slot": null, "scan_z_override": null}
+{"t": 1784633522.897, "event": "state_enter", "state": "PREFLIGHT", "previous": "INIT_FLIGHT_HW", "reason": "hardware_ready", "previous_state": "INIT_FLIGHT_HW", "route_waypoints": 15, "inspect_slots": 6, "test_slot": null, "scan_z_override": null}
+{"t": 1784633522.932, "event": "state_exit", "state": "PREFLIGHT", "next_state": "WARNING_5S", "duration_s": 0.035, "reason": "preflight_passed", "previous_state": "PREFLIGHT"}
+{"t": 1784633522.932, "event": "state_enter", "state": "WARNING_5S", "previous": "PREFLIGHT", "reason": "preflight_passed", "previous_state": "PREFLIGHT"}
+{"t": 1784633528.059, "event": "state_exit", "state": "WARNING_5S", "next_state": "TAKEOFF", "duration_s": 5.127, "reason": "flight_task_started", "previous_state": "WARNING_5S"}
+{"t": 1784633528.059, "event": "state_enter", "state": "TAKEOFF", "previous": "WARNING_5S", "reason": "flight_task_started", "previous_state": "WARNING_5S"}
+{"t": 1784633531.315, "event": "state_exit", "state": "TAKEOFF", "next_state": "TRANSIT", "duration_s": 3.256, "reason": "takeoff_complete", "previous_state": "TAKEOFF"}
+{"t": 1784633531.315, "event": "state_enter", "state": "TRANSIT", "previous": "TAKEOFF", "reason": "takeoff_complete", "previous_state": "TAKEOFF"}
+{"t": 1784633549.678, "event": "state_exit", "state": "TRANSIT", "next_state": "SET_GIMBAL", "duration_s": 18.363, "reason": "set_face", "previous_state": "TRANSIT", "face": "A"}
+{"t": 1784633549.679, "event": "state_enter", "state": "SET_GIMBAL", "previous": "TRANSIT", "reason": "set_face", "previous_state": "TRANSIT", "face": "A"}
+{"t": 1784633550.281, "event": "state_exit", "state": "SET_GIMBAL", "next_state": "APPROACH_SLOT", "duration_s": 0.603, "reason": "gimbal_set", "previous_state": "SET_GIMBAL"}
+{"t": 1784633550.281, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "SET_GIMBAL", "reason": "gimbal_set", "previous_state": "SET_GIMBAL"}
+{"t": 1784633552.287, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 2.006, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784633552.287, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784633552.288, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.001, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784633552.288, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784633553.514, "event": "state_exit", "state": "VERIFY_QR", "next_state": "ILLUMINATE", "duration_s": 1.227, "reason": "qr_verified", "previous_state": "VERIFY_QR", "cargo_id": 11}
+{"t": 1784633553.515, "event": "state_enter", "state": "ILLUMINATE", "previous": "VERIFY_QR", "reason": "qr_verified", "previous_state": "VERIFY_QR", "cargo_id": 11}
+{"t": 1784633554.016, "event": "state_exit", "state": "ILLUMINATE", "next_state": "REPORT", "duration_s": 0.502, "reason": "laser_complete", "previous_state": "ILLUMINATE", "cargo_id": 11, "slot_label": "A1"}
+{"t": 1784633554.017, "event": "state_enter", "state": "REPORT", "previous": "ILLUMINATE", "reason": "laser_complete", "previous_state": "ILLUMINATE", "cargo_id": 11, "slot_label": "A1"}
+{"t": 1784633554.018, "event": "state_exit", "state": "REPORT", "next_state": "TRANSIT", "duration_s": 0.002, "reason": "next_slot", "previous_state": "REPORT"}
+{"t": 1784633554.018, "event": "state_enter", "state": "TRANSIT", "previous": "REPORT", "reason": "next_slot", "previous_state": "REPORT"}
+{"t": 1784633557.456, "event": "state_exit", "state": "TRANSIT", "next_state": "APPROACH_SLOT", "duration_s": 3.438, "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A4"}
+{"t": 1784633557.456, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "TRANSIT", "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A4"}
+{"t": 1784633557.457, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 0.001, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784633557.457, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784633557.457, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.0, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784633557.457, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784633565.987, "event": "state_exit", "state": "VERIFY_QR", "next_state": "TRANSIT", "duration_s": 8.53, "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784633565.987, "event": "state_enter", "state": "TRANSIT", "previous": "VERIFY_QR", "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784633571.857, "event": "state_exit", "state": "TRANSIT", "next_state": "APPROACH_SLOT", "duration_s": 5.87, "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A5"}
+{"t": 1784633571.857, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "TRANSIT", "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A5"}
+{"t": 1784633571.857, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 0.0, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784633571.857, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784633571.857, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.0, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784633571.857, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784633580.535, "event": "state_exit", "state": "VERIFY_QR", "next_state": "TRANSIT", "duration_s": 8.678, "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784633580.536, "event": "state_enter", "state": "TRANSIT", "previous": "VERIFY_QR", "reason": "next_slot", "previous_state": "VERIFY_QR"}
+{"t": 1784633583.654, "event": "state_exit", "state": "TRANSIT", "next_state": "APPROACH_SLOT", "duration_s": 3.118, "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A2"}
+{"t": 1784633583.654, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "TRANSIT", "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A2"}
+{"t": 1784633583.656, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 0.002, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784633583.656, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784633583.656, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.0, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784633583.656, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784633591.799, "event": "state_exit", "state": "VERIFY_QR", "next_state": "ILLUMINATE", "duration_s": 8.142, "reason": "qr_verified", "previous_state": "VERIFY_QR", "cargo_id": 15}
+{"t": 1784633591.8, "event": "state_enter", "state": "ILLUMINATE", "previous": "VERIFY_QR", "reason": "qr_verified", "previous_state": "VERIFY_QR", "cargo_id": 15}
+{"t": 1784633592.303, "event": "state_exit", "state": "ILLUMINATE", "next_state": "REPORT", "duration_s": 0.504, "reason": "laser_complete", "previous_state": "ILLUMINATE", "cargo_id": 15, "slot_label": "A2"}
+{"t": 1784633592.305, "event": "state_enter", "state": "REPORT", "previous": "ILLUMINATE", "reason": "laser_complete", "previous_state": "ILLUMINATE", "cargo_id": 15, "slot_label": "A2"}
+{"t": 1784633592.305, "event": "state_exit", "state": "REPORT", "next_state": "TRANSIT", "duration_s": 0.002, "reason": "next_slot", "previous_state": "REPORT"}
+{"t": 1784633592.306, "event": "state_enter", "state": "TRANSIT", "previous": "REPORT", "reason": "next_slot", "previous_state": "REPORT"}
+{"t": 1784633598.666, "event": "state_exit", "state": "TRANSIT", "next_state": "APPROACH_SLOT", "duration_s": 6.361, "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A3"}
+{"t": 1784633598.667, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "TRANSIT", "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A3"}
+{"t": 1784633598.667, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 0.001, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784633598.667, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784633598.667, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.0, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784633598.667, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784633606.224, "event": "state_exit", "state": "VERIFY_QR", "next_state": "ILLUMINATE", "duration_s": 7.557, "reason": "qr_verified", "previous_state": "VERIFY_QR", "cargo_id": 2}
+{"t": 1784633606.225, "event": "state_enter", "state": "ILLUMINATE", "previous": "VERIFY_QR", "reason": "qr_verified", "previous_state": "VERIFY_QR", "cargo_id": 2}
+{"t": 1784633606.727, "event": "state_exit", "state": "ILLUMINATE", "next_state": "REPORT", "duration_s": 0.503, "reason": "laser_complete", "previous_state": "ILLUMINATE", "cargo_id": 2, "slot_label": "A3"}
+{"t": 1784633606.728, "event": "state_enter", "state": "REPORT", "previous": "ILLUMINATE", "reason": "laser_complete", "previous_state": "ILLUMINATE", "cargo_id": 2, "slot_label": "A3"}
+{"t": 1784633606.728, "event": "state_exit", "state": "REPORT", "next_state": "TRANSIT", "duration_s": 0.001, "reason": "next_slot", "previous_state": "REPORT"}
+{"t": 1784633606.728, "event": "state_enter", "state": "TRANSIT", "previous": "REPORT", "reason": "next_slot", "previous_state": "REPORT"}
+{"t": 1784633610.127, "event": "state_exit", "state": "TRANSIT", "next_state": "APPROACH_SLOT", "duration_s": 3.399, "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A6"}
+{"t": 1784633610.128, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "TRANSIT", "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "A6"}
+{"t": 1784633610.129, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 0.002, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784633610.129, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784633610.129, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.001, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784633610.13, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784633613.705, "event": "state_exit", "state": "VERIFY_QR", "next_state": "ILLUMINATE", "duration_s": 3.575, "reason": "qr_verified", "previous_state": "VERIFY_QR", "cargo_id": 14}
+{"t": 1784633613.706, "event": "state_enter", "state": "ILLUMINATE", "previous": "VERIFY_QR", "reason": "qr_verified", "previous_state": "VERIFY_QR", "cargo_id": 14}
+{"t": 1784633614.208, "event": "state_exit", "state": "ILLUMINATE", "next_state": "REPORT", "duration_s": 0.503, "reason": "laser_complete", "previous_state": "ILLUMINATE", "cargo_id": 14, "slot_label": "A6"}
+{"t": 1784633614.208, "event": "state_enter", "state": "REPORT", "previous": "ILLUMINATE", "reason": "laser_complete", "previous_state": "ILLUMINATE", "cargo_id": 14, "slot_label": "A6"}
+{"t": 1784633614.209, "event": "state_exit", "state": "REPORT", "next_state": "TRANSIT", "duration_s": 0.001, "reason": "next_slot", "previous_state": "REPORT"}
+{"t": 1784633614.209, "event": "state_enter", "state": "TRANSIT", "previous": "REPORT", "reason": "next_slot", "previous_state": "REPORT"}
+{"t": 1784633639.043, "event": "state_exit", "state": "TRANSIT", "next_state": "RETURN", "duration_s": 24.834, "reason": "landing_approach", "previous_state": "TRANSIT"}
+{"t": 1784633639.044, "event": "state_enter", "state": "RETURN", "previous": "TRANSIT", "reason": "landing_approach", "previous_state": "TRANSIT"}
+{"t": 1784633645.556, "event": "state_exit", "state": "RETURN", "next_state": "LAND", "duration_s": 6.513, "reason": "landing_point", "previous_state": "RETURN"}
+{"t": 1784633645.556, "event": "state_enter", "state": "LAND", "previous": "RETURN", "reason": "landing_point", "previous_state": "RETURN"}
+{"t": 1784633651.871, "event": "state_exit", "state": "LAND", "next_state": "END", "duration_s": 6.315, "reason": "land_confirmed", "previous_state": "LAND"}
+{"t": 1784633651.871, "event": "state_enter", "state": "END", "previous": "LAND", "reason": "land_confirmed", "previous_state": "LAND"}
+{"t": 1784633652.766, "event": "mission_summary", "state": "END", "complete": false, "result_count": 4, "missing_slots": ["A4", "A5"]}
