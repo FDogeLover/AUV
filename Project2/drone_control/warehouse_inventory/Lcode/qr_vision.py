@@ -780,13 +780,14 @@ class QRConsensusConfig:
     @classmethod
     def from_env(cls, environ: Optional[Mapping[str, str]] = None):
         env = os.environ if environ is None else environ
-        enabled = env.get("DRONE_QR_REQUIRE_LASER_INSIDE", "1").strip().lower()
+        defaults = cls()  # 用类默认值作为回退
+        enabled = env.get("DRONE_QR_REQUIRE_LASER_INSIDE").strip().lower() if "DRONE_QR_REQUIRE_LASER_INSIDE" in env else ("1" if defaults.require_laser_inside else "0")
         if enabled not in {"0", "1", "false", "true"}:
             raise ValueError("DRONE_QR_REQUIRE_LASER_INSIDE must be 0/1/false/true")
         return cls(
-            window_size=int(env.get("DRONE_QR_CONSENSUS_WINDOW", "3")),
-            required_count=int(env.get("DRONE_QR_REQUIRED_COUNT", "2")),
-            laser_margin_px=float(env.get("DRONE_QR_LASER_MARGIN_PX", "12")),
+            window_size=int(env.get("DRONE_QR_CONSENSUS_WINDOW", str(defaults.window_size))),
+            required_count=int(env.get("DRONE_QR_REQUIRED_COUNT", str(defaults.required_count))),
+            laser_margin_px=float(env.get("DRONE_QR_LASER_MARGIN_PX", str(defaults.laser_margin_px))),
             require_laser_inside=enabled in {"1", "true"},
         )
 
