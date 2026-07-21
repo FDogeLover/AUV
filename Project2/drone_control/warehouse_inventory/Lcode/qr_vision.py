@@ -857,7 +857,9 @@ class VisionDebugCapture:
             self.directory.mkdir(parents=True, exist_ok=True)
             with self._lock:
                 self._counter += 1
-                stem = f"{int(time.time() * 1000)}_{self._counter:05d}_{prefix}"
+                slot = metadata.get("slot_label", "") if metadata else ""
+                slot = slot.replace("/", "_").replace(" ", "")
+                stem = f"{slot}_{int(time.time() * 1000)}_{self._counter:05d}_{prefix}" if slot else f"{int(time.time() * 1000)}_{self._counter:05d}_{prefix}"
             image_path = self.directory / f"{stem}.jpg"
             if not self._image_writer(str(image_path), frame):
                 raise RuntimeError("图像编码失败")
