@@ -23,15 +23,14 @@ def _result(content, left, top, size=80):
 
 
 def test_target_roi_selects_nearest_qr_not_pyzbar_result_order(monkeypatch):
-    # In the 560x600 center ROI, the optical target (640,360 full-frame) is
-    # (280,300). Return the far code first to reproduce pyzbar's unspecified
-    # multi-code ordering.
+    # 1000x600 ROI centered at (640,360) → offset=(140,60).
+    # local_target in ROI = (500,300).
     monkeypatch.setattr(
         qr_vision,
         "pyzbar_decode",
         lambda _image: [
-            _result("far", 450, 260),
-            _result("near", 240, 260),
+            _result("far", 700, 260),
+            _result("near", 460, 260),    # center (500,300) in ROI = (640,360) full-frame
         ],
     )
     decoder = qr_vision.QRDecoder(Mapping())
@@ -39,6 +38,8 @@ def test_target_roi_selects_nearest_qr_not_pyzbar_result_order(monkeypatch):
 
     detection = decoder.detect(frame, target_point=(640.0, 360.0))
 
+    # "near" center ROI=(500,300) dist=0  ← nearest to local_target(500,300)
+    # "far"  center ROI=(740,300) dist=240
     assert detection.number == 11
     assert detection.center == (640.0, 360.0)
 
@@ -48,9 +49,9 @@ def test_adaptive_three_x_variant_maps_polygon_back_to_full_frame(monkeypatch):
 
     def decode(image):
         calls.append((image.ndim, image.shape[:2]))
-        # Only the final 3x adaptive-threshold image succeeds.
-        if image.ndim == 2 and image.shape[:2] == (1800, 1680):
-            return [_result("near", 720, 780, size=240)]
+        # 1000x600 ROI → 3x adaptiveThreshold → (1800, 3000)
+        if image.ndim == 2 and image.shape[:2] == (1800, 3000):
+            return [_result("near", 1380, 780, size=240)]
         return []
 
     monkeypatch.setattr(qr_vision, "pyzbar_decode", decode)
@@ -61,7 +62,7 @@ def test_adaptive_three_x_variant_maps_polygon_back_to_full_frame(monkeypatch):
 
     assert detection.number == 11
     assert detection.center == (640.0, 360.0)
-    assert (2, (1800, 1680)) in calls
+    assert (2, (1800, 3000)) in calls
 
 
 def test_pyzbar_failure_in_airborne_path_does_not_run_opencv_fallback(monkeypatch):

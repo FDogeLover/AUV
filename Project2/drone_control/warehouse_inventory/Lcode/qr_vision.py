@@ -82,7 +82,7 @@ class QRDecoder:
         mapping: QRMapping,
         detection_width=1280,
         detector=None,
-        geometry_roi_width=560,
+        geometry_roi_width=1000,
         geometry_roi_height=600,
         geometry_upscale_scales=(2.0, 3.0, 4.0),
     ):
