@@ -762,7 +762,7 @@ class QRConsensusConfig:
     window_size: int = 2
     required_count: int = 1
     laser_margin_px: float = 12.0
-    require_laser_inside: bool = True
+    require_laser_inside: bool = False
 
     @classmethod
     def from_env(cls, environ: Optional[Mapping[str, str]] = None):
