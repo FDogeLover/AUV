@@ -523,6 +523,19 @@ class QRDecoder:
             candidate = self._candidate(content, points, scale, offset)
             if candidate is not None and candidate.number is not None:
                 return candidate
+
+        # pyzbar 全部失败时，用 OpenCV QRCodeDetector 在原始 ROI 上快速试一次。
+        # 板端实测 detectAndDecode 在 560x600 大小上耗时 < 50ms，不会阻塞控制循环。
+        if cv2 is not None and hasattr(self.detector, "detectAndDecode"):
+            try:
+                ocv_content, ocv_points, _ = self.detector.detectAndDecode(roi)
+                if ocv_content and ocv_points is not None and len(ocv_points) > 0:
+                    candidate = self._candidate(ocv_content.strip(), ocv_points[0], 1.0, offset)
+                    if candidate is not None and candidate.number is not None:
+                        return candidate
+            except Exception:
+                pass
+
         return None
 
     def _decode_search(self, frame, target_point=None):

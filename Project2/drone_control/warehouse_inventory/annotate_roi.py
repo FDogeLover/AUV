@@ -135,7 +135,8 @@ def detect_qrs(img):
         ret, points, decoded = detector.detectAndDecode(img)
         if ret and points is not None and len(points) > 0:
             pts = [(float(p[0]), float(p[1])) for p in points[0]]
-            results.append({"corners": pts, "content": str(decoded or ""), "number": "?"})
+            content = str(decoded) if decoded is not None and not isinstance(decoded, (list, tuple, np.ndarray)) else ""
+            results.append({"corners": pts, "content": content, "number": "?"})
 
     return results
 
