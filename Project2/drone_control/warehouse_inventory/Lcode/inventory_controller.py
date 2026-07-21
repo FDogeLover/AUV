@@ -672,22 +672,16 @@ class InventoryMissionCoordinator:
                 finished_monotonic=result.finished_monotonic,
             )
 
-        if result.status == ScanTaskStatus.FAILED:
-            self.state_machine.fault(
-                result.error_code or "scan_failed",
-                waypoint_index=result.waypoint_index,
-                slot_label=result.slot_label,
-            )
-            current = FlightPoint(*[float(value) for value in current_position])
-            route = tuple(self.planner.plan_safe_return(current))
-            return ScanConsumeResult(
-                ScanConsumeOutcome.RETURN,
-                return_route=route,
-                error_code=result.error_code or "scan_failed",
-            )
         accepted = result.detection
-        if accepted is None:
-            return ScanConsumeResult(ScanConsumeOutcome.RETURN, error_code="scan_no_detection")
+        if accepted is None or result.status == ScanTaskStatus.FAILED:
+            # 扫码失败不中断飞行，跳过当前货位继续下一格。
+            # 整条路线（如A面6点）走完后自然进入降落。
+            logger.info(
+                "跳过货位 %s（原因: %s），继续下一格",
+                result.slot_label,
+                result.error_code or "scan_no_detection",
+            )
+            return ScanConsumeResult(ScanConsumeOutcome.ADVANCE, error_code=result.error_code or "scan_no_detection")
         try:
             self.store.check_available(accepted.number, result.slot_label)
         except InventoryConflict:

@@ -549,10 +549,10 @@ def test_scan_timeout_faults_and_keeps_store_empty():
     assert action == controller.WaypointArrivalAction.ENTER_SCAN
     result = coordinator.wait_scan_for_test(coordinator.active_scan_generation, timeout_s=1.0)
     consumed = coordinator.consume_scan_result(result, [0, 0, 1.4])
-    assert consumed.outcome == controller.ScanConsumeOutcome.RETURN
+    # 扫码失败改为跳过该货位（ADVANCE），不再触发 RETURN
+    assert consumed.outcome == controller.ScanConsumeOutcome.ADVANCE
     assert consumed.error_code == "qr_timeout"
     assert coordinator.store.by_slot == {}
-    assert coordinator.state_machine.state == InventoryState.RETURN
 
 
 def test_visual_servo_is_rejected_with_async_scan():
