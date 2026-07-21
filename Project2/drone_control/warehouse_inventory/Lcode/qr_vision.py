@@ -759,8 +759,8 @@ def point_inside_qr(corners: Sequence[Point2D], point: Point2D, margin_px=0.0) -
 
 @dataclass(frozen=True)
 class QRConsensusConfig:
-    window_size: int = 3
-    required_count: int = 2
+    window_size: int = 2
+    required_count: int = 1
     laser_margin_px: float = 12.0
     require_laser_inside: bool = True
 
