@@ -49,6 +49,7 @@ ALLOWED_TRANSITIONS = {
     InventoryState.VERIFY_QR: {
         InventoryState.VISUAL_ALIGN,
         InventoryState.ILLUMINATE,
+        InventoryState.TRANSIT,          # 扫码失败→跳过该货位，下一格
         InventoryState.RETURN,
         InventoryState.FAULT,
     },

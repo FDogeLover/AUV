@@ -681,6 +681,9 @@ class InventoryMissionCoordinator:
                 result.slot_label,
                 result.error_code or "scan_no_detection",
             )
+            # 把状态机从 VERIFY_QR 推走，否则下一格到达时 _inspect_slot
+            # 试图从 VERIFY_QR → APPROACH_SLOT，会被状态机拦截报错。
+            self._go(InventoryState.TRANSIT, "next_slot")
             return ScanConsumeResult(ScanConsumeOutcome.ADVANCE, error_code=result.error_code or "scan_no_detection")
         try:
             self.store.check_available(accepted.number, result.slot_label)
