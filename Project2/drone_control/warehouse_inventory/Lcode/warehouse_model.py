@@ -53,7 +53,7 @@ class WarehouseConfig:
     shelf_u_m: Tuple[float, float] = (1.50, 3.50)
     shelf_v_min_m: float = 1.00
     shelf_v_max_m: float = 3.00
-    column_v_m: Tuple[float, float, float] = (1.50, 2.00, 2.50)
+    column_v_m: Tuple[float, float, float] = (1.45, 1.95, 2.50)
     top_qr_z_m: float = 1.25
     bottom_qr_z_m: float = 0.85
     camera_z_offset_m: float = 0.0
