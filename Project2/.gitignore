@@ -1,1 +1,4 @@
 .worktrees/
+
+# 视觉调试图片（每趟飞行产生的大量图片，不上传）
+vision_debug/
