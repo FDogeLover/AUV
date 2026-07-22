@@ -96,6 +96,10 @@ FC_HEADING_INVALID_TICKS = 3
 FC_HEADING_MAX_STEP_DEG = 10.0
 FC_HEADING_MIN_PREUNLOCK_FRAMES = 5
 FC_HEADING_NORMAL_MAX_DPS = 1
+# 2026-07-22 无货架高度测试确认：发送正 yaw 指令时，飞控下行 yaw 与
+# T265 实测航向均向负方向变化。FC yaw 的数值方向与指令正方向相反，
+# 因此仅在 FC 反馈闭环的最终输出端反转；原始角度、误差和诊断日志保持不变。
+FC_HEADING_COMMAND_SIGN = -1
 
 
 class HeadingFeedbackError(RuntimeError):
@@ -1644,9 +1648,20 @@ class mission:
             raise HeadingFeedbackError(
                 self._heading_feedback_failure_reason or "fc_heading_stale"
             )
-        return self.heading_hold.recovery_status(
-            selected_yaw, max_rate_dps=HEADING_RECOVERY_MAX_DPS
+        return self._apply_heading_command_polarity(
+            self.heading_hold.recovery_status(
+                selected_yaw, max_rate_dps=HEADING_RECOVERY_MAX_DPS
+            )
         )
+
+    def _apply_heading_command_polarity(self, status):
+        """Map controller-positive yaw onto the selected sensor's axis."""
+        if self.heading_source == "fc" and status.command_dps:
+            return replace(
+                status,
+                command_dps=FC_HEADING_COMMAND_SIGN * status.command_dps,
+            )
+        return status
 
     def _clear_heading_fault(self, t265_yaw):
         selected_yaw, heading_confidence = self._select_heading_feedback(
@@ -1680,6 +1695,7 @@ class mission:
                     else -FC_HEADING_NORMAL_MAX_DPS
                 ),
             )
+        status = self._apply_heading_command_polarity(status)
         if status.fault_reason and status.fault_reason != self._last_heading_fault_logged:
             logger.error(f"航向保持触发保护: {status.fault_reason}")
             self._last_heading_fault_logged = status.fault_reason

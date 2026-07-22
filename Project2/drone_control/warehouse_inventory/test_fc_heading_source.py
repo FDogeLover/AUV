@@ -92,7 +92,7 @@ def test_command_follows_fc_yaw_only_and_is_normally_limited_to_one_dps():
     status = m._update_heading_hold(math.radians(-40.0), confidence=3)
 
     assert status.error_deg == pytest.approx(-7.5)
-    assert status.command_dps == -1
+    assert status.command_dps == 1
     assert status.fault_reason is None
 
 
@@ -114,7 +114,7 @@ def test_fc_heading_wraps_from_179_to_minus_179_in_short_direction():
     status = m._update_heading_hold(0.0, confidence=3)
 
     assert status.error_deg == pytest.approx(-2.0)
-    assert status.command_dps == -1
+    assert status.command_dps == 1
 
 
 def test_t265_low_confidence_does_not_disable_valid_fc_heading_feedback():
@@ -123,7 +123,7 @@ def test_t265_low_confidence_does_not_disable_valid_fc_heading_feedback():
 
     status = m._update_heading_hold(math.radians(80.0), confidence=0)
 
-    assert status.command_dps == 1
+    assert status.command_dps == -1
     assert status.degraded_reason is None
 
 
@@ -207,8 +207,18 @@ def test_heading_recovery_uses_fc_yaw_not_t265_yaw():
     )
 
     assert control["heading_recovery_active"] is True
-    assert control["yaw_cmd"] == 3
+    assert control["yaw_cmd"] == -3
     assert m._heading_status.current_deg == pytest.approx(-9.0)
+
+
+def test_t265_fallback_keeps_original_command_polarity():
+    m = _fc_mission(fc_yaw_deg=0.0, t265_yaw_deg=0.0)
+    m.heading_source = "t265"
+
+    status = m._update_heading_hold(math.radians(-5.0), confidence=3)
+
+    assert status.error_deg == pytest.approx(5.0)
+    assert status.command_dps == 1
 
 
 class FakeSerial:
