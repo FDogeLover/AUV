@@ -1,0 +1,141 @@
+{
+  "results": [
+    {
+      "cargo_id": 11,
+      "slot_label": "A1",
+      "confidence": 0.5,
+      "timestamp": 1784714047.081041
+    },
+    {
+      "cargo_id": 15,
+      "slot_label": "A2",
+      "confidence": 0.5,
+      "timestamp": 1784714054.2327502
+    },
+    {
+      "cargo_id": 2,
+      "slot_label": "A3",
+      "confidence": 0.5,
+      "timestamp": 1784714061.1494076
+    },
+    {
+      "cargo_id": 20,
+      "slot_label": "A4",
+      "confidence": 0.5,
+      "timestamp": 1784714079.4416687
+    },
+    {
+      "cargo_id": 13,
+      "slot_label": "A5",
+      "confidence": 0.5,
+      "timestamp": 1784714072.3683593
+    },
+    {
+      "cargo_id": 14,
+      "slot_label": "A6",
+      "confidence": 0.5,
+      "timestamp": 1784714065.661918
+    },
+    {
+      "cargo_id": 16,
+      "slot_label": "B1",
+      "confidence": 0.5,
+      "timestamp": 1784714124.3740888
+    },
+    {
+      "cargo_id": 3,
+      "slot_label": "B2",
+      "confidence": 0.5,
+      "timestamp": 1784714133.37418
+    },
+    {
+      "cargo_id": 18,
+      "slot_label": "B3",
+      "confidence": 0.5,
+      "timestamp": 1784714141.728458
+    },
+    {
+      "cargo_id": 21,
+      "slot_label": "B4",
+      "confidence": 0.5,
+      "timestamp": 1784714120.4346092
+    },
+    {
+      "cargo_id": 24,
+      "slot_label": "B5",
+      "confidence": 0.5,
+      "timestamp": 1784714113.2834973
+    },
+    {
+      "cargo_id": 1,
+      "slot_label": "B6",
+      "confidence": 0.5,
+      "timestamp": 1784714106.6604128
+    },
+    {
+      "cargo_id": 7,
+      "slot_label": "C1",
+      "confidence": 0.5,
+      "timestamp": 1784714152.5730014
+    },
+    {
+      "cargo_id": 23,
+      "slot_label": "C2",
+      "confidence": 0.5,
+      "timestamp": 1784714158.746535
+    },
+    {
+      "cargo_id": 9,
+      "slot_label": "C3",
+      "confidence": 0.5,
+      "timestamp": 1784714164.5229065
+    },
+    {
+      "cargo_id": 6,
+      "slot_label": "C4",
+      "confidence": 0.5,
+      "timestamp": 1784714181.5452828
+    },
+    {
+      "cargo_id": 5,
+      "slot_label": "C5",
+      "confidence": 0.5,
+      "timestamp": 1784714174.9287155
+    },
+    {
+      "cargo_id": 8,
+      "slot_label": "C6",
+      "confidence": 0.5,
+      "timestamp": 1784714169.0150278
+    },
+    {
+      "cargo_id": 22,
+      "slot_label": "D1",
+      "confidence": 0.5,
+      "timestamp": 1784714233.9606192
+    },
+    {
+      "cargo_id": 17,
+      "slot_label": "D4",
+      "confidence": 0.5,
+      "timestamp": 1784714223.9648223
+    },
+    {
+      "cargo_id": 4,
+      "slot_label": "D5",
+      "confidence": 0.5,
+      "timestamp": 1784714216.670106
+    },
+    {
+      "cargo_id": 12,
+      "slot_label": "D6",
+      "confidence": 0.5,
+      "timestamp": 1784714211.0202389
+    }
+  ],
+  "missing_slots": [
+    "D2",
+    "D3"
+  ],
+  "complete": false
+}

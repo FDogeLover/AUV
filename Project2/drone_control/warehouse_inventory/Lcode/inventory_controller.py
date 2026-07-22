@@ -821,8 +821,20 @@ class InventoryMissionCoordinator:
             return ScanConsumeResult(ScanConsumeOutcome.ADVANCE, error_code=result.error_code or "scan_no_detection")
         try:
             self.store.check_available(accepted.number, result.slot_label)
-        except InventoryConflict:
-            return ScanConsumeResult(ScanConsumeOutcome.RETURN, error_code="qr_duplicate")
+        except InventoryConflict as exc:
+            # A readable but conflicting QR is a slot-level inventory miss, not
+            # a flight-safety fault.  Record it and continue so one duplicate
+            # cannot truncate the remaining inspection route.
+            logger.warning(
+                "跳过货位 %s（原因: qr_duplicate, %s），继续下一格",
+                result.slot_label,
+                exc,
+            )
+            self._go(InventoryState.TRANSIT, "next_slot")
+            return ScanConsumeResult(
+                ScanConsumeOutcome.ADVANCE,
+                error_code="qr_duplicate",
+            )
 
         self._go(InventoryState.ILLUMINATE, "qr_verified", cargo_id=accepted.number)
         try:

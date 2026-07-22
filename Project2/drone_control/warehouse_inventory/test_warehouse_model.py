@@ -25,12 +25,12 @@ def test_builds_24_unique_slots_and_expected_face_directions():
     assert model.faces[FaceId.D].look_y_sign == -1
 
 
-def test_d_face_scan_line_is_shifted_negative_y_by_ten_centimeters_only():
+def test_d_face_scan_line_is_shifted_negative_y_by_twenty_centimeters_only():
     model = WarehouseModel()
     assert math.isclose(model.faces[FaceId.B].scan_y_m, 1.65)
-    assert math.isclose(model.faces[FaceId.D].scan_y_m, 3.55)
+    assert math.isclose(model.faces[FaceId.D].scan_y_m, 3.45)
     assert all(
-        math.isclose(model.slots[f"D{number}"].point.y, 3.55)
+        math.isclose(model.slots[f"D{number}"].point.y, 3.45)
         for number in range(1, 7)
     )
 
@@ -112,8 +112,8 @@ def test_full_plan_forces_c_to_d_through_upper_bypass():
     transit = [p.point for p in between if p.kind == WaypointKind.TRANSIT]
     expected = [
         (-2.80, 2.05, 0.85),
-        (-2.80, 3.55, 0.85),
-        (-1.75, 3.55, 0.85),
+        (-2.80, 3.45, 0.85),
+        (-1.75, 3.45, 0.85),
     ]
     assert len(transit) == len(expected)
     assert all(

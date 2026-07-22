@@ -59,8 +59,8 @@ class WarehouseConfig:
     camera_z_offset_m: float = 0.0
     scan_standoff_m: float = 0.70
     scan_back_y_offset_m: float = 0.20
-    # 2026-07-22 D面实飞现场校正：原扫描线偏外，整体向-Y收近0.10m。
-    d_scan_y_adjust_m: float = -0.10
+    # 2026-07-22 D面两轮实飞现场校正：原扫描线偏外，累计向-Y收近0.20m。
+    d_scan_y_adjust_m: float = -0.20
     cruise_z_m: float = 1.25
     landing_approach_z_m: float = 1.25
     landing_final_z_m: float = 0.20

@@ -823,21 +823,35 @@ def test_visual_servo_ignores_large_target_jump():
     assert coordinator.state_machine.state == InventoryState.LAND
 
 
-def test_duplicate_qr_faults_before_laser():
+def test_duplicate_qr_skips_slot_and_continues_before_laser():
     events = []
-    store = EventStore({"A1", "B1"}, events)
+    store = EventStore({"A1", "A2", "B1"}, events)
     store.add(1, "B1", 1.0)
     events.clear()
+    decoder = FakeDecoder(_detection(1))
     coordinator = _coordinator(
-        [MissionWaypoint(FlightPoint(0, 0, 1.4), WaypointKind.INSPECT, FaceId.A, "A1")],
+        [
+            MissionWaypoint(FlightPoint(0, 0, 1.4), WaypointKind.INSPECT, FaceId.A, "A1"),
+            MissionWaypoint(FlightPoint(0.5, 0, 1.4), WaypointKind.INSPECT, FaceId.A, "A2"),
+        ],
         FakeLaser(events),
         store=store,
+        decoder=decoder,
     )
     consumed = _finish_scan(coordinator, 0, [0, 0, 1.4])
-    assert consumed.outcome == controller.ScanConsumeOutcome.RETURN
+    assert consumed.outcome == controller.ScanConsumeOutcome.ADVANCE
     assert consumed.error_code == "qr_duplicate"
     assert events == []
-    assert coordinator.state_machine.state == InventoryState.VERIFY_QR
+    assert coordinator.store.query_cargo(1).slot_label == "B1"
+    assert coordinator.state_machine.state == InventoryState.TRANSIT
+
+    # The next slot remains inspectable; the duplicate did not terminate the
+    # mission or leave the scan state machine stuck in VERIFY_QR.
+    decoder.detection = _detection(2)
+    next_consumed = _finish_scan(coordinator, 1, [0.5, 0, 1.4])
+    assert next_consumed.outcome == controller.ScanConsumeOutcome.ADVANCE
+    assert coordinator.store.query_cargo(2).slot_label == "A2"
+    assert events == ["laser_pulse", "laser_wait", "store_add"]
 
 
 def test_return_transit_arrival_keeps_return_state():
@@ -1042,7 +1056,7 @@ def test_flight_driver_atomically_replaces_return_route():
     assert generation == 1
 
 
-def test_empty_scan_return_route_goes_directly_to_safe_land():
+def test_hardware_scan_return_without_route_goes_directly_to_safe_land():
     calls = []
 
     class EmptyReturnCoordinator:
@@ -1053,7 +1067,7 @@ def test_empty_scan_return_route_goes_directly_to_safe_land():
         def consume_scan_result(self, result, position):
             return controller.ScanConsumeResult(
                 controller.ScanConsumeOutcome.RETURN,
-                error_code="qr_duplicate",
+                error_code="laser_pulse_failed",
             )
 
         def _abort(self, code, **fields):
@@ -1073,5 +1087,5 @@ def test_empty_scan_return_route_goes_directly_to_safe_land():
     assert mission.state == "LAND"
     assert calls == [
         ("scan_hold_ended", {}),
-        ("scan_return_route_empty", {"error_code": "qr_duplicate"}),
+        ("scan_return_route_empty", {"error_code": "laser_pulse_failed"}),
     ]
