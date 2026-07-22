@@ -922,6 +922,7 @@ def test_real_mission_navigates_complete_return_route(monkeypatch):
         route,
         coordinator,
     )
+    mission.heading_source = "t265"
     mission.t265_ok = True
     mission._navigation_purpose = "return"
     mission.navigation_profile = NavigationProfileConfig(

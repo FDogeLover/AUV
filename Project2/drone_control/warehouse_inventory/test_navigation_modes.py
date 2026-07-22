@@ -39,6 +39,9 @@ class ScanRealsense(FakeRealsense):
 
 def _make_mission(profile="cruise"):
     m = mission([0] * 14, [0] * 11, realsense_obj=None, serial_fc_ref=None)
+    # Existing navigation tests exercise the legacy T265 feedback semantics;
+    # dedicated tests below cover the new production-default FC source.
+    m.heading_source = "t265"
     m.targets = [
         [0.0, 0.0, 1.0],
         [2.0, 0.0, 1.0],

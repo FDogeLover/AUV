@@ -68,6 +68,9 @@ def _make_mission_at_target():
     re_fc = [0] * 14
     se_fc = [0] * 11
     m = mission(re_fc, se_fc, realsense_obj=None, serial_fc_ref=None)
+    # 本夹具只验证到达窗口，不提供飞控串口反馈；显式使用旧 T265 航向源，
+    # 避免默认 FC 航向源的安全门禁掩盖被测导航行为。
+    m.heading_source = "t265"
     m.t265_ok = True
     m.realsense = FakeRealsenseArrival(confidence=3, vel=(0.0, 0.0, 0.0))
     m.set_speed = lambda *a, **k: None

@@ -23,6 +23,7 @@ class FakeRealsenseYaw:
 
 def _make_mission():
     m = mission([0] * 14, [0] * 11, realsense_obj=None, serial_fc_ref=None)
+    m.heading_source = "t265"
     m.t265_ok = True
     m.realsense = FakeRealsenseYaw()
     m.heading_hold = HeadingHoldController(

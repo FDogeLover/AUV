@@ -13,7 +13,12 @@ import threading
 import time
 from typing import List
 from Lcode.Logger import logger
-from Lcode.global_variable import lock, fc_last_rx_time
+from Lcode.global_variable import (
+    lock,
+    fc_frame_counter,
+    fc_last_rx_monotonic,
+    fc_last_rx_time,
+)
 
 
 class Serial_fc(object):
@@ -116,6 +121,8 @@ class Serial_fc(object):
                     of_quality = data[21]
                     of_link_sta = data[22]
                     of_work_sta = data[23]
+                    received_wall_time = time.time()
+                    received_monotonic = time.monotonic()
                     with lock:
                         rxbuffer.clear()
                         rxbuffer.append(mission_stage)
@@ -132,11 +139,14 @@ class Serial_fc(object):
                         rxbuffer.append(of_quality)
                         rxbuffer.append(of_link_sta)
                         rxbuffer.append(of_work_sta)
+                        # yaw、时间戳和帧号必须在同一个临界区提交，Mission 才不会读到
+                        # “新 yaw + 旧时间戳”的撕裂快照。
+                        fc_last_rx_time.value = received_wall_time
+                        fc_last_rx_monotonic.value = received_monotonic
+                        fc_frame_counter.value += 1
                     if laser_height_cm > 5:
                         with lock:
                             self._last_laser_height_cm = float(laser_height_cm) / 100.0
-                    fc_last_rx_time.value = time.time()
-
                 elif frame_id == 0x02 and length == 19:
                     fc_vel_x = to_signed16(data[0] | (data[1] << 8))
                     fc_vel_y = to_signed16(data[2] | (data[3] << 8))

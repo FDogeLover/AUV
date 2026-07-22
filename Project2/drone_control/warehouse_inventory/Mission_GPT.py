@@ -12,11 +12,18 @@ import math
 import os
 import sys
 from collections import deque
+from dataclasses import replace
 from typing import List, Optional
-from Lcode.heading_hold import HeadingHoldConfig, HeadingHoldController
+from Lcode.heading_hold import HeadingHoldConfig, HeadingHoldController, wrap_degrees
 from Lcode.Lpid import PID
 from Lcode.Logger import logger
-from Lcode.global_variable import sp_side, lock, fc_last_rx_time
+from Lcode.global_variable import (
+    sp_side,
+    lock,
+    fc_frame_counter,
+    fc_last_rx_monotonic,
+    fc_last_rx_time,
+)
 from Lcode.navigation_profile import NavigationProfileConfig
 from Lcode.resource_monitor import ResourceMonitor
 from t265 import t265_class
@@ -79,6 +86,21 @@ HEADING_RECOVERY_STABLE_S = 1.0
 HEADING_RECOVERY_HARD_ERROR_DEG = 20.0
 HEADING_RECOVERY_MAX_SUCCESSES = 1
 
+# 仓储板间环境会让 T265 视觉 yaw 漂移；默认改用飞控 IMU yaw 做相对航向闭环。
+# t265 仅作为显式回退，不能静默接受拼写错误。
+HEADING_SOURCE = os.getenv("DRONE_HEADING_SOURCE", "fc").strip().lower()
+if HEADING_SOURCE not in {"fc", "t265"}:
+    raise ValueError("DRONE_HEADING_SOURCE只能是fc/t265")
+FC_HEADING_MAX_AGE_S = 0.5
+FC_HEADING_INVALID_TICKS = 3
+FC_HEADING_MAX_STEP_DEG = 10.0
+FC_HEADING_MIN_PREUNLOCK_FRAMES = 5
+FC_HEADING_NORMAL_MAX_DPS = 1
+
+
+class HeadingFeedbackError(RuntimeError):
+    """The selected heading feedback is unsafe to use for closed-loop flight."""
+
 
 def arrival_window_confirmed(window, need, ratio):
     """window: 最近若干帧"位置+速度是否同时达标"的布尔值(deque)。
@@ -113,11 +135,23 @@ class mission:
         # XY PID + 独立航向保持外环
         self.x_pid = PID(0, 0)
         self.y_pid = PID(0, 0)
+        self.heading_source = HEADING_SOURCE
         self.heading_hold = HeadingHoldController(HeadingHoldConfig.from_env())
         if self.heading_hold.config.enabled and YAW_TEST_BURST_ENABLED:
             raise ValueError("DRONE_HEADING_HOLD 与 DRONE_YAW_TEST_BURST 不能同时启用")
         self._heading_status = self.heading_hold.update(0.0, confidence=0, now=time.time())
         self._last_heading_fault_logged = None
+        self._fc_heading_last_frame = None
+        self._fc_heading_last_deg = None
+        self._fc_heading_invalid_ticks = 0
+        self._heading_feedback_age_s = None
+        self._heading_feedback_failure_reason = None
+        self._heading_t265_reference_deg = None
+        self._heading_fc_reference_deg = None
+        self._heading_t265_delta_deg = None
+        self._heading_fc_delta_deg = None
+        self._heading_source_disagreement_deg = None
+        self._last_t265_confidence = None
         self._reset_heading_recovery_for_mission()
         self.navigation_profile = NavigationProfileConfig.from_env()
 
@@ -188,6 +222,17 @@ class mission:
     def start(self):
         self.heading_hold.reset_for_new_mission()
         self._last_heading_fault_logged = None
+        self._fc_heading_last_frame = None
+        self._fc_heading_last_deg = None
+        self._fc_heading_invalid_ticks = 0
+        self._heading_feedback_age_s = None
+        self._heading_feedback_failure_reason = None
+        self._heading_t265_reference_deg = None
+        self._heading_fc_reference_deg = None
+        self._heading_t265_delta_deg = None
+        self._heading_fc_delta_deg = None
+        self._heading_source_disagreement_deg = None
+        self._last_t265_confidence = None
         self._reset_heading_recovery_for_mission()
         self.t265_ok = False
         # 按键门禁已在 main.py 中完成；蓝灯表示正在初始化，不是第二次按键门禁。
@@ -432,11 +477,16 @@ class mission:
             )
             return
 
-        self._heading_status = self.heading_hold.arm(takeoff_yaw, time.time())
+        try:
+            self._heading_status = self._arm_heading_hold(takeoff_yaw)
+        except HeadingFeedbackError as exc:
+            self._abort_takeoff_safely(str(exc))
+            return
         if self.heading_hold.config.enabled:
             logger.info(
                 f"航向保持已锁存起飞方向 "
                 f"{self._heading_status.target_deg:+.2f}°"
+                f" (source={self.heading_source})"
             )
 
         target_h_cm = TAKEOFF_LIFTOFF_CM  # 一键起飞只爬升到离地高度，真正目标高度交给 navigate() 闭环爬升
@@ -475,6 +525,10 @@ class mission:
                     yaw_cmd = self._heading_status.command_dps
                     with lock:
                         self.se_fc[6] = yaw_cmd + sp_side
+                except HeadingFeedbackError as e:
+                    logger.error(f"takeoff: 飞控航向反馈失效: {e}")
+                    self._abort_takeoff_safely(str(e))
+                    return
                 except Exception as e:
                     logger.error(f"takeoff: 起飞阶段T265读取失败: {e}")
                     self._abort_takeoff_safely("t265_takeoff_read_error")
@@ -566,9 +620,11 @@ class mission:
         self._heading_recovery_failure_reason = str(reason)
         self._heading_recovery_active = False
         self._heading_recovery_stable_since = None
-        self._heading_status = self.heading_hold.recovery_status(
-            yaw, max_rate_dps=HEADING_RECOVERY_MAX_DPS
-        )
+        try:
+            self._heading_status = self._heading_recovery_status(yaw)
+        except HeadingFeedbackError:
+            # 反馈本身已失效时绝不能再根据另一来源生成恢复转向指令。
+            pass
         logger.error(f"航向恢复失败，转入降落: {reason}")
         self.set_speed(0, 0, 0, int(hold_z_cm))
         self.on_heading_recovery_failed(str(reason))
@@ -643,7 +699,7 @@ class mission:
             self._heading_recovery_stable_since = None
         elif now - self._heading_recovery_stable_since >= HEADING_RECOVERY_STABLE_S:
             if self.heading_recovery_ready_to_resume():
-                self._heading_status = self.heading_hold.clear_fault_preserving_target(yaw)
+                self._heading_status = self._clear_heading_fault(yaw)
                 self._heading_recovery_active = False
                 self._heading_recovery_successes += 1
                 self._heading_recovery_stable_since = None
@@ -662,9 +718,7 @@ class mission:
                     "z_setpoint_cm": int(hold_z_cm),
                 }
 
-        self._heading_status = self.heading_hold.recovery_status(
-            yaw, max_rate_dps=HEADING_RECOVERY_MAX_DPS
-        )
+        self._heading_status = self._heading_recovery_status(yaw)
         yaw_cmd = self._heading_status.command_dps
         self.set_speed(0, 0, yaw_cmd, int(hold_z_cm))
         return {
@@ -684,15 +738,69 @@ class mission:
             else 0
         )
         source_state = self.state
-        self._heading_status = self._update_heading_hold(
-            yaw, confidence, allow_fault_relock=False
-        )
+        try:
+            self._heading_status = self._update_heading_hold(
+                yaw, confidence, allow_fault_relock=False
+            )
+        except HeadingFeedbackError as exc:
+            reason = str(exc)
+            self._heading_feedback_failure_reason = reason
+            logger.error(f"航向反馈失效，当前tick清零并转入降落: {reason}")
+            hold_z_cm = max(0, int(round(float(pos[2]) * 100)))
+            self.set_speed(0, 0, 0, hold_z_cm)
+            self.on_heading_recovery_failed(reason)
+            self.state = "LAND"
+            return {
+                "confidence": confidence,
+                "vx": 0,
+                "vy": 0,
+                "yaw_cmd": 0,
+                "z_setpoint_cm": hold_z_cm,
+                "heading_recovery_active": False,
+                "heading_recovery_failed": True,
+                "heading_recovery_completed": False,
+                "heading_recovery_reason": reason,
+            }
         yaw_cmd = self._heading_status.command_dps
 
+        if (
+            self.heading_source == "fc"
+            and self._heading_feedback_failure_reason is not None
+        ):
+            # 允许最多两个控制 tick 的串口调度毛刺，但毛刺期间也不能继续 XY/航点推进。
+            self.set_speed(0, 0, 0, int(self._ramp_z_cm))
+            return {
+                "confidence": confidence,
+                "vx": 0,
+                "vy": 0,
+                "yaw_cmd": 0,
+                "z_setpoint_cm": int(self._ramp_z_cm),
+                "heading_recovery_active": True,
+                "heading_recovery_failed": False,
+                "heading_recovery_completed": False,
+                "heading_recovery_reason": self._heading_feedback_failure_reason,
+            }
+
         if self._heading_status.fault_reason or self._heading_recovery_active:
-            recovery = self._heading_recovery_tick(
-                yaw, pos[2], self._heading_status, source_state, confidence
-            )
+            try:
+                recovery = self._heading_recovery_tick(
+                    yaw, pos[2], self._heading_status, source_state, confidence
+                )
+            except HeadingFeedbackError as exc:
+                recovery = self._fail_heading_recovery(
+                    str(exc), yaw, max(0, int(round(float(pos[2]) * 100)))
+                )
+                return {
+                    "confidence": confidence,
+                    "vx": 0,
+                    "vy": 0,
+                    "yaw_cmd": recovery["yaw_cmd"],
+                    "z_setpoint_cm": recovery["z_setpoint_cm"],
+                    "heading_recovery_active": recovery["active"],
+                    "heading_recovery_failed": recovery["failed"],
+                    "heading_recovery_completed": recovery.get("completed", False),
+                    "heading_recovery_reason": recovery["reason"],
+                }
             return {
                 "confidence": confidence,
                 "vx": 0,
@@ -1429,13 +1537,149 @@ class mission:
             self.se_fc[5] = z
             self.se_fc[6] = yaw + sp_side
 
+    def _read_fc_heading(self, *, preunlock=False):
+        """Read one atomic FC-yaw snapshot and enforce freshness/jump bounds."""
+        with lock:
+            raw_deg = self.re_fc[3] / 100.0 if len(self.re_fc) > 3 else float("nan")
+            received_at = fc_last_rx_monotonic.value
+            frame_counter = int(fc_frame_counter.value)
+
+        now = time.monotonic()
+        age_s = now - received_at if received_at > 0 else float("inf")
+        self._heading_feedback_age_s = age_s if math.isfinite(age_s) else None
+
+        if not math.isfinite(raw_deg):
+            self._heading_feedback_failure_reason = "fc_heading_non_finite"
+            raise HeadingFeedbackError("fc_heading_non_finite")
+        current_deg = wrap_degrees(raw_deg)
+
+        if preunlock and frame_counter < FC_HEADING_MIN_PREUNLOCK_FRAMES:
+            self._heading_feedback_failure_reason = (
+                f"fc_heading_not_ready_{frame_counter}_frames"
+            )
+            raise HeadingFeedbackError(self._heading_feedback_failure_reason)
+        if received_at <= 0:
+            self._heading_feedback_failure_reason = "fc_heading_not_ready"
+            raise HeadingFeedbackError("fc_heading_not_ready")
+
+        if age_s > FC_HEADING_MAX_AGE_S:
+            if preunlock or self._fc_heading_last_deg is None:
+                self._heading_feedback_failure_reason = (
+                    f"fc_heading_stale_{age_s:.3f}s"
+                )
+                raise HeadingFeedbackError(self._heading_feedback_failure_reason)
+            self._fc_heading_invalid_ticks += 1
+            self._heading_feedback_failure_reason = (
+                f"fc_heading_stale_{age_s:.3f}s"
+            )
+            if self._fc_heading_invalid_ticks >= FC_HEADING_INVALID_TICKS:
+                raise HeadingFeedbackError(self._heading_feedback_failure_reason)
+            return self._fc_heading_last_deg, False
+
+        if self._fc_heading_last_frame != frame_counter:
+            if self._fc_heading_last_deg is not None:
+                step_deg = wrap_degrees(current_deg - self._fc_heading_last_deg)
+                if abs(step_deg) > FC_HEADING_MAX_STEP_DEG:
+                    self._heading_feedback_failure_reason = (
+                        f"fc_heading_jump_{step_deg:+.2f}deg"
+                    )
+                    raise HeadingFeedbackError(self._heading_feedback_failure_reason)
+            self._fc_heading_last_frame = frame_counter
+            self._fc_heading_last_deg = current_deg
+
+        self._fc_heading_invalid_ticks = 0
+        self._heading_feedback_failure_reason = None
+        return current_deg, True
+
+    def _update_heading_diagnostics(self, t265_yaw, fc_yaw_deg=None):
+        t265_deg = wrap_degrees(math.degrees(t265_yaw))
+        if self._heading_t265_reference_deg is not None:
+            self._heading_t265_delta_deg = wrap_degrees(
+                t265_deg - self._heading_t265_reference_deg
+            )
+        if fc_yaw_deg is not None and self._heading_fc_reference_deg is not None:
+            self._heading_fc_delta_deg = wrap_degrees(
+                fc_yaw_deg - self._heading_fc_reference_deg
+            )
+        if (
+            self._heading_t265_delta_deg is not None
+            and self._heading_fc_delta_deg is not None
+        ):
+            self._heading_source_disagreement_deg = wrap_degrees(
+                self._heading_t265_delta_deg - self._heading_fc_delta_deg
+            )
+
+    def _select_heading_feedback(self, t265_yaw, t265_confidence, *, preunlock=False):
+        self._last_t265_confidence = int(t265_confidence)
+        if self.heading_source == "t265":
+            self._update_heading_diagnostics(t265_yaw)
+            return t265_yaw, int(t265_confidence)
+
+        fc_yaw_deg, fresh = self._read_fc_heading(preunlock=preunlock)
+        self._update_heading_diagnostics(t265_yaw, fc_yaw_deg)
+        return math.radians(fc_yaw_deg), 3 if fresh else 0
+
+    def _arm_heading_hold(self, t265_yaw):
+        t265_deg = wrap_degrees(math.degrees(t265_yaw))
+        if self.heading_source == "fc":
+            selected_yaw, _ = self._select_heading_feedback(
+                t265_yaw, T265_CONFIDENCE_MIN, preunlock=True
+            )
+            self._heading_fc_reference_deg = wrap_degrees(math.degrees(selected_yaw))
+        else:
+            selected_yaw = t265_yaw
+            self._heading_feedback_age_s = None
+        self._heading_t265_reference_deg = t265_deg
+        self._update_heading_diagnostics(
+            t265_yaw,
+            self._heading_fc_reference_deg if self.heading_source == "fc" else None,
+        )
+        return self.heading_hold.arm(selected_yaw, time.time())
+
+    def _heading_recovery_status(self, t265_yaw):
+        selected_yaw, heading_confidence = self._select_heading_feedback(
+            t265_yaw, self._last_t265_confidence or T265_CONFIDENCE_MIN
+        )
+        if self.heading_source == "fc" and heading_confidence < 2:
+            raise HeadingFeedbackError(
+                self._heading_feedback_failure_reason or "fc_heading_stale"
+            )
+        return self.heading_hold.recovery_status(
+            selected_yaw, max_rate_dps=HEADING_RECOVERY_MAX_DPS
+        )
+
+    def _clear_heading_fault(self, t265_yaw):
+        selected_yaw, heading_confidence = self._select_heading_feedback(
+            t265_yaw, self._last_t265_confidence or T265_CONFIDENCE_MIN
+        )
+        if self.heading_source == "fc" and heading_confidence < 2:
+            raise HeadingFeedbackError(
+                self._heading_feedback_failure_reason or "fc_heading_stale"
+            )
+        return self.heading_hold.clear_fault_preserving_target(selected_yaw)
+
     def _update_heading_hold(self, yaw, confidence, *, allow_fault_relock=True):
+        selected_yaw, heading_confidence = self._select_heading_feedback(
+            yaw, confidence
+        )
         status = self.heading_hold.update(
-            yaw,
-            confidence,
+            selected_yaw,
+            heading_confidence,
             time.time(),
             allow_fault_relock=allow_fault_relock,
         )
+        if (
+            self.heading_source == "fc"
+            and abs(status.command_dps) > FC_HEADING_NORMAL_MAX_DPS
+        ):
+            status = replace(
+                status,
+                command_dps=(
+                    FC_HEADING_NORMAL_MAX_DPS
+                    if status.command_dps > 0
+                    else -FC_HEADING_NORMAL_MAX_DPS
+                ),
+            )
         if status.fault_reason and status.fault_reason != self._last_heading_fault_logged:
             logger.error(f"航向保持触发保护: {status.fault_reason}")
             self._last_heading_fault_logged = status.fault_reason
@@ -1446,6 +1690,29 @@ class mission:
         return {
             "heading_hold_enabled": status.enabled,
             "heading_hold_armed": status.armed,
+            "heading_source": self.heading_source,
+            "heading_feedback_age_s": (
+                round(self._heading_feedback_age_s, 3)
+                if self._heading_feedback_age_s is not None
+                else None
+            ),
+            "heading_feedback_failure_reason": self._heading_feedback_failure_reason,
+            "heading_t265_delta_deg": (
+                round(self._heading_t265_delta_deg, 2)
+                if self._heading_t265_delta_deg is not None
+                else None
+            ),
+            "heading_fc_delta_deg": (
+                round(self._heading_fc_delta_deg, 2)
+                if self._heading_fc_delta_deg is not None
+                else None
+            ),
+            "heading_source_disagreement_deg": (
+                round(self._heading_source_disagreement_deg, 2)
+                if self._heading_source_disagreement_deg is not None
+                else None
+            ),
+            "t265_tracking_confidence": self._last_t265_confidence,
             "heading_target_deg": (
                 round(status.target_deg, 2) if status.target_deg is not None else None
             ),

@@ -41,6 +41,7 @@ def _make_mission_for_land():
     re_fc = [0] * 14
     se_fc = [0] * 11
     m = mission(re_fc, se_fc, realsense_obj=None, serial_fc_ref=None)
+    m.heading_source = "t265"
     m.t265_ok = True
     m.realsense = FakeRealsense(pos=(0.12, -0.05, 0.03), yaw=0.01)
     m.state = "LAND"
