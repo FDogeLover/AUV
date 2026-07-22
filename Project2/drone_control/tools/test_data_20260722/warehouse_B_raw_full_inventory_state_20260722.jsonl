@@ -1,0 +1,94 @@
+{"t": 1784700851.207, "event": "state_enter", "state": "BOOT", "previous": null}
+{"t": 1784700851.207, "event": "state_exit", "state": "BOOT", "next_state": "WAIT_BUTTON", "duration_s": 0.0, "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784700851.207, "event": "state_enter", "state": "WAIT_BUTTON", "previous": "BOOT", "reason": "full_inventory", "previous_state": "BOOT"}
+{"t": 1784700858.597, "event": "state_exit", "state": "WAIT_BUTTON", "next_state": "INIT_FLIGHT_HW", "duration_s": 7.39, "reason": "button_pressed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784700858.598, "event": "state_enter", "state": "INIT_FLIGHT_HW", "previous": "WAIT_BUTTON", "reason": "button_pressed", "previous_state": "WAIT_BUTTON"}
+{"t": 1784700860.587, "event": "state_exit", "state": "INIT_FLIGHT_HW", "next_state": "PREFLIGHT", "duration_s": 1.99, "reason": "hardware_ready", "previous_state": "INIT_FLIGHT_HW", "route_waypoints": 16, "inspect_slots": 6, "test_slot": null, "scan_z_override": null}
+{"t": 1784700860.588, "event": "state_enter", "state": "PREFLIGHT", "previous": "INIT_FLIGHT_HW", "reason": "hardware_ready", "previous_state": "INIT_FLIGHT_HW", "route_waypoints": 16, "inspect_slots": 6, "test_slot": null, "scan_z_override": null}
+{"t": 1784700860.594, "event": "state_exit", "state": "PREFLIGHT", "next_state": "WARNING_5S", "duration_s": 0.007, "reason": "preflight_passed", "previous_state": "PREFLIGHT"}
+{"t": 1784700860.594, "event": "state_enter", "state": "WARNING_5S", "previous": "PREFLIGHT", "reason": "preflight_passed", "previous_state": "PREFLIGHT"}
+{"t": 1784700865.733, "event": "state_exit", "state": "WARNING_5S", "next_state": "TAKEOFF", "duration_s": 5.139, "reason": "flight_task_started", "previous_state": "WARNING_5S"}
+{"t": 1784700865.735, "event": "state_enter", "state": "TAKEOFF", "previous": "WARNING_5S", "reason": "flight_task_started", "previous_state": "WARNING_5S"}
+{"t": 1784700868.924, "event": "state_exit", "state": "TAKEOFF", "next_state": "TRANSIT", "duration_s": 3.191, "reason": "takeoff_complete", "previous_state": "TAKEOFF"}
+{"t": 1784700868.925, "event": "state_enter", "state": "TRANSIT", "previous": "TAKEOFF", "reason": "takeoff_complete", "previous_state": "TAKEOFF"}
+{"t": 1784700898.533, "event": "state_exit", "state": "TRANSIT", "next_state": "SET_GIMBAL", "duration_s": 29.609, "reason": "set_face", "previous_state": "TRANSIT", "face": "B"}
+{"t": 1784700898.533, "event": "state_enter", "state": "SET_GIMBAL", "previous": "TRANSIT", "reason": "set_face", "previous_state": "TRANSIT", "face": "B"}
+{"t": 1784700899.135, "event": "state_exit", "state": "SET_GIMBAL", "next_state": "APPROACH_SLOT", "duration_s": 0.603, "reason": "gimbal_set", "previous_state": "SET_GIMBAL"}
+{"t": 1784700899.137, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "SET_GIMBAL", "reason": "gimbal_set", "previous_state": "SET_GIMBAL"}
+{"t": 1784700901.124, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 1.989, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784700901.126, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784700901.127, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.003, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784700901.127, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784700901.957, "event": "state_exit", "state": "VERIFY_QR", "next_state": "ILLUMINATE", "duration_s": 0.83, "reason": "qr_verified", "previous_state": "VERIFY_QR", "cargo_id": 1}
+{"t": 1784700901.957, "event": "state_enter", "state": "ILLUMINATE", "previous": "VERIFY_QR", "reason": "qr_verified", "previous_state": "VERIFY_QR", "cargo_id": 1}
+{"t": 1784700902.46, "event": "state_exit", "state": "ILLUMINATE", "next_state": "REPORT", "duration_s": 0.504, "reason": "laser_complete", "previous_state": "ILLUMINATE", "cargo_id": 1, "slot_label": "B6"}
+{"t": 1784700902.461, "event": "state_enter", "state": "REPORT", "previous": "ILLUMINATE", "reason": "laser_complete", "previous_state": "ILLUMINATE", "cargo_id": 1, "slot_label": "B6"}
+{"t": 1784700902.461, "event": "state_exit", "state": "REPORT", "next_state": "TRANSIT", "duration_s": 0.001, "reason": "next_slot", "previous_state": "REPORT"}
+{"t": 1784700902.461, "event": "state_enter", "state": "TRANSIT", "previous": "REPORT", "reason": "next_slot", "previous_state": "REPORT"}
+{"t": 1784700908.974, "event": "state_exit", "state": "TRANSIT", "next_state": "APPROACH_SLOT", "duration_s": 6.513, "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "B5"}
+{"t": 1784700908.976, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "TRANSIT", "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "B5"}
+{"t": 1784700908.976, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 0.002, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784700908.977, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784700908.978, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.001, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784700908.978, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784700913.792, "event": "state_exit", "state": "VERIFY_QR", "next_state": "ILLUMINATE", "duration_s": 4.815, "reason": "qr_verified", "previous_state": "VERIFY_QR", "cargo_id": 24}
+{"t": 1784700913.793, "event": "state_enter", "state": "ILLUMINATE", "previous": "VERIFY_QR", "reason": "qr_verified", "previous_state": "VERIFY_QR", "cargo_id": 24}
+{"t": 1784700914.299, "event": "state_exit", "state": "ILLUMINATE", "next_state": "REPORT", "duration_s": 0.507, "reason": "laser_complete", "previous_state": "ILLUMINATE", "cargo_id": 24, "slot_label": "B5"}
+{"t": 1784700914.299, "event": "state_enter", "state": "REPORT", "previous": "ILLUMINATE", "reason": "laser_complete", "previous_state": "ILLUMINATE", "cargo_id": 24, "slot_label": "B5"}
+{"t": 1784700914.3, "event": "state_exit", "state": "REPORT", "next_state": "TRANSIT", "duration_s": 0.001, "reason": "next_slot", "previous_state": "REPORT"}
+{"t": 1784700914.3, "event": "state_enter", "state": "TRANSIT", "previous": "REPORT", "reason": "next_slot", "previous_state": "REPORT"}
+{"t": 1784700920.831, "event": "state_exit", "state": "TRANSIT", "next_state": "APPROACH_SLOT", "duration_s": 6.531, "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "B4"}
+{"t": 1784700920.831, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "TRANSIT", "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "B4"}
+{"t": 1784700920.833, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 0.002, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784700920.833, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784700920.834, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.001, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784700920.834, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784700921.821, "event": "state_exit", "state": "VERIFY_QR", "next_state": "ILLUMINATE", "duration_s": 0.987, "reason": "qr_verified", "previous_state": "VERIFY_QR", "cargo_id": 21}
+{"t": 1784700921.822, "event": "state_enter", "state": "ILLUMINATE", "previous": "VERIFY_QR", "reason": "qr_verified", "previous_state": "VERIFY_QR", "cargo_id": 21}
+{"t": 1784700922.325, "event": "state_exit", "state": "ILLUMINATE", "next_state": "REPORT", "duration_s": 0.504, "reason": "laser_complete", "previous_state": "ILLUMINATE", "cargo_id": 21, "slot_label": "B4"}
+{"t": 1784700922.326, "event": "state_enter", "state": "REPORT", "previous": "ILLUMINATE", "reason": "laser_complete", "previous_state": "ILLUMINATE", "cargo_id": 21, "slot_label": "B4"}
+{"t": 1784700922.328, "event": "state_exit", "state": "REPORT", "next_state": "TRANSIT", "duration_s": 0.003, "reason": "next_slot", "previous_state": "REPORT"}
+{"t": 1784700922.329, "event": "state_enter", "state": "TRANSIT", "previous": "REPORT", "reason": "next_slot", "previous_state": "REPORT"}
+{"t": 1784700925.34, "event": "state_exit", "state": "TRANSIT", "next_state": "APPROACH_SLOT", "duration_s": 3.012, "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "B1"}
+{"t": 1784700925.34, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "TRANSIT", "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "B1"}
+{"t": 1784700925.34, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 0.0, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784700925.341, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784700925.341, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.001, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784700925.341, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784700927.269, "event": "state_exit", "state": "VERIFY_QR", "next_state": "ILLUMINATE", "duration_s": 1.928, "reason": "qr_verified", "previous_state": "VERIFY_QR", "cargo_id": 16}
+{"t": 1784700927.269, "event": "state_enter", "state": "ILLUMINATE", "previous": "VERIFY_QR", "reason": "qr_verified", "previous_state": "VERIFY_QR", "cargo_id": 16}
+{"t": 1784700927.771, "event": "state_exit", "state": "ILLUMINATE", "next_state": "REPORT", "duration_s": 0.503, "reason": "laser_complete", "previous_state": "ILLUMINATE", "cargo_id": 16, "slot_label": "B1"}
+{"t": 1784700927.772, "event": "state_enter", "state": "REPORT", "previous": "ILLUMINATE", "reason": "laser_complete", "previous_state": "ILLUMINATE", "cargo_id": 16, "slot_label": "B1"}
+{"t": 1784700927.772, "event": "state_exit", "state": "REPORT", "next_state": "TRANSIT", "duration_s": 0.001, "reason": "next_slot", "previous_state": "REPORT"}
+{"t": 1784700927.772, "event": "state_enter", "state": "TRANSIT", "previous": "REPORT", "reason": "next_slot", "previous_state": "REPORT"}
+{"t": 1784700934.289, "event": "state_exit", "state": "TRANSIT", "next_state": "APPROACH_SLOT", "duration_s": 6.517, "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "B2"}
+{"t": 1784700934.289, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "TRANSIT", "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "B2"}
+{"t": 1784700934.289, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 0.0, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784700934.29, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784700934.29, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.001, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784700934.291, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784700937.04, "event": "state_exit", "state": "VERIFY_QR", "next_state": "ILLUMINATE", "duration_s": 2.75, "reason": "qr_verified", "previous_state": "VERIFY_QR", "cargo_id": 3}
+{"t": 1784700937.04, "event": "state_enter", "state": "ILLUMINATE", "previous": "VERIFY_QR", "reason": "qr_verified", "previous_state": "VERIFY_QR", "cargo_id": 3}
+{"t": 1784700937.545, "event": "state_exit", "state": "ILLUMINATE", "next_state": "REPORT", "duration_s": 0.505, "reason": "laser_complete", "previous_state": "ILLUMINATE", "cargo_id": 3, "slot_label": "B2"}
+{"t": 1784700937.546, "event": "state_enter", "state": "REPORT", "previous": "ILLUMINATE", "reason": "laser_complete", "previous_state": "ILLUMINATE", "cargo_id": 3, "slot_label": "B2"}
+{"t": 1784700937.546, "event": "state_exit", "state": "REPORT", "next_state": "TRANSIT", "duration_s": 0.001, "reason": "next_slot", "previous_state": "REPORT"}
+{"t": 1784700937.547, "event": "state_enter", "state": "TRANSIT", "previous": "REPORT", "reason": "next_slot", "previous_state": "REPORT"}
+{"t": 1784700944.066, "event": "state_exit", "state": "TRANSIT", "next_state": "APPROACH_SLOT", "duration_s": 6.52, "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "B3"}
+{"t": 1784700944.066, "event": "state_enter", "state": "APPROACH_SLOT", "previous": "TRANSIT", "reason": "inspect_arrival", "previous_state": "TRANSIT", "slot_label": "B3"}
+{"t": 1784700944.067, "event": "state_exit", "state": "APPROACH_SLOT", "next_state": "VISUAL_ALIGN", "duration_s": 0.001, "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784700944.069, "event": "state_enter", "state": "VISUAL_ALIGN", "previous": "APPROACH_SLOT", "reason": "hold_position_for_scan", "previous_state": "APPROACH_SLOT"}
+{"t": 1784700944.071, "event": "state_exit", "state": "VISUAL_ALIGN", "next_state": "VERIFY_QR", "duration_s": 0.004, "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784700944.071, "event": "state_enter", "state": "VERIFY_QR", "previous": "VISUAL_ALIGN", "reason": "visual_alignment_ready", "previous_state": "VISUAL_ALIGN"}
+{"t": 1784700944.939, "event": "state_exit", "state": "VERIFY_QR", "next_state": "ILLUMINATE", "duration_s": 0.868, "reason": "qr_verified", "previous_state": "VERIFY_QR", "cargo_id": 18}
+{"t": 1784700944.939, "event": "state_enter", "state": "ILLUMINATE", "previous": "VERIFY_QR", "reason": "qr_verified", "previous_state": "VERIFY_QR", "cargo_id": 18}
+{"t": 1784700945.441, "event": "state_exit", "state": "ILLUMINATE", "next_state": "REPORT", "duration_s": 0.502, "reason": "laser_complete", "previous_state": "ILLUMINATE", "cargo_id": 18, "slot_label": "B3"}
+{"t": 1784700945.442, "event": "state_enter", "state": "REPORT", "previous": "ILLUMINATE", "reason": "laser_complete", "previous_state": "ILLUMINATE", "cargo_id": 18, "slot_label": "B3"}
+{"t": 1784700945.442, "event": "state_exit", "state": "REPORT", "next_state": "TRANSIT", "duration_s": 0.001, "reason": "next_slot", "previous_state": "REPORT"}
+{"t": 1784700945.442, "event": "state_enter", "state": "TRANSIT", "previous": "REPORT", "reason": "next_slot", "previous_state": "REPORT"}
+{"t": 1784700967.746, "event": "state_exit", "state": "TRANSIT", "next_state": "RETURN", "duration_s": 22.304, "reason": "landing_approach", "previous_state": "TRANSIT"}
+{"t": 1784700967.746, "event": "state_enter", "state": "RETURN", "previous": "TRANSIT", "reason": "landing_approach", "previous_state": "TRANSIT"}
+{"t": 1784700974.267, "event": "state_exit", "state": "RETURN", "next_state": "LAND", "duration_s": 6.521, "reason": "landing_point", "previous_state": "RETURN"}
+{"t": 1784700974.267, "event": "state_enter", "state": "LAND", "previous": "RETURN", "reason": "landing_point", "previous_state": "RETURN"}
+{"t": 1784700976.796, "event": "state_exit", "state": "LAND", "next_state": "END", "duration_s": 2.529, "reason": "land_confirmed", "previous_state": "LAND"}
+{"t": 1784700976.797, "event": "state_enter", "state": "END", "previous": "LAND", "reason": "land_confirmed", "previous_state": "LAND"}
+{"t": 1784700977.729, "event": "mission_summary", "state": "END", "complete": true, "result_count": 6, "missing_slots": []}

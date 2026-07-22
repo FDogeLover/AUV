@@ -21,7 +21,7 @@ class HeadingHoldConfig:
     enabled: bool = True
     kp: float = 0.25
     deadband_deg: float = 1.5
-    max_rate_dps: int = 1
+    max_rate_dps: int = 2
     fault_error_deg: float = 8.0
     runaway_window_s: float = 1.0
     runaway_growth_deg: float = 3.0
@@ -48,7 +48,7 @@ class HeadingHoldConfig:
             enabled=enabled_text in {"1", "true"},
             kp=float(env.get("DRONE_HEADING_HOLD_KP", "0.25")),
             deadband_deg=float(env.get("DRONE_HEADING_HOLD_DEADBAND_DEG", "1.5")),
-            max_rate_dps=int(env.get("DRONE_HEADING_HOLD_MAX_DPS", "1")),
+            max_rate_dps=int(env.get("DRONE_HEADING_HOLD_MAX_DPS", "2")),
         )
 
 
@@ -150,7 +150,9 @@ class HeadingHoldController:
         return magnitude if error_deg > 0 else -magnitude
 
     def _runaway_detected(self, command_dps: int, error_deg: float, now: float) -> bool:
-        if command_dps == 0:
+        # 先允许比例控制从最小整数输出逐步增强。只有在已经持续施加
+        # 最大修正时，误差仍继续增长才能证明当前控制无法压住偏航。
+        if abs(command_dps) < self.config.max_rate_dps:
             self._reset_runaway_window()
             return False
         sign = 1 if command_dps > 0 else -1

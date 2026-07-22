@@ -1,0 +1,20 @@
+{
+  "state": "VERIFY_QR",
+  "capture": "scan_frame",
+  "waypoint_index": 5,
+  "slot_label": "B6",
+  "position": [
+    -1.7836492637478674,
+    1.6769160837591615,
+    0.85
+  ],
+  "frame_sequence": 673,
+  "capture_timestamp": 160.193556839,
+  "processed_frame_count": 1,
+  "frame_shape": [
+    720,
+    1280,
+    3
+  ],
+  "timestamp": 1784700591.8077037
+}

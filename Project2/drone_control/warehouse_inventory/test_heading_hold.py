@@ -12,7 +12,9 @@ def _controller(**overrides):
 
 
 def test_default_config_enables_heading_hold():
-    assert HeadingHoldConfig.from_env({}).enabled is True
+    default_config = HeadingHoldConfig.from_env({})
+    assert default_config.enabled is True
+    assert default_config.max_rate_dps == 2
     assert HeadingHoldConfig.from_env({"DRONE_HEADING_HOLD": "0"}).enabled is False
 
 
@@ -54,7 +56,7 @@ def test_hard_error_fault_latches_until_new_mission():
     assert recovered.target_deg == 0.0
 
 
-def test_runaway_growth_latches_fault():
+def test_submax_growth_does_not_latch_runaway_fault():
     controller = _controller(
         fault_error_deg=20.0,
         runaway_window_s=1.0,
@@ -62,6 +64,23 @@ def test_runaway_growth_latches_fault():
     )
     controller.update(math.radians(2.0), 3, 0.0)
     status = controller.update(math.radians(5.2), 3, 1.0)
+    assert status.command_dps == -1
+    assert status.fault_reason is None
+
+
+def test_runaway_growth_latches_after_max_command_for_full_window():
+    controller = _controller(
+        kp=0.5,
+        fault_error_deg=20.0,
+        runaway_window_s=1.0,
+        runaway_growth_deg=3.0,
+    )
+    first_max = controller.update(math.radians(4.0), 3, 1.0)
+    before_window = controller.update(math.radians(7.2), 3, 1.9)
+    status = controller.update(math.radians(7.2), 3, 2.0)
+    assert first_max.command_dps == -2
+    assert before_window.command_dps == -2
+    assert before_window.fault_reason is None
     assert status.command_dps == 0
     assert "grew" in status.fault_reason
 

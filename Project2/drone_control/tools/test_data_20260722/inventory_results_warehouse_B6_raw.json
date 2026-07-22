@@ -1,0 +1,12 @@
+{
+  "results": [
+    {
+      "cargo_id": 1,
+      "slot_label": "B6",
+      "confidence": 0.5,
+      "timestamp": 1784700594.5611596
+    }
+  ],
+  "missing_slots": [],
+  "complete": true
+}
