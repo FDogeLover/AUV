@@ -46,7 +46,7 @@ disabledSkills:
 │   │   ├── Mission_GPT.py     火情巡逻状态机
 │   │   ├── Lcode/fire_vision.py 火情视觉检测
 │   │   └── Lcode/gpio_servo.py 抛投舵机控制
-│   ├── warehouse_inventory/    ← 立体货架盘点赛题模块（2026-07-19 集成状态机）
+│   ├── warehouse_inventory/    ← 立体货架盘点赛题模块（2026-07-22 阶段验收归档）
 │   │   ├── main.py            入口（warehouse 模式）
 │   │   ├── Mission_GPT.py     盘点任务状态机
 │   │   ├── Lcode/             核心库（inventory_controller, inventory_state, qr_vision, vision_servo）
@@ -268,11 +268,11 @@ Qoder CLI：`C:\Users\FJJ\.qoder-cn\bin\qoderclicn\qoderclicn.exe`
 | 37 | fire_patrol抛投舵机接入+角度语义修正 | ✅ | drop_bag()接入真实sysfs PWM舵机；0°=释放/180°=锁定(与初始假设相反)，2026-07-17真机测试后用户指出修正；连续6次触发测试(含2次完整路径)松开+自动复位全部验证成功 |
 | 38 | fire_patrol安全结束后串口监听线程关闭竞态 | 🟡/低优先级 | 三轮2026-07-18完整路线均在上锁、任务结束、T265/串口关闭后触发`listen_fc`线程异常；不影响飞行，根因是`listen_end()`不等待线程且部分`read()`未捕获关闭异常，待桌面回归修复 |
 | 39 | basic BCM17一键起飞门禁 | 🟡待飞行 | 自启动后只初始化GPIO并绿灯等待，用户拔插T265后按键，随后才创建T265/飞控串口；检查通过后红灯5秒再进入TAKEOFF，任一阶段失败均不解锁；旧顺序的板端DRY_RUN已验证，重排后尚待复测 |
-| 40 | warehouse_inventory QR码解码 | 🟡待复飞 | 共识window=2/required=1，require_laser_inside=False，ROI=1000×600；S形路径一排行完再换行；到位即扫+FOV快速检测；A面6点成功率4/6；A4/A5偶发漏扫（T265位置漂移导致） |
-| 41 | warehouse_inventory异步扫码后安全返航 | ✅ | 2026-07-20第三次实飞完整验证：扫码超时→RETURN→首返航点cruise推进→LAND_APPROACH→LAND确认，loop异常保护验证通过，无flight_loop_exception事件 |
-| 42 | warehouse_inventory完整路线净空与扫码点 | 🟡 | route-only 40航点完整实飞走完；下绕通道从X=+0.15外移到+0.30；巡航/扫码/降落高度统一降0.15m至1.25/0.85m；B面scan_y从1.45→1.65（扫货架背面额外后退） |
-| 43 | warehouse_inventory视觉伺服 | ⏸ | 板端性能限制+飞行抖动导致连续闭环得不偿失；当前方案：激光物理调正+开环一次性粗调，不上K230不写额外伺服代码 |
-| 44 | landing时heading_hold故障锁死后失控 | ✅ | T265降落跟丢导致yaw跳变触发故障锁死→yaw_cmd=0→物理旋转180°。已修复：误差回落后自动恢复航向锁定 |
+| 40 | warehouse_inventory QR码解码 | ✅/赛题验收 | 最终raw-only、FOV预检关闭、异步扫码；2026-07-22最新完整路线24/24，missing_slots=[] |
+| 41 | warehouse_inventory扫码失败处理 | ✅/赛题验收 | 无QR/解码失败/timeout/duplicate只跳过当前格继续全程；硬件/飞行安全故障仍返航或降落；修正后连续两轮完成 |
+| 42 | warehouse_inventory完整路线净空与扫码点 | ✅/赛题验收 | 40航点约21.15m；A→B/C→D均走上端X=-2.80；B Y=1.65，D Y=3.45；上/下层1.25/0.85m；两轮飞完 |
+| 43 | warehouse_inventory视觉伺服 | ⏸/归档 | 板端性能限制+飞行抖动下收益不足；赛题已收尾，不引入K230或额外伺服 |
+| 44 | warehouse_inventory T265 heading hold/yaw方向 | ✅/赛题验收 | 修正T265误差方向，使用t265源和3°/s上限；两轮完整飞行无大幅失控偏转，最新降落末段误差约2° |
 
 ## 远程设备操作规范（SSH 到板载设备）
 
@@ -299,7 +299,7 @@ Qoder CLI：`C:\Users\FJJ\.qoder-cn\bin\qoderclicn\qoderclicn.exe`
 - `FJJ/.git` 是板载独立历史，不与本机仓库做 push/pull 关联，只用于板子上本地 `commit`/`checkout`/`reset` 回退
 - 推送本机代码到远程用逐文件 `scp`，不用递归复制整个目录（避免带上 `__pycache__/`、`.ipynb_checkpoints/`）
 - **`FJJ/.git` 里换行符约定不统一，scp 后提交前必须先核对**：`basic_radar/Lcode/Lradar.py` 是 LF，但 `basic_radar/Mission_GPT.py`/`main.py` 历史上就是 CRLF（板子仓库本身遗留的不一致，不是本机的问题）——本机 Windows 编辑器/git 存的文件基本都是 CRLF，如果不管三七二十一 scp 过去就 `git commit`，凡是原本是 LF 的文件会被换行符污染成假性全文件重写(`git diff --stat` 显示几百上千行改动，实际可能只改了几十行)。**流程**：scp 完先 `git show HEAD:<file> | file -` 看原来是不是 CRLF，跟 `file <file>` 比对当前工作区状态，不一致就用 `sed -i 's/\r$//'`(转LF) 或 `sed -i 's/$/\r/'`(转CRLF，注意不要对已有CRLF的行重复加，先转LF再统一转CRLF更保险) 按各文件原有约定改回来，再 `git diff --stat` 确认改动行数量级合理，才能 `git commit`
-- **飞行测试数据要同步回本机仓库**：`ubuntu-pi` 上 `basic/test_data_*` 里归档的 `flight_data_*.jsonl.bak` 等测试数据，以后要同步一份到本机仓库对应位置（`drone_control/tools/test_data_*`），不要只留在板子上——之前 2026-07-06 的数据只在板子上，本机分析时要临时 ssh 上去现拉，之后应避免这种情况
-- **飞行数据归档目录约定 — 板子和本机不是同一个位置，板子内部也不再按模块分散**：**2026-07-08 起统一改成 `FJJ/test_data/<版本>_<日期>/`**（比如 `test_data/basic_20260705/`、`test_data/basic_radar_20260708/`），版本名前缀区分是 `basic`/`original`/`basic_radar` 哪个模块测的，不再各模块自己开 `test_data_YYYYMMDD/` 子目录（此前 `basic/test_data_20260705`、`basic/test_data_20260706`、`basic_radar/test_data_20260708` 这种各模块自建子目录的旧结构，已用 `git mv` 统一迁移到新位置，保留了git历史）。这些日期子目录本身要 `git add` 提交进 `FJJ/.git`，不是只是散放的临时文件。本机仓库统一放在 `drone_control/tools/test_data_YYYYMMDD/`（不分模块，本机这边保持不变），板子和本机两边目录结构不对称，同步时不要想当然按同一路径映射
+- **飞行测试数据要同步回本机仓库**：`ubuntu-pi` 上 `basic/test_data_*` 里归档的 `flight_data_*.jsonl.bak` 等测试数据，以后要同步一份到本机仓库对应位置（`drone_control/tools/data_archive/test_data_*`），不要只留在板子上——之前 2026-07-06 的数据只在板子上，本机分析时要临时 ssh 上去现拉，之后应避免这种情况
+- **飞行数据归档目录约定 — 板子和本机不是同一个位置，板子内部也不再按模块分散**：**2026-07-08 起统一改成 `FJJ/test_data/<版本>_<日期>/`**（比如 `test_data/basic_20260705/`、`test_data/basic_radar_20260708/`），版本名前缀区分是 `basic`/`original`/`basic_radar` 哪个模块测的，不再各模块自己开 `test_data_YYYYMMDD/` 子目录（此前 `basic/test_data_20260705`、`basic/test_data_20260706`、`basic_radar/test_data_20260708` 这种各模块自建子目录的旧结构，已用 `git mv` 统一迁移到新位置，保留了git历史）。这些日期子目录本身要 `git add` 提交进 `FJJ/.git`，不是只是散放的临时文件。本机仓库统一放在 `drone_control/tools/data_archive/test_data_YYYYMMDD/`（不分模块，本机这边保持不变），板子和本机两边目录结构不对称，同步时不要想当然按同一路径映射
 - `original/main.ipynb`、`original/tets_k230_tongxin.ipynb` 只存在于设备上，可能含本机没有的实验性改动，推送/覆盖前先看内容，避免丢失
 - 任何"限定路径可做"及以上级别的操作，执行后立刻用只读命令验证结果，不假设命令一定成功

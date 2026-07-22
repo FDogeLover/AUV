@@ -36,3 +36,4 @@
 - [立体货架盘点地面站通信](project_warehouse_inventory_ground_link.md) — 端口/dev/bt_serial，训练阶段只广播且无接收端，不能等待ACK或阻塞飞行；正式地面站可靠模式以后配置化接入
 - [立体货架盘点QR视觉解码实测](project_warehouse_inventory_qr_vision.md) — 真实飞行裸pyzbar/OpenCV均零成功、adaptiveThreshold+pyzbar有效；当前飞行是ROI+pyzbar-only，下一步加有界OpenCV ROI回退和分层诊断，不能恢复17秒全帧搜索
 - [立体货架盘点异步扫码与返航实测](project_warehouse_inventory_async_return.md) — A1 qr_timeout已被消费且实际飞到首返航点1.5cm内；后续停止源于return timeout立即LAND，LAND又未完成，视觉/返航到达/降落是三个独立问题
+- [立体货架盘点赛题最终归档](project_warehouse_inventory_final_archive.md) — 2026-07-22阶段验收；40航点连续两轮完成，最新一轮24/24；扫码内容失败继续全程，硬故障仍安全降落

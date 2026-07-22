@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+*.log
+*.log.*
+*.jsonl
+*.jsonl.*
+inventory_results.json
+inventory_results.json.*
+vision_debug/
+test_data/
+.git.corrupted.20260715/

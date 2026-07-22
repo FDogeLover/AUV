@@ -34,8 +34,12 @@
 - 3秒debounce锁（已由航点+generation+InventoryStore去重）
 - 阻塞式激光pulse/舵机（副作用必须在主线程）
 
-## 后续
+## 2026-07-22 最终实飞方案
 
-- 激光物理调正后可用 `DRONE_LASER_AIM_X_RATIO` 和 `DRONE_LASER_AIM_Y_RATIO` 微调
-- A2~A6解码待 consensus 门槛降低后复飞验证
-- 若仍不通过，考虑逐货位微调扫码坐标
+- 实飞对比后使用 `DRONE_QR_DECODE_PROFILE=raw`，只对原始 ROI 解码；变体链路
+  保留在代码中作为调试回退，不是最终飞行配置；
+- `DRONE_QR_FOV_PRECHECK=0`，不让快速 FOV 检查因“无 QR”阻塞货位；
+- 异步扫码保持飞行控制循环；未检测、解码失败、`qr_timeout` 和 `qr_duplicate`
+  均只将当前货位记为缺失并继续下一格，不提前降落；
+- 2026-07-22 完整路线最新一轮 24 个货位全部识别，`missing_slots=[]`；
+- 该赛题已阶段归档，不再追加视觉伺服或 K230 改造。

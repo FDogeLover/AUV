@@ -76,7 +76,7 @@ math.hypot(wx2 - wx1, wy2 - wy1) <= world_eps_m
 
 新建 `drone_control/tools/replay_pole_tracker.py`。
 
-**输入**：`drone_control/tools/test_data_20260707/flight_data_pole_tracker_real_flight_20260707.jsonl.bak`（2026-07-07 真实杆子测试飞行的完整日志，含每帧真实 `pos`/`t265_yaw_deg`；已从 `ubuntu-pi` 同步到本机，原文件是板载 `basic/flight_data.jsonl`，测试时雷达轮询是独立进程，没有把点云写进这份日志）。
+**输入**：`drone_control/tools/data_archive/test_data_20260707/flight_data_pole_tracker_real_flight_20260707.jsonl.bak`（2026-07-07 真实杆子测试飞行的完整日志，含每帧真实 `pos`/`t265_yaw_deg`；已从 `ubuntu-pi` 同步到本机，原文件是板载 `basic/flight_data.jsonl`，测试时雷达轮询是独立进程，没有把点云写进这份日志）。
 
 **已知杆子世界坐标**（假设值，来自问题13笔记"起飞点180°方向1m处"）：`(-1.0, 0.0)`。
 
