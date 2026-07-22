@@ -41,6 +41,7 @@ def test_from_env_parses_cruise_overrides():
             "DRONE_CRUISE_PRECISION_TAIL": "2",
             "DRONE_CRUISE_RADIUS_M": "0.2",
             "DRONE_CRUISE_CONFIRM_CYCLES": "4",
+            "DRONE_CRUISE_REQUIRE_Z": "1",
             "DRONE_CRUISE_TIMEOUT_S": "30",
             "DRONE_CRUISE_MIN_PROGRESS_MPS": "0.1",
             "DRONE_CRUISE_TIMEOUT_MARGIN_S": "6",
@@ -51,6 +52,7 @@ def test_from_env_parses_cruise_overrides():
     assert config.precision_tail == 2
     assert config.cruise_radius_m == pytest.approx(0.2)
     assert config.cruise_confirm_cycles == 4
+    assert config.cruise_require_z is True
     assert config.cruise_timeout_s(4.0) == pytest.approx(46.0)
 
 

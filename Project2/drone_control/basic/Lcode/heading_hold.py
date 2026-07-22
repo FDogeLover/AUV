@@ -142,7 +142,9 @@ class HeadingHoldController:
         return magnitude if error_deg > 0 else -magnitude
 
     def _runaway_detected(self, command_dps: int, error_deg: float, now: float) -> bool:
-        if command_dps == 0:
+        # 比例控制尚未达到上限时，误差增长不等于控制失效；只有持续施加
+        # 最大修正后误差仍扩大，才判定为 runaway。
+        if abs(command_dps) < self.config.max_rate_dps:
             self._reset_runaway_window()
             return False
         sign = 1 if command_dps > 0 else -1

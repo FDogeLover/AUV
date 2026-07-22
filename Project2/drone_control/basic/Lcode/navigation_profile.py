@@ -13,6 +13,7 @@ class NavigationProfileConfig:
     precision_tail: int = 1
     cruise_radius_m: float = 0.15
     cruise_confirm_cycles: int = 3
+    cruise_require_z: bool = False
     cruise_timeout_base_s: float = 25.0
     cruise_min_progress_mps: float = 0.20
     cruise_timeout_margin_s: float = 5.0
@@ -44,6 +45,8 @@ class NavigationProfileConfig:
             precision_tail=int(env.get("DRONE_CRUISE_PRECISION_TAIL", "1")),
             cruise_radius_m=float(env.get("DRONE_CRUISE_RADIUS_M", "0.15")),
             cruise_confirm_cycles=int(env.get("DRONE_CRUISE_CONFIRM_CYCLES", "3")),
+            cruise_require_z=env.get("DRONE_CRUISE_REQUIRE_Z", "0").strip().lower()
+            in {"1", "true", "yes", "on"},
             cruise_timeout_base_s=float(env.get("DRONE_CRUISE_TIMEOUT_S", "25")),
             cruise_min_progress_mps=float(env.get("DRONE_CRUISE_MIN_PROGRESS_MPS", "0.20")),
             cruise_timeout_margin_s=float(env.get("DRONE_CRUISE_TIMEOUT_MARGIN_S", "5")),

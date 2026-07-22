@@ -520,7 +520,12 @@ class mission:
                 else:
                     self.arrival_confirmed_time = None
             else:
-                if arrival_distance <= self.navigation_profile.cruise_radius_m:
+                cruise_position_ok = (
+                    arrival_distance <= self.navigation_profile.cruise_radius_m
+                )
+                if self.navigation_profile.cruise_require_z:
+                    cruise_position_ok = cruise_position_ok and dz < posthreshold_z
+                if cruise_position_ok:
                     self._cruise_arrival_count += 1
                 else:
                     self._cruise_arrival_count = 0

@@ -503,11 +503,11 @@
 
     **数据归档**：当天全部真机测试数据(含本条记录涉及的舵机测试、圆度复测、2次完整路径)已归档到板子`FJJ/test_data/fire_patrol_20260717/`并同步回本机`drone_control/tools/data_archive/test_data_20260717/`，含102个文件(飞行日志/`flight_data.jsonl`/`fire_debug`快照)。
 
-38. **2026-07-18 fire_patrol安全结束后串口监听线程关闭竞态导致退出码1 — 不影响本轮飞行，待低风险修复**：
+38. **2026-07-18 fire_patrol安全结束后串口监听线程关闭竞态导致退出码1 — 2026-07-22已在通用basic完成低风险修复和桌面回归**：
 
     航向保持关闭基线和两轮开启组共三次完整路线，均在“全部航点完成→降落确认已上锁→任务结束→T265停止→串口发送线程关闭→串口关闭”之后打印`Exception in thread Thread-1 (listen_fc)`。异常发生前最后遥测均满足`unlock_sta=0`和`motor_pwm_mask=0`，且进程退出后没有残留`python3 main.py`，因此不影响飞行、降落或下次启动，只会污染退出状态和日志尾部。第二轮开启组再次复现，进一步确认这是稳定的退出竞态而非偶发飞行故障。
 
-    **根因已定位但尚未修改**：`Lcode/Lprotocol.py`的`listen_start()`没有保存监听线程对象，`listen_end()`仅把`fclisten_running=False`，主线程随即调用`ser.close()`，没有等待监听线程退出；`listen_fc()`又只有第一次`self.ser.read()`在异常捕获范围内，读取header/body的后续`read()`可能正好撞上串口关闭。低风险修复方向是保存线程引用、`listen_end()`后限时`join()`，并把一帧内全部串口读取纳入`SerialException`/关闭状态处理。该异常位于安全结束之后，优先级低于飞行控制问题，修改后仍需桌面关闭回归，不为修退出码额外安排真机起飞。
+    **根因与修复**：`Lcode/Lprotocol.py`的`listen_start()`原先没有保存监听线程对象，`listen_end()`仅把`fclisten_running=False`，主线程随即调用`ser.close()`，没有等待监听线程退出。2026-07-22从`warehouse_inventory`向通用`basic`同步修复：保存监听/T265发送/命令发送线程引用；监听停止时优先调用pyserial的`cancel_read()`唤醒阻塞读取，再限时`join()`；`close()`先停止并等待全部线程，再关闭串口；读写路径兼容捕获`SerialException`、`OSError`和关闭竞态下的`TypeError`。新增`test_lprotocol_shutdown.py`覆盖“阻塞读取先退出再关串口”和重复关闭幂等性。该修复已通过`basic`桌面全量测试（`98 passed, 1 skipped`），尚未为此单独安排真机飞行。
 
 39. **basic BCM17 一键起飞门禁 — 自启动后等待按键，再初始化T265/飞控串口，检查通过后红灯警示5秒才进入TAKEOFF；旧顺序板端DRY_RUN已验证，重排后尚待实机复测**：
 

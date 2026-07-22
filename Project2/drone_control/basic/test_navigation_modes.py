@@ -60,6 +60,20 @@ def test_middle_cruise_waypoint_advances_after_three_cycles_without_speed_or_z_g
     assert m.target_index == 2
 
 
+def test_middle_cruise_waypoint_can_require_height_before_advancing():
+    m = _make_mission()
+    m.navigation_profile = NavigationProfileConfig(
+        profile="cruise", cruise_confirm_cycles=2, cruise_require_z=True
+    )
+    m.target_index = 1
+    for _ in range(3):
+        m.navigate([2.14, 0.0, 0.3], 0.0)
+    assert m.target_index == 1
+    m.navigate([2.14, 0.0, 1.0], 0.0)
+    m.navigate([2.14, 0.0, 1.0], 0.0)
+    assert m.target_index == 2
+
+
 def test_cruise_uses_circular_radius_and_resets_confirmation_when_leaving():
     m = _make_mission()
     m.target_index = 1
