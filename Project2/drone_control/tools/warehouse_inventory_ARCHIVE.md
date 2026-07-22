@@ -30,5 +30,5 @@
 - `vision_debug_all/`：板端原 `warehouse_inventory/vision_debug/` 全部视觉调试数据；
 - 目录中原有的最终飞行副本和B面分面数据继续保留。
 
-整理后约 226 MB、2039 个文件。板端 `.gitignore` 已忽略 `test_data/`、
+整理后约 226 MB、2041 个文件（含2个与最终接口不兼容的 `Lcode/` 历史测试副本）。板端 `.gitignore` 已忽略 `test_data/`、
 `vision_debug/`、`*.log*`、`*.jsonl*` 和 `inventory_results.json*`，运行产物不再进入 Git。
