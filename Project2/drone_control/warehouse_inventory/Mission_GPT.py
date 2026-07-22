@@ -77,29 +77,29 @@ YAW_TEST_BURST_DURATION_S = float(os.getenv("DRONE_YAW_TEST_BURST_DURATION_S", "
 # 航向误差达到软故障阈值后的原地恢复门槛。正常航行仍使用
 # HeadingHoldConfig.max_rate_dps=2，只有停止XY后才允许3deg/s。
 HEADING_RECOVERY_MAX_DPS = 3
-HEADING_RECOVERY_TIMEOUT_S = 3.0
+HEADING_RECOVERY_TIMEOUT_S = 5.0
 HEADING_RECOVERY_PROGRESS_WINDOW_S = 1.0
 HEADING_RECOVERY_MIN_IMPROVEMENT_DEG = 0.5
-HEADING_RECOVERY_STABLE_ENTER_DEG = 2.5
-HEADING_RECOVERY_STABLE_EXIT_DEG = 3.0
-HEADING_RECOVERY_STABLE_S = 1.0
+HEADING_RECOVERY_STABLE_ENTER_DEG = 4.0
+HEADING_RECOVERY_STABLE_EXIT_DEG = 4.5
+HEADING_RECOVERY_STABLE_S = 0.5
 HEADING_RECOVERY_HARD_ERROR_DEG = 20.0
 HEADING_RECOVERY_MAX_SUCCESSES = 1
 
-# 仓储板间环境会让 T265 视觉 yaw 漂移；默认改用飞控 IMU yaw 做相对航向闭环。
-# t265 仅作为显式回退，不能静默接受拼写错误。
-HEADING_SOURCE = os.getenv("DRONE_HEADING_SOURCE", "fc").strip().lower()
+# 2026-07-22 C面实飞确认：货架低层实际偏转约24°时，飞控融合yaw仅变化约4°；
+# T265变化与现场观察一致。因此仓储任务恢复使用T265 yaw闭环，FC yaw仅作旁路诊断。
+HEADING_SOURCE = os.getenv("DRONE_HEADING_SOURCE", "t265").strip().lower()
 if HEADING_SOURCE not in {"fc", "t265"}:
     raise ValueError("DRONE_HEADING_SOURCE只能是fc/t265")
 FC_HEADING_MAX_AGE_S = 0.5
 FC_HEADING_INVALID_TICKS = 3
 FC_HEADING_MAX_STEP_DEG = 10.0
 FC_HEADING_MIN_PREUNLOCK_FRAMES = 5
-FC_HEADING_NORMAL_MAX_DPS = 1
-# 2026-07-22 无货架高度测试确认：发送正 yaw 指令时，飞控下行 yaw 与
-# T265 实测航向均向负方向变化。FC yaw 的数值方向与指令正方向相反，
-# 因此仅在 FC 反馈闭环的最终输出端反转；原始角度、误差和诊断日志保持不变。
-FC_HEADING_COMMAND_SIGN = -1
+HEADING_NORMAL_MAX_DPS = 2
+# 2026-07-22 开环响应确认：发送正 yaw 指令时，两路实测航向均向负方向变化。
+# 控制器的数学正方向与飞控命令正方向相反，因此统一在最终输出端反转；
+# 原始角度、误差和诊断日志保持不变。
+HEADING_COMMAND_SIGN = -1
 
 
 class HeadingFeedbackError(RuntimeError):
@@ -1655,11 +1655,11 @@ class mission:
         )
 
     def _apply_heading_command_polarity(self, status):
-        """Map controller-positive yaw onto the selected sensor's axis."""
-        if self.heading_source == "fc" and status.command_dps:
+        """Map controller-positive yaw onto the flight-command axis."""
+        if status.command_dps:
             return replace(
                 status,
-                command_dps=FC_HEADING_COMMAND_SIGN * status.command_dps,
+                command_dps=HEADING_COMMAND_SIGN * status.command_dps,
             )
         return status
 
@@ -1683,16 +1683,13 @@ class mission:
             time.time(),
             allow_fault_relock=allow_fault_relock,
         )
-        if (
-            self.heading_source == "fc"
-            and abs(status.command_dps) > FC_HEADING_NORMAL_MAX_DPS
-        ):
+        if abs(status.command_dps) > HEADING_NORMAL_MAX_DPS:
             status = replace(
                 status,
                 command_dps=(
-                    FC_HEADING_NORMAL_MAX_DPS
+                    HEADING_NORMAL_MAX_DPS
                     if status.command_dps > 0
-                    else -FC_HEADING_NORMAL_MAX_DPS
+                    else -HEADING_NORMAL_MAX_DPS
                 ),
             )
         status = self._apply_heading_command_polarity(status)

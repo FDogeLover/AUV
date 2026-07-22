@@ -1040,3 +1040,38 @@ def test_flight_driver_atomically_replaces_return_route():
     assert mission._navigation_purpose == "return"
     assert mission.state == "NAVIGATE"
     assert generation == 1
+
+
+def test_empty_scan_return_route_goes_directly_to_safe_land():
+    calls = []
+
+    class EmptyReturnCoordinator:
+        def poll_scan_result(self, generation):
+            assert generation == 7
+            return object()
+
+        def consume_scan_result(self, result, position):
+            return controller.ScanConsumeResult(
+                controller.ScanConsumeOutcome.RETURN,
+                error_code="qr_duplicate",
+            )
+
+        def _abort(self, code, **fields):
+            calls.append((code, fields))
+            mission.state = "LAND"
+
+    mission = controller.InventoryFlightMission.__new__(
+        controller.InventoryFlightMission
+    )
+    mission.coordinator = EmptyReturnCoordinator()
+    mission._scan_generation = 7
+    mission.state = "SCAN"
+    mission.end_scan_hold = lambda: calls.append(("scan_hold_ended", {}))
+
+    mission.on_scan_tick([0.0, 0.0, 1.25], 0.0, {})
+
+    assert mission.state == "LAND"
+    assert calls == [
+        ("scan_hold_ended", {}),
+        ("scan_return_route_empty", {"error_code": "qr_duplicate"}),
+    ]

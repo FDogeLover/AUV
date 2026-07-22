@@ -1265,7 +1265,20 @@ class InventoryFlightMission(FlightMission):
             )
         elif consumed.outcome == ScanConsumeOutcome.RETURN:
             self.end_scan_hold()
-            self.replace_inventory_navigation_route(consumed.return_route, pos)
+            if consumed.return_route:
+                self.replace_inventory_navigation_route(consumed.return_route, pos)
+            else:
+                # Duplicate/laser failures currently request RETURN without a
+                # planned route. Never pass that empty tuple into the flight
+                # navigator: stop XY/yaw and use the existing safe LAND path.
+                logger.error(
+                    "扫码请求返航但路线为空，直接安全降落: %s",
+                    consumed.error_code or "scan_return_route_empty",
+                )
+                self.coordinator._abort(
+                    "scan_return_route_empty",
+                    error_code=consumed.error_code,
+                )
         elif consumed.outcome == ScanConsumeOutcome.EMERGENCY_LAND:
             self.end_scan_hold()
             self.state = "LAND"

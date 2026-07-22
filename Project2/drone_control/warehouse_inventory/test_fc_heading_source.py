@@ -55,7 +55,7 @@ def _publish_fc_yaw(m, yaw_deg, *, frame_increment=1, received_at=None):
 
 def _fc_mission(fc_yaw_deg=20.0, t265_yaw_deg=10.0):
     m = mission([0] * 14, [0] * 11, realsense_obj=None, serial_fc_ref=None)
-    assert m.heading_source == "fc"
+    m.heading_source = "fc"
     m.t265_ok = True
     m.realsense = FakeRealsense()
     with lock:
@@ -66,7 +66,13 @@ def _fc_mission(fc_yaw_deg=20.0, t265_yaw_deg=10.0):
     return m
 
 
-def test_default_heading_source_is_fc_and_latches_fc_yaw():
+def test_default_heading_source_is_t265():
+    m = mission([0] * 14, [0] * 11, realsense_obj=None, serial_fc_ref=None)
+
+    assert m.heading_source == "t265"
+
+
+def test_explicit_fc_heading_source_latches_fc_yaw():
     m = _fc_mission(fc_yaw_deg=24.5, t265_yaw_deg=-13.0)
 
     assert m.heading_hold.target_deg == pytest.approx(24.5)
@@ -129,6 +135,7 @@ def test_t265_low_confidence_does_not_disable_valid_fc_heading_feedback():
 
 def test_preunlock_requires_five_valid_fc_frames():
     m = mission([0] * 14, [0] * 11, realsense_obj=None, serial_fc_ref=None)
+    m.heading_source = "fc"
     with lock:
         fc_frame_counter.value = mg.FC_HEADING_MIN_PREUNLOCK_FRAMES - 1
     _publish_fc_yaw(m, 10.0, frame_increment=0)
@@ -159,6 +166,7 @@ def test_fc_heading_minus_180_boundary_is_preserved():
 
 def test_non_finite_fc_heading_is_rejected_before_unlock():
     m = mission([0] * 14, [0] * 11, realsense_obj=None, serial_fc_ref=None)
+    m.heading_source = "fc"
     with lock:
         fc_frame_counter.value = mg.FC_HEADING_MIN_PREUNLOCK_FRAMES
         m.re_fc[3] = float("nan")
@@ -172,6 +180,7 @@ def test_stale_fc_yaw_pauses_twice_then_lands_with_zero_commands(monkeypatch):
     clock = {"now": 100.0}
     monkeypatch.setattr(mg.time, "monotonic", lambda: clock["now"])
     m = mission([0] * 14, [0] * 11, realsense_obj=None, serial_fc_ref=None)
+    m.heading_source = "fc"
     m.t265_ok = True
     m.realsense = FakeRealsense()
     with lock:
@@ -211,14 +220,14 @@ def test_heading_recovery_uses_fc_yaw_not_t265_yaw():
     assert m._heading_status.current_deg == pytest.approx(-9.0)
 
 
-def test_t265_fallback_keeps_original_command_polarity():
+def test_t265_heading_source_uses_corrected_command_polarity():
     m = _fc_mission(fc_yaw_deg=0.0, t265_yaw_deg=0.0)
     m.heading_source = "t265"
 
     status = m._update_heading_hold(math.radians(-5.0), confidence=3)
 
     assert status.error_deg == pytest.approx(5.0)
-    assert status.command_dps == 1
+    assert status.command_dps == -1
 
 
 class FakeSerial:

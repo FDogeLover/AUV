@@ -37,12 +37,12 @@ def test_old_yaw_pid_is_removed():
     assert not hasattr(_make_mission(), "yaw_pid")
 
 
-def test_navigate_sends_controller_sign_without_extra_negation():
+def test_navigate_maps_controller_sign_to_flight_command_axis():
     m = _make_mission()
     target = m.targets[0]
     m.navigate([target[0] + 0.5, target[1], target[2]], math.radians(5.0))
     assert m._heading_status.error_deg == pytest.approx(-5.0)
-    assert m.se_fc[6] - sp_side == -1
+    assert m.se_fc[6] - sp_side == 1
 
 
 def test_small_error_inside_deadband_sends_zero():

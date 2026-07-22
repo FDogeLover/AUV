@@ -201,7 +201,7 @@ def test_heading_fault_stops_xy_and_uses_bounded_recovery(monkeypatch):
 
     assert control["heading_recovery_active"] is True
     assert control["heading_recovery_failed"] is False
-    assert commands[-1] == (0, 0, 3, 120)
+    assert commands[-1] == (0, 0, -3, 120)
     assert m.state == "NAVIGATE"
 
 
@@ -272,15 +272,15 @@ def test_heading_recovery_uses_hysteresis_and_preserves_target(monkeypatch):
     m, clock, commands = _armed_recovery_mission(monkeypatch)
     m.position_control_tick(m.targets[0], [0.0, 0.0, 1.2], math.radians(-9.0))
     clock["now"] += 0.4
-    m.position_control_tick(m.targets[0], [0.0, 0.0, 1.2], math.radians(-2.4))
+    m.position_control_tick(m.targets[0], [0.0, 0.0, 1.2], math.radians(-3.9))
     clock["now"] += 0.5
-    m.position_control_tick(m.targets[0], [0.0, 0.0, 1.2], math.radians(-3.1))
+    m.position_control_tick(m.targets[0], [0.0, 0.0, 1.2], math.radians(-4.6))
     clock["now"] += 0.1
-    m.position_control_tick(m.targets[0], [0.0, 0.0, 1.2], math.radians(-2.4))
+    m.position_control_tick(m.targets[0], [0.0, 0.0, 1.2], math.radians(-3.9))
     clock["now"] += mg.HEADING_RECOVERY_STABLE_S
 
     control = m.position_control_tick(
-        m.targets[0], [0.0, 0.0, 1.2], math.radians(-2.4)
+        m.targets[0], [0.0, 0.0, 1.2], math.radians(-3.9)
     )
 
     assert control["heading_recovery_completed"] is True
@@ -574,7 +574,7 @@ def test_heading_hold_command_is_shared_by_precision_and_cruise():
         m.heading_hold.arm(0.0, 0.0)
         m.target_index = 1
         m.navigate([1.0, 0.0, 1.0], math.radians(5.0))
-        assert m.se_fc[6] - sp_side == -1, profile
+        assert m.se_fc[6] - sp_side == 1, profile
 
 
 def test_emergency_disarms_heading_hold_and_clears_yaw():
