@@ -1,0 +1,17 @@
+{
+  "state": "VISUAL_ALIGN",
+  "capture": "fov_precheck",
+  "waypoint_index": 5,
+  "slot_label": "B6",
+  "position": [
+    -1.702698723101948,
+    1.6472511831852914,
+    0.85
+  ],
+  "frame_index": 1,
+  "frame_sequence": 659,
+  "capture_timestamp": 469.643908199,
+  "geometry_seen": true,
+  "error": null,
+  "timestamp": 1784699286.4568057
+}

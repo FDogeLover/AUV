@@ -85,6 +85,7 @@ class QRDecoder:
         geometry_roi_width=1000,
         geometry_roi_height=600,
         geometry_upscale_scales=(2.0, 3.0, 4.0),
+        decode_profile="variants",
     ):
         if cv2 is None and detector is None:
             raise RuntimeError("二维码识别需要OpenCV")
@@ -101,6 +102,9 @@ class QRDecoder:
             for scale in geometry_upscale_scales
             if float(scale) > 1.0
         )
+        self.decode_profile = str(decode_profile).strip().lower()
+        if self.decode_profile not in {"raw", "variants"}:
+            raise ValueError("decode_profile只能是raw/variants")
 
     @staticmethod
     def _points_array(points):
@@ -471,7 +475,7 @@ class QRDecoder:
         """
         roi, offset = self._target_roi(frame, target_point)
         variants = [(roi, 1.0)]
-        if cv2 is not None:
+        if self.decode_profile == "variants" and cv2 is not None:
             gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
             variants.extend(((gray, 1.0), (cv2.createCLAHE(2.0, (8, 8)).apply(gray), 1.0)))
             enlarged = cv2.resize(

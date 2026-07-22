@@ -219,7 +219,7 @@ def main():
             if not gimbal.set_face(first_face):
                 raise RuntimeError("起飞前云台预置失败")
         mapping = QRMapping(config.qr_mapping_file)
-        decoder = QRDecoder(mapping)
+        decoder = QRDecoder(mapping, decode_profile=config.qr_decode_profile)
         consensus = QRConsensus(QRConsensusConfig.from_env())
         store = InventoryStore(expected_slots)
         state_machine.transition(

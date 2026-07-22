@@ -114,6 +114,8 @@ class InventoryMissionConfig:
     laser_aim_y_ratio: float = 0.5
     vision_servo: VisionServoConfig = None
     async_qr_scan: bool = True
+    fov_precheck_enabled: bool = False
+    qr_decode_profile: str = "variants"
 
     def __post_init__(self):
         if self.vision_servo is None:
@@ -140,6 +142,14 @@ class InventoryMissionConfig:
         raw_async = env.get("DRONE_ASYNC_QR_SCAN", "1").strip().lower()
         if raw_async not in {"0", "1", "false", "true"}:
             raise ValueError("DRONE_ASYNC_QR_SCAN只能是0/1/false/true")
+        raw_fov_precheck = env.get("DRONE_QR_FOV_PRECHECK", "0").strip().lower()
+        if raw_fov_precheck not in {"0", "1", "false", "true"}:
+            raise ValueError("DRONE_QR_FOV_PRECHECK只能是0/1/false/true")
+        qr_decode_profile = env.get(
+            "DRONE_QR_DECODE_PROFILE", "variants"
+        ).strip().lower()
+        if qr_decode_profile not in {"raw", "variants"}:
+            raise ValueError("DRONE_QR_DECODE_PROFILE只能是raw/variants")
         return cls(
             camera_device=env.get("DRONE_CAMERA_DEVICE", "/dev/video0"),
             camera_width=int(env.get("DRONE_CAMERA_WIDTH", "1280")),
@@ -159,6 +169,8 @@ class InventoryMissionConfig:
             laser_aim_y_ratio=float(env.get("DRONE_LASER_AIM_Y_RATIO", "0.5")),
             vision_servo=VisionServoConfig.from_env(env),
             async_qr_scan=raw_async in {"1", "true"},
+            fov_precheck_enabled=raw_fov_precheck in {"1", "true"},
+            qr_decode_profile=qr_decode_profile,
         )
 
 
@@ -323,6 +335,9 @@ class CameraSource:
 
 class InventoryMissionCoordinator:
     """Procedural actions executed when the flight driver reaches a waypoint."""
+
+    FOV_CHECK_MAX_FRAMES = 3
+    FOV_CHECK_BUDGET_S = 0.45
 
     def __init__(
         self,
@@ -628,6 +643,102 @@ class InventoryMissionCoordinator:
 
         return self._abort("unknown_waypoint_kind", waypoint_index=index)
 
+    def _quick_fov_geometry_check(self, index, waypoint, position):
+        """Run a bounded diagnostic precheck without deciding scan eligibility."""
+        started = self._clock()
+        last_sequence = None
+        checked = 0
+        geometry_seen = False
+
+        while checked < self.FOV_CHECK_MAX_FRAMES:
+            if self._clock() - started >= self.FOV_CHECK_BUDGET_S:
+                break
+            try:
+                if hasattr(self.camera, "read_with_sequence"):
+                    sequence, frame, frame_timestamp = self.camera.read_with_sequence()
+                    if sequence is not None and sequence == last_sequence:
+                        self._sleep(self.config.scan_poll_s)
+                        continue
+                    last_sequence = sequence
+                else:
+                    sequence, frame_timestamp = None, None
+                    frame = self.camera.read()
+            except Exception as exc:
+                logger.warning("快速FOV取帧异常，继续正常扫码: %s", exc)
+                break
+
+            if frame is None:
+                self._sleep(self.config.scan_poll_s)
+                continue
+
+            checked += 1
+            error = None
+            try:
+                try:
+                    geometry = self.decoder.detect_geometry(
+                        frame, decode_content=False
+                    )
+                except TypeError:
+                    geometry = self.decoder.detect_geometry(frame)
+                except AttributeError:
+                    try:
+                        geometry = self.decoder.detect(
+                            frame,
+                            target_point=self.camera.laser_aim_point(frame),
+                        )
+                    except TypeError:
+                        geometry = self.decoder.detect(frame)
+                geometry_seen = geometry is not None
+            except Exception as exc:
+                geometry = None
+                error = str(exc)
+                logger.warning("快速FOV几何检测异常，继续正常扫码: %s", exc)
+
+            if self.vision_debug is not None:
+                try:
+                    self.vision_debug.capture_scan(
+                        frame,
+                        {
+                            "state": InventoryState.VISUAL_ALIGN.value,
+                            "capture": "fov_precheck",
+                            "waypoint_index": index,
+                            "slot_label": waypoint.slot_label,
+                            "position": list(position),
+                            "frame_index": checked,
+                            "frame_sequence": sequence,
+                            "capture_timestamp": frame_timestamp,
+                            "geometry_seen": geometry_seen,
+                            "error": error,
+                            "timestamp": time.time(),
+                        },
+                    )
+                except Exception as exc:
+                    logger.warning("快速FOV诊断图保存失败，继续正常扫码: %s", exc)
+
+            if geometry_seen:
+                break
+            if error is not None:
+                break
+            self._sleep(self.config.scan_poll_s)
+
+        elapsed = self._clock() - started
+        if geometry_seen:
+            logger.info(
+                "快速FOV检测到QR几何: slot=%s, frames=%d, elapsed=%.3fs",
+                waypoint.slot_label,
+                checked,
+                elapsed,
+            )
+        else:
+            logger.warning(
+                "快速FOV未检测到QR几何，继续完整扫码: slot=%s, "
+                "frames=%d, elapsed=%.3fs",
+                waypoint.slot_label,
+                checked,
+                elapsed,
+            )
+        return geometry_seen
+
     def _inspect_slot(self, index, waypoint: MissionWaypoint, position):
         self._go(
             InventoryState.APPROACH_SLOT,
@@ -642,22 +753,16 @@ class InventoryMissionCoordinator:
                 slot_label=waypoint.slot_label,
             )
 
-        # 到位即扫前，快速检测 QR 是否在视野内（~100ms）。
-        # 若不在则跳过该货位，避免 T265 漂移导致 8 秒空等。
-        try:
-            frame = self.camera.read()
-            if frame is not None:
-                aim = self.camera.laser_aim_point(frame)
-                fast_check = self.decoder.detect(frame, target_point=aim)
-                if fast_check is None:
-                    logger.info(
-                        "快速FOV检测无QR，跳过货位 %s",
-                        waypoint.slot_label,
-                    )
-                    self._go(InventoryState.TRANSIT, "next_slot")
-                    return WaypointArrivalAction.ADVANCE
-        except Exception as exc:
-            logger.warning("快速FOV检测异常，继续正常扫码: %s", exc)
+        # 同步 OpenCV 几何调用无法被 Python 的软预算中断，实飞曾卡在
+        # VISUAL_ALIGN，因此默认关闭，只允许台架诊断显式开启。
+        self._hold_position(waypoint.point.z)
+        if self.config.fov_precheck_enabled:
+            self._quick_fov_geometry_check(index, waypoint, position)
+        else:
+            logger.info(
+                "快速FOV预检已关闭，直接进入完整扫码: slot=%s",
+                waypoint.slot_label,
+            )
 
         self._go(InventoryState.VERIFY_QR, "visual_alignment_ready")
         self.start_scan(index, waypoint, position)
@@ -1011,6 +1116,8 @@ def default_inventory_config(base_dir=None):
         laser_aim_y_ratio=config.laser_aim_y_ratio,
         vision_servo=config.vision_servo,
         async_qr_scan=config.async_qr_scan,
+        fov_precheck_enabled=config.fov_precheck_enabled,
+        qr_decode_profile=config.qr_decode_profile,
     )
 
 

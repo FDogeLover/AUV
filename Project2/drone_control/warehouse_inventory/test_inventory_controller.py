@@ -26,6 +26,21 @@ class FakeGround:
         return len(self.messages)
 
 
+def test_inventory_config_reads_raw_decode_profile():
+    config = controller.InventoryMissionConfig.from_env(
+        {"DRONE_QR_DECODE_PROFILE": "raw"}
+    )
+
+    assert config.qr_decode_profile == "raw"
+
+
+def test_inventory_config_rejects_invalid_decode_profile():
+    with pytest.raises(ValueError, match="raw/variants"):
+        controller.InventoryMissionConfig.from_env(
+            {"DRONE_QR_DECODE_PROFILE": "invalid"}
+        )
+
+
 class FakeGimbal:
     def __init__(self):
         self.started = True
@@ -272,7 +287,7 @@ def test_scan_skips_duplicate_latest_frame_and_processes_next_sequence():
     camera = SequencedCamera(
         [
             (1, frame, 10.0),
-            (1, frame, 10.0),  # Same frame must not be decoded twice.
+            (1, frame, 10.0),  # Same scan frame must not be decoded twice.
             (2, frame, 10.1),
         ]
     )
@@ -419,6 +434,141 @@ def test_inspect_arrival_enters_scan_without_waiting():
     coordinator.cancel_scan("cleanup", join_timeout_s=1.0)
 
 
+def test_fov_precheck_three_negative_frames_still_enters_full_scan():
+    class GeometryMissDecoder:
+        def __init__(self):
+            self.geometry_calls = 0
+
+        def detect_geometry(self, frame, decode_content=False):
+            assert decode_content is False
+            self.geometry_calls += 1
+            return None
+
+        def detect(self, frame, target_point=None):
+            return None
+
+    decoder = GeometryMissDecoder()
+    route = [MissionWaypoint(FlightPoint(0, 0, 1.25), WaypointKind.INSPECT, FaceId.A, "A1")]
+    coordinator = _coordinator(
+        route,
+        FakeLaser([]),
+        camera=FakeCamera([FakeFrame() for _ in range(12)]),
+        decoder=decoder,
+        clock=FakeClock(step=0.01),
+        config=controller.InventoryMissionConfig(
+            scan_timeout_s=1.0,
+            scan_poll_s=0.0,
+            fov_precheck_enabled=True,
+        ),
+    )
+    driver = FakeDriver()
+    coordinator.attach_driver(driver)
+
+    action = coordinator.on_waypoint_arrived(0, [0, 0, 1.25], "arrival")
+
+    assert action == controller.WaypointArrivalAction.ENTER_SCAN
+    assert coordinator.state_machine.state == InventoryState.VERIFY_QR
+    assert coordinator.active_scan_generation == 1
+    assert decoder.geometry_calls == 3
+    assert driver.holds == [1.25]
+    coordinator.cancel_scan("cleanup", join_timeout_s=1.0)
+
+
+def test_fov_precheck_geometry_hit_stops_early_and_saves_diagnostic():
+    calls = []
+
+    class GeometryHitDecoder:
+        def detect_geometry(self, frame, decode_content=False):
+            calls.append(("geometry", decode_content))
+            return _detection(None)
+
+        def detect(self, frame, target_point=None):
+            return None
+
+    class VisionDebug:
+        def capture_scan(self, frame, metadata):
+            calls.append(("capture", metadata.copy()))
+
+    route = [MissionWaypoint(FlightPoint(0, 0, 1.25), WaypointKind.INSPECT, FaceId.A, "A1")]
+    coordinator = _coordinator(
+        route,
+        FakeLaser([]),
+        camera=FakeCamera([FakeFrame() for _ in range(8)]),
+        decoder=GeometryHitDecoder(),
+        clock=FakeClock(step=0.01),
+        config=controller.InventoryMissionConfig(
+            scan_timeout_s=1.0,
+            scan_poll_s=0.0,
+            fov_precheck_enabled=True,
+        ),
+    )
+    coordinator.vision_debug = VisionDebug()
+
+    action = coordinator.on_waypoint_arrived(0, [0, 0, 1.25], "arrival")
+
+    assert action == controller.WaypointArrivalAction.ENTER_SCAN
+    assert calls[0] == ("geometry", False)
+    capture = calls[1][1]
+    assert capture["capture"] == "fov_precheck"
+    assert capture["slot_label"] == "A1"
+    assert capture["frame_index"] == 1
+    assert capture["geometry_seen"] is True
+    coordinator.cancel_scan("cleanup", join_timeout_s=1.0)
+
+
+def test_fov_precheck_exception_still_enters_full_scan():
+    class ExplodingGeometryDecoder:
+        def detect_geometry(self, frame, decode_content=False):
+            raise RuntimeError("geometry backend failed")
+
+        def detect(self, frame, target_point=None):
+            return None
+
+    route = [MissionWaypoint(FlightPoint(0, 0, 1.25), WaypointKind.INSPECT, FaceId.A, "A1")]
+    coordinator = _coordinator(
+        route,
+        FakeLaser([]),
+        camera=FakeCamera([FakeFrame() for _ in range(6)]),
+        decoder=ExplodingGeometryDecoder(),
+        clock=FakeClock(step=0.01),
+        config=controller.InventoryMissionConfig(
+            scan_timeout_s=1.0,
+            scan_poll_s=0.0,
+            fov_precheck_enabled=True,
+        ),
+    )
+
+    action = coordinator.on_waypoint_arrived(0, [0, 0, 1.25], "arrival")
+
+    assert action == controller.WaypointArrivalAction.ENTER_SCAN
+    assert coordinator.state_machine.state == InventoryState.VERIFY_QR
+    assert coordinator.active_scan_generation == 1
+    coordinator.cancel_scan("cleanup", join_timeout_s=1.0)
+
+
+def test_fov_precheck_is_disabled_by_default_for_flight():
+    class MustNotRunGeometryDecoder:
+        def detect_geometry(self, frame, decode_content=False):
+            raise AssertionError("default flight path must not run synchronous geometry")
+
+        def detect(self, frame, target_point=None):
+            return None
+
+    route = [MissionWaypoint(FlightPoint(0, 0, 1.25), WaypointKind.INSPECT, FaceId.A, "A1")]
+    coordinator = _coordinator(
+        route,
+        FakeLaser([]),
+        camera=FakeCamera([FakeFrame() for _ in range(6)]),
+        decoder=MustNotRunGeometryDecoder(),
+    )
+
+    action = coordinator.on_waypoint_arrived(0, [0, 0, 1.25], "arrival")
+
+    assert action == controller.WaypointArrivalAction.ENTER_SCAN
+    assert coordinator.state_machine.state == InventoryState.VERIFY_QR
+    coordinator.cancel_scan("cleanup", join_timeout_s=1.0)
+
+
 def test_scan_success_side_effects_are_consumed_once_on_flight_thread():
     events = []
     route = [MissionWaypoint(FlightPoint(0, 0, 1.25), WaypointKind.INSPECT, FaceId.A, "A1")]
@@ -474,8 +624,7 @@ def test_verify_qr_captures_frame_before_decoding():
     assert action == controller.WaypointArrivalAction.ENTER_SCAN
     result = coordinator.wait_scan_for_test(coordinator.active_scan_generation, timeout_s=1.0)
     assert result.status == controller.ScanTaskStatus.SUCCEEDED
-    # FOV快速检测先调decoder.detect，然后扫描开始调capture_scan
-    assert calls[0] == "decoder.detect"
+    assert calls[:2] == ["capture_scan", "decoder.detect"]
 
 
 def test_inspect_pulses_laser_before_persisting_and_reaches_end():

@@ -44,6 +44,30 @@ def test_target_roi_selects_nearest_qr_not_pyzbar_result_order(monkeypatch):
     assert detection.center == (640.0, 360.0)
 
 
+def test_raw_profile_decodes_only_original_roi(monkeypatch):
+    calls = []
+
+    def decode(image):
+        calls.append((image.ndim, image.shape[:2]))
+        return []
+
+    monkeypatch.setattr(qr_vision, "pyzbar_decode", decode)
+    decoder = qr_vision.QRDecoder(Mapping(), decode_profile="raw")
+    frame = np.zeros((720, 1280, 3), dtype=np.uint8)
+
+    assert decoder.detect(frame, target_point=(640.0, 360.0)) is None
+    assert calls == [(3, (600, 1000))]
+
+
+def test_invalid_decode_profile_is_rejected():
+    try:
+        qr_vision.QRDecoder(Mapping(), decode_profile="slow")
+    except ValueError as exc:
+        assert "raw/variants" in str(exc)
+    else:
+        raise AssertionError("invalid decode profile must fail closed")
+
+
 def test_adaptive_three_x_variant_maps_polygon_back_to_full_frame(monkeypatch):
     calls = []
 
