@@ -105,7 +105,7 @@ class TestLandLogging:
         entry = json.loads([l for l in m._log_file.readlines() if l.strip()][-1])
         assert entry["heading_hold_enabled"] is True
         assert entry["heading_hold_armed"] is True
-        assert entry["yaw_cmd_sent"] == 1
+        assert entry["yaw_cmd_sent"] == -1
         assert m.heading_hold.armed is False
 
     def test_land_logs_raw_imu(self):

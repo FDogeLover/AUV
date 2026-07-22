@@ -1,0 +1,42 @@
+{
+  "results": [
+    {
+      "cargo_id": 7,
+      "slot_label": "C1",
+      "confidence": 0.5,
+      "timestamp": 1784712728.5878735
+    },
+    {
+      "cargo_id": 23,
+      "slot_label": "C2",
+      "confidence": 0.5,
+      "timestamp": 1784712735.7629354
+    },
+    {
+      "cargo_id": 9,
+      "slot_label": "C3",
+      "confidence": 0.5,
+      "timestamp": 1784712741.818401
+    },
+    {
+      "cargo_id": 6,
+      "slot_label": "C4",
+      "confidence": 0.5,
+      "timestamp": 1784712758.9819021
+    },
+    {
+      "cargo_id": 5,
+      "slot_label": "C5",
+      "confidence": 0.5,
+      "timestamp": 1784712752.2656019
+    },
+    {
+      "cargo_id": 8,
+      "slot_label": "C6",
+      "confidence": 0.5,
+      "timestamp": 1784712745.8324907
+    }
+  ],
+  "missing_slots": [],
+  "complete": true
+}

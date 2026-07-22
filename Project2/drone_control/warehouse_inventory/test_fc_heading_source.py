@@ -91,14 +91,14 @@ def test_t265_yaw_drift_does_not_command_or_fault_when_fc_yaw_is_fixed():
     assert m._heading_source_disagreement_deg == pytest.approx(30.0)
 
 
-def test_command_follows_fc_yaw_only_and_is_normally_limited_to_one_dps():
+def test_command_follows_fc_yaw_only_and_uses_fc_command_polarity():
     m = _fc_mission(fc_yaw_deg=20.0, t265_yaw_deg=0.0)
     _publish_fc_yaw(m, 27.5)
 
     status = m._update_heading_hold(math.radians(-40.0), confidence=3)
 
     assert status.error_deg == pytest.approx(-7.5)
-    assert status.command_dps == 1
+    assert status.command_dps == 2
     assert status.fault_reason is None
 
 
@@ -216,18 +216,18 @@ def test_heading_recovery_uses_fc_yaw_not_t265_yaw():
     )
 
     assert control["heading_recovery_active"] is True
-    assert control["yaw_cmd"] == -3
+    assert control["yaw_cmd"] == -5
     assert m._heading_status.current_deg == pytest.approx(-9.0)
 
 
-def test_t265_heading_source_uses_corrected_command_polarity():
+def test_t265_heading_source_preserves_controller_command_polarity():
     m = _fc_mission(fc_yaw_deg=0.0, t265_yaw_deg=0.0)
     m.heading_source = "t265"
 
     status = m._update_heading_hold(math.radians(-5.0), confidence=3)
 
     assert status.error_deg == pytest.approx(5.0)
-    assert status.command_dps == -1
+    assert status.command_dps == 1
 
 
 class FakeSerial:

@@ -75,16 +75,16 @@ YAW_TEST_BURST_VALUE = int(os.getenv("DRONE_YAW_TEST_BURST_VALUE", "-8"))
 YAW_TEST_BURST_DURATION_S = float(os.getenv("DRONE_YAW_TEST_BURST_DURATION_S", "1.5"))
 
 # 航向误差达到软故障阈值后的原地恢复门槛。正常航行仍使用
-# HeadingHoldConfig.max_rate_dps=2，只有停止XY后才允许3deg/s。
-HEADING_RECOVERY_MAX_DPS = 3
-HEADING_RECOVERY_TIMEOUT_S = 5.0
-HEADING_RECOVERY_PROGRESS_WINDOW_S = 1.0
-HEADING_RECOVERY_MIN_IMPROVEMENT_DEG = 0.5
-HEADING_RECOVERY_STABLE_ENTER_DEG = 4.0
-HEADING_RECOVERY_STABLE_EXIT_DEG = 4.5
+# 正常航行最多3deg/s；只有停止XY后才允许5deg/s恢复。
+HEADING_RECOVERY_MAX_DPS = 5
+HEADING_RECOVERY_TIMEOUT_S = 6.0
+HEADING_RECOVERY_PROGRESS_WINDOW_S = 2.5
+HEADING_RECOVERY_MIN_IMPROVEMENT_DEG = 0.3
+HEADING_RECOVERY_STABLE_ENTER_DEG = 5.0
+HEADING_RECOVERY_STABLE_EXIT_DEG = 5.5
 HEADING_RECOVERY_STABLE_S = 0.5
 HEADING_RECOVERY_HARD_ERROR_DEG = 20.0
-HEADING_RECOVERY_MAX_SUCCESSES = 1
+HEADING_RECOVERY_MAX_SUCCESSES = 3
 
 # 2026-07-22 C面实飞确认：货架低层实际偏转约24°时，飞控融合yaw仅变化约4°；
 # T265变化与现场观察一致。因此仓储任务恢复使用T265 yaw闭环，FC yaw仅作旁路诊断。
@@ -95,11 +95,11 @@ FC_HEADING_MAX_AGE_S = 0.5
 FC_HEADING_INVALID_TICKS = 3
 FC_HEADING_MAX_STEP_DEG = 10.0
 FC_HEADING_MIN_PREUNLOCK_FRAMES = 5
-HEADING_NORMAL_MAX_DPS = 2
-# 2026-07-22 开环响应确认：发送正 yaw 指令时，两路实测航向均向负方向变化。
-# 控制器的数学正方向与飞控命令正方向相反，因此统一在最终输出端反转；
-# 原始角度、误差和诊断日志保持不变。
-HEADING_COMMAND_SIGN = -1
+HEADING_NORMAL_MAX_DPS = 3
+# 2026-07-09 非闭环真机脉冲确认：T265 yaw 与飞控命令同号，T265 闭环
+# 必须原样发送控制器输出。2026-07-22 的 FC 反馈试飞显示 FC 数值轴与命令轴
+# 相反，因此只在 FC 反馈模式反转，不能把该结论扩展到 T265。
+HEADING_COMMAND_SIGN_BY_SOURCE = {"t265": 1, "fc": -1}
 
 
 class HeadingFeedbackError(RuntimeError):
@@ -606,6 +606,7 @@ class mission:
         self._heading_recovery_hold_z_cm = None
         self._heading_recovery_successes = 0
         self._heading_recovery_failure_reason = None
+        self._heading_bypass_active = False
 
     def on_heading_recovery_started(self, source_state):
         """Extension hook for mission-specific scan cancellation."""
@@ -629,9 +630,38 @@ class mission:
         except HeadingFeedbackError:
             # 反馈本身已失效时绝不能再根据另一来源生成恢复转向指令。
             pass
-        logger.error(f"航向恢复失败，转入降落: {reason}")
         self.set_speed(0, 0, 0, int(hold_z_cm))
-        self.on_heading_recovery_failed(str(reason))
+        reason_text = str(reason)
+        critical_feedback_failure = (
+            reason_text.startswith("heading_recovery_low_confidence_")
+            or reason_text == "heading_error_unavailable"
+            or reason_text.startswith("fc_heading_")
+        )
+        if not critical_feedback_failure:
+            # 用户明确要求：真实yaw偏转不能中止盘点。恢复失败后只关闭本次任务的
+            # 航向外环；从下一个控制tick起继续XY/Z导航，yaw指令保持为0。
+            self._heading_bypass_active = True
+            self.heading_hold.disarm("heading_fault_bypassed")
+            self._heading_status = replace(
+                self._heading_status,
+                command_dps=0,
+                armed=False,
+                degraded_reason="heading_fault_bypassed",
+                fault_reason=None,
+            )
+            logger.warning(f"航向恢复失败，关闭航向外环并继续任务: {reason_text}")
+            return {
+                "active": False,
+                "failed": False,
+                "completed": False,
+                "bypassed": True,
+                "reason": reason_text,
+                "yaw_cmd": 0,
+                "z_setpoint_cm": int(hold_z_cm),
+            }
+
+        logger.error(f"航向反馈失效，转入降落: {reason_text}")
+        self.on_heading_recovery_failed(reason_text)
         self.state = "LAND"
         return {
             "active": False,
@@ -1655,11 +1685,14 @@ class mission:
         )
 
     def _apply_heading_command_polarity(self, status):
-        """Map controller-positive yaw onto the flight-command axis."""
+        """Map the selected feedback axis onto the flight-command axis."""
         if status.command_dps:
             return replace(
                 status,
-                command_dps=HEADING_COMMAND_SIGN * status.command_dps,
+                command_dps=(
+                    HEADING_COMMAND_SIGN_BY_SOURCE[self.heading_source]
+                    * status.command_dps
+                ),
             )
         return status
 
@@ -1677,6 +1710,23 @@ class mission:
         selected_yaw, heading_confidence = self._select_heading_feedback(
             yaw, confidence
         )
+        if self._heading_bypass_active:
+            current_deg = wrap_degrees(math.degrees(selected_yaw))
+            target_deg = self.heading_hold.target_deg
+            error_deg = (
+                wrap_degrees(target_deg - current_deg)
+                if target_deg is not None
+                else None
+            )
+            return replace(
+                self._heading_status,
+                command_dps=0,
+                armed=False,
+                current_deg=current_deg,
+                error_deg=error_deg,
+                degraded_reason="heading_fault_bypassed",
+                fault_reason=None,
+            )
         status = self.heading_hold.update(
             selected_yaw,
             heading_confidence,
@@ -1747,6 +1797,7 @@ class mission:
             "heading_recovery_hold_z_cm": self._heading_recovery_hold_z_cm,
             "heading_recovery_successes": self._heading_recovery_successes,
             "heading_recovery_failure_reason": self._heading_recovery_failure_reason,
+            "heading_bypass_active": self._heading_bypass_active,
         }
 
     def _format_heading_error(self):

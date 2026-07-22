@@ -59,6 +59,8 @@ class WarehouseConfig:
     camera_z_offset_m: float = 0.0
     scan_standoff_m: float = 0.70
     scan_back_y_offset_m: float = 0.20
+    # 2026-07-22 D面实飞现场校正：原扫描线偏外，整体向-Y收近0.10m。
+    d_scan_y_adjust_m: float = -0.10
     cruise_z_m: float = 1.25
     landing_approach_z_m: float = 1.25
     landing_final_z_m: float = 0.20
@@ -153,7 +155,8 @@ class WarehouseModel:
             FaceId.D: Face(
                 FaceId.D,
                 second,
-                c.flight_y(second + c.scan_standoff_m + c.scan_back_y_offset_m),
+                c.flight_y(second + c.scan_standoff_m + c.scan_back_y_offset_m)
+                + c.d_scan_y_adjust_m,
                 -1,
                 c.look_negative_y_angle_deg,
             ),

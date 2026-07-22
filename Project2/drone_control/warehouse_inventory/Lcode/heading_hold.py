@@ -157,8 +157,8 @@ class HeadingHoldController:
         self, current_yaw_rad: float, max_rate_dps: int = 3
     ) -> HeadingHoldStatus:
         """Return a bounded recovery command without changing the latched target."""
-        if not 1 <= int(max_rate_dps) <= 3:
-            raise ValueError("heading recovery max_rate_dps 必须在 [1, 3] 内")
+        if not 1 <= int(max_rate_dps) <= 5:
+            raise ValueError("heading recovery max_rate_dps 必须在 [1, 5] 内")
         current_deg = self._yaw_rad_to_deg(current_yaw_rad)
         error_deg = self._error_for(current_deg)
         if not self.config.enabled or not self.armed or error_deg is None:

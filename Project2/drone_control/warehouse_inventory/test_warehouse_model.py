@@ -25,6 +25,16 @@ def test_builds_24_unique_slots_and_expected_face_directions():
     assert model.faces[FaceId.D].look_y_sign == -1
 
 
+def test_d_face_scan_line_is_shifted_negative_y_by_ten_centimeters_only():
+    model = WarehouseModel()
+    assert math.isclose(model.faces[FaceId.B].scan_y_m, 1.65)
+    assert math.isclose(model.faces[FaceId.D].scan_y_m, 3.55)
+    assert all(
+        math.isclose(model.slots[f"D{number}"].point.y, 3.55)
+        for number in range(1, 7)
+    )
+
+
 def test_opposite_faces_reverse_visible_column_labels():
     model = WarehouseModel()
     assert model.slots["A1"].point.x == -1.75
@@ -47,6 +57,13 @@ def test_full_plan_has_all_slots_once_and_fixed_gimbal_per_face():
     assert [p.gimbal_angle_deg for p in set_gimbal] == [0.0, 180.0, 0.0, 180.0]
     assert 0 < planner.route_length_m(route) < 28
 
+    assert [p.slot_label for p in inspections] == [
+        "A1", "A2", "A3", "A6", "A5", "A4",
+        "B6", "B5", "B4", "B1", "B2", "B3",
+        "C1", "C2", "C3", "C6", "C5", "C4",
+        "D6", "D5", "D4", "D1", "D2", "D3",
+    ]
+
 
 def test_face_scan_starts_at_previous_face_height_and_bypass_keeps_it():
     planner = InventoryPlanner()
@@ -57,20 +74,54 @@ def test_face_scan_starts_at_previous_face_height_and_bypass_keeps_it():
     ]
     assert first_inspect_z == [1.25, 0.85, 1.25, 0.85]
 
-    lower_bypass_z = [
+    upper_bypass_z = [
         p.point.z
         for p in route
-        if p.kind == WaypointKind.TRANSIT and math.isclose(p.point.x, 0.30)
+        if p.kind == WaypointKind.TRANSIT and math.isclose(p.point.x, -2.80)
     ]
-    assert lower_bypass_z == [0.85, 0.85, 0.85, 0.85]
+    assert upper_bypass_z == [0.85, 0.85, 0.85, 0.85]
 
 
-def test_full_plan_uses_nearest_bypass_for_reversed_scan_endpoints():
+def test_full_plan_forces_a_to_b_through_upper_bypass():
     planner = InventoryPlanner()
     route = planner.plan_full_inventory()
-    transit_x = [p.point.x for p in route if p.kind == WaypointKind.TRANSIT]
-    assert any(math.isclose(x, 0.30) for x in transit_x)
-    assert not any(math.isclose(x, -2.65) for x in transit_x)
+    a4_index = next(i for i, p in enumerate(route) if p.slot_label == "A4")
+    b6_index = next(i for i, p in enumerate(route) if p.slot_label == "B6")
+    between = route[a4_index + 1 : b6_index]
+    transit = [p.point for p in between if p.kind == WaypointKind.TRANSIT]
+    expected = [
+        (-2.80, 0.05, 0.85),
+        (-2.80, 1.65, 0.85),
+        (-1.75, 1.65, 0.85),
+    ]
+    assert len(transit) == len(expected)
+    assert all(
+        math.isclose(point.x, x)
+        and math.isclose(point.y, y)
+        and math.isclose(point.z, z)
+        for point, (x, y, z) in zip(transit, expected)
+    )
+
+
+def test_full_plan_forces_c_to_d_through_upper_bypass():
+    planner = InventoryPlanner()
+    route = planner.plan_full_inventory()
+    c4_index = next(i for i, p in enumerate(route) if p.slot_label == "C4")
+    d6_index = next(i for i, p in enumerate(route) if p.slot_label == "D6")
+    between = route[c4_index + 1 : d6_index]
+    transit = [p.point for p in between if p.kind == WaypointKind.TRANSIT]
+    expected = [
+        (-2.80, 2.05, 0.85),
+        (-2.80, 3.55, 0.85),
+        (-1.75, 3.55, 0.85),
+    ]
+    assert len(transit) == len(expected)
+    assert all(
+        math.isclose(point.x, x)
+        and math.isclose(point.y, y)
+        and math.isclose(point.z, z)
+        for point, (x, y, z) in zip(transit, expected)
+    )
 
 
 def test_target_on_far_side_uses_confirmed_lower_bypass_when_shorter():

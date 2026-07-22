@@ -88,11 +88,11 @@ def test_runaway_growth_latches_after_max_command_for_full_window():
 def test_recovery_command_is_bounded_and_preserves_original_target():
     controller = _controller(fault_error_deg=8.0)
     faulted = controller.update(math.radians(-9.0), 3, 0.1)
-    recovery = controller.recovery_status(math.radians(-9.0), max_rate_dps=3)
+    recovery = controller.recovery_status(math.radians(-9.0), max_rate_dps=5)
     cleared = controller.clear_fault_preserving_target(math.radians(-2.0))
 
     assert faulted.fault_reason is not None
-    assert recovery.command_dps == 3
+    assert recovery.command_dps == 5
     assert recovery.target_deg == 0.0
     assert cleared.fault_reason is None
     assert cleared.target_deg == 0.0

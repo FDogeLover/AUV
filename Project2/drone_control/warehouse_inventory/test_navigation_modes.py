@@ -201,11 +201,11 @@ def test_heading_fault_stops_xy_and_uses_bounded_recovery(monkeypatch):
 
     assert control["heading_recovery_active"] is True
     assert control["heading_recovery_failed"] is False
-    assert commands[-1] == (0, 0, -3, 120)
+    assert commands[-1] == (0, 0, 5, 120)
     assert m.state == "NAVIGATE"
 
 
-def test_heading_recovery_without_progress_enters_land(monkeypatch):
+def test_heading_recovery_without_progress_bypasses_heading_and_continues(monkeypatch):
     m, clock, commands = _armed_recovery_mission(monkeypatch)
     m.position_control_tick(m.targets[0], [0.0, 0.0, 1.2], math.radians(-9.0))
     clock["now"] += mg.HEADING_RECOVERY_PROGRESS_WINDOW_S
@@ -214,25 +214,35 @@ def test_heading_recovery_without_progress_enters_land(monkeypatch):
         m.targets[0], [0.0, 0.0, 1.2], math.radians(-8.8)
     )
 
-    assert control["heading_recovery_failed"] is True
+    assert control["heading_recovery_failed"] is False
     assert "no_progress" in control["heading_recovery_reason"]
     assert commands[-1] == (0, 0, 0, 120)
-    assert m.state == "LAND"
+    assert m.state == "NAVIGATE"
+    assert m._heading_bypass_active is True
+
+    resumed = m.position_control_tick(
+        m.targets[0], [0.2, -0.1, 1.2], math.radians(-8.8)
+    )
+    assert resumed["vx"] != 0
+    assert resumed["vy"] != 0
+    assert resumed["yaw_cmd"] == 0
+    assert m.state == "NAVIGATE"
 
 
-def test_heading_recovery_hard_error_enters_land_immediately(monkeypatch):
+def test_heading_recovery_hard_error_bypasses_heading_without_landing(monkeypatch):
     m, clock, commands = _armed_recovery_mission(monkeypatch)
 
     control = m.position_control_tick(
         m.targets[0], [0.0, 0.0, 1.2], math.radians(-21.0)
     )
 
-    assert control["heading_recovery_failed"] is True
+    assert control["heading_recovery_failed"] is False
     assert "exceeds_recovery_limit" in control["heading_recovery_reason"]
-    assert m.state == "LAND"
+    assert m._heading_bypass_active is True
+    assert m.state == "NAVIGATE"
 
 
-def test_heading_recovery_timeout_enters_land_even_with_slow_progress(monkeypatch):
+def test_heading_recovery_timeout_bypasses_heading_without_landing(monkeypatch):
     m, clock, commands = _armed_recovery_mission(monkeypatch)
     m.position_control_tick(m.targets[0], [0.0, 0.0, 1.2], math.radians(-9.0))
     for elapsed, error in ((1.0, -8.0), (2.0, -7.0)):
@@ -247,9 +257,10 @@ def test_heading_recovery_timeout_enters_land_even_with_slow_progress(monkeypatc
         m.targets[0], [0.0, 0.0, 1.2], math.radians(-6.0)
     )
 
-    assert control["heading_recovery_failed"] is True
+    assert control["heading_recovery_failed"] is False
     assert control["heading_recovery_reason"] == "heading_recovery_timeout"
-    assert m.state == "LAND"
+    assert m._heading_bypass_active is True
+    assert m.state == "NAVIGATE"
 
 
 def test_heading_recovery_low_confidence_never_sends_recovery_yaw(monkeypatch):
@@ -272,15 +283,15 @@ def test_heading_recovery_uses_hysteresis_and_preserves_target(monkeypatch):
     m, clock, commands = _armed_recovery_mission(monkeypatch)
     m.position_control_tick(m.targets[0], [0.0, 0.0, 1.2], math.radians(-9.0))
     clock["now"] += 0.4
-    m.position_control_tick(m.targets[0], [0.0, 0.0, 1.2], math.radians(-3.9))
+    m.position_control_tick(m.targets[0], [0.0, 0.0, 1.2], math.radians(-4.9))
     clock["now"] += 0.5
-    m.position_control_tick(m.targets[0], [0.0, 0.0, 1.2], math.radians(-4.6))
+    m.position_control_tick(m.targets[0], [0.0, 0.0, 1.2], math.radians(-5.6))
     clock["now"] += 0.1
-    m.position_control_tick(m.targets[0], [0.0, 0.0, 1.2], math.radians(-3.9))
+    m.position_control_tick(m.targets[0], [0.0, 0.0, 1.2], math.radians(-4.9))
     clock["now"] += mg.HEADING_RECOVERY_STABLE_S
 
     control = m.position_control_tick(
-        m.targets[0], [0.0, 0.0, 1.2], math.radians(-3.9)
+        m.targets[0], [0.0, 0.0, 1.2], math.radians(-4.9)
     )
 
     assert control["heading_recovery_completed"] is True
@@ -289,7 +300,7 @@ def test_heading_recovery_uses_hysteresis_and_preserves_target(monkeypatch):
     assert commands[-1] == (0, 0, 0, 120)
 
 
-def test_second_heading_recovery_trigger_enters_land(monkeypatch):
+def test_recovery_repeat_limit_bypasses_heading_without_landing(monkeypatch):
     m, clock, commands = _armed_recovery_mission(monkeypatch)
     m._heading_recovery_successes = mg.HEADING_RECOVERY_MAX_SUCCESSES
 
@@ -297,9 +308,10 @@ def test_second_heading_recovery_trigger_enters_land(monkeypatch):
         m.targets[0], [0.0, 0.0, 1.2], math.radians(-9.0)
     )
 
-    assert control["heading_recovery_failed"] is True
+    assert control["heading_recovery_failed"] is False
     assert control["heading_recovery_reason"] == "heading_recovery_repeat_limit"
-    assert m.state == "LAND"
+    assert m._heading_bypass_active is True
+    assert m.state == "NAVIGATE"
 
 
 def test_scan_tick_writes_continuous_flight_log(monkeypatch):
@@ -574,7 +586,7 @@ def test_heading_hold_command_is_shared_by_precision_and_cruise():
         m.heading_hold.arm(0.0, 0.0)
         m.target_index = 1
         m.navigate([1.0, 0.0, 1.0], math.radians(5.0))
-        assert m.se_fc[6] - sp_side == 1, profile
+        assert m.se_fc[6] - sp_side == -1, profile
 
 
 def test_emergency_disarms_heading_hold_and_clears_yaw():

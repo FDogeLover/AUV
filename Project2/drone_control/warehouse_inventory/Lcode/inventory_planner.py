@@ -58,7 +58,13 @@ class InventoryPlanner:
         candidates = (c.lower_bypass_x_m, c.upper_bypass_x_m)
         return min(candidates, key=lambda x: abs(start.x - x) + abs(end.x - x))
 
-    def _safe_transit(self, start: FlightPoint, end: FlightPoint) -> List[MissionWaypoint]:
+    def _safe_transit(
+        self,
+        start: FlightPoint,
+        end: FlightPoint,
+        *,
+        bypass_x: Optional[float] = None,
+    ) -> List[MissionWaypoint]:
         cruise_z = self.model.config.cruise_z_m
         # 两端高度一致时，跨货架绕行保持当前高度；只有需要改变高度的
         # 过渡才使用巡航高度，避免每次绕行都先爬回1.40m。
@@ -70,7 +76,8 @@ class InventoryPlanner:
             points.append(start_transit)
 
         if self._crossed_shelf_planes(start.y, end.y):
-            bypass_x = self._choose_bypass_x(start_transit, end_transit)
+            if bypass_x is None:
+                bypass_x = self._choose_bypass_x(start_transit, end_transit)
             points.extend(
                 (
                     FlightPoint(bypass_x, start.y, transit_z),
@@ -110,12 +117,13 @@ class InventoryPlanner:
         face_id: FaceId,
         start_from_lower_end: bool,
         start_with_top: bool,
+        bypass_x: Optional[float] = None,
     ) -> None:
         face = self.model.faces[face_id]
         slots = self._scan_slots(face_id, start_from_lower_end, start_with_top)
         first = slots[0].point
         current = route[-1].point
-        route.extend(self._safe_transit(current, first))
+        route.extend(self._safe_transit(current, first, bypass_x=bypass_x))
         route.append(
             MissionWaypoint(
                 point=first,
@@ -138,13 +146,21 @@ class InventoryPlanner:
     def plan_full_inventory(self) -> List[MissionWaypoint]:
         route = [MissionWaypoint(self.model.takeoff, WaypointKind.TAKEOFF)]
         for index, face_id in enumerate(self.FULL_FACE_ORDER):
-            # 反向选择每面的扫描端点，使跨货架前后的端点更靠近下端通道，
-            # 避免在 X=-1.75 与 X=+0.30 之间往返绕远。
+            # 2026-07-22现场确认：完整盘点A→B、C→D均固定走上端
+            # X=-2.80通道；单面、目标货位和安全返航仍按距离自动选择。
+            forced_bypass_x = (
+                self.model.config.upper_bypass_x_m
+                if face_id in {FaceId.B, FaceId.D}
+                else None
+            )
             self._append_face(
                 route,
                 face_id,
-                start_from_lower_end=(index % 2 == 1),
+                # 两次跨货架都从上端X=-2.80进入，四个面统一从
+                # X=-1.75端开始S形扫描，避免进入B/D后再横穿到X=-0.70。
+                start_from_lower_end=False,
                 start_with_top=(index % 2 == 0),
+                bypass_x=forced_bypass_x,
             )
 
         route.extend(self._safe_transit(route[-1].point, self.model.landing_approach))
