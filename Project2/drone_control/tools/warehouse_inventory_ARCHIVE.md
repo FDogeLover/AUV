@@ -21,3 +21,14 @@
 - 其余B/C分面日志和图片为参数演进过程，保留用于回溯，不代表最终运行配置。
 
 总结见`docs/session-summaries/2026-07-22-warehouse-inventory-final.md`。
+
+## 板端统一归档
+
+板端路径：`/home/sunrise/Desktop/FJJ/test_data/warehouse_inventory_20260722/`。
+
+- `runtime_and_backups/`：任务根目录中的控制台、飞控、状态、盘点结果和历史备份；
+- `vision_debug_all/`：板端原 `warehouse_inventory/vision_debug/` 全部视觉调试数据；
+- 目录中原有的最终飞行副本和B面分面数据继续保留。
+
+整理后约 226 MB、2039 个文件。板端 `.gitignore` 已忽略 `test_data/`、
+`vision_debug/`、`*.log*`、`*.jsonl*` 和 `inventory_results.json*`，运行产物不再进入 Git。
