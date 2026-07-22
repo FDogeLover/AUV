@@ -85,6 +85,32 @@ def test_runaway_growth_latches_after_max_command_for_full_window():
     assert "grew" in status.fault_reason
 
 
+def test_recovery_command_is_bounded_and_preserves_original_target():
+    controller = _controller(fault_error_deg=8.0)
+    faulted = controller.update(math.radians(-9.0), 3, 0.1)
+    recovery = controller.recovery_status(math.radians(-9.0), max_rate_dps=3)
+    cleared = controller.clear_fault_preserving_target(math.radians(-2.0))
+
+    assert faulted.fault_reason is not None
+    assert recovery.command_dps == 3
+    assert recovery.target_deg == 0.0
+    assert cleared.fault_reason is None
+    assert cleared.target_deg == 0.0
+    assert cleared.error_deg == pytest.approx(2.0)
+
+
+def test_fault_relock_can_be_disabled_for_mission_recovery():
+    controller = _controller(fault_error_deg=8.0)
+    controller.update(math.radians(9.0), 3, 0.1)
+
+    still_faulted = controller.update(
+        math.radians(0.0), 3, 0.2, allow_fault_relock=False
+    )
+
+    assert still_faulted.fault_reason is not None
+    assert still_faulted.target_deg == 0.0
+
+
 def test_arm_only_latches_target_once():
     controller = HeadingHoldController(HeadingHoldConfig())
     controller.arm(math.radians(10.0), 0.0)

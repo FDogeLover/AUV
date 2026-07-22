@@ -102,7 +102,14 @@ class HeadingHoldController:
         self.degraded_reason = reason
         self._reset_runaway_window()
 
-    def update(self, current_yaw_rad: float, confidence: int, now: float) -> HeadingHoldStatus:
+    def update(
+        self,
+        current_yaw_rad: float,
+        confidence: int,
+        now: float,
+        *,
+        allow_fault_relock: bool = True,
+    ) -> HeadingHoldStatus:
         current_deg = self._yaw_rad_to_deg(current_yaw_rad)
         if not self.config.enabled:
             self.degraded_reason = "disabled"
@@ -111,7 +118,11 @@ class HeadingHoldController:
             # 故障锁死后，若误差已回落至死区内，自动重置并重新锁定当前航向。
             # 主要应对降落时 T265 短时跟丢造成 yaw 跳变触发误锁。
             error_deg = self._error_for(current_deg)
-            if error_deg is not None and abs(error_deg) < self.config.deadband_deg:
+            if (
+                allow_fault_relock
+                and error_deg is not None
+                and abs(error_deg) < self.config.deadband_deg
+            ):
                 self.fault_reason = None
                 self.target_deg = current_deg
                 self._reset_runaway_window()
@@ -141,6 +152,30 @@ class HeadingHoldController:
                 error_deg,
             )
         return self._status(command_dps, current_deg, error_deg)
+
+    def recovery_status(
+        self, current_yaw_rad: float, max_rate_dps: int = 3
+    ) -> HeadingHoldStatus:
+        """Return a bounded recovery command without changing the latched target."""
+        if not 1 <= int(max_rate_dps) <= 3:
+            raise ValueError("heading recovery max_rate_dps 必须在 [1, 3] 内")
+        current_deg = self._yaw_rad_to_deg(current_yaw_rad)
+        error_deg = self._error_for(current_deg)
+        if not self.config.enabled or not self.armed or error_deg is None:
+            return self._status(0, current_deg, error_deg)
+        if abs(error_deg) <= self.config.deadband_deg:
+            command_dps = 0
+        else:
+            command_dps = int(max_rate_dps) if error_deg > 0 else -int(max_rate_dps)
+        return self._status(command_dps, current_deg, error_deg)
+
+    def clear_fault_preserving_target(self, current_yaw_rad: float) -> HeadingHoldStatus:
+        """Clear a recoverable fault while preserving the original heading target."""
+        current_deg = self._yaw_rad_to_deg(current_yaw_rad)
+        self.fault_reason = None
+        self.degraded_reason = None
+        self._reset_runaway_window()
+        return self._status(0, current_deg, self._error_for(current_deg))
 
     def _command_for_error(self, error_deg: float) -> int:
         if abs(error_deg) <= self.config.deadband_deg:

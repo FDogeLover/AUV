@@ -67,6 +67,18 @@ YAW_TEST_BURST_ENABLED = os.getenv("DRONE_YAW_TEST_BURST", "0") == "1"
 YAW_TEST_BURST_VALUE = int(os.getenv("DRONE_YAW_TEST_BURST_VALUE", "-8"))
 YAW_TEST_BURST_DURATION_S = float(os.getenv("DRONE_YAW_TEST_BURST_DURATION_S", "1.5"))
 
+# 航向误差达到软故障阈值后的原地恢复门槛。正常航行仍使用
+# HeadingHoldConfig.max_rate_dps=2，只有停止XY后才允许3deg/s。
+HEADING_RECOVERY_MAX_DPS = 3
+HEADING_RECOVERY_TIMEOUT_S = 3.0
+HEADING_RECOVERY_PROGRESS_WINDOW_S = 1.0
+HEADING_RECOVERY_MIN_IMPROVEMENT_DEG = 0.5
+HEADING_RECOVERY_STABLE_ENTER_DEG = 2.5
+HEADING_RECOVERY_STABLE_EXIT_DEG = 3.0
+HEADING_RECOVERY_STABLE_S = 1.0
+HEADING_RECOVERY_HARD_ERROR_DEG = 20.0
+HEADING_RECOVERY_MAX_SUCCESSES = 1
+
 
 def arrival_window_confirmed(window, need, ratio):
     """window: 最近若干帧"位置+速度是否同时达标"的布尔值(deque)。
@@ -106,6 +118,7 @@ class mission:
             raise ValueError("DRONE_HEADING_HOLD 与 DRONE_YAW_TEST_BURST 不能同时启用")
         self._heading_status = self.heading_hold.update(0.0, confidence=0, now=time.time())
         self._last_heading_fault_logged = None
+        self._reset_heading_recovery_for_mission()
         self.navigation_profile = NavigationProfileConfig.from_env()
 
         # 航点
@@ -175,6 +188,7 @@ class mission:
     def start(self):
         self.heading_hold.reset_for_new_mission()
         self._last_heading_fault_logged = None
+        self._reset_heading_recovery_for_mission()
         self.t265_ok = False
         # 按键门禁已在 main.py 中完成；蓝灯表示正在初始化，不是第二次按键门禁。
         self._set_status_led("B")
@@ -526,6 +540,142 @@ class mission:
         self.state = "LAND"
 
     # ================= 导航 =================
+    def _reset_heading_recovery_for_mission(self):
+        self._heading_recovery_active = False
+        self._heading_recovery_started_at = None
+        self._heading_recovery_start_abs_error = None
+        self._heading_recovery_stable_since = None
+        self._heading_recovery_hold_z_cm = None
+        self._heading_recovery_successes = 0
+        self._heading_recovery_failure_reason = None
+
+    def on_heading_recovery_started(self, source_state):
+        """Extension hook for mission-specific scan cancellation."""
+
+    def heading_recovery_ready_to_resume(self):
+        """Extension hook that can delay resume until background work exits."""
+        return True
+
+    def on_heading_recovery_completed(self, source_state):
+        """Extension hook invoked after the original heading has recovered."""
+
+    def on_heading_recovery_failed(self, reason):
+        """Extension hook invoked before switching the flight driver to LAND."""
+
+    def _fail_heading_recovery(self, reason, yaw, hold_z_cm):
+        self._heading_recovery_failure_reason = str(reason)
+        self._heading_recovery_active = False
+        self._heading_recovery_stable_since = None
+        self._heading_status = self.heading_hold.recovery_status(
+            yaw, max_rate_dps=HEADING_RECOVERY_MAX_DPS
+        )
+        logger.error(f"航向恢复失败，转入降落: {reason}")
+        self.set_speed(0, 0, 0, int(hold_z_cm))
+        self.on_heading_recovery_failed(str(reason))
+        self.state = "LAND"
+        return {
+            "active": False,
+            "failed": True,
+            "reason": str(reason),
+            "yaw_cmd": 0,
+            "z_setpoint_cm": int(hold_z_cm),
+        }
+
+    def _heading_recovery_tick(
+        self, yaw, pos_z_m, status, source_state, confidence
+    ):
+        now = time.time()
+        if confidence < T265_CONFIDENCE_MIN:
+            return self._fail_heading_recovery(
+                f"heading_recovery_low_confidence_{confidence}",
+                yaw,
+                self._heading_recovery_hold_z_cm or self._ramp_z_cm,
+            )
+        error_deg = status.error_deg
+        if error_deg is None:
+            return self._fail_heading_recovery(
+                "heading_error_unavailable", yaw, self._ramp_z_cm
+            )
+        abs_error = abs(error_deg)
+
+        if not self._heading_recovery_active:
+            if self._heading_recovery_successes >= HEADING_RECOVERY_MAX_SUCCESSES:
+                return self._fail_heading_recovery(
+                    "heading_recovery_repeat_limit", yaw, self._ramp_z_cm
+                )
+            self._heading_recovery_active = True
+            self._heading_recovery_started_at = now
+            self._heading_recovery_start_abs_error = abs_error
+            self._heading_recovery_stable_since = None
+            self._heading_recovery_hold_z_cm = max(0, int(round(float(pos_z_m) * 100)))
+            self._heading_recovery_failure_reason = None
+            logger.warning(
+                f"航向恢复开始: error={error_deg:+.2f}deg, "
+                f"hold_z={self._heading_recovery_hold_z_cm}cm"
+            )
+            self.on_heading_recovery_started(source_state)
+
+        hold_z_cm = self._heading_recovery_hold_z_cm
+        elapsed = now - self._heading_recovery_started_at
+        if abs_error >= HEADING_RECOVERY_HARD_ERROR_DEG:
+            return self._fail_heading_recovery(
+                f"heading_error_{error_deg:+.2f}deg_exceeds_recovery_limit",
+                yaw,
+                hold_z_cm,
+            )
+        if elapsed >= HEADING_RECOVERY_TIMEOUT_S:
+            return self._fail_heading_recovery(
+                "heading_recovery_timeout", yaw, hold_z_cm
+            )
+        if elapsed >= HEADING_RECOVERY_PROGRESS_WINDOW_S:
+            improvement = self._heading_recovery_start_abs_error - abs_error
+            if improvement < HEADING_RECOVERY_MIN_IMPROVEMENT_DEG:
+                return self._fail_heading_recovery(
+                    f"heading_recovery_no_progress_{improvement:+.2f}deg",
+                    yaw,
+                    hold_z_cm,
+                )
+
+        if self._heading_recovery_stable_since is None:
+            if abs_error <= HEADING_RECOVERY_STABLE_ENTER_DEG:
+                self._heading_recovery_stable_since = now
+        elif abs_error > HEADING_RECOVERY_STABLE_EXIT_DEG:
+            self._heading_recovery_stable_since = None
+        elif now - self._heading_recovery_stable_since >= HEADING_RECOVERY_STABLE_S:
+            if self.heading_recovery_ready_to_resume():
+                self._heading_status = self.heading_hold.clear_fault_preserving_target(yaw)
+                self._heading_recovery_active = False
+                self._heading_recovery_successes += 1
+                self._heading_recovery_stable_since = None
+                logger.info(
+                    f"航向恢复完成: error={error_deg:+.2f}deg, "
+                    f"successes={self._heading_recovery_successes}"
+                )
+                self.on_heading_recovery_completed(source_state)
+                self.set_speed(0, 0, 0, int(hold_z_cm))
+                return {
+                    "active": False,
+                    "failed": False,
+                    "completed": True,
+                    "reason": None,
+                    "yaw_cmd": 0,
+                    "z_setpoint_cm": int(hold_z_cm),
+                }
+
+        self._heading_status = self.heading_hold.recovery_status(
+            yaw, max_rate_dps=HEADING_RECOVERY_MAX_DPS
+        )
+        yaw_cmd = self._heading_status.command_dps
+        self.set_speed(0, 0, yaw_cmd, int(hold_z_cm))
+        return {
+            "active": True,
+            "failed": False,
+            "completed": False,
+            "reason": None,
+            "yaw_cmd": yaw_cmd,
+            "z_setpoint_cm": int(hold_z_cm),
+        }
+
     def position_control_tick(self, target, pos, yaw):
         """Run one reusable XY PID, Z ramp, and heading-hold control tick."""
         confidence = (
@@ -533,8 +683,27 @@ class mission:
             if self.t265_ok and self.realsense
             else 0
         )
-        self._heading_status = self._update_heading_hold(yaw, confidence)
+        source_state = self.state
+        self._heading_status = self._update_heading_hold(
+            yaw, confidence, allow_fault_relock=False
+        )
         yaw_cmd = self._heading_status.command_dps
+
+        if self._heading_status.fault_reason or self._heading_recovery_active:
+            recovery = self._heading_recovery_tick(
+                yaw, pos[2], self._heading_status, source_state, confidence
+            )
+            return {
+                "confidence": confidence,
+                "vx": 0,
+                "vy": 0,
+                "yaw_cmd": recovery["yaw_cmd"],
+                "z_setpoint_cm": recovery["z_setpoint_cm"],
+                "heading_recovery_active": recovery["active"],
+                "heading_recovery_failed": recovery["failed"],
+                "heading_recovery_completed": recovery.get("completed", False),
+                "heading_recovery_reason": recovery["reason"],
+            }
 
         if confidence == 0 and self.t265_ok:
             self.set_speed(0, 0, yaw_cmd, int(self._ramp_z_cm))
@@ -556,6 +725,10 @@ class mission:
             "vy": vy,
             "yaw_cmd": yaw_cmd,
             "z_setpoint_cm": int(self._ramp_z_cm),
+            "heading_recovery_active": False,
+            "heading_recovery_failed": False,
+            "heading_recovery_completed": False,
+            "heading_recovery_reason": None,
         }
 
     def begin_scan_hold(self, target):
@@ -585,6 +758,56 @@ class mission:
             )
         self._scan_tick_last_t = now
 
+    def _log_control_tick(self, state, target, pos, yaw, control):
+        """Log SCAN and heading-recovery ticks with navigation-equivalent fields."""
+        now = time.time()
+        if not self._log_file or now - self._last_log_time < FLIGHT_LOG_INTERVAL:
+            return
+        try:
+            tv = (
+                self.realsense.get_velocity()
+                if self.t265_ok and self.realsense
+                else (0.0, 0.0, 0.0)
+            )
+            with lock:
+                of1_dx = self.re_fc[9] if len(self.re_fc) > 9 else 0
+                of1_dy = self.re_fc[10] if len(self.re_fc) > 10 else 0
+                roll_deg = self.re_fc[1] / 100.0 if len(self.re_fc) > 1 else 0.0
+                pitch_deg = self.re_fc[2] / 100.0 if len(self.re_fc) > 2 else 0.0
+                fc_yaw_deg = self.re_fc[3] / 100.0 if len(self.re_fc) > 3 else 0.0
+                of_quality = self.re_fc[11] if len(self.re_fc) > 11 else 0
+                of_link_sta = self.re_fc[12] if len(self.re_fc) > 12 else 0
+                of_work_sta = self.re_fc[13] if len(self.re_fc) > 13 else 0
+            entry = {
+                "t": round(now, 3),
+                "state": str(state),
+                "target_idx": self.target_index,
+                "pos": [round(pos[0], 4), round(pos[1], 4), round(pos[2], 4)],
+                "target": [round(target[0], 4), round(target[1], 4), round(target[2], 4)],
+                "vx": control["vx"],
+                "vy": control["vy"],
+                "yaw_cmd_sent": control["yaw_cmd"],
+                "t265_yaw_deg": round(math.degrees(yaw), 2),
+                "fc_yaw_deg": round(fc_yaw_deg, 2),
+                "t265_vel": [round(tv[0], 4), round(tv[1], 4)],
+                "of1_vel_cms": [of1_dx, of1_dy],
+                "roll_pitch": [round(roll_deg, 2), round(pitch_deg, 2)],
+                "height_setpoint_cm": control["z_setpoint_cm"],
+                "of_status": [of_quality, of_link_sta, of_work_sta],
+                "nav_profile": self.navigation_profile.profile,
+                "waypoint_mode": "scan" if state == "SCAN" else self._waypoint_mode(),
+                "arrival_distance_m": round(
+                    math.hypot(pos[0] - target[0], pos[1] - target[1]), 4
+                ),
+                **self._heading_log_fields(),
+            }
+            with self._log_lock:
+                self._log_file.write(json.dumps(entry) + "\n")
+                self._log_file.flush()
+        except Exception:
+            pass
+        self._last_log_time = now
+
     def scan_tick(self, pos, yaw):
         self._record_scan_tick_jitter()
         target = self._scan_target
@@ -595,6 +818,13 @@ class mission:
             control = self.position_control_tick(target, pos, yaw)
             if control is None:
                 self.on_scan_tracking_lost(pos, yaw)
+                return
+            self._log_control_tick("SCAN", target, pos, yaw, control)
+            if (
+                control["heading_recovery_active"]
+                or control["heading_recovery_failed"]
+                or control["heading_recovery_completed"]
+            ):
                 return
             self.on_scan_tick(pos, yaw, control)
         except Exception as exc:
@@ -652,6 +882,22 @@ class mission:
                 except Exception:
                     pass
                 self._last_log_time = now
+            return
+
+        if (
+            control["heading_recovery_active"]
+            or control["heading_recovery_failed"]
+            or control["heading_recovery_completed"]
+        ):
+            # 恢复期间不允许航点超时、到达窗口或PID积分继续累积。
+            self.arrival_start_time = time.time()
+            self._arrival_window.clear()
+            self._vel_window.clear()
+            self.arrival_confirmed_time = None
+            self._cruise_arrival_count = 0
+            self.x_pid.reset()
+            self.y_pid.reset()
+            self._log_control_tick("NAVIGATE", target, pos, yaw, control)
             return
 
         confidence = control["confidence"]
@@ -1183,10 +1429,15 @@ class mission:
             self.se_fc[5] = z
             self.se_fc[6] = yaw + sp_side
 
-    def _update_heading_hold(self, yaw, confidence):
-        status = self.heading_hold.update(yaw, confidence, time.time())
+    def _update_heading_hold(self, yaw, confidence, *, allow_fault_relock=True):
+        status = self.heading_hold.update(
+            yaw,
+            confidence,
+            time.time(),
+            allow_fault_relock=allow_fault_relock,
+        )
         if status.fault_reason and status.fault_reason != self._last_heading_fault_logged:
-            logger.error(f"航向保持已锁存关闭: {status.fault_reason}")
+            logger.error(f"航向保持触发保护: {status.fault_reason}")
             self._last_heading_fault_logged = status.fault_reason
         return status
 
@@ -1206,6 +1457,16 @@ class mission:
             ),
             "heading_degraded_reason": status.degraded_reason,
             "heading_fault_reason": status.fault_reason,
+            "heading_recovery_active": self._heading_recovery_active,
+            "heading_recovery_elapsed_s": (
+                round(time.time() - self._heading_recovery_started_at, 3)
+                if self._heading_recovery_active
+                and self._heading_recovery_started_at is not None
+                else None
+            ),
+            "heading_recovery_hold_z_cm": self._heading_recovery_hold_z_cm,
+            "heading_recovery_successes": self._heading_recovery_successes,
+            "heading_recovery_failure_reason": self._heading_recovery_failure_reason,
         }
 
     def _format_heading_error(self):

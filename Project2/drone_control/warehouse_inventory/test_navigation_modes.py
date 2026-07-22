@@ -175,6 +175,146 @@ def test_end_scan_hold_clears_latched_target():
     assert m._scan_target is None
 
 
+def _armed_recovery_mission(monkeypatch, now=100.0):
+    clock = {"now": float(now)}
+    monkeypatch.setattr(mg.time, "time", lambda: clock["now"])
+    m = _make_mission(profile="precision")
+    m.heading_hold.reset_for_new_mission()
+    m.heading_hold.arm(0.0, clock["now"])
+    m._heading_status = m.heading_hold.update(0.0, 3, clock["now"])
+    m._ramp_z_cm = 125.0
+    m.state = "NAVIGATE"
+    commands = []
+    m.set_speed = lambda x, y, yaw, z: commands.append((x, y, yaw, z))
+    return m, clock, commands
+
+
+def test_heading_fault_stops_xy_and_uses_bounded_recovery(monkeypatch):
+    m, clock, commands = _armed_recovery_mission(monkeypatch)
+
+    control = m.position_control_tick(
+        m.targets[0], [0.2, -0.1, 1.2], math.radians(-9.0)
+    )
+
+    assert control["heading_recovery_active"] is True
+    assert control["heading_recovery_failed"] is False
+    assert commands[-1] == (0, 0, 3, 120)
+    assert m.state == "NAVIGATE"
+
+
+def test_heading_recovery_without_progress_enters_land(monkeypatch):
+    m, clock, commands = _armed_recovery_mission(monkeypatch)
+    m.position_control_tick(m.targets[0], [0.0, 0.0, 1.2], math.radians(-9.0))
+    clock["now"] += mg.HEADING_RECOVERY_PROGRESS_WINDOW_S
+
+    control = m.position_control_tick(
+        m.targets[0], [0.0, 0.0, 1.2], math.radians(-8.8)
+    )
+
+    assert control["heading_recovery_failed"] is True
+    assert "no_progress" in control["heading_recovery_reason"]
+    assert commands[-1] == (0, 0, 0, 120)
+    assert m.state == "LAND"
+
+
+def test_heading_recovery_hard_error_enters_land_immediately(monkeypatch):
+    m, clock, commands = _armed_recovery_mission(monkeypatch)
+
+    control = m.position_control_tick(
+        m.targets[0], [0.0, 0.0, 1.2], math.radians(-21.0)
+    )
+
+    assert control["heading_recovery_failed"] is True
+    assert "exceeds_recovery_limit" in control["heading_recovery_reason"]
+    assert m.state == "LAND"
+
+
+def test_heading_recovery_timeout_enters_land_even_with_slow_progress(monkeypatch):
+    m, clock, commands = _armed_recovery_mission(monkeypatch)
+    m.position_control_tick(m.targets[0], [0.0, 0.0, 1.2], math.radians(-9.0))
+    for elapsed, error in ((1.0, -8.0), (2.0, -7.0)):
+        clock["now"] = 100.0 + elapsed
+        control = m.position_control_tick(
+            m.targets[0], [0.0, 0.0, 1.2], math.radians(error)
+        )
+        assert control["heading_recovery_active"] is True
+    clock["now"] = 100.0 + mg.HEADING_RECOVERY_TIMEOUT_S
+
+    control = m.position_control_tick(
+        m.targets[0], [0.0, 0.0, 1.2], math.radians(-6.0)
+    )
+
+    assert control["heading_recovery_failed"] is True
+    assert control["heading_recovery_reason"] == "heading_recovery_timeout"
+    assert m.state == "LAND"
+
+
+def test_heading_recovery_low_confidence_never_sends_recovery_yaw(monkeypatch):
+    m, clock, commands = _armed_recovery_mission(monkeypatch)
+    m.position_control_tick(m.targets[0], [0.0, 0.0, 1.2], math.radians(-9.0))
+    m.realsense.confidence = 1
+    clock["now"] += 0.1
+
+    control = m.position_control_tick(
+        m.targets[0], [0.0, 0.0, 1.2], math.radians(-8.0)
+    )
+
+    assert control["heading_recovery_failed"] is True
+    assert control["heading_recovery_reason"] == "heading_recovery_low_confidence_1"
+    assert commands[-1][2] == 0
+    assert m.state == "LAND"
+
+
+def test_heading_recovery_uses_hysteresis_and_preserves_target(monkeypatch):
+    m, clock, commands = _armed_recovery_mission(monkeypatch)
+    m.position_control_tick(m.targets[0], [0.0, 0.0, 1.2], math.radians(-9.0))
+    clock["now"] += 0.4
+    m.position_control_tick(m.targets[0], [0.0, 0.0, 1.2], math.radians(-2.4))
+    clock["now"] += 0.5
+    m.position_control_tick(m.targets[0], [0.0, 0.0, 1.2], math.radians(-3.1))
+    clock["now"] += 0.1
+    m.position_control_tick(m.targets[0], [0.0, 0.0, 1.2], math.radians(-2.4))
+    clock["now"] += mg.HEADING_RECOVERY_STABLE_S
+
+    control = m.position_control_tick(
+        m.targets[0], [0.0, 0.0, 1.2], math.radians(-2.4)
+    )
+
+    assert control["heading_recovery_completed"] is True
+    assert m.heading_hold.target_deg == pytest.approx(0.0)
+    assert m._heading_recovery_successes == 1
+    assert commands[-1] == (0, 0, 0, 120)
+
+
+def test_second_heading_recovery_trigger_enters_land(monkeypatch):
+    m, clock, commands = _armed_recovery_mission(monkeypatch)
+    m._heading_recovery_successes = mg.HEADING_RECOVERY_MAX_SUCCESSES
+
+    control = m.position_control_tick(
+        m.targets[0], [0.0, 0.0, 1.2], math.radians(-9.0)
+    )
+
+    assert control["heading_recovery_failed"] is True
+    assert control["heading_recovery_reason"] == "heading_recovery_repeat_limit"
+    assert m.state == "LAND"
+
+
+def test_scan_tick_writes_continuous_flight_log(monkeypatch):
+    m, clock, commands = _armed_recovery_mission(monkeypatch)
+    m.realsense = ScanRealsense(position=(0.0, 0.0, 1.2), yaw=0.0)
+    m._log_file = io.StringIO()
+    m._last_log_time = 0.0
+    m.begin_scan_hold((0.0, 0.0, 1.25))
+
+    m.scan_tick([0.0, 0.0, 1.2], 0.0)
+
+    entry = json.loads(m._log_file.getvalue())
+    assert entry["state"] == "SCAN"
+    assert entry["yaw_cmd_sent"] == 0
+    assert entry["height_setpoint_cm"] >= 120
+    assert entry["heading_recovery_active"] is False
+
+
 def test_replace_navigation_targets_resets_all_arrival_and_pid_state(monkeypatch):
     m = _make_mission()
     m.target_index = 3

@@ -434,6 +434,33 @@ def test_inspect_arrival_enters_scan_without_waiting():
     coordinator.cancel_scan("cleanup", join_timeout_s=1.0)
 
 
+def test_heading_recovery_invalidates_scan_without_waiting_for_worker():
+    release = threading.Event()
+
+    class BlockingDecoder:
+        def detect(self, frame, target_point=None):
+            release.wait(1.0)
+            return None
+
+    route = [MissionWaypoint(FlightPoint(0, 0, 1.25), WaypointKind.INSPECT, FaceId.A, "A1")]
+    coordinator = _coordinator(route, FakeLaser([]), decoder=BlockingDecoder())
+    action = coordinator.on_waypoint_arrived(0, [0, 0, 1.25], "arrival")
+
+    assert action == controller.WaypointArrivalAction.ENTER_SCAN
+    assert coordinator.state_machine.state == InventoryState.VERIFY_QR
+    assert coordinator.scan_worker_active is True
+
+    coordinator.abort_scan_for_heading_recovery()
+
+    assert coordinator.state_machine.state == InventoryState.TRANSIT
+    assert coordinator.active_scan_generation is None
+    assert coordinator.scan_worker_active is True
+
+    release.set()
+    coordinator.cancel_scan("cleanup", join_timeout_s=1.0)
+    assert coordinator.scan_worker_active is False
+
+
 def test_fov_precheck_three_negative_frames_still_enters_full_scan():
     class GeometryMissDecoder:
         def __init__(self):

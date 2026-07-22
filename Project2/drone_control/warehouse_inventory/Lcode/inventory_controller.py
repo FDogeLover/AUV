@@ -578,6 +578,17 @@ class InventoryMissionCoordinator:
         with self._scan_lock:
             return self._scan_request.generation if self._scan_request is not None else None
 
+    @property
+    def scan_worker_active(self):
+        with self._scan_lock:
+            return self._scan_thread is not None and self._scan_thread.is_alive()
+
+    def abort_scan_for_heading_recovery(self):
+        """Invalidate scan side effects immediately without blocking flight control."""
+        self.cancel_scan("heading_recovery", join_timeout_s=0.0)
+        if self.state_machine.state == InventoryState.VERIFY_QR:
+            self._go(InventoryState.TRANSIT, "heading_recovery")
+
     def shutdown(self, join_timeout_s=2.0):
         exited = self.cancel_scan("shutdown", join_timeout_s=join_timeout_s)
         if self.camera is not None:
@@ -1153,6 +1164,41 @@ class InventoryFlightMission(FlightMission):
         super().takeoff()
         if previous_state == "TAKEOFF" and self.state == "NAVIGATE":
             self.coordinator.on_takeoff_complete()
+
+    def on_heading_recovery_started(self, source_state):
+        if source_state != "SCAN":
+            return
+        self.coordinator.abort_scan_for_heading_recovery()
+        self._scan_generation = None
+        self.end_scan_hold()
+        # 保留当前航点索引。恢复成功后重新到位，启动新generation扫码。
+        self.state = "NAVIGATE"
+
+    def heading_recovery_ready_to_resume(self):
+        return not self.coordinator.scan_worker_active
+
+    def on_heading_recovery_failed(self, reason):
+        machine_state = self.coordinator.state_machine.state
+        if InventoryState.LAND in ALLOWED_TRANSITIONS[machine_state]:
+            self.coordinator._go(
+                InventoryState.LAND,
+                "heading_recovery_failed",
+                error=str(reason),
+            )
+        elif machine_state != InventoryState.LAND:
+            self.coordinator.state_machine.fault(
+                "heading_recovery_failed",
+                recover_to_return=False,
+                error=str(reason),
+            )
+            if InventoryState.LAND in ALLOWED_TRANSITIONS[
+                self.coordinator.state_machine.state
+            ]:
+                self.coordinator._go(
+                    InventoryState.LAND,
+                    "heading_recovery_failed_land",
+                    error=str(reason),
+                )
 
     def _advance_waypoint(self, reason, pos, target, arrival_distance):
         index = self.target_index
