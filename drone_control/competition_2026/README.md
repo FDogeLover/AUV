@@ -155,3 +155,107 @@ python competition_main.py --phase execute --points P2,P5 `
 
 具体后端实现 `snapshot(timeout_s)` 时，必须把超时传入底层读取接口，并在会话 `snapshots/` 内先写临时文件、完成编码后原子替换为最终图片。真机启用前先拆桨验证拔线、断流、超时和写盘失败。
 
+## 机载视频流（Airborne Video）
+
+`Lcode/airborne_video.py` 实现了可选的机载摄像头 → 网络视频流生命周期管理，包括
+`AirborneVideoConfig` 配置验证和 `AirborneVideoManager` 启动/停止/熔断监控。
+
+`Lcode/video_backends.py` 提供两个参考后端：
+
+- **OpenCvVideoSource**：基于 OpenCV `VideoCapture` 的视频源，支持 UVC 摄像头、RTSP
+  网络流和本地视频文件。启动时异步捕获，通过条件变量传递帧，支持带超时的截图。
+- **UdpJpegPublisher**：将视频帧分割为 UDP-JPEG 数据报发送到指定 `host:port`，每帧
+  携带帧 ID、分片索引、总分片数和 CRC32 校验和。
+
+后端通过 `register_builtin_video_backends()` 统一注册到 `video_source` 的工厂方法。
+默认关闭，硬件确定后设置 `competition_config.json` 中的 `video.active_profile`。
+
+## 航点动作执行器（Action Executor）
+
+`Lcode/action_executor.py` 提供 `ActionPolicy` 配置和异步执行器，在飞控主循环之外的
+独立线程中执行到达点位的动作（如 GPIO LED 闪烁信号）。支持以下动作类型：
+
+- `depart`：起点出发（默认动作）；
+- `return`：返回起降点；
+- `noop`：无操作；
+- `observe`：观察（配合截图或人工判断）；
+- `signal`：通过 GPIO LED 发出彩色信号（红灯常亮或指定颜色闪烁）。
+
+`ActionPolicy` 通过 `allowed_actions` 限制可执行的动作列表。
+
+## 飞行前检查（Preflight）
+
+`Lcode/preflight.py` 包含不控制飞行器的静态飞行前检查：
+
+- Python 版本检查（≥3.10）；
+- 磁盘剩余空间检查（默认 ≥128 MB，可通过 `competition_config.json` 的
+  `preflight.min_free_mb` 配置）；
+- 可执行文件可用性检查（`pytest`, `git`, `python3`）；
+- 可选 GPIO 访问检查（BCM 编号）。
+
+检查通过 `run_preflight()` 运行，返回成功/失败列表。失败项通过 `--ignore-preflight`
+命令行标志可跳过。
+
+## 任务执行结果（Mission Outcome）
+
+`Lcode/mission_outcome.py` 定义了任务生命周期中的状态枚举和结果跟踪：
+
+| 状态 | 说明 |
+|------|------|
+| `NOT_STARTED` | 尚未开始 |
+| `RUNNING` | 正在执行 |
+| `ROUTE_COMPLETED` | 所有航点已访问完 |
+| `COMPLETED` | 正常完成（含返航和降落） |
+| `COMPLETED_WITH_WARNINGS` | 完成但有警告 |
+| `CANCELLED` | 被取消 |
+| `PREFLIGHT_FAILED` | 飞行前检查未通过 |
+| `HARDWARE_FAILED` | 硬件故障 |
+| `EMERGENCY_STOPPED` | 紧急停止 |
+| `INTERRUPTED` | 被中断 |
+
+追踪器是线程安全的，支持监听器回调，可在状态变化时触发外部动作（如事件通知）。
+
+## 无人机-地面链路（Drone Link）
+
+`Lcode/drone_link.py` 实现了带认证的 UDP 通信链路，用于地面站向无人机下发指令和
+接收任务事件：
+
+- **HMAC-SHA256 认证**：共享密钥防止未授权指令；
+- **`execute_plan` 指令**：地面站可向无人机下发 `execute` 阶段的航线计划；
+- **事件上报**：无人机通过链路将 `MissionEvent` 实时发送给地面站；
+- **双模式**：`ACCEPT_PLAN` 模式下接受地面站下发的航线计划，`REPORT_ONLY` 模式仅
+  上报事件不接收指令。
+
+默认关闭（`enabled: false`），启用时需要设置 `competition_config.json` 中
+`drone_link` 部分的端口和共享密钥。
+
+## 模块结构一览
+
+```text
+competition_2026/
+├── competition_main.py        # 入口：scout/execute 双阶段任务
+├── main.py                    # 飞行控制入口
+├── competition_config.json    # 任务配置（点位、视频、截图等）
+├── Lcode/
+│   ├── video_source.py        # 视频源抽象接口
+│   ├── video_backends.py      # OpenCV / UDP-JPEG 后端实现
+│   ├── airborne_video.py      # 机载视频流生命周期管理
+│   ├── waypoint_snapshot.py   # 到达点位自动截图
+│   ├── mission_events.py      # 非阻塞航点事件总线
+│   ├── mission_session.py     # 任务会话管理
+│   ├── mission_outcome.py     # 任务状态与结果跟踪
+│   ├── competition_plan.py    # 航线规划
+│   ├── action_executor.py     # 航点动作异步执行
+│   ├── preflight.py           # 飞行前静态检查
+│   ├── drone_link.py          # 无人机-地面 UDP 链路
+│   ├── gpio_button.py         # GPIO 按键
+│   ├── gpio_led.py            # GPIO LED 控制
+│   ├── heading_hold.py        # 航向保持
+│   ├── navigation_profile.py  # 导航参数配置
+│   ├── Lprotocol.py           # 飞控串口通信协议
+│   ├── resource_monitor.py    # 资源监控
+│   └── ...                    # 其他核心库
+├── sessions/                  # 任务会话目录（运行时生成）
+└── test_*.py                  # 单元测试
+```
+

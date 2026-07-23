@@ -12,6 +12,9 @@
 需要保持点亮状态时调用方自己决定什么时候再调`set_rgb_led('OFF')`关掉。
 """
 import threading
+from dataclasses import dataclass
+from enum import IntEnum
+import uuid
 
 from Lcode.Logger import logger
 
@@ -20,6 +23,22 @@ LED_PINS = {'R': 23, 'G': 25, 'B': 24}
 _gpio_module = None
 _setup_done = False
 _lock = threading.Lock()
+
+
+class LedPriority(IntEnum):
+    ACTION = 10
+    STARTUP = 20
+    SAFETY = 30
+
+
+@dataclass(frozen=True)
+class _LedLease:
+    token: str
+    owner: str
+    priority: LedPriority
+
+
+_current_lease = None
 
 
 def _get_gpio():
@@ -67,8 +86,75 @@ def set_rgb_led(color: str) -> bool:
         logger.warning(f"set_rgb_led: 不支持的颜色 {color}")
         return False
 
-    states = color_map[key]
-    gpio.output(LED_PINS['R'], states['R'])
-    gpio.output(LED_PINS['G'], states['G'])
-    gpio.output(LED_PINS['B'], states['B'])
-    return True
+    global _current_lease
+    with _lock:
+        states = color_map[key]
+        gpio.output(LED_PINS['R'], states['R'])
+        gpio.output(LED_PINS['G'], states['G'])
+        gpio.output(LED_PINS['B'], states['B'])
+        _current_lease = (
+            None
+            if key == 'OFF'
+            else _LedLease("legacy-safety", "legacy", LedPriority.SAFETY)
+        )
+        return True
+
+
+def acquire_rgb_led(
+    color: str, owner: str, priority: LedPriority = LedPriority.ACTION
+):
+    """Acquire LED ownership and return a token, or None if preempted."""
+    global _current_lease
+    gpio = _get_gpio()
+    if gpio is None:
+        return None
+    _ensure_setup(gpio)
+    key = color.upper()
+    if key not in {'R', 'G', 'B', 'W'}:
+        return None
+    with _lock:
+        if _current_lease is not None and _current_lease.priority > priority:
+            return None
+        token = uuid.uuid4().hex
+        values = {
+            'R': {'R': gpio.HIGH, 'G': gpio.LOW, 'B': gpio.LOW},
+            'G': {'R': gpio.LOW, 'G': gpio.HIGH, 'B': gpio.LOW},
+            'B': {'R': gpio.LOW, 'G': gpio.LOW, 'B': gpio.HIGH},
+            'W': {'R': gpio.HIGH, 'G': gpio.HIGH, 'B': gpio.HIGH},
+        }[key]
+        for channel, state in values.items():
+            gpio.output(LED_PINS[channel], state)
+        _current_lease = _LedLease(token, str(owner), LedPriority(priority))
+        return token
+
+
+def release_rgb_led(token: str) -> bool:
+    """Release only the caller's lease; never clear a newer owner."""
+    global _current_lease
+    gpio = _get_gpio()
+    if gpio is None:
+        return False
+    with _lock:
+        if _current_lease is None or _current_lease.token != token:
+            return False
+        for pin in LED_PINS.values():
+            gpio.output(pin, gpio.LOW)
+        _current_lease = None
+        return True
+
+
+def cleanup_rgb_led() -> None:
+    """Best-effort normal-exit cleanup; safe to call repeatedly."""
+    global _current_lease, _setup_done
+    gpio = _get_gpio()
+    if gpio is None:
+        return
+    with _lock:
+        try:
+            for pin in LED_PINS.values():
+                gpio.output(pin, gpio.LOW)
+            if hasattr(gpio, "cleanup"):
+                gpio.cleanup()
+        finally:
+            _current_lease = None
+            _setup_done = False
