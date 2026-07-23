@@ -45,3 +45,4 @@
 - [向AI表达需求的方法](feedback_ai_requirement_expression.md) — 说问题不说解法、前置约束、带调试场景、引用已有模式
 - [basic框架架构](project_basic_framework_architecture.md) — basic版无人机飞控框架：分层设计、关键工程决策与调试关键点
 - [视觉子系统经验](feedback_vision_system_lessons.md) — 板载视觉伺服频率约束、QR高频原图优于低频后处理、标定距离依赖、符号错误诊断方法、调试接口前置设计
+- [控制层工程经验](feedback_control_layer_lessons.md) — yaw_pid事故→heading_hold正确时间线、到达判定三次演进、多信号交叉确认、滞回设计、动作中保持位置闭环、量纲一致性
