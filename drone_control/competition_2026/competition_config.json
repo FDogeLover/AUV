@@ -2,6 +2,17 @@
   "name": "2026 competition preparation field",
   "cruise_height_m": 1.0,
   "home_hold_s": 1.0,
+  "auto_snapshot": {
+    "enabled": false,
+    "required": false,
+    "trigger_actions": ["observe", "snapshot", "inspect"],
+    "timeout_s": 1.0,
+    "start_timeout_s": 3.0,
+    "stop_timeout_s": 0.5,
+    "queue_size": 8,
+    "max_snapshots": 32,
+    "max_consecutive_failures": 3
+  },
   "video": {
     "active_profile": "none",
     "snapshot_dir": "snapshots",

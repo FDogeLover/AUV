@@ -114,5 +114,44 @@ python competition_main.py --phase execute --points P2,P5 `
   --session "D:\完整路径\competition_2026\sessions\20260723_103000_000000"
 ```
 
-执行后还会生成 `execute_plan.json` 和 `execute_result.json`。当前事件系统已经为“到达点位自动截图”预留触发点，但图传后端尚未确定，所以不会实际保存图片。
+执行后还会生成 `execute_plan.json` 和 `execute_result.json`。每次 `scout/execute` 启动都会生成独立 `run_id`，用于隔离航点截图去重状态；程序重启或重新执行任务不会继承上一次的去重缓存。
+
+## 到达点位自动截图
+
+`Lcode/waypoint_snapshot.py` 已实现硬件无关的自动截图消费者。收到匹配动作的 `ACTION_REQUESTED` 后，它只在事件线程中执行非阻塞入队，再由独立守护线程调用活动 `VideoSource`。截图成功、失败和熔断分别记录为：
+
+- `SNAPSHOT_SAVED`；
+- `SNAPSHOT_FAILED`；
+- `SNAPSHOT_CIRCUIT_OPEN`。
+
+功能默认关闭。确定并注册真实图传后端后，需要同时选择活动图传方案并启用自动截图：
+
+```json
+{
+  "auto_snapshot": {
+    "enabled": true,
+    "required": false,
+    "trigger_actions": ["observe", "snapshot", "inspect"],
+    "timeout_s": 1.0,
+    "queue_size": 8,
+    "max_snapshots": 32,
+    "max_consecutive_failures": 3
+  },
+  "video": {
+    "active_profile": "capture_device"
+  }
+}
+```
+
+`capture_device` 和 `board_network` 使用同一个消费者，仅 `VideoSource` 后端不同。当前仓库仍未包含具体 UVC/RTSP 解码实现，因此仅修改 `active_profile` 和 `enabled` 还不能获得真实图片，程序会明确报告后端未注册。
+
+安全策略如下：
+
+- `required=false`：后端不存在或普通初始化失败时关闭截图并继续飞行；
+- `required=true`：截图初始化失败时，在导入飞控入口、初始化 GPIO/T265/串口之前终止任务；
+- 视频启动调用超时：无论 `required` 取值如何都终止任务，因为可能残留未知状态的底层调用；
+- 运行中断流、超时或连续失败：只记录失败并熔断截图，不修改航线，不触发急停或降落；
+- 队列、截图总数和连续失败次数都有上限，避免视频故障消耗无限内存或磁盘空间。
+
+具体后端实现 `snapshot(timeout_s)` 时，必须把超时传入底层读取接口，并在会话 `snapshots/` 内先写临时文件、完成编码后原子替换为最终图片。真机启用前先拆桨验证拔线、断流、超时和写盘失败。
 

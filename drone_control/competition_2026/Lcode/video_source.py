@@ -172,7 +172,14 @@ class VideoSource(ABC):
     def snapshot(
         self, point_id: str, output_dir: str | Path, timeout_s: float = 1.0
     ) -> SnapshotResult:
-        """Save a current frame for a mission point."""
+        """Save a current frame for a mission point.
+
+        Concrete backends must apply ``timeout_s`` to their lowest available
+        camera/network read primitive, keep the final path inside
+        ``output_dir``, and write via a same-directory temporary file followed
+        by an atomic replace. Python-side elapsed-time checks cannot terminate
+        a driver or FFI call that is already blocked.
+        """
 
     @abstractmethod
     def is_running(self) -> bool:

@@ -38,3 +38,4 @@
 - [立体货架盘点异步扫码与返航实测](project_warehouse_inventory_async_return.md) — A1 qr_timeout已被消费且实际飞到首返航点1.5cm内；后续停止源于return timeout立即LAND，LAND又未完成，视觉/返航到达/降落是三个独立问题
 - [立体货架盘点赛题最终归档](project_warehouse_inventory_final_archive.md) — 2026-07-22阶段验收；40航点连续两轮完成，最新一轮24/24；扫码内容失败继续全程，硬故障仍安全降落
 - [2026无人机比赛备赛架构](project_competition_2026_preparation_architecture.md) — 基于basic建立competition_2026；准备固定点位两次飞行、双图传接口、非阻塞航点事件及无ROS Foxglove地面站
+- [Qoder固定审查模型](feedback_qoder_fixed_model.md) — 所有Qoder计划/实现审查显式使用Qwen3.8-Max-Preview，禁止使用Auto
