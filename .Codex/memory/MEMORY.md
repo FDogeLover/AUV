@@ -41,3 +41,6 @@
 - [2026-07-23 competition_2026 剩余模块完成](.../../docs/session-summaries/2026-07-23-competition-2026-modules-complete.md) — 机载视频后端、动作执行器、飞行前检查、任务结果跟踪、无人机链路等全部提交
 - [competition_2026 无人机端架构文档](../../docs/competition_2026_airborne_architecture.md) — 完整架构：模块总览、启动时序、事件总线、通信协议与安全边界
 - [Qoder固定审查模型](feedback_qoder_fixed_model.md) — 所有Qoder计划/实现审查显式使用Qwen3.8-Max-Preview，禁止使用Auto
+- [AI代码复盘方法论](feedback_ai_code_review_methodology.md) — 聚焦工程决策、调试关键点和架构特点，而非逐行理解
+- [向AI表达需求的方法](feedback_ai_requirement_expression.md) — 说问题不说解法、前置约束、带调试场景、引用已有模式
+- [basic框架架构](project_basic_framework_architecture.md) — basic版无人机飞控框架：分层设计、关键工程决策与调试关键点
