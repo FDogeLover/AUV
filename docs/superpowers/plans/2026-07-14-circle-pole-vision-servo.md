@@ -134,7 +134,7 @@ class TestAzimuthFromDx:
 
 - [ ] **Step 3: 运行测试确认失败**
 
-Run: `cd "D:/项目与工具/Python项目/Project2/Project2/drone_control/circle_pole" && python -m pytest test_pole_vision.py -v`
+Run: `cd "D:/项目与工具/Python项目/Project2/drone_control/circle_pole" && python -m pytest test_pole_vision.py -v`
 Expected: FAIL（`ModuleNotFoundError: No module named 'Lcode.pole_vision'`）
 
 - [ ] **Step 4: 实现纯函数**
@@ -206,13 +206,13 @@ def azimuth_from_dx(dx_px, focal_px=CAMERA_FOCAL_PX):
 
 - [ ] **Step 5: 运行测试确认通过**
 
-Run: `cd "D:/项目与工具/Python项目/Project2/Project2/drone_control/circle_pole" && python -m pytest test_pole_vision.py -v`
+Run: `cd "D:/项目与工具/Python项目/Project2/drone_control/circle_pole" && python -m pytest test_pole_vision.py -v`
 Expected: 全部PASS
 
 - [ ] **Step 6: Commit**
 
 ```bash
-cd "D:/项目与工具/Python项目/Project2/Project2"
+cd "D:/项目与工具/Python项目/Project2"
 git add drone_control/circle_pole/Lcode/pole_vision.py drone_control/circle_pole/test_pole_vision.py drone_control/circle_pole/requirements.txt
 git commit -m "feat(circle_pole): 前置摄像头HSV颜色检测纯函数(detect_target/azimuth_from_dx)"
 ```
@@ -305,7 +305,7 @@ class TestPoleVisionBackgroundLoop:
 
 - [ ] **Step 2: 运行测试确认失败**
 
-Run: `cd "D:/项目与工具/Python项目/Project2/Project2/drone_control/circle_pole" && python -m pytest test_pole_vision.py -v`
+Run: `cd "D:/项目与工具/Python项目/Project2/drone_control/circle_pole" && python -m pytest test_pole_vision.py -v`
 Expected: FAIL（`ImportError: cannot import name 'PoleVision'`）
 
 - [ ] **Step 3: 实现 `PoleVision` 类**
@@ -377,13 +377,13 @@ class PoleVision:
 
 - [ ] **Step 4: 运行测试确认通过**
 
-Run: `cd "D:/项目与工具/Python项目/Project2/Project2/drone_control/circle_pole" && python -m pytest test_pole_vision.py -v`
+Run: `cd "D:/项目与工具/Python项目/Project2/drone_control/circle_pole" && python -m pytest test_pole_vision.py -v`
 Expected: 全部PASS
 
 - [ ] **Step 5: Commit**
 
 ```bash
-cd "D:/项目与工具/Python项目/Project2/Project2"
+cd "D:/项目与工具/Python项目/Project2"
 git add drone_control/circle_pole/Lcode/pole_vision.py drone_control/circle_pole/test_pole_vision.py
 git commit -m "feat(circle_pole): PoleVision后台线程类，主循环非阻塞读取颜色检测结果"
 ```
@@ -399,7 +399,7 @@ git commit -m "feat(circle_pole): PoleVision后台线程类，主循环非阻塞
 - [ ] **Step 1: 用git mv改名，保留历史**
 
 ```bash
-cd "D:/项目与工具/Python项目/Project2/Project2"
+cd "D:/项目与工具/Python项目/Project2"
 git mv drone_control/circle_pole/router.txt drone_control/circle_pole/patrol_router.txt
 ```
 
@@ -415,7 +415,7 @@ git mv drone_control/circle_pole/router.txt drone_control/circle_pole/patrol_rou
 - [ ] **Step 3: Commit**
 
 ```bash
-cd "D:/项目与工具/Python项目/Project2/Project2"
+cd "D:/项目与工具/Python项目/Project2"
 git add drone_control/circle_pole/patrol_router.txt drone_control/circle_pole/landing_router.txt
 git commit -m "feat(circle_pole): router.txt改名patrol_router.txt，新增landing_router.txt返航路径"
 ```
@@ -556,13 +556,13 @@ from Lcode.pole_vision import azimuth_from_dx
 
 - [ ] **Step 5: 运行现有测试套件确认没有回归（本Task只是新增字段/参数/常量，纯加法，不改变任何现有行为）**
 
-Run: `cd "D:/项目与工具/Python项目/Project2/Project2/drone_control/circle_pole" && python -m pytest -v`
+Run: `cd "D:/项目与工具/Python项目/Project2/drone_control/circle_pole" && python -m pytest -v`
 Expected: 全部PASS，无收集错误——`_circle_pole_center`字段名本Task特意保持不变（见`__init__`那段代码的注释），`LANDING_POINT`常量也还在，`circled_poles`格式也还没改，所以不应该有任何测试因为本Task的改动而失败
 
 - [ ] **Step 6: Commit**
 
 ```bash
-cd "D:/项目与工具/Python项目/Project2/Project2"
+cd "D:/项目与工具/Python项目/Project2"
 git add drone_control/circle_pole/Mission_GPT.py
 git commit -m "feat(circle_pole): load_waypoints参数化，接入视觉子系统常量与初始化字段"
 ```
@@ -654,7 +654,7 @@ class TestCirclingHoverExclusion:
 
 - [ ] **Step 2: 运行测试确认失败（字段还叫`_circle_pole_center`，且CIRCLING悬停还没关）**
 
-Run: `cd "D:/项目与工具/Python项目/Project2/Project2/drone_control/circle_pole" && python -m pytest test_mission_pole_integration.py test_circle_state_machine.py -v`
+Run: `cd "D:/项目与工具/Python项目/Project2/drone_control/circle_pole" && python -m pytest test_mission_pole_integration.py test_circle_state_machine.py -v`
 Expected: 多个FAIL（`AttributeError: no attribute '_approach_pole_center'`，以及`test_circling_ignores_any_other_pole_regardless_of_distance`因为悬停还没关而失败）。**注意**：还有两个Step 1没有提到、但同样会FAIL的用例——`test_circle_state_machine.py`里`TestPatrolTriggersCircling.test_confirmed_new_pole_switches_to_circling`（断言里读`m._circle_pole_center`）和`TestCirclingHoverExclusion.test_own_circling_target_still_excluded_despite_yaw_drift_offset`（同样设置`m._circle_pole_center = ...`），这两个测试Step 1没要求重写，但引用了即将被sed批量改名的字段，也会失败。这不是需要额外解决的新问题——纯属字段名不同步导致的`AttributeError`，跟其他因为改名而失败的用例是同一类原因，Step 3实现的时候顺手把这两处的`_circle_pole_center`也机械改成`_approach_pole_center`（纯改名，不改断言逻辑）即可一起修好，不用单独处理。
 
 - [ ] **Step 3: 实现——字段改名 + CIRCLING悬停避让整体关闭**
@@ -681,20 +681,20 @@ Expected: 多个FAIL（`AttributeError: no attribute '_approach_pole_center'`，
 把整个类里所有 `self._circle_pole_center` 引用（含`__init__`里的初始化、`_exclude_active_circle_target_only`方法体等全部出现的地方）统一改名为 `self._approach_pole_center`——APPROACHING阶段也要用同一个字段记录当前目标，不再是CIRCLING专属（`grep -n "_circle_pole_center" Mission_GPT.py` 确认改完后没有残留）：
 
 ```bash
-cd "D:/项目与工具/Python项目/Project2/Project2/drone_control/circle_pole"
+cd "D:/项目与工具/Python项目/Project2/drone_control/circle_pole"
 sed -i 's/_circle_pole_center/_approach_pole_center/g' Mission_GPT.py
 grep -n "_circle_pole_center" Mission_GPT.py  # 应该没有输出
 ```
 
 - [ ] **Step 4: 运行测试确认通过**
 
-Run: `cd "D:/项目与工具/Python项目/Project2/Project2/drone_control/circle_pole" && python -m pytest test_mission_pole_integration.py test_circle_state_machine.py -v`
+Run: `cd "D:/项目与工具/Python项目/Project2/drone_control/circle_pole" && python -m pytest test_mission_pole_integration.py test_circle_state_machine.py -v`
 Expected: 除了`TestCircleCompletion`类里的`test_single_pole_mission_switches_to_to_landing_when_circle_done`/`test_multi_pole_mission_resumes_patrol_when_more_poles_remain`两个用例FAIL（它们还在手动设置已经改名的旧字段`m._circle_pole_center = ...`，现在这只是个不生效的孤立属性，真正的`self._approach_pole_center`是`None`，`_on_circle_complete`会解包None报错——这两个用例整个逻辑到Task 10会被重写掉，不用现在修），其余全部PASS，无收集错误。重点确认`TestCirclingHoverExclusion`全部、`TestMissionPoleHover`里改名的3个用例都PASS
 
 - [ ] **Step 5: Commit**
 
 ```bash
-cd "D:/项目与工具/Python项目/Project2/Project2"
+cd "D:/项目与工具/Python项目/Project2"
 git add drone_control/circle_pole/Mission_GPT.py drone_control/circle_pole/test_mission_pole_integration.py drone_control/circle_pole/test_circle_state_machine.py
 git commit -m "fix(circle_pole): CIRCLING阶段悬停避让整体关闭，_circle_pole_center改名_approach_pole_center"
 ```
@@ -745,7 +745,7 @@ class TestColorDedup:
 
 - [ ] **Step 2: 运行测试确认失败**
 
-Run: `cd "D:/项目与工具/Python项目/Project2/Project2/drone_control/circle_pole" && python -m pytest test_circle_state_machine.py test_mission_pole_integration.py -v`
+Run: `cd "D:/项目与工具/Python项目/Project2/drone_control/circle_pole" && python -m pytest test_circle_state_machine.py test_mission_pole_integration.py -v`
 Expected: 新增的`TestColorDedup`两个用例FAIL(`AttributeError: no attribute '_color_already_circled'`)；其余因三元组已在Step1同步改好，应该继续PASS（`TestPatrolTriggersCircling`已删除，不再产生FAIL）
 
 - [ ] **Step 3: 修`_already_circled`的3元组解包 + 实现`_color_already_circled`**
@@ -780,13 +780,13 @@ Expected: 新增的`TestColorDedup`两个用例FAIL(`AttributeError: no attribut
 
 - [ ] **Step 4: 运行测试确认通过**
 
-Run: `cd "D:/项目与工具/Python项目/Project2/Project2/drone_control/circle_pole" && python -m pytest test_circle_state_machine.py test_mission_pole_integration.py -v`
+Run: `cd "D:/项目与工具/Python项目/Project2/drone_control/circle_pole" && python -m pytest test_circle_state_machine.py test_mission_pole_integration.py -v`
 Expected: `TestColorDedup`两个用例PASS；`test_single_pole_mission_switches_to_to_landing_when_circle_done`/`test_multi_pole_mission_resumes_patrol_when_more_poles_remain`继续FAIL（Task 5引入的已知问题，见Task 5 Step 4说明，留给Task 10重写）；`test_to_landing_arrival_transitions_to_land_state`不依赖`circled_poles`/`_approach_pole_center`，应该继续PASS；其余全部PASS
 
 - [ ] **Step 5: Commit**
 
 ```bash
-cd "D:/项目与工具/Python项目/Project2/Project2"
+cd "D:/项目与工具/Python项目/Project2"
 git add drone_control/circle_pole/Mission_GPT.py drone_control/circle_pole/test_circle_state_machine.py drone_control/circle_pole/test_mission_pole_integration.py
 git commit -m "feat(circle_pole): circled_poles改三元组含颜色，新增_color_already_circled去重判断"
 ```
@@ -926,7 +926,7 @@ class TestPatrolTriggerRequiresBothRadarAndVision(object):
 
 - [ ] **Step 2: 运行测试确认失败**
 
-Run: `cd "D:/项目与工具/Python项目/Project2/Project2/drone_control/circle_pole" && python -m pytest test_approaching_state.py -v`
+Run: `cd "D:/项目与工具/Python项目/Project2/drone_control/circle_pole" && python -m pytest test_approaching_state.py -v`
 Expected: FAIL（PATROL态还是走旧的`_find_new_pole`直接`_start_circling`逻辑）
 
 - [ ] **Step 3: 实现——替换PATROL触发逻辑**
@@ -1003,18 +1003,18 @@ Expected: FAIL（PATROL态还是走旧的`_find_new_pole`直接`_start_circling`
 
 - [ ] **Step 4: 运行测试确认通过**
 
-Run: `cd "D:/项目与工具/Python项目/Project2/Project2/drone_control/circle_pole" && python -m pytest test_approaching_state.py -v`
+Run: `cd "D:/项目与工具/Python项目/Project2/drone_control/circle_pole" && python -m pytest test_approaching_state.py -v`
 Expected: 全部PASS
 
 - [ ] **Step 5: 跑整个套件确认没有引入新回归**
 
-Run: `cd "D:/项目与工具/Python项目/Project2/Project2/drone_control/circle_pole" && python -m pytest -v`
+Run: `cd "D:/项目与工具/Python项目/Project2/drone_control/circle_pole" && python -m pytest -v`
 Expected: 除了`test_single_pole_mission_switches_to_to_landing_when_circle_done`/`test_multi_pole_mission_resumes_patrol_when_more_poles_remain`两个已知问题（Task 5引入，留给Task 10重写），其余全部PASS，没有新增的意外失败
 
 - [ ] **Step 6: Commit**
 
 ```bash
-cd "D:/项目与工具/Python项目/Project2/Project2"
+cd "D:/项目与工具/Python项目/Project2"
 git add drone_control/circle_pole/Mission_GPT.py drone_control/circle_pole/test_approaching_state.py
 git commit -m "feat(circle_pole): PATROL到APPROACHING触发滞回逻辑(雷达+视觉+颜色去重+持续确认)"
 ```
@@ -1122,7 +1122,7 @@ from Mission_GPT import (
 
 - [ ] **Step 2: 运行测试确认失败**
 
-Run: `cd "D:/项目与工具/Python项目/Project2/Project2/drone_control/circle_pole" && python -m pytest test_approaching_state.py -v`
+Run: `cd "D:/项目与工具/Python项目/Project2/drone_control/circle_pole" && python -m pytest test_approaching_state.py -v`
 Expected: `TestApproachingControlLaw`全部FAIL（`nav_mode == "APPROACHING"`时`navigate()`还是走原来的航点逻辑，`self.targets`是空的会走"全部航点完成"分支）
 
 - [ ] **Step 3: 实现 `_approaching_step`，接入`navigate()`入口**
@@ -1197,13 +1197,13 @@ Expected: `TestApproachingControlLaw`全部FAIL（`nav_mode == "APPROACHING"`时
 
 - [ ] **Step 4: 运行测试确认通过**
 
-Run: `cd "D:/项目与工具/Python项目/Project2/Project2/drone_control/circle_pole" && python -m pytest test_approaching_state.py -v`
+Run: `cd "D:/项目与工具/Python项目/Project2/drone_control/circle_pole" && python -m pytest test_approaching_state.py -v`
 Expected: 全部PASS
 
 - [ ] **Step 5: Commit**
 
 ```bash
-cd "D:/项目与工具/Python项目/Project2/Project2"
+cd "D:/项目与工具/Python项目/Project2"
 git add drone_control/circle_pole/Mission_GPT.py drone_control/circle_pole/test_approaching_state.py
 git commit -m "feat(circle_pole): APPROACHING状态控制律(雷达x两档限速+视觉y伺服+目标丢失回退)"
 ```
@@ -1252,7 +1252,7 @@ class TestStartCirclingFromApproach:
 
 - [ ] **Step 2: 运行测试确认失败**
 
-Run: `cd "D:/项目与工具/Python项目/Project2/Project2/drone_control/circle_pole" && python -m pytest test_approaching_state.py -v`
+Run: `cd "D:/项目与工具/Python项目/Project2/drone_control/circle_pole" && python -m pytest test_approaching_state.py -v`
 Expected: FAIL（Task 8的占位实现只设了`nav_mode`，没生成航点）
 
 - [ ] **Step 3: 实现真正的 `_start_circling_from_approach`**
@@ -1280,13 +1280,13 @@ Expected: FAIL（Task 8的占位实现只设了`nav_mode`，没生成航点）
 
 - [ ] **Step 4: 运行测试确认通过**
 
-Run: `cd "D:/项目与工具/Project2/Project2/drone_control/circle_pole" && python -m pytest test_approaching_state.py -v`
+Run: `cd "D:/项目与工具/Project2/drone_control/circle_pole" && python -m pytest test_approaching_state.py -v`
 Expected: 全部PASS
 
 - [ ] **Step 5: Commit**
 
 ```bash
-cd "D:/项目与工具/Python项目/Project2/Project2"
+cd "D:/项目与工具/Python项目/Project2"
 git add drone_control/circle_pole/Mission_GPT.py drone_control/circle_pole/test_approaching_state.py
 git commit -m "feat(circle_pole): APPROACHING到CIRCLING衔接，颜色决定环绕方向(红cw/绿ccw)"
 ```
@@ -1370,7 +1370,7 @@ from Mission_GPT import mission, POLE_CIRCLE_N_POINTS
 
 - [ ] **Step 2: 运行测试确认失败**
 
-Run: `cd "D:/项目与工具/Python项目/Project2/Project2/drone_control/circle_pole" && python -m pytest test_circle_state_machine.py -v`
+Run: `cd "D:/项目与工具/Python项目/Project2/drone_control/circle_pole" && python -m pytest test_circle_state_machine.py -v`
 Expected: `TestCircleCompletion`全部FAIL（`navigate()`里`_on_circle_complete`还是老逻辑）
 
 - [ ] **Step 3: 实现——`_on_circle_complete`改退回基准线，新增`_on_retreat_complete`**
@@ -1441,13 +1441,13 @@ Expected: `TestCircleCompletion`全部FAIL（`navigate()`里`_on_circle_complete
 
 - [ ] **Step 4: 运行测试确认通过**
 
-Run: `cd "D:/项目与工具/Python项目/Project2/Project2/drone_control/circle_pole" && python -m pytest test_circle_state_machine.py -v`
+Run: `cd "D:/项目与工具/Python项目/Project2/drone_control/circle_pole" && python -m pytest test_circle_state_machine.py -v`
 Expected: 全部PASS
 
 - [ ] **Step 5: Commit**
 
 ```bash
-cd "D:/项目与工具/Python项目/Project2/Project2"
+cd "D:/项目与工具/Python项目/Project2"
 git add drone_control/circle_pole/Mission_GPT.py drone_control/circle_pole/test_circle_state_machine.py
 git commit -m "feat(circle_pole): 环绕完成先退回x=0基准线(RETREAT)，降落路径改用landing_router.txt"
 ```
@@ -1461,7 +1461,7 @@ git commit -m "feat(circle_pole): 环绕完成先退回x=0基准线(RETREAT)，�
 
 - [ ] **Step 1: 查看 `main.py` 现有雷达/mission初始化方式**
 
-Run: `grep -n "radar_obj\|PoleTracker\|mission(" "D:/项目与工具/Python项目/Project2/Project2/drone_control/circle_pole/main.py"`
+Run: `grep -n "radar_obj\|PoleTracker\|mission(" "D:/项目与工具/Python项目/Project2/drone_control/circle_pole/main.py"`
 
 （根据输出确认`radar_obj`是怎么创建并传给`mission()`的，`pole_vision_obj`按同样风格创建——可选依赖，创建失败/环境变量未设置时传`None`，不阻塞主流程，这一步要先看实际代码再改，不能凭空套模板）
 
@@ -1482,13 +1482,13 @@ if not pole_vision_obj.start():
 
 - [ ] **Step 3: 全量回归测试**
 
-Run: `cd "D:/项目与工具/Python项目/Project2/Project2/drone_control/circle_pole" && python -m pytest -v`
+Run: `cd "D:/项目与工具/Python项目/Project2/drone_control/circle_pole" && python -m pytest -v`
 Expected: 全部PASS，无收集错误，无跳过
 
 - [ ] **Step 4: Commit**
 
 ```bash
-cd "D:/项目与工具/Python项目/Project2/Project2"
+cd "D:/项目与工具/Python项目/Project2"
 git add drone_control/circle_pole/main.py
 git commit -m "feat(circle_pole): main.py接入PoleVision，摄像头打不开时优雅降级为None"
 ```
@@ -1529,7 +1529,7 @@ git commit -m "feat(circle_pole): main.py接入PoleVision，摄像头打不开�
 
 - [ ] **Step 2: 运行测试确认失败**
 
-Run: `cd "D:/项目与工具/Python项目/Project2/Project2/drone_control/circle_pole" && python -m pytest test_circle_state_machine.py -v`
+Run: `cd "D:/项目与工具/Python项目/Project2/drone_control/circle_pole" && python -m pytest test_circle_state_machine.py -v`
 Expected: 新增用例FAIL（绕行航点被插入了，`len(m.targets) == 2`）
 
 - [ ] **Step 3: 实现——绕行检测加CIRCLING门控**
@@ -1562,7 +1562,7 @@ Expected: 全部PASS（含全量套件，仍应是118+1个PASS，0 FAIL）
 - [ ] **Step 5: Commit**
 
 ```bash
-cd "D:/项目与工具/Python项目/Project2/Project2"
+cd "D:/项目与工具/Python项目/Project2"
 git add drone_control/circle_pole/Mission_GPT.py drone_control/circle_pole/test_circle_state_machine.py
 git commit -m "fix(circle_pole): CIRCLING阶段绕行检测整体关闭，避免打断环绕路径本身"
 ```
@@ -1638,7 +1638,7 @@ class TestApproachingHoverAvoidance:
 
 - [ ] **Step 2: 运行测试确认失败**
 
-Run: `cd "D:/项目与工具/Python项目/Project2/Project2/drone_control/circle_pole" && python -m pytest test_approaching_state.py -v`
+Run: `cd "D:/项目与工具/Python项目/Project2/drone_control/circle_pole" && python -m pytest test_approaching_state.py -v`
 Expected: `TestApproachingHoverAvoidance`三个用例FAIL（`_approaching_step`目前完全不检查悬停）
 
 - [ ] **Step 3: 实现——`_approaching_step`开头补充雷达轮询+悬停避让**
@@ -1706,13 +1706,13 @@ Expected: 全部PASS
 
 - [ ] **Step 5: 跑全量套件确认没有回归**
 
-Run: `cd "D:/项目与工具/Python项目/Project2/Project2/drone_control/circle_pole" && python -m pytest -v`
+Run: `cd "D:/项目与工具/Python项目/Project2/drone_control/circle_pole" && python -m pytest -v`
 Expected: 全部PASS（含Task 12新增的1个 + Task 13新增的3个，总数应该是118+1+3=122，0 FAIL）
 
 - [ ] **Step 6: Commit**
 
 ```bash
-cd "D:/项目与工具/Python项目/Project2/Project2"
+cd "D:/项目与工具/Python项目/Project2"
 git add drone_control/circle_pole/Mission_GPT.py drone_control/circle_pole/test_approaching_state.py
 git commit -m "fix(circle_pole): APPROACHING阶段补充雷达轮询+悬停避让，修复设计文档承诺的安全网从未生效"
 ```

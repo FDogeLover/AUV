@@ -20,7 +20,7 @@
 - [ ] **Step 1: 复制目录，排除 `__pycache__`**
 
 ```bash
-cd "D:/项目与工具/Python项目/Project2/Project2/drone_control"
+cd "D:/项目与工具/Python项目/Project2/drone_control"
 cp -r basic_radar circle_pole
 find circle_pole -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null
 ```
@@ -28,19 +28,19 @@ find circle_pole -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null
 - [ ] **Step 2: 修正测试文件docstring里的路径引用（复制自basic_radar，指令还写着旧路径）**
 
 ```bash
-cd "D:/项目与工具/Python项目/Project2/Project2/drone_control/circle_pole"
+cd "D:/项目与工具/Python项目/Project2/drone_control/circle_pole"
 grep -rl "basic_radar" --include="*.py" . | xargs sed -i 's/basic_radar/circle_pole/g'
 ```
 
 - [ ] **Step 3: 验证复制完整、旧测试套件在新目录下依然全绿（回归基线）**
 
-Run: `cd "D:/项目与工具/Python项目/Project2/Project2/drone_control/circle_pole" && python -m pytest -v`
+Run: `cd "D:/项目与工具/Python项目/Project2/drone_control/circle_pole" && python -m pytest -v`
 Expected: 全部现有测试（`test_pole_tracker.py`/`test_mission_pole_integration.py`/`test_arrival_confirm.py`等）PASS，无收集错误
 
 - [ ] **Step 4: Commit**
 
 ```bash
-cd "D:/项目与工具/Python项目/Project2/Project2"
+cd "D:/项目与工具/Python项目/Project2"
 git add drone_control/circle_pole
 git commit -m "feat: 从basic_radar复制circle_pole作为绕障飞行器(D题)新版本起点"
 ```
@@ -124,7 +124,7 @@ class TestGenerateCircleWaypoints:
 
 - [ ] **Step 2: 运行测试，确认失败(ModuleNotFoundError)**
 
-Run: `cd "D:/项目与工具/Python项目/Project2/Project2/drone_control/circle_pole" && python -m pytest test_circle_planner.py -v`
+Run: `cd "D:/项目与工具/Python项目/Project2/drone_control/circle_pole" && python -m pytest test_circle_planner.py -v`
 Expected: FAIL — `ModuleNotFoundError: No module named 'Lcode.circle_planner'`
 
 - [ ] **Step 3: 实现 `Lcode/circle_planner.py`**
@@ -168,13 +168,13 @@ def generate_circle_waypoints(center_x, center_y, cur_x, cur_y,
 
 - [ ] **Step 4: 运行测试，确认全部通过**
 
-Run: `cd "D:/项目与工具/Python项目/Project2/Project2/drone_control/circle_pole" && python -m pytest test_circle_planner.py -v`
+Run: `cd "D:/项目与工具/Python项目/Project2/drone_control/circle_pole" && python -m pytest test_circle_planner.py -v`
 Expected: 10 passed
 
 - [ ] **Step 5: Commit**
 
 ```bash
-cd "D:/项目与工具/Python项目/Project2/Project2"
+cd "D:/项目与工具/Python项目/Project2"
 git add drone_control/circle_pole/Lcode/circle_planner.py drone_control/circle_pole/test_circle_planner.py
 git commit -m "feat(circle_pole): 添加环绕航点生成器circle_planner.py"
 ```
@@ -204,7 +204,7 @@ git commit -m "feat(circle_pole): 添加环绕航点生成器circle_planner.py"
 - [ ] **Step 2: Commit**
 
 ```bash
-cd "D:/项目与工具/Python项目/Project2/Project2"
+cd "D:/项目与工具/Python项目/Project2"
 git add drone_control/circle_pole/router.txt
 git commit -m "feat(circle_pole): 阶段1直线巡航航点(2m单杆验证用)"
 ```
@@ -347,7 +347,7 @@ class TestCircleCompletion:
 
 - [ ] **Step 2: 运行测试，确认失败**
 
-Run: `cd "D:/项目与工具/Python项目/Project2/Project2/drone_control/circle_pole" && python -m pytest test_circle_state_machine.py -v`
+Run: `cd "D:/项目与工具/Python项目/Project2/drone_control/circle_pole" && python -m pytest test_circle_state_machine.py -v`
 Expected: FAIL — `ImportError: cannot import name 'POLE_CIRCLE_N_POINTS'`（常量还不存在）
 
 - [ ] **Step 3: 在`Mission_GPT.py`顶部导入新增`generate_circle_waypoints`，并添加环绕相关常量**
@@ -569,13 +569,13 @@ LANDING_POINT = (2.0, 0.0)   # 降落点世界坐标占位值 — 现场量出�
 
 - [ ] **Step 7: 运行测试，确认全部通过（新测试+旧回归测试）**
 
-Run: `cd "D:/项目与工具/Python项目/Project2/Project2/drone_control/circle_pole" && python -m pytest -v`
+Run: `cd "D:/项目与工具/Python项目/Project2/drone_control/circle_pole" && python -m pytest -v`
 Expected: 全部PASS，包括`test_circle_state_machine.py`的7个新测试和`test_mission_pole_integration.py`等既有测试
 
 - [ ] **Step 8: Commit**
 
 ```bash
-cd "D:/项目与工具/Python项目/Project2/Project2"
+cd "D:/项目与工具/Python项目/Project2"
 git add drone_control/circle_pole/Mission_GPT.py drone_control/circle_pole/test_circle_state_machine.py
 git commit -m "feat(circle_pole): 状态机新增PATROL/CIRCLING/TO_LANDING，检测到杆塔自动环绕后前往降落点"
 ```
@@ -589,8 +589,8 @@ git commit -m "feat(circle_pole): 状态机新增PATROL/CIRCLING/TO_LANDING，�
 - [ ] **Step 1: 本地清理`__pycache__`后整体scp到pi（新目录，非更新既有目录，例外走`scp -r`）**
 
 ```bash
-find "D:/项目与工具/Python项目/Project2/Project2/drone_control/circle_pole" -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null
-scp -r "D:/项目与工具/Python项目/Project2/Project2/drone_control/circle_pole" root@192.168.137.125:/home/sunrise/Desktop/FJJ/
+find "D:/项目与工具/Python项目/Project2/drone_control/circle_pole" -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null
+scp -r "D:/项目与工具/Python项目/Project2/drone_control/circle_pole" root@192.168.137.125:/home/sunrise/Desktop/FJJ/
 ssh root@192.168.137.125 "chown -R sunrise:sunrise /home/sunrise/Desktop/FJJ/circle_pole"
 ```
 

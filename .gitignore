@@ -31,5 +31,11 @@ drone_control/test_dmz_protocol.py
 # Codex/PDF/Notebook 临时渲染与检查产物
 tmp/
 
+# 视觉调试图片（每趟飞行产生的大量图片，不上传）
+vision_debug/
+
+# 本机真机测试、相机和视觉数据统一归档（体积大，不纳入 Git）
+drone_control/tools/data_archive/
+
 # 2026 备赛真机任务会话、截图与事件记录
-Project2/drone_control/competition_2026/sessions/
+drone_control/competition_2026/sessions/

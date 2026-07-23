@@ -99,4 +99,4 @@
 - 飞控固件 **必须使用 GB2312 编码**（Keil MDK 限制）
 - 编辑 `.c` 文件时 **不能使用 Read/Edit 工具**（会破坏编码），改用 sed
 - 串口路径通过环境变量配置：`DRONE_FC_PORT`, `DRONE_DMZ_PORT`, `DRONE_K230_PORT`
-- Git 仓库根目录在 `Project2/`，工作目录在 `Project2/Project2/`
+- Git 仓库根目录与工作目录均为 `Project2/`

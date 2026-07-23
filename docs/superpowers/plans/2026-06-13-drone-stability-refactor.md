@@ -220,8 +220,8 @@ If `my_cos`/`my_sqrt` show type mismatch, check `Ano_Math.h` — cast the argume
 
 ```bash
 cd /d/项目与工具/Python项目/Project2
-git add "Project2/ANO_LX_FC_倾角保护版/Mycode/my_protocol.c" \
-        "Project2/ANO_LX_FC_倾角保护版/Mycode/my_protocol.h"
+git add "ANO_LX_FC_倾角保护版/Mycode/my_protocol.c" \
+        "ANO_LX_FC_倾角保护版/Mycode/my_protocol.h"
 git rm --cached _patch_height_set.py 2>/dev/null || true
 rm _patch_height_set.py
 git commit -m "fc: rewrite height_set() with positional PID, tilt compensation, integral separation"
@@ -346,8 +346,8 @@ Expected: `5 passed`.
 
 ```bash
 cd /d/项目与工具/Python项目/Project2
-git add Project2/drone_control/Lcode/Lpid.py \
-        Project2/drone_control/test_stability.py
+git add drone_control/Lcode/Lpid.py \
+        drone_control/test_stability.py
 git commit -m "drone_control: Lpid XY D term 0.05, configurable constructor params"
 ```
 
@@ -487,8 +487,8 @@ Expected: `5 passed`.
 
 ```bash
 cd /d/项目与工具/Python项目/Project2
-git add Project2/drone_control/Mission_GPT.py \
-        Project2/drone_control/test_stability.py
+git add drone_control/Mission_GPT.py \
+        drone_control/test_stability.py
 git commit -m "drone_control: add height ramp (_ramp_z_cm, _step_ramp_z) in navigate()"
 ```
 
@@ -663,8 +663,8 @@ Expected: `4 passed`.
 
 ```bash
 cd /d/项目与工具/Python项目/Project2
-git add Project2/drone_control/Mission_GPT.py \
-        Project2/drone_control/test_stability.py
+git add drone_control/Mission_GPT.py \
+        drone_control/test_stability.py
 git commit -m "drone_control: takeoff() closed-loop height confirmation + yaw stabilization"
 ```
 

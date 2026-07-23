@@ -5,8 +5,8 @@ description: 真机测试前调用 Qoder 审查 git diff，检查安全风险（
 用以下步骤完成起飞前审查，不要跳过：
 
 1. 用 Bash 获取即将上板的代码变更：
-   - 如果 $ARGUMENTS 非空，执行：`git -C "D:/项目与工具/Python项目/Project2/Project2" diff HEAD -- $ARGUMENTS`
-   - 如果 $ARGUMENTS 为空，执行：`git -C "D:/项目与工具/Python项目/Project2/Project2" diff HEAD -- drone_control/`
+   - 如果 $ARGUMENTS 非空，执行：`git -C "D:/项目与工具/Python项目/Project2" diff HEAD -- $ARGUMENTS`
+   - 如果 $ARGUMENTS 为空，执行：`git -C "D:/项目与工具/Python项目/Project2" diff HEAD -- drone_control/`
    - 如果 diff 为空，改用：`git diff HEAD~1 HEAD -- drone_control/`
 2. 如果 diff 超过 200 行，只保留前 200 行（截断时告知用户）
 3. 用 Bash 调用 Qoder CLI：

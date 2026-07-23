@@ -160,13 +160,13 @@ if __name__ == "__main__":
 - [ ] **Step 2: 从 ubuntu-pi 拷贝真实日志到本地做验证**
 
 ```bash
-scp ubuntu-pi:/home/sunrise/Desktop/FJJ/basic/flight_data.jsonl "D:/项目与工具/Python项目/Project2/Project2/drone_control/tools/flight_data_sample.jsonl"
+scp ubuntu-pi:/home/sunrise/Desktop/FJJ/basic/flight_data.jsonl "D:/项目与工具/Python项目/Project2/drone_control/tools/flight_data_sample.jsonl"
 ```
 
 - [ ] **Step 3: 运行脚本验证**
 
 ```bash
-cd "D:/项目与工具/Python项目/Project2/Project2/drone_control/tools" && python analyze_of_t265_correlation.py flight_data_sample.jsonl
+cd "D:/项目与工具/Python项目/Project2/drone_control/tools" && python analyze_of_t265_correlation.py flight_data_sample.jsonl
 ```
 
 Expected: 打印"有效样本数: N ..."（N > 0），打印11行位移表格（-5~+5），每行两个数值都在 `[0.00, 1.00]` 范围内，最后打印一句结论文字。若报 `FileNotFoundError` 或崩溃，说明脚本有 bug，需回到 Step 1 修复（这是唯一的正确性验证方式，本任务不写自动化单元测试）。
@@ -176,13 +176,13 @@ Expected: 打印"有效样本数: N ..."（N > 0），打印11行位移表格（
 样例日志是真实飞行数据的临时拷贝，不应提交仓库。运行后删除：
 
 ```bash
-rm "D:/项目与工具/Python项目/Project2/Project2/drone_control/tools/flight_data_sample.jsonl"
+rm "D:/项目与工具/Python项目/Project2/drone_control/tools/flight_data_sample.jsonl"
 ```
 
 - [ ] **Step 5: Commit**
 
 ```bash
-cd "D:/项目与工具/Python项目/Project2/Project2" && git add Project2/drone_control/tools/analyze_of_t265_correlation.py && git commit -m "drone_control: 新增光流vs T265速度相关性分析工具"
+cd "D:/项目与工具/Python项目/Project2" && git add drone_control/tools/analyze_of_t265_correlation.py && git commit -m "drone_control: 新增光流vs T265速度相关性分析工具"
 ```
 
 （注意：不要 `git add` `flight_data_sample.jsonl`，Step 4 已删除该文件；若 shell 显示该文件仍在 untracked 列表，确认已被删除后再提交。）

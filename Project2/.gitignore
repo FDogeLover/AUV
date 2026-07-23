@@ -1,7 +1,0 @@
-.worktrees/
-
-# 视觉调试图片（每趟飞行产生的大量图片，不上传）
-vision_debug/
-
-# 本机真机测试、相机和视觉数据统一归档（体积大，不纳入 Git）
-drone_control/tools/data_archive/

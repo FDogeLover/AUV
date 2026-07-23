@@ -1,7 +1,7 @@
-diff --git a/Project2/drone_control/warehouse_inventory/Lcode/inventory_controller.py b/Project2/drone_control/warehouse_inventory/Lcode/inventory_controller.py
+diff --git a/drone_control/warehouse_inventory/Lcode/inventory_controller.py b/drone_control/warehouse_inventory/Lcode/inventory_controller.py
 index abb97cc..652a50b 100644
---- a/Project2/drone_control/warehouse_inventory/Lcode/inventory_controller.py
-+++ b/Project2/drone_control/warehouse_inventory/Lcode/inventory_controller.py
+--- a/drone_control/warehouse_inventory/Lcode/inventory_controller.py
++++ b/drone_control/warehouse_inventory/Lcode/inventory_controller.py
 @@ -641,6 +641,24 @@ class InventoryMissionCoordinator:
                  waypoint_index=index,
                  slot_label=waypoint.slot_label,
@@ -27,10 +27,10 @@ index abb97cc..652a50b 100644
          self._go(InventoryState.VERIFY_QR, "visual_alignment_ready")
          self.start_scan(index, waypoint, position)
          return WaypointArrivalAction.ENTER_SCAN
-diff --git a/Project2/drone_control/warehouse_inventory/Lcode/inventory_planner.py b/Project2/drone_control/warehouse_inventory/Lcode/inventory_planner.py
+diff --git a/drone_control/warehouse_inventory/Lcode/inventory_planner.py b/drone_control/warehouse_inventory/Lcode/inventory_planner.py
 index f9942d9..059978b 100644
---- a/Project2/drone_control/warehouse_inventory/Lcode/inventory_planner.py
-+++ b/Project2/drone_control/warehouse_inventory/Lcode/inventory_planner.py
+--- a/drone_control/warehouse_inventory/Lcode/inventory_planner.py
++++ b/drone_control/warehouse_inventory/Lcode/inventory_planner.py
 @@ -92,15 +92,16 @@ class InventoryPlanner:
          start_from_lower_end: bool,
          start_with_top: bool,
@@ -55,10 +55,10 @@ index f9942d9..059978b 100644
          return result
  
      def _append_face(
-diff --git a/Project2/drone_control/warehouse_inventory/Lcode/inventory_state.py b/Project2/drone_control/warehouse_inventory/Lcode/inventory_state.py
+diff --git a/drone_control/warehouse_inventory/Lcode/inventory_state.py b/drone_control/warehouse_inventory/Lcode/inventory_state.py
 index 7e926a6..69b8bd1 100644
---- a/Project2/drone_control/warehouse_inventory/Lcode/inventory_state.py
-+++ b/Project2/drone_control/warehouse_inventory/Lcode/inventory_state.py
+--- a/drone_control/warehouse_inventory/Lcode/inventory_state.py
++++ b/drone_control/warehouse_inventory/Lcode/inventory_state.py
 @@ -44,7 +44,7 @@ ALLOWED_TRANSITIONS = {
      },
      InventoryState.SET_GIMBAL: {InventoryState.APPROACH_SLOT, InventoryState.RETURN, InventoryState.FAULT},

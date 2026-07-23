@@ -12,7 +12,7 @@ status: approved
 
 ## 2. 项目结构
 
-项目根目录：`D:\项目与工具\Python项目\Project2\Project2`
+项目根目录：`D:\项目与工具\Python项目\Project2`
 
 ```
 ├── .claude/
