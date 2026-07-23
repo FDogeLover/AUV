@@ -39,4 +39,5 @@
 - [立体货架盘点赛题最终归档](project_warehouse_inventory_final_archive.md) — 2026-07-22阶段验收；40航点连续两轮完成，最新一轮24/24；扫码内容失败继续全程，硬故障仍安全降落
 - [2026无人机比赛备赛架构](project_competition_2026_preparation_architecture.md) — 基于basic建立competition_2026；准备固定点位两次飞行、双图传接口、非阻塞航点事件及无ROS Foxglove地面站
 - [2026-07-23 competition_2026 剩余模块完成](.../../docs/session-summaries/2026-07-23-competition-2026-modules-complete.md) — 机载视频后端、动作执行器、飞行前检查、任务结果跟踪、无人机链路等全部提交
+- [competition_2026 无人机端架构文档](../../docs/competition_2026_airborne_architecture.md) — 完整架构：模块总览、启动时序、事件总线、通信协议与安全边界
 - [Qoder固定审查模型](feedback_qoder_fixed_model.md) — 所有Qoder计划/实现审查显式使用Qwen3.8-Max-Preview，禁止使用Auto
