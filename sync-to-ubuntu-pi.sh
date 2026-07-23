@@ -21,18 +21,26 @@ sync_basic() {
 
 sync_original() {
     echo "同步 全功能版 -> $HOST:$REMOTE/original/ ..."
-    scp "$LOCAL/"*.py "$LOCAL/"*.txt "$HOST:$REMOTE/original/" 2>/dev/null
-    scp "$LOCAL/Lcode/"*.py "$HOST:$REMOTE/original/Lcode/" 2>/dev/null
+    scp "$LOCAL/original/"*.py "$LOCAL/original/"*.txt "$HOST:$REMOTE/original/" 2>/dev/null
+    scp "$LOCAL/original/Lcode/"*.py "$HOST:$REMOTE/original/Lcode/" 2>/dev/null
+}
+
+sync_competition_2026() {
+    echo "同步 competition_2026/ -> $HOST:$REMOTE/competition_2026/ ..."
+    ssh "$HOST" "mkdir -p $REMOTE/competition_2026/Lcode"
+    scp "$LOCAL/competition_2026/"*.py "$LOCAL/competition_2026/"*.txt "$LOCAL/competition_2026/"*.json "$HOST:$REMOTE/competition_2026/" 2>/dev/null
+    scp "$LOCAL/competition_2026/Lcode/"*.py "$HOST:$REMOTE/competition_2026/Lcode/" 2>/dev/null
 }
 
 case "$TARGET" in
     basic) sync_basic ;;
     original) sync_original ;;
-    all) sync_basic; sync_original ;;
-    *) echo "用法: $0 [basic|original|all]"; exit 1 ;;
+    comp|competition) sync_competition_2026 ;;
+    all) sync_basic; sync_original; sync_competition_2026 ;;
+    *) echo "用法: $0 [basic|original|comp|all]"; exit 1 ;;
 esac
 
 echo "清理远程缓存并修正属主..."
-ssh "$HOST" "rm -rf $REMOTE/basic/__pycache__ $REMOTE/basic/Lcode/__pycache__ $REMOTE/original/__pycache__ $REMOTE/original/Lcode/__pycache__ 2>/dev/null; chown -R sunrise:sunrise $REMOTE"
+ssh "$HOST" "rm -rf $REMOTE/basic/__pycache__ $REMOTE/basic/Lcode/__pycache__ $REMOTE/original/__pycache__ $REMOTE/original/Lcode/__pycache__ $REMOTE/competition_2026/__pycache__ $REMOTE/competition_2026/Lcode/__pycache__ 2>/dev/null; chown -R sunrise:sunrise $REMOTE"
 
 echo "✅ 同步完成（记得去板子上 cd ~/Desktop/FJJ && git add -A && git commit 保存一版）"

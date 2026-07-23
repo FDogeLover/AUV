@@ -76,13 +76,13 @@ def test_loopback() -> bool:
         send_sock.sendto(msg, ("127.0.0.1", recv_port))
 
         data, addr = recv_sock.recvfrom(4096)
-        if len(data) < 14:
-            _print("loopback", "FAIL", f"received {len(data)} bytes, need >=14")
+        if len(data) < 18:
+            _print("loopback", "FAIL", f"received {len(data)} bytes, need >=18")
             return False
 
-        version, mtype, seqnum = struct.unpack(">BBI", data[:6])
-        crc_recv = struct.unpack(">I", data[6:10])[0]
-        payload = data[10:]
+        version, mtype, seqnum, _timestamp = struct.unpack(">BBId", data[:14])
+        crc_recv = struct.unpack(">I", data[14:18])[0]
+        payload = data[18:]
         crc_calc = zlib.crc32(payload) & 0xFFFFFFFF
         ok = crc_recv == crc_calc
         _print(
