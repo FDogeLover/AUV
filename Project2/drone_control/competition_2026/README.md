@@ -1,26 +1,85 @@
 # competition_2026
 
-This directory is the competition-preparation branch derived from `basic`.
-The original `basic` directory remains the stable flight baseline.
+本目录是基于 `basic` 开发的 2026 年无人机比赛备赛版本，原有 `basic`
+目录继续作为稳定的基础飞行版本保留，不在其中直接叠加比赛任务功能。
 
-The first milestone implements two configurable mission phases:
+当前第一阶段实现了两种可配置任务：
 
-- `scout`: visit every configured observation point and return home;
-- `execute`: revisit selected key points in the requested order and return home.
+- `scout`：依次访问配置中的全部观察点，然后返回起降点；
+- `execute`：按照指定顺序复访选中的关键点，然后返回起降点。
 
-Preview a route without flight hardware:
+## 航线预览
+
+不连接飞控、T265 和 GPIO 硬件时，可以使用以下命令预览生成的任务航线：
 
 ```powershell
 python competition_main.py --phase scout --dry-plan
 python competition_main.py --phase execute --points P2,P5 --dry-plan
 ```
 
-Remove `--dry-plan` only after verifying `competition_config.json`, coordinate
-orientation, flight boundaries, height, point order, and emergency procedures.
-The included point coordinates are conservative placeholders for bench and
-small-area testing, not an official competition field definition.
+只有在确认以下内容后，才可以删除 `--dry-plan` 进行真机测试：
 
-Planned extension layers are real-time video, per-point snapshots, ground-side
-selection, and an optional car executor. These layers should consume point ids
-and task actions without changing the stable flight-control protocol.
+- `competition_config.json` 中的坐标和高度正确；
+- T265 坐标轴方向与任务场地一致；
+- 全部航点位于安全飞行边界内；
+- 点位访问顺序正确；
+- 急停、失联和降落保护已经完成检查。
+
+配置文件中的点位坐标只是用于台架和小范围测试的保守占位值，不代表正式比赛场地。
+
+后续计划增加实时视频、点位截图、地面端关键点选择，以及可选的小车执行端。
+这些扩展功能应使用统一的点位编号和任务动作，不应改变已经稳定的飞控通信协议。
+
+## 预留图传接口
+
+`Lcode/video_source.py` 定义了与具体硬件无关的 `VideoSource` 接口，用于接收
+解码后的视频帧和保存点位截图。视频功能默认关闭，当前的 `none` 后端只用于
+航线规划和无硬件测试，不会连接摄像头或接收视频。
+
+配置文件已经预留两个可选方案，当前 `active_profile` 为 `none`，两种方案都不会启动：
+
+- `capture_device`：成品或模拟图传接收器经过 UVC 采集卡接入地面开发板；
+- `board_network`：无人机开发板发布网络视频流，地面开发板接收和解码。
+
+确定硬件后，将 `active_profile` 改为对应方案，并注册其接收端实现。网络开发板
+方案还需要注册 `VideoPublisher` 发布端实现。任务和飞控代码不需要随之修改。
+
+接收端可根据实际接口增加以下后端：
+
+- 显示为 `/dev/videoX` 的 UVC 摄像头或 UVC 图传接收器；
+- RTSP、RTP/UDP 或 HTTP/MJPEG 网络视频流；
+- 通过 UVC 采集卡接入的 HDMI/CVBS 图传接收器；
+- 机载开发板本地摄像头和本地截图。
+
+模拟图传接收器如果直接连接显示屏，程序只能让人观看画面，无法获得视频帧或
+自动截图。此时需要增加 USB 视频采集卡，或者由无人机上的摄像头在到达点位时
+本地保存截图。
+
+## 开发板数字图传备选方案
+
+无人机端和地面端可以使用不同型号的开发板传输视频。只要两端网络互通，并支持
+相同的视频协议和编码格式，就可以构成自制数字图传：
+
+```text
+无人机端摄像头
+    → H.264/MJPEG 编码
+    → Wi-Fi 网络视频流
+    → 地面端开发板解码
+    → 6 吋显示屏、截图或图像处理
+```
+
+建议使用固定 IP 和独立的比赛局域网，优先采用 5GHz Wi-Fi。视频链路与任务指令
+应使用不同端口；条件允许时，关键控制和急停应保留独立的短距离通信链路，避免
+视频拥塞影响飞行安全。
+
+推荐的初始视频参数为：
+
+- 分辨率：720p；
+- 帧率：10～20fps；
+- H.264 码率：1～3Mbps；
+- 端到端延迟：尽量低于 300ms；
+- 到达观察点后等待画面稳定，再保存截图。
+
+无论使用成品图传还是开发板网络视频流，后续都应通过统一的 `VideoSource`
+接口接入任务系统。
 

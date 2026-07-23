@@ -19,6 +19,7 @@ from Lcode.competition_plan import (
     load_competition_config,
     plan_mission,
 )
+from Lcode.video_source import VideoSourceError, load_video_catalog
 
 
 DEFAULT_CONFIG = Path(__file__).with_name("competition_config.json")
@@ -50,11 +51,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         config = load_competition_config(args.config)
         planned = plan_mission(config, args.phase, parse_point_ids(args.points))
-    except CompetitionPlanError as exc:
+        video_catalog = load_video_catalog(args.config)
+    except (CompetitionPlanError, VideoSourceError) as exc:
         print(f"Mission planning failed: {exc}")
         return 2
 
-    print(json.dumps(planned.as_dict(), ensure_ascii=False, indent=2))
+    preview = planned.as_dict()
+    preview["video"] = video_catalog.as_dict()
+    print(json.dumps(preview, ensure_ascii=False, indent=2))
     if args.dry_plan:
         return 0
 

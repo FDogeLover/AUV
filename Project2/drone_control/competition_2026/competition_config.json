@@ -2,6 +2,40 @@
   "name": "2026 competition preparation field",
   "cruise_height_m": 1.0,
   "home_hold_s": 1.0,
+  "video": {
+    "active_profile": "none",
+    "snapshot_dir": "snapshots",
+    "profiles": {
+      "capture_device": {
+        "receiver": {
+          "enabled": true,
+          "backend": "capture_device",
+          "source": "/dev/video0",
+          "options": {"width": 1280, "height": 720, "fps": 15}
+        },
+        "publisher": {
+          "enabled": false,
+          "backend": "none",
+          "target": "",
+          "options": {}
+        }
+      },
+      "board_network": {
+        "receiver": {
+          "enabled": true,
+          "backend": "network_stream",
+          "source": "rtsp://192.168.10.2:8554/live",
+          "options": {"transport": "udp", "latency_ms": 200}
+        },
+        "publisher": {
+          "enabled": true,
+          "backend": "network_stream",
+          "target": "rtsp://0.0.0.0:8554/live",
+          "options": {"codec": "h264", "bitrate_mbps": 2, "fps": 15}
+        }
+      }
+    }
+  },
   "home": {
     "id": "HOME",
     "x": 0.0,
