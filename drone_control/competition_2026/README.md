@@ -229,6 +229,42 @@ python competition_main.py --phase execute --points P2,P5 `
 默认关闭（`enabled: false`），启用时需要设置 `competition_config.json` 中
 `drone_link` 部分的端口和共享密钥。
 
+## 板载硬件测试脚本
+
+三个独立硬件测试脚本，不发送任何解锁/起飞指令，零风险：
+
+### `hardware_preflight.py` — 只读硬件预检
+
+```bash
+python3 hardware_preflight.py                       # 默认5秒
+python3 hardware_preflight.py --duration 10         # 延长监听
+python3 hardware_preflight.py --skip-t265 --skip-fc # 本机无硬件
+```
+
+检查项：Python 版本、GPIO 模块、T265 枚举、飞控串口收帧、磁盘空间、可执行文件。
+退出码 0 = 全部通过，非 0 = 至少一项失败但 **绝不尝试解锁或起飞**。
+
+### `link_hardware_check.py` — UDP 链路测试
+
+```bash
+python3 link_hardware_check.py                          # 本机回环
+python3 link_hardware_check.py --peer --mode listen     # 等待对端
+python3 link_hardware_check.py --peer --mode send --remote-host 192.168.x.x
+DRONE_LINK_PSK=secret python3 link_hardware_check.py --hmac  # HMAC 验证
+```
+
+测试 UDP 收发、CRC 校验、JPEG 分片编解码、事件序列化和 HMAC 签名。
+
+### `video_hardware_check.py` — 摄像头测试
+
+```bash
+python3 video_hardware_check.py                           # 自动检测
+python3 video_hardware_check.py --source 0 --duration 10  # 帧率统计
+python3 video_hardware_check.py --snapshot-dir ./test     # 截图验证
+```
+
+检测可用摄像头、读取帧、统计帧率、可选保存 JPEG 截图。
+
 ## 模块结构一览
 
 ```text
@@ -255,6 +291,9 @@ competition_2026/
 │   ├── Lprotocol.py           # 飞控串口通信协议
 │   ├── resource_monitor.py    # 资源监控
 │   └── ...                    # 其他核心库
+├── hardware_preflight.py      # 板载只读硬件预检脚本
+├── link_hardware_check.py     # UDP 通信链路测试脚本
+├── video_hardware_check.py    # 摄像头硬件测试脚本
 ├── sessions/                  # 任务会话目录（运行时生成）
 └── test_*.py                  # 单元测试
 ```

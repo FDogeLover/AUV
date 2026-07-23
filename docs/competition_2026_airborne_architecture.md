@@ -398,6 +398,16 @@ Offset  Size  Field
 | 落地超时 | 降落触发后约 10s | `FC_Lock()`（有高度门槛） |
 | 一键起飞门禁 | BCM17 物理按钮 | 按前不初始化 T265/飞控 |
 
+### 板载硬件测试脚本
+
+| 脚本 | 测试项 | 风险 |
+|------|--------|------|
+| `hardware_preflight.py` | Python 版本、GPIO、T265 枚举、飞控串口收帧、磁盘空间、可执行文件 | 零（只读，不控制飞行器） |
+| `link_hardware_check.py` | UDP 回环、CRC 校验、JPEG 分片、事件序列化、HMAC 签名、局域网对端 | 零（socket 操作，不连飞控） |
+| `video_hardware_check.py` | OpenCV 可用性、摄像头枚举、帧读取、帧率统计、JPEG 截图 | 零（不启动飞控） |
+
+**板载验证顺序**：`hardware_preflight` → `link_hardware_check` → （可选）`video_hardware_check` → `pytest`（139 passed on board）→ 拆桨台架 → 真机飞行。
+
 ### 不新增的安全触发
 
 - ⛔ 位置偏差不触发自动返航或降落
