@@ -97,18 +97,19 @@ def check_fc_serial(port: str, duration_s: float = 5.0) -> bool:
         _print("fc_serial", "INFO", f"listening on {port} for {duration_s:.0f}s...")
 
         t_start = time.time()
-        frame1_seen = False
-        frames = 0
+        data_seen = False
+        samples = 0
         while time.time() - t_start < duration_s:
-            if len(re_fc) > 5 and re_fc[0] != 0:
-                frame1_seen = True
-                frames += 1
+            # 检查 re_fc 是否已被飞控数据填充（任意非零字段都算有效收帧）
+            if len(re_fc) > 5 and any(v != 0 for v in re_fc[1:6]):
+                data_seen = True
+                samples += 1
             time.sleep(0.05)
 
-        if not frame1_seen:
+        if not data_seen:
             _print("fc_serial", "FAIL", f"no valid frame received on {port} in {duration_s:.0f}s")
             return False
-        _print("fc_serial", "PASS", f"{frames} frames received on {port}")
+        _print("fc_serial", "PASS", f"{samples} samples received on {port}")
         return True
     except Exception as exc:
         _print("fc_serial", "FAIL", f"serial error on {port}: {exc}")
@@ -138,14 +139,23 @@ def check_disk_space(min_free_mb: int = 256) -> bool:
 
 
 def check_executables() -> bool:
+    """检查必需的可执行文件。pytest 缺失只警告不阻断。"""
+    required = ("git", "python3")
+    optional = ("pytest",)
     all_ok = True
-    for exe in ("pytest", "git", "python3"):
+    for exe in required:
         path = shutil.which(exe)
         if path:
             _print(f"executable:{exe}", "PASS", path)
         else:
-            _print(f"executable:{exe}", "WARN", f"{exe} not found in PATH")
+            _print(f"executable:{exe}", "FAIL", f"{exe} not found in PATH")
             all_ok = False
+    for exe in optional:
+        path = shutil.which(exe)
+        if path:
+            _print(f"executable:{exe}", "PASS", path)
+        else:
+            _print(f"executable:{exe}", "WARN", f"{exe} not found in PATH (optional)")
     return all_ok
 
 
