@@ -83,3 +83,36 @@ python competition_main.py --phase execute --points P2,P5 --dry-plan
 无论使用成品图传还是开发板网络视频流，后续都应通过统一的 `VideoSource`
 接口接入任务系统。
 
+## 航点事件与两次飞行会话
+
+备赛入口现在会把点位编号和动作一并传入飞行状态机，并通过后台事件队列发布以下事件：
+
+- `WAYPOINT_APPROACHING`：开始飞向点位；
+- `WAYPOINT_ARRIVED`：确认到达点位；
+- `HOLD_STARTED`：开始定点停留；
+- `ACTION_REQUESTED`：请求观察、截图或其他点位动作；
+- `ACTION_COMPLETED`：动作完成；
+- `WAYPOINT_LEFT`：离开点位，包含正常到达或超时原因。
+
+事件消费者运行在飞控主循环之外。后续接入截图、识别或地面站时，不应在飞控线程中直接执行耗时操作。
+
+执行真实 `scout` 任务时会在 `sessions` 下创建时间戳目录，并输出其绝对路径：
+
+```text
+sessions/<timestamp>/
+├── session.json
+├── scout_plan.json
+├── scout_result.json
+├── events.jsonl
+└── snapshots/
+```
+
+第二次飞行使用 `--session` 复用该目录，使侦察和执行记录归入同一次比赛会话：
+
+```powershell
+python competition_main.py --phase execute --points P2,P5 `
+  --session "D:\完整路径\competition_2026\sessions\20260723_103000_000000"
+```
+
+执行后还会生成 `execute_plan.json` 和 `execute_result.json`。当前事件系统已经为“到达点位自动截图”预留触发点，但图传后端尚未确定，所以不会实际保存图片。
+

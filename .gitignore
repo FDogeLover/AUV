@@ -30,3 +30,6 @@ drone_control/test_dmz_protocol.py
 
 # Codex/PDF/Notebook 临时渲染与检查产物
 tmp/
+
+# 2026 备赛真机任务会话、截图与事件记录
+Project2/drone_control/competition_2026/sessions/

@@ -19,6 +19,8 @@ from Lcode.competition_plan import (
     load_competition_config,
     plan_mission,
 )
+from Lcode.mission_events import MissionEventBus
+from Lcode.mission_session import MissionSession, MissionSessionError
 from Lcode.video_source import VideoSourceError, load_video_catalog
 
 
@@ -34,6 +36,17 @@ def build_parser() -> argparse.ArgumentParser:
         help="Comma-separated point ids for execute phase, for example P2,P5",
     )
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
+    parser.add_argument(
+        "--session",
+        type=Path,
+        help="Reuse a session directory, normally the directory created by scout",
+    )
+    parser.add_argument(
+        "--sessions-root",
+        type=Path,
+        default=Path(__file__).with_name("sessions"),
+        help="Directory used when creating a new session",
+    )
     parser.add_argument(
         "--dry-plan",
         action="store_true",
@@ -62,14 +75,45 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.dry_plan:
         return 0
 
+    try:
+        session = MissionSession.create(args.sessions_root, args.session)
+        session.begin(config.name, planned.phase, preview)
+    except (MissionSessionError, OSError) as exc:
+        print(f"Session setup failed: {exc}")
+        return 2
+
+    event_bus = MissionEventBus()
+    event_bus.subscribe(session.record_event)
+    event_bus.start()
+    print(f"Session directory: {session.path}")
+
     # Importing the hardware entry point is intentionally delayed so route
     # planning can be tested on a development PC without RealSense/GPIO.
     from main import main as run_basic_flight
 
-    run_basic_flight(
-        targets=[list(point) for point in planned.waypoints],
-        waypoint_holds=list(planned.hold_s),
-    )
+    try:
+        run_basic_flight(
+            targets=[list(point) for point in planned.waypoints],
+            waypoint_holds=list(planned.hold_s),
+            point_ids=list(planned.point_ids),
+            waypoint_actions=list(planned.actions),
+            event_sink=event_bus.publish,
+        )
+    except BaseException:
+        session.finish(
+            planned.phase,
+            "interrupted",
+            dropped_events=event_bus.dropped_events,
+        )
+        raise
+    else:
+        session.finish(
+            planned.phase,
+            "finished",
+            dropped_events=event_bus.dropped_events,
+        )
+    finally:
+        event_bus.close()
     return 0
 
 

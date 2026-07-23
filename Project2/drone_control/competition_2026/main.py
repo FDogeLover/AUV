@@ -72,7 +72,13 @@ def wait_for_start_button():
             logger.error(f"一键起飞按钮资源释放失败: {e}")
 
 
-def main(targets=None, waypoint_holds=None):
+def main(
+    targets=None,
+    waypoint_holds=None,
+    point_ids=None,
+    waypoint_actions=None,
+    event_sink=None,
+):
     logger.info("=" * 40)
     logger.info("basic_flight — 基本飞行控制器")
     logger.info("=" * 40)
@@ -103,6 +109,9 @@ def main(targets=None, waypoint_holds=None):
             serial_fc,
             targets=targets,
             waypoint_holds=waypoint_holds,
+            point_ids=point_ids,
+            waypoint_actions=waypoint_actions,
+            event_sink=event_sink,
         )
         mission1.start()
         while mission1.task_running:

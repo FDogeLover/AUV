@@ -14,6 +14,15 @@ import sys
 from collections import deque
 from typing import List, Optional
 from Lcode.heading_hold import HeadingHoldConfig, HeadingHoldController
+from Lcode.mission_events import (
+    ACTION_COMPLETED,
+    ACTION_REQUESTED,
+    HOLD_STARTED,
+    WAYPOINT_APPROACHING,
+    WAYPOINT_ARRIVED,
+    WAYPOINT_LEFT,
+    MissionEvent,
+)
 from Lcode.Lpid import PID
 from Lcode.Logger import logger
 from Lcode.global_variable import sp_side, lock, fc_last_rx_time
@@ -83,7 +92,8 @@ class mission:
 
     def __init__(self, re_fc: List[int], se_fc: List[int],
                  realsense_obj: Optional[t265_class] = None,
-                 serial_fc_ref=None, targets=None, waypoint_holds=None):
+                 serial_fc_ref=None, targets=None, waypoint_holds=None,
+                 point_ids=None, waypoint_actions=None, event_sink=None):
         self.re_fc = re_fc
         self.se_fc = se_fc
         self.serial_fc_ref = serial_fc_ref
@@ -109,6 +119,13 @@ class mission:
         # 航点
         self.targets = self._normalize_targets(targets) if targets is not None else self.load_waypoints()
         self.waypoint_holds = self._normalize_waypoint_holds(waypoint_holds)
+        self.point_ids = self._normalize_waypoint_metadata(
+            point_ids, "point_ids", lambda index: f"WP{index}"
+        )
+        self.waypoint_actions = self._normalize_waypoint_metadata(
+            waypoint_actions, "waypoint_actions", lambda _index: "observe"
+        )
+        self.event_sink = event_sink
         self.target_index = 0
         self.emergency_stop = False
 
@@ -120,6 +137,7 @@ class mission:
         self._vel_window = deque(maxlen=ARRIVAL_VEL_WINDOW)
         self._cruise_arrival_count = 0
         self._active_segment_distance_m = 0.0
+        self._arrival_events_emitted = False
 
         # 高度 ramp
         self._ramp_z_cm = 0.0
@@ -155,6 +173,33 @@ class mission:
         if any(value < 0 for value in holds):
             raise ValueError("航点停留时间不能为负数")
         return holds
+
+    def _normalize_waypoint_metadata(self, values, field_name, default_factory):
+        if values is None:
+            return [default_factory(index) for index in range(len(self.targets))]
+        normalized = [str(value).strip() for value in values]
+        if len(normalized) != len(self.targets):
+            raise ValueError(f"{field_name} 数量必须与航点数量一致")
+        if any(not value for value in normalized):
+            raise ValueError(f"{field_name} 不能包含空值")
+        return normalized
+
+    def _emit_waypoint_event(self, event, target_index=None, **details):
+        if self.event_sink is None:
+            return
+        index = self.target_index if target_index is None else target_index
+        if not 0 <= index < len(self.targets):
+            return
+        try:
+            self.event_sink(MissionEvent(
+                event=event,
+                point_id=self.point_ids[index],
+                target_index=index,
+                action=self.waypoint_actions[index],
+                details=details,
+            ))
+        except Exception as exc:
+            logger.warning(f"航点事件发送失败({event}): {exc}")
 
     def _current_waypoint_hold_s(self):
         if 0 <= self.target_index < len(self.waypoint_holds):
@@ -540,11 +585,20 @@ class mission:
                     if self.arrival_confirmed_time is None:
                         self.arrival_confirmed_time = time.time()
                         hold_s = self._current_waypoint_hold_s()
+                        if not self._arrival_events_emitted:
+                            self._emit_waypoint_event(
+                                WAYPOINT_ARRIVED,
+                                arrival_distance_m=round(arrival_distance, 4),
+                            )
+                            self._emit_waypoint_event(HOLD_STARTED, hold_s=hold_s)
+                            self._emit_waypoint_event(ACTION_REQUESTED)
+                            self._arrival_events_emitted = True
                         logger.info(
                             f"到达航点 {self.target_index}，停留 {hold_s:.1f}s 观察"
                         )
                     elif time.time() - self.arrival_confirmed_time >= self._current_waypoint_hold_s():
                         logger.info(f"航点 {self.target_index} 停留完成")
+                        self._emit_waypoint_event(ACTION_COMPLETED)
                         self._advance_waypoint("precision_arrival", pos, target, arrival_distance)
                         return
                 else:
@@ -564,6 +618,12 @@ class mission:
                     >= self.navigation_profile.cruise_confirm_cycles
                 ):
                     logger.info(f"航点 {self.target_index} 掠过(巡航航点，不停留)")
+                    self._emit_waypoint_event(
+                        WAYPOINT_ARRIVED,
+                        arrival_distance_m=round(arrival_distance, 4),
+                    )
+                    self._emit_waypoint_event(ACTION_REQUESTED)
+                    self._emit_waypoint_event(ACTION_COMPLETED)
                     self._advance_waypoint("cruise_arrival", pos, target, arrival_distance)
                     return
 
@@ -642,6 +702,12 @@ class mission:
         self._log_waypoint_event(
             reason, completed_index, pos, target, arrival_distance
         )
+        self._emit_waypoint_event(
+            WAYPOINT_LEFT,
+            target_index=completed_index,
+            reason=reason,
+            arrival_distance_m=round(arrival_distance, 4),
+        )
         self.target_index += 1
         if self.target_index < len(self.targets):
             # 直接用当前切点位置初始化下一航段；下一tick无需再次重置，超时从
@@ -663,9 +729,14 @@ class mission:
         self.arrival_confirmed_time = None
         self.arrival_start_time = time.time()
         self._cruise_arrival_count = 0
+        self._arrival_events_emitted = False
         target = self.targets[self.target_index]
         self._active_segment_distance_m = math.hypot(
             pos[0] - target[0], pos[1] - target[1]
+        )
+        self._emit_waypoint_event(
+            WAYPOINT_APPROACHING,
+            target=[target[0], target[1], target[2]],
         )
 
     def _waypoint_timeout_s(self, waypoint_mode):
