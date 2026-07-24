@@ -103,6 +103,6 @@
 
 | 技能 | 命令 | 用途 |
 |------|------|------|
-| 文档管理 | `/doc check/map/sync/todo` | 维护文档一致性、验证引用、结构图、TODO 核验 |
+| 文档管理 | `/doc check/map/sync/todo/update` | 维护文档一致性、验证引用、结构图、TODO 核验、根据 git diff 自动更新文档生态 |
 | 会话总结 | `/session-summary save` | 保存/读取会话进度 |
 | Qoder 协作 | `/qoder-workflow` | 新功能/重构的完整设计→审查→实现流程 |
