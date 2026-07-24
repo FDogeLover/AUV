@@ -93,7 +93,8 @@ class mission:
     def __init__(self, re_fc: List[int], se_fc: List[int],
                  realsense_obj: Optional[t265_class] = None,
                  serial_fc_ref=None, targets=None, waypoint_holds=None,
-                 point_ids=None, waypoint_actions=None, event_sink=None):
+                 point_ids=None, waypoint_actions=None, event_sink=None,
+                 video_src=None):
         self.re_fc = re_fc
         self.se_fc = se_fc
         self.serial_fc_ref = serial_fc_ref
@@ -128,6 +129,10 @@ class mission:
         self.event_sink = event_sink
         self.target_index = 0
         self.emergency_stop = False
+
+        # 视觉伺服（可选）
+        self._video_src = video_src
+        self._vs_ctrl = None   # VisualServoController，首次进入 VISUAL_SERVO 时延迟初始化
 
         # 到达判断
         self._arrival_window = deque(maxlen=arrival_confirm_need)
@@ -349,6 +354,8 @@ class mission:
                 self.takeoff()
             elif self.state == "NAVIGATE":
                 self.navigate(pos, yaw)
+            elif self.state == "VISUAL_SERVO":
+                self._visual_servo_tick(pos, yaw)
             elif self.state == "LAND":
                 self.land()
             elif self.state == "END":
@@ -591,8 +598,13 @@ class mission:
                                 arrival_distance_m=round(arrival_distance, 4),
                             )
                             self._emit_waypoint_event(HOLD_STARTED, hold_s=hold_s)
-                            self._emit_waypoint_event(ACTION_REQUESTED)
                             self._arrival_events_emitted = True
+                        # 视觉伺服动作：立即切换状态机，不走 hold 计时
+                        if self.waypoint_actions[self.target_index] == "visual_servo_land":
+                            self._emit_waypoint_event(ACTION_REQUESTED)
+                            self._start_visual_servo()
+                            return
+                        self._emit_waypoint_event(ACTION_REQUESTED)
                         logger.info(
                             f"到达航点 {self.target_index}，停留 {hold_s:.1f}s 观察"
                         )
@@ -926,6 +938,68 @@ class mission:
         if self.realsense:
             self.realsense.stop()
         self.task_running = False
+
+    # ================= 视觉伺服 =================
+    def _start_visual_servo(self):
+        """从 navigate() 进入 VISUAL_SERVO 状态，重置控制器。"""
+        from vision.servo_controller import VisualServoController, ServoConfig
+        if self._vs_ctrl is None:
+            self._vs_ctrl = VisualServoController(ServoConfig())
+        self._vs_ctrl.reset()
+        self.state = "VISUAL_SERVO"
+        logger.info("[VS] 进入 VISUAL_SERVO 状态，target_index=%d", self.target_index)
+
+    def _visual_servo_tick(self, pos, yaw):
+        """
+        每 30ms 由 loop() 调用一次（当 state == "VISUAL_SERVO"）。
+
+        读取摄像头帧 → 调用 VisualServoController.tick() → 施加速度修正。
+        done/failed 时转入 LAND 状态。
+        """
+        if self._vs_ctrl is None:
+            # 防御性检查：不应发生，但若未初始化则立即转 LAND
+            logger.error("[VS] _vs_ctrl 未初始化，直接转 LAND")
+            self.state = "LAND"
+            return
+
+        # 读帧（非阻塞，timeout=5ms，超时返回 None）
+        frame = None
+        if self._video_src is not None:
+            try:
+                frame_obj = self._video_src.read_frame(timeout_s=0.005)
+                if frame_obj is not None:
+                    frame = frame_obj.payload
+            except Exception as e:
+                logger.warning("[VS] read_frame 异常: %s", e)
+
+        tick = self._vs_ctrl.tick(frame, pos[2])
+
+        if tick.done or tick.failed:
+            reason = tick.reason
+            logger.info("[VS] → LAND  done=%s failed=%s reason=%s",
+                        tick.done, tick.failed, reason)
+            if tick.done:
+                self._emit_waypoint_event(ACTION_COMPLETED)
+            else:
+                from Lcode.mission_events import ACTION_FAILED
+                self._emit_waypoint_event(ACTION_FAILED)
+            # 调用 _advance_waypoint 触发正常航点推进（最后航点时自动转 LAND）
+            target = self.targets[self.target_index]
+            self._advance_waypoint(
+                f"visual_servo_{reason}", pos, target,
+                math.hypot(pos[0] - target[0], pos[1] - target[1]),
+            )
+            return
+
+        # 更新航向保持
+        confidence = self.realsense.get_tracking_confidence() if (self.t265_ok and self.realsense) else 0
+        self._heading_status = self._update_heading_hold(yaw, confidence)
+        yaw_cmd = self._heading_status.command_dps
+
+        # 保持当前高度 ramp，施加 XY 修正
+        with lock:
+            current_z = self.se_fc[5]
+        self.set_speed(tick.vx_cm_s, tick.vy_cm_s, yaw_cmd, current_z)
 
     # ================= 控制接口 =================
     def set_speed(self, x, y, yaw, z):
