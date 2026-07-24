@@ -59,6 +59,15 @@ ARRIVAL_CONFIRM_RATIO = 0.6  # 到达确认改用滑动窗口比例制而非严�
                               # (2026-07-08复测: 0.8比例下仍有部分航点(占比26-34%)无法确认，下调到0.6)
 TAKEOFF_WARN_LED_DURATION_S = 5.0  # 起飞前警示灯常亮时长(秒)，给周围人员留出充分反应时间
 
+# 两级降落参数（2026-07-24 新增 DESCEND 状态）
+DESCEND_SAFE_HEIGHT_CM = 20        # 安全分界线：此高度以上用 T265 位置闭环，此高度以下切水平开环垂降
+DESCEND_RAMP_STEP = 0.45            # ramp 步长 cm/30ms ≈ 15 cm/s 垂降速度
+DESCEND_LOCK_HEIGHT_CM = 8          # 锁桨触发高度阈值（静态贴地激光读数约 6cm，8cm 确保触发）
+DESCEND_CONFIRM_COUNT = 10          # 贴地确认去抖帧数（×30ms ≈ 300ms）
+DESCEND_TIMEOUT_S = 20.0            # 垂降最长等待时间，超时转 HOVER_WAIT
+LAND_LOCK_RETRY_INTERVAL = 0.03     # FC_Lock 循环重试间隔（与主循环周期一致）
+LASER_HEIGHT_NEAR_GROUND_MAX = 50   # DESCEND 贴地检测的激光上限（cm），挡掉错误码
+
 # 旧yaw方向开环脉冲诊断工具。正式飞行使用HeadingHoldController；两者互斥。
 # 默认关闭；如需再次做方向诊断，必须同时显式关闭航向保持。
 YAW_TEST_BURST_ENABLED = os.getenv("DRONE_YAW_TEST_BURST", "0") == "1"
@@ -77,6 +86,17 @@ def laser_height_valid(laser_h):
     """激光高度是否合理，可以用来覆盖pos[2]/land_pos[2]。见 LASER_HEIGHT_MAX_M 注释：
     2026-07-10真机测试(basic_radar)捕获到传感器错误码(约0xFFFFFFFF/100)未被过滤污染日志的真实案例。"""
     return 0.05 < laser_h <= LASER_HEIGHT_MAX_M
+
+
+def is_near_ground(laser_cm):
+    """DESCEND 专用的贴地检测，放宽有效性下限以允许近地读数。
+    已知静态贴地(着陆脚触地)激光读数约 6cm。
+    不经过 5cm 下限过滤（那会过滤掉贴地数据本身）。"""
+    if laser_cm <= 0:
+        return False  # 传感器彻底失效或负数
+    if laser_cm > LASER_HEIGHT_NEAR_GROUND_MAX:
+        return False  # 错误码（如 0xFFFFFFFF/100）或远高于地面的值
+    return laser_cm < DESCEND_LOCK_HEIGHT_CM
 
 
 class mission:
@@ -275,8 +295,12 @@ class mission:
                 self.takeoff()
             elif self.state == "NAVIGATE":
                 self.navigate(pos, yaw)
+            elif self.state == "DESCEND":
+                self.descend(pos)
             elif self.state == "LAND":
                 self.land()
+            elif self.state == "HOVER_WAIT":
+                self.hover_wait()
             elif self.state == "END":
                 self.stop_all()
 
@@ -406,7 +430,13 @@ class mission:
     def navigate(self, pos, yaw):
         if self.target_index >= len(self.targets):
             logger.info("全部航点完成")
-            self.state = "LAND"
+            # 2026-07-24：不再直接转 LAND(OneKey_Land)，改走两级下降
+            # 先检查高度是否在安全分界线以下，确保进入 DESCEND 时 T265 位置闭环仍可靠
+            if pos[2] <= DESCEND_SAFE_HEIGHT_CM / 100:
+                self.state = "DESCEND"
+            else:
+                logger.warning(f"最后航点高度 {pos[2]:.2f}m > {DESCEND_SAFE_HEIGHT_CM}cm，继续 navigate 下降")
+                # 保持 NAVIGATE 状态，正常下降直到高度达标
             return
 
         target = self.targets[self.target_index]
@@ -694,31 +724,32 @@ class mission:
 
     # ================= 降落 =================
     def land(self):
-        logger.info("降落")
+        """降落锁定：循环发 FC_Lock + 双确认，不再依赖 OneKey_Land() CMD。
+
+        2026-07-24 修改：DESCEND 阶段已将飞机降至贴地，land() 只需完成锁桨确认。
+        FC_Lock 虽走 CMD 通道受 dt.wait_ck 影响，但循环重试 + 固件近地强制锁定
+        (PWM 直写) 构成双重保障。
+
+        不能一触发就关串口退出：凌霄IMU定点悬停依赖Pi持续喂T265速度参考(CMD 0x33)，
+        串口一关这个参考直接断流。这里持续跑主循环保持串口在线。
+        """
+        logger.info("降落锁定")
         self.heading_hold.disarm("land")
         with lock:
             self.se_fc[2] = 0
 
-        # 不能一触发就关串口退出：凌霄IMU定点悬停依赖Pi持续喂T265速度参考(CMD 0x33)，
-        # 串口一关这个参考直接断流，而OneKey_Land()的物理下降通常要持续数秒。
-        # 这里继续跑主循环(保持串口/T265速度帧不断)，轮询真实解锁状态(unlock_sta)，
-        # 确认真的上锁了(或超时兜底)才真正进入END关闭退出。
-        #
-        # 2026-07-08修复：这个循环原本只轮询unlock_sta，没有主动清零速度指令——
-        # se_fc[3]/[4]/[6]会停留在navigate()最后一次set_speed()的值上，被发送线程原样
-        # 重复发送，且没有PID再持续修正，真机测试观察到一键降落无响应时飞机会明显
-        # 偏离原位置。这里持续调用set_speed(0,0,0,ramp)清零水平速度、保持高度，
-        # 避免过期指令导致失控漂移。
-        # 2026-07-08修复：land()原本从触发到确认/超时全程不写任何飞行日志，导致
-        # 降落物理下降过程完全没有位置数据(真机测试想验证"降落时有没有额外偏移"
-        # 但发现日志是空的)。这里跟takeoff()一样，自己在循环里直接采样T265(不依赖
-        # loop()调用时传入的旧值，那个值在整个等待期间不会更新)。
         t_start = time.time()
         unlock_confirm_count = 0
         gaveup_logged = False
         while True:
-            self.set_speed(0, 0, 0, int(self._ramp_z_cm))
+            # 循环发 FC_Lock 指令（解决 CMD 通道可能被占用的单次失败问题）
+            with lock:
+                self.se_fc[7] = 101
 
+            # 持续清零所有速度指令
+            self.set_speed(0, 0, 0, 0)
+
+            # 采样飞行数据
             if self.t265_ok and self.realsense:
                 try:
                     land_pos = list(self.realsense.get_position())
@@ -732,8 +763,6 @@ class mission:
                 land_pos, land_yaw, land_tv = [0.0, 0.0, 0.0], 0.0, (0.0, 0.0, 0.0)
                 land_raw_imu = [0.0] * 6
 
-            # 激光高度覆盖Z：跟 loop()/takeoff() 一样，T265自身Z轴未标定不是真实高度，
-            # 这里如果继续用原始T265 Z，降落阶段记录的"高度"会是假数据，没法验证物理降落过程。
             with lock:
                 laser_h = self.serial_fc_ref._last_laser_height_cm if self.serial_fc_ref else 0.0
             if laser_height_valid(laser_h):
@@ -742,27 +771,38 @@ class mission:
             with lock:
                 unlock_sta = self.re_fc[5] if len(self.re_fc) > 5 else 0
 
-            # 电机PWM非零位掩码(帧2新增字段)：诊断unlock_sta是否假阳性
-            # (问题7 2026-07-08：unlock_sta读到0但用户确认电机实际未停转)
+            # 电机PWM非零位掩码 + 固件超时放弃标志
             motor_pwm_mask = None
             motor_pwm_mask_t = None
+            land_timeout_gaveup = None
             if self.serial_fc_ref is not None:
                 with lock:
                     motor_pwm_mask = self.serial_fc_ref.debug_data.get("motor_pwm_mask")
                     motor_pwm_mask_t = self.serial_fc_ref.debug_data.get("motor_pwm_mask_t")
-
-            # 2026-07-12新增：固件纯超时兜底(10秒)判定高度仍偏高时会放弃自动锁桨，
-            # 转为永久等待人工接管(问题7/9严重安全隐患修复)。land()要能感知这个状态，
-            # 否则Python自己的LAND_CONFIRM_TIMEOUT_S超时会先关串口退出，切断固件
-            # 悬停所需的T265速度参考，跟固件"等人工介入"的设计意图冲突。
-            land_timeout_gaveup = None
-            if self.serial_fc_ref is not None:
-                with lock:
                     land_timeout_gaveup = self.serial_fc_ref.debug_data.get("land_timeout_gaveup")
+
             if land_timeout_gaveup and not gaveup_logged:
                 logger.warning("降落纯超时兜底判定高度仍偏高，已放弃自动锁桨，需要人工介入")
                 gaveup_logged = True
 
+            # 双确认去抖
+            motor_pwm_ok = motor_pwm_mask is None or motor_pwm_mask == 0
+            if unlock_sta == 0 and motor_pwm_ok:
+                unlock_confirm_count += 1
+                if unlock_confirm_count >= LAND_UNLOCK_CONFIRM_COUNT:
+                    logger.info("降落确认：已上锁")
+                    self.state = "END"
+                    return
+            else:
+                unlock_confirm_count = 0
+
+            # 超时：转 HOVER_WAIT 等人工介入（不是直接关串口退出）
+            if not gaveup_logged and time.time() - t_start >= LAND_CONFIRM_TIMEOUT_S:
+                logger.warning("降落锁定超时，转 HOVER_WAIT 等待人工介入")
+                self.state = "HOVER_WAIT"
+                return
+
+            # 日志
             now = time.time()
             if self._log_file and now - self._last_log_time >= FLIGHT_LOG_INTERVAL:
                 try:
@@ -777,31 +817,150 @@ class mission:
                             "unlock_sta": unlock_sta,
                             "motor_pwm_mask": motor_pwm_mask,
                             "motor_pwm_mask_t": motor_pwm_mask_t,
+                            "fc_lock_sent": 101,
                         }) + "\n")
                         self._log_file.flush()
                 except Exception:
                     pass
                 self._last_log_time = now
 
-            # 2026-07-10修复：只看unlock_sta的去抖仍会假阳性(问题7)——矩形路径基线测试
-            # (basic_radar)复现了unlock_sta连续读到0、去抖满足，但motor_pwm_mask全程
-            # 非零(电机仍在出PWM)的矛盾场景，用户确认那次是人工接管才降落的。这里要求
-            # unlock_sta==0同时motor_pwm_mask==0才计入确认；motor_pwm_mask为None(诊断
-            # 数据不可用)时不阻塞，退化成只看unlock_sta。
-            motor_pwm_ok = motor_pwm_mask is None or motor_pwm_mask == 0
-            if unlock_sta == 0 and motor_pwm_ok:
-                unlock_confirm_count += 1
-                if unlock_confirm_count >= LAND_UNLOCK_CONFIRM_COUNT:
-                    logger.info("降落确认：已上锁")
-                    break
-            else:
-                unlock_confirm_count = 0
-            if not gaveup_logged and time.time() - t_start >= LAND_CONFIRM_TIMEOUT_S:
-                logger.warning("降落确认超时，强制退出")
-                break
-            time.sleep(0.03)
+            time.sleep(LAND_LOCK_RETRY_INTERVAL)
 
-        self.state = "END"
+    # ================= 两级下降：DESCEND =================
+    def descend(self, pos):
+        """两级下降第二阶段：水平开环、ramp 递减高度至 0、贴地后转 LAND。
+
+        入口条件（由 navigate() 触发）：
+          - 最后一个航点、已到达确认、高度 ≤ 20cm
+
+        工作方式：
+          - set_speed(vx=0, vy=0, yaw=航向保持, z=ramp 递减)
+          - 水平开环（不依赖 T265 位置反馈），消除近地漂移影响
+          - 专用的 _is_near_ground() 检测贴地（放宽下限，原始激光值）
+          - 固件可能通过近地强制锁定抢先锁桨，首帧检查 unlock_sta
+        """
+        now = time.time()
+        if not hasattr(self, '_descend_start'):
+            self._descend_start = now
+            self._descend_confirm = 0
+            self._descend_gaveup_logged = False
+            # 重置 ramp 到当前实际高度，避免 PID 积分残余导致跳变
+            self._ramp_z_cm = pos[2] * 100
+
+        elapsed = now - self._descend_start
+
+        # 检查固件是否已经抢先锁桨（近地强制锁定路径）
+        with lock:
+            unlock_sta = self.re_fc[5] if len(self.re_fc) > 5 else 0
+        if unlock_sta == 0:
+            logger.info("固件已抢先锁桨，转入 LAND 确认")
+            self.state = "LAND"
+            return
+
+        # ramp 递减高度设定值到 0
+        if self._ramp_z_cm > DESCEND_RAMP_STEP:
+            self._ramp_z_cm -= DESCEND_RAMP_STEP
+        else:
+            self._ramp_z_cm = 0
+
+        # 航向保持
+        yaw_cmd = 0
+        if self.t265_ok and self.realsense:
+            try:
+                confidence = self.realsense.get_tracking_confidence()
+                yaw = self.realsense.get_orientation()[2]
+                self._heading_status = self._update_heading_hold(yaw, confidence)
+                yaw_cmd = self._heading_status.command_dps
+            except Exception:
+                pass
+
+        # 水平开环，只发垂降 + 航向保持
+        self.set_speed(0, 0, yaw_cmd, int(self._ramp_z_cm))
+
+        # 贴地检测（用原始激光值）
+        with lock:
+            laser_cm = self.serial_fc_ref._last_laser_height_cm * 100 if self.serial_fc_ref else 999
+        if is_near_ground(laser_cm):
+            self._descend_confirm += 1
+            if self._descend_confirm >= DESCEND_CONFIRM_COUNT:
+                logger.info(f"DESCEND 贴地确认 (laser={laser_cm:.0f}cm)，转 LAND")
+                self.state = "LAND"
+                return
+        else:
+            self._descend_confirm = 0
+
+        # 超时：转 HOVER_WAIT 等人工介入
+        if elapsed >= DESCEND_TIMEOUT_S:
+            logger.warning(f"DESCEND 超时 {DESCEND_TIMEOUT_S:.0f}s，转 HOVER_WAIT 等待人工介入")
+            self.state = "HOVER_WAIT"
+            return
+
+        # 日志
+        if self._log_file and now - self._last_log_time >= FLIGHT_LOG_INTERVAL:
+            try:
+                with lock:
+                    laser_h_raw = self.serial_fc_ref._last_laser_height_cm if self.serial_fc_ref else 0.0
+                with self._log_lock:
+                    self._log_file.write(json.dumps({
+                        "t": round(now, 3),
+                        "state": self.state,
+                        "pos": [round(pos[0], 4), round(pos[1], 4), round(laser_h_raw, 4)],
+                        "ramp_z_cm": round(self._ramp_z_cm, 1),
+                        "laser_raw_cm": round(laser_cm, 1),
+                        "descend_confirm": self._descend_confirm,
+                        "elapsed_s": round(elapsed, 2),
+                        "unlock_sta": unlock_sta,
+                        "yaw_cmd_sent": yaw_cmd,
+                        **self._heading_log_fields(),
+                    }) + "\n")
+                    self._log_file.flush()
+            except Exception:
+                pass
+            self._last_log_time = now
+
+        print(
+            f"\rDESCEND h={laser_cm:5.0f}cm ramp={self._ramp_z_cm:5.0f} "
+            f"confirm={self._descend_confirm}/{DESCEND_CONFIRM_COUNT} "
+            f"t={elapsed:4.1f}s",
+            end="", flush=True
+        )
+
+    # ================= 悬停等待（超时兜底） =================
+    def hover_wait(self):
+        """DESCEND/LAND 超时后的悬停等待状态。
+
+        不主动锁桨，保持串口在线发送控制帧和 T265 速度参考，
+        让固件能维持悬停，等待人工遥控器介入。"""
+        now = time.time()
+        if not hasattr(self, '_hover_wait_start'):
+            self._hover_wait_start = now
+            logger.warning("进入 HOVER_WAIT：保持悬停，等待人工遥控器介入")
+
+        # 维持当前高度，水平开环，航向保持
+        yaw_cmd = 0
+        if self.t265_ok and self.realsense:
+            try:
+                confidence = self.realsense.get_tracking_confidence()
+                yaw = self.realsense.get_orientation()[2]
+                self._heading_status = self._update_heading_hold(yaw, confidence)
+                yaw_cmd = self._heading_status.command_dps
+            except Exception:
+                pass
+        self.set_speed(0, 0, yaw_cmd, int(self._ramp_z_cm))
+
+        if self._log_file and now - self._last_log_time >= FLIGHT_LOG_INTERVAL * 2:
+            try:
+                with self._log_lock:
+                    self._log_file.write(json.dumps({
+                        "t": round(now, 3),
+                        "state": self.state,
+                        "ramp_z_cm": round(self._ramp_z_cm, 1),
+                        "elapsed_s": round(now - self._hover_wait_start, 1),
+                    }) + "\n")
+                    self._log_file.flush()
+            except Exception:
+                pass
+            self._last_log_time = now
 
     # ================= 停止 =================
     def stop_all(self):

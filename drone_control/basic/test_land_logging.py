@@ -207,7 +207,9 @@ class TestLandUnlockDebounce:
         m.land()
 
         assert ("info", "降落确认：已上锁") not in logged
-        assert ("warning", "降落确认超时，强制退出") in logged
+        # 2026-07-24：超时后不再打印"强制退出"，改为进入 HOVER_WAIT 等待人工介入
+        assert ("warning", "降落确认超时，强制退出") not in logged
+        assert m.state == "HOVER_WAIT", f"预期超时后进入 HOVER_WAIT，实际 state={m.state}"
 
     def test_confirms_after_consecutive_unlock_reads(self, monkeypatch):
         import Mission_GPT as mg
@@ -247,7 +249,9 @@ class TestLandUnlockPwmConfirm:
         m.land()
 
         assert ("info", "降落确认：已上锁") not in logged
-        assert ("warning", "降落确认超时，强制退出") in logged
+        # 2026-07-24：超时后不再打印"强制退出"，改为进入 HOVER_WAIT
+        assert ("warning", "降落确认超时，强制退出") not in logged
+        assert m.state == "HOVER_WAIT", f"预期超时后进入 HOVER_WAIT，实际 state={m.state}"
 
     def test_confirms_when_unlock_and_motor_pwm_both_zero(self, monkeypatch):
         import Mission_GPT as mg
@@ -353,7 +357,7 @@ class TestLandTimeoutGaveupHandling:
 
     def test_normal_timeout_still_works_when_gaveup_none(self, monkeypatch):
         """字段为None(老固件/未收到帧2，或者serial_fc_ref本身没有这个debug_data键)时，
-        行为不变，仍按LAND_CONFIRM_TIMEOUT_S正常超时退出——回归守卫，确保这次改动
+        行为不变，仍按LAND_CONFIRM_TIMEOUT_S超时进入HOVER_WAIT——回归守卫，确保这次改动
         不破坏旧行为。"""
         import Mission_GPT as mg
         monkeypatch.setattr(mg, "LAND_CONFIRM_TIMEOUT_S", 0.1)
@@ -363,11 +367,101 @@ class TestLandTimeoutGaveupHandling:
         m.serial_fc_ref = FakeSerialFcRef(laser_height_m=0.8, motor_pwm_mask=15)
         # 不设置 land_timeout_gaveup 键，debug_data.get("land_timeout_gaveup") 返回 None
 
-        logged = []
-        monkeypatch.setattr(mg.logger, "warning", lambda msg, *a, **k: logged.append(("warning", msg)))
-        monkeypatch.setattr(mg.logger, "info", lambda msg, *a, **k: logged.append(("info", msg)))
+        m.land()  # 应该在超时后进入 HOVER_WAIT
 
-        m.land()  # 应该正常在0.1秒超时后自己退出，不需要外部打断
+        # 2026-07-24：超时后进入 HOVER_WAIT，不再是旧版"强制退出"
+        assert m.state == "HOVER_WAIT", f"预期超时后进入 HOVER_WAIT，实际 state={m.state}"
 
-        timeout_msgs = [msg for (_lvl, msg) in logged if "确认超时，强制退出" in msg]
-        assert len(timeout_msgs) == 1
+
+class TestNewLandingFeatures:
+    """2026-07-24 新增 DESCEND/HOVER_WAIT/is_near_ground 的单元测试。"""
+
+    def test_is_near_ground_rejects_zero_or_negative(self):
+        from Mission_GPT import is_near_ground, DESCEND_LOCK_HEIGHT_CM
+        assert is_near_ground(0) is False    # 传感器失效
+        assert is_near_ground(-1) is False   # 负数
+
+    def test_is_near_ground_rejects_overflow_garbage(self):
+        from Mission_GPT import is_near_ground
+        assert is_near_ground(9999) is False   # 错误码
+        assert is_near_ground(51) is False     # 超出 LASER_HEIGHT_NEAR_GROUND_MAX
+
+    def test_is_near_ground_accepts_below_threshold(self):
+        from Mission_GPT import is_near_ground, DESCEND_LOCK_HEIGHT_CM
+        # 阈值 8cm，低于阈值应返回 True
+        assert is_near_ground(DESCEND_LOCK_HEIGHT_CM - 1) is True
+        assert is_near_ground(5) is True
+
+    def test_is_near_ground_rejects_at_or_above_threshold(self):
+        from Mission_GPT import is_near_ground, DESCEND_LOCK_HEIGHT_CM
+        assert is_near_ground(DESCEND_LOCK_HEIGHT_CM) is False     # 等于阈值不算贴地
+        assert is_near_ground(DESCEND_LOCK_HEIGHT_CM + 1) is False
+
+    def test_navigate_all_waypoints_done_transitions_to_descend(self, monkeypatch):
+        """全部航点完成后 navigate() 应切换到 DESCEND 状态（而非旧版 LAND）。"""
+        re_fc = [0] * 14
+        se_fc = [0] * 11
+        m = mission(re_fc, se_fc, realsense_obj=None, serial_fc_ref=None)
+        m.t265_ok = False
+
+        # 设置一个已完成的航点列表，让 target_index 越过末尾
+        m.targets = [[0, 0, 0.15]]  # 单个航点，高度 15cm（低于 20cm 安全分界线）
+        m.target_index = 1  # 已超出范围
+        m.state = "NAVIGATE"
+
+        m.navigate(pos=[0.0, 0.0, 0.15], yaw=0.0)
+
+        assert m.state == "DESCEND", f"预期 DESCEND，实际 {m.state}"
+
+    def test_navigate_high_last_waypoint_stays_in_navigate(self):
+        """最后一个航点高度高于安全分界线时，不应直接切 DESCEND，应继续 navigate 下降。"""
+        re_fc = [0] * 14
+        se_fc = [0] * 11
+        m = mission(re_fc, se_fc, realsense_obj=None, serial_fc_ref=None)
+        m.t265_ok = False
+
+        m.targets = [[0, 0, 0.50]]  # 高度 50cm > 20cm 安全分界线
+        m.target_index = 1
+        m.state = "NAVIGATE"
+
+        m.navigate(pos=[0.0, 0.0, 0.50], yaw=0.0)
+
+        assert m.state == "NAVIGATE", f"预期仍为 NAVIGATE，实际 {m.state}"
+
+    def test_descend_enters_land_when_unlock_already_zero(self):
+        """DESCEND 首帧检测到 unlock_sta==0（固件已抢先锁桨），应直接转 LAND。"""
+        re_fc = [0] * 14
+        se_fc = [0] * 11
+        m = mission(re_fc, se_fc, realsense_obj=None, serial_fc_ref=None)
+        m.t265_ok = True
+        m.realsense = FakeRealsense(pos=(0.0, 0.0, 0.08), yaw=0.0)
+        m.state = "DESCEND"
+        m.re_fc[5] = 0  # 固件已锁
+
+        m.descend(pos=[0.0, 0.0, 0.08])
+
+        assert m.state == "LAND", f"预期 LAND，实际 {m.state}"
+
+    def test_hover_wait_sets_correct_state(self, monkeypatch):
+        """hover_wait() 不改变 state，维持当前状态。"""
+        re_fc = [0] * 14
+        se_fc = [0] * 11
+        m = mission(re_fc, se_fc, realsense_obj=None, serial_fc_ref=None)
+        m.t265_ok = False
+        m.state = "HOVER_WAIT"
+
+        m.hover_wait()
+
+        assert m.state == "HOVER_WAIT", "hover_wait 不应改变 state"
+
+    def test_hover_wait_does_not_crash_without_t265(self):
+        """hover_wait() 在 T265 不可用时不应抛异常。"""
+        re_fc = [0] * 14
+        se_fc = [0] * 11
+        m = mission(re_fc, se_fc, realsense_obj=None, serial_fc_ref=None)
+        m.t265_ok = False
+        m.state = "HOVER_WAIT"
+
+        # 不应抛出任何异常
+        m.hover_wait()
+
