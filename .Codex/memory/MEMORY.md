@@ -41,5 +41,10 @@
 - [向AI表达需求的方法](feedback_ai_requirement_expression.md) — 说问题不说解法
 - [basic框架架构](project_basic_framework_architecture.md) — basic版无人机飞控框架
 - [视觉子系统经验](feedback_vision_system_lessons.md) — 板载视觉伺服频率约束等
+- [CyberCAM 模块](CyberCAM.md) — 视觉伺服专用摄像头(核桃派)配置与通信
 - [控制层工程经验](feedback_control_layer_lessons.md) — yaw_pid事故→heading_hold时间线等
 - [2026无人机比赛备赛架构](project_competition_2026_preparation_architecture.md) — 全部模块已实现
+- [立体货架盘点 — QR视觉解码](project_warehouse_inventory_qr_vision.md) — 真实飞行零成功率→adaptiveThreshold有效
+- [立体货架盘点 — 地面站通信](project_warehouse_inventory_ground_link.md) — 端口/dev/bt_serial，训练阶段无接收端
+- [立体货架盘点 — 异步扫码与返航](project_warehouse_inventory_async_return.md) — 扫码/返航到达/降落是三个独立问题
+- [立体货架盘点 — 最终归档](project_warehouse_inventory_final_archive.md) — 2026-07-22阶段验收，40航点两轮完成

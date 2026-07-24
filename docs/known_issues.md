@@ -88,13 +88,13 @@
 
 	    **真机验证(低风险回归测试，未专门验证新路径本身)**：新逻辑理论上在正常低高度降落测试里不会被触发(②或①会先完成，走不到10秒超时)。用户明确决定"只验证低高度路径无回归，高度偏高那条新路径暂不专门验证"——单航点`0,0,1.0/0,0,0.2`复测，结果：LAND阶段仅**3.03秒**(比历史典型7-11秒更快)，`unlock_sta`在2.89s归零、`motor_pwm_mask`在2.95s归零(间隔0.06秒，很新鲜)，用户现场确认电机正常停转。**验证了`User_Task.c`超时分支从平铺结构改成嵌套if/else这次结构性重构没有破坏原有的正常降落流程**，但"高度偏高时会不会正确放弃锁桨"这个新路径本身仍未经真机验证，留待以后有条件专门设计场景时再做。原始数据：`drone_control/tools/data_archive/test_data_20260712/flight_data_landtimeoutgaveup_regression_verify_0p2m.jsonl`。
 
-8. **航向保持参数误触发 runaway 保护 — 2026-07-24 定位并修复**：HeadingHoldController 默认 `kp=0.25`、`max_rate_dps=1`、`runaway_growth_deg=3.0`，导致 T265 正常 yaw 漂移(~0.3°/s)在累计一定误差后触发 `_runaway_detected()` 锁存，之后 `yaw_cmd_sent=0`，航向完全开环。
+45. **航向保持参数误触发 runaway 保护 — 2026-07-24 定位并修复**：HeadingHoldController 默认 `kp=0.25`、`max_rate_dps=1`、`runaway_growth_deg=3.0`，导致 T265 正常 yaw 漂移(~0.3°/s)在累计一定误差后触发 `_runaway_detected()` 锁存，之后 `yaw_cmd_sent=0`，航向完全开环。
     - **2026-07-24 定位**：矩形路径测试飞行日志发现 `heading_fault_reason: "heading_error_grew_3.0deg_in_1.0s"` 在每次飞行都触发。分析 `_runaway_detected()` 逻辑：仅当指令已达 `max_rate_dps` 上限时才激活，但 kp=0.25 配合死区 1.5° 导致修正力不足，误差缓慢累积，偶然的瞬态扰动导致 1 秒内误差增长 >=3.0° 触发锁存。
     - **修复**：`heading_hold.py` 默认值调整——`kp=0.25→0.5`（上限从 0.5→1.0）、`max_rate_dps=1→3`、`runaway_growth_deg=3.0→15.0`。
     - **真机验证(2026-07-24 矩形路径+复合下降)**：三次飞行全程 `heading_fault_reason=null`，航向保持全程正常。1m 矩形路径各角到达精度 1~9cm，Yaw 全程漂移仅 +1.5°(20 秒飞行)，降落点 XY 偏差 7cm。**修复有效**。
     - 原始数据：`drone_control/tools/data_archive/test_data_20260724/`
 
-9. **两级降落(DESCEND/HOVER_WAIT)替代 OneKey_Land — 2026-07-24 新功能，真机验证通过**：OneKey_Land 依赖 CMD 通道可能被撞车静默丢弃，且近地时 T265 位置反馈漂移可能导致落地偏移。
+46. **两级降落(DESCEND/HOVER_WAIT)替代 OneKey_Land — 2026-07-24 新功能，真机验证通过**：OneKey_Land 依赖 CMD 通道可能被撞车静默丢弃，且近地时 T265 位置反馈漂移可能导致落地偏移。
     - **方案**：NAVIGATE → DESCEND → LAND → END 状态机。DESCEND 阶段水平开环(`set_speed(vx=0,vy=0,yaw=航向保持)`)，仅用 ramp 递减高度(~15cm/s)，不依赖 T265 位置反馈。贴地检测用独立的 `is_near_ground()`（阈值 8cm，原始激光值不过滤），300ms 去抖后转 LAND。LAND 阶段循环发 `se_fc[7]=101`(FC_Lock)+`unlock_sta`/`motor_pwm_mask` 双确认。20 秒超时 → HOVER_WAIT 等人工介入（不关串口，保持 T265 速度参考）。
     - **常量**：`DESCEND_SAFE_HEIGHT_CM=20`、`DESCEND_LOCK_HEIGHT_CM=8`、`DESCEND_RAMP_STEP=0.45`、`DESCEND_TIMEOUT_S=20`。
     - **真机验证(2026-07-24)**：

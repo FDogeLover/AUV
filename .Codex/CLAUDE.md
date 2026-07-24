@@ -14,6 +14,8 @@ disabledSkills:
 
 # Project2 - 无人机工程
 
+> **新 Agent 入口 → `docs/AGENTS_GUIDE.md`**（5 分钟掌握全局）
+>
 > 2026-07-24 精简：详细记忆在 `memory/` 目录中，本文件只保留关键配置。
 
 ## 编码规范（关键约束！）
