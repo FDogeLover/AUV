@@ -3,7 +3,7 @@
 ## 结构说明
 
 ```
-CyberCAM/
+CyberCamera/
 ├── boards/
 │   └── cybercam/          # CyberCAM（核桃派）端代码——运行在 CyberCAM 板上
 │       ├── main.py        # 入口：开摄像头→检测→UART 发送

@@ -286,8 +286,63 @@ WaypointSnapshotConsumer
 ├── 收到 ACTION_REQUESTED → 入队（非阻塞写）
 ├── 后台线程: video_source.snapshot()
 ├── 临时文件 → 原子替换（同目录 .tmp → 最终）
-└── 连续 max_consecutive_failures 次失败 → SNAPSHOT_CIRCUIT_OPEN 停止
+	└── 连续 max_consecutive_failures 次失败 → SNAPSHOT_CIRCUIT_OPEN 停止
+	```
+
+### 5.3 视觉伺服精准降落
+
+视觉伺服精准降落是 Mission_GPT 的原生状态（`VISUAL_SERVO`），
+在 30ms 主循环内同步执行，不经过 ActionExecutor。
+
+#### 核心架构
+
 ```
+CyberCAM（核桃派）                       Pi（sunrise 板）
+─────────────────                       ────────────────
+捕获 1920×1080 @ 30fps           UART    cyber_cam_reader.py
+↓                              ──────→  ├── 后台线程读 UART
+OpenCV 黑色方块检测                     └── 解析 → Detection(dx,dy,found)
+↓                                                ↓
+计算 dx/dy(像素中心偏移)                   servo_controller.tick(detection, alt)
+↓                                                ↓
+encode → AA{dx},{dy},{found}              set_speed(vx_cm_s, vy_cm_s, yaw, z)
+     (ASCII, 115200 baud)
+```
+
+#### 状态机
+
+```
+NAVIGATE →到达 + action="visual_servo_land" → VISUAL_SERVO
+VISUAL_SERVO → 每30ms：读UART → tick() → set_speed()
+VISUAL_SERVO → 对中成功/超时 → _advance_waypoint() → LAND
+```
+
+#### 模块文件
+
+```
+drone_control/competition_2026/vision/
+├── servo_controller.py       # VisualServoController — tick-based IBVS
+├── cyber_cam_reader.py       # UART 读取 + 协议解析
+├── square_detector.py        # OpenCV 检测（桌面调试/USB 备用）
+├── test_servo_controller.py  # 10 个控制器测试
+└── test_square_detector.py   # 9 个检测器测试
+
+CyberCamera/boards/cybercam/（部署到 CyberCAM 板）
+├── main.py                   # 入口：捕获→检测→UART 发送
+├── detector.py               # 黑色方块检测（1920×1080）
+├── protocol.py               # ASCII 协议编解码
+└── calib.py                  # 焦距标定工具
+```
+
+#### 安全保护
+
+| 场景 | 行为 |
+|------|------|
+| UART 无数据 | 5s SEARCHING 超时 → failed → LAND（坐标降落）|
+| 检测丢失（方块出画面）| CENTERING 丢帧 → 保持速度 0 → 超时 → LAND |
+| 高度低于 0.3m | 停止修正，立即转 LAND（盲降）|
+| CyberCAM 未启动/未安装 | `video_src=None` → 超时兜底，与正常降落无异 |
+| 紧急停止触发 | loop() 顶部捕获，与任何状态相同 |
 
 ### 5.3 机载视频
 
