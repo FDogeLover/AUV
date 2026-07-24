@@ -28,7 +28,7 @@ VEL_SCALE = 0.7
 posthreshold_xy = 0.15
 posthreshold_z = 0.20
 arrival_confirm_need = 15
-arrival_hold_s = 1.5   # 到达判定满足后，在原地强制停留观察的时长（阶跃响应测试用）
+arrival_hold_s = 5.0   # 到达判定满足后，在原地强制停留观察的时长
 arrival_timeout_max = 5.0 + arrival_hold_s
 T265_CONFIDENCE_MIN = 2       # 定点所需最低追踪置信度 (0=失败,1=低,2=中,3=高)
 T265_CONFIDENCE_WAIT_S = 8.0  # 等待置信度达标的超时时间
