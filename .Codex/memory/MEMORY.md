@@ -1,49 +1,45 @@
-- [Flight log backup before flights](project_flight_log_backup.md) — flight_data.jsonl 是追加写入不清空，飞行前需先备份挪走
+- [Flight log workflow (auto pull + analyze)](project_flight_tools_workflow.md) — 2026-07-24: pull_flight_log.sh + flight_log_analyzer.py 取代手动备份
+- [Two-stage landing DESCEND/HOVER_WAIT](project_two_stage_landing.md) — 2026-07-24: 替代 OneKey_Land CMD 通道，真机验证通过
+- [Heading hold runaway fix](project_heading_hold_fix.md) — 2026-07-24: kp=0.5, max_rate=3, runaway_growth=15°，修复正常T265漂移误触
+- [Flight log backup before flights](project_flight_log_backup.md) — 2026-07-24 更新: 改为 pull_flight_log.sh 自动处理，不再手动备份
+- [Sync test data to local](feedback_sync_test_data_to_local.md) — 2026-07-24 更新: pull_flight_log.sh 自动归档到本地 data_archive/
 - [Motor unlock test safety](project_motor_unlock_test_safety.md) — 测试真实解锁链路优先拆桨，固件层锁定不能替代
 - [Auto-sync changes to pi](feedback_auto_sync_pi.md) — 改动drone_control下Python文件后自动scp到ubuntu-pi，不用每次问
 - [Flight test safety confirmation](feedback_flight_test_safety_confirmation.md) — 真实起飞前每次都要重新确认安全条件，准备性操作不用
 - [User engineering skepticism](user_engineering_skepticism.md) — 用户会追问替代解释、动手实测验证，汇报结论要区分已证实/未证实
 - [Data-driven but verify anomalies](feedback_data_driven_but_verify_anomalies.md) — 结论必须靠数据，但要主动识破数据本身的异常(冻结值/延迟/阈值写反)，别照单全收
 - [No post-landing confirmation](feedback_no_post_landing_confirmation.md) — 飞行测试结束不用追问是否自动降落成功，默认成功，异常用户会主动说
-- [Sync test data to local](feedback_sync_test_data_to_local.md) — pi上归档的flight_data测试数据要主动同步回本机仓库，不用等要求
 - [T265 mount angle fix decision](project_t265_mount_angle_fix.md) — T265安装角度偏差导致坐标不对齐机体，决定先物理矫正，暂不做软件补偿
 - [USB dock verification](project_usb_dock_verification.md) — ubuntu-pi加USB拓展坞后，雷达/T265异常都另有原因(残留进程/短样本噪声)，非拓展坞本身问题
-- [CLAUDE.md sync lag](feedback_claude_md_sync_lag.md) — CLAUDE.md已知问题易落后于pi上实际测试进展，会话开始要核对pi的git log，发现新结论当场更新
-- [SSH root tilde path bug](feedback_ssh_root_tilde_path_bug.md) — root登录ubuntu-pi时~展开成/root而非/home/sunrise，写路径必须用绝对路径，验证也要用绝对路径
-- [N10P radar pole test](project_n10p_radar_pole_test.md) — yaw_sign仍未标定，udev固定命名已清空又重建，实测确认雷达=CH340(1a86:7523)/蓝牙=CP2102(10c4:ea60)非撞车，当前雷达在/dev/radar(需每次实测确认)；2026-07-14发现飞行振动会导致雷达USB物理断开级联飞控超时降落
-- [Flight path vs test object collision](feedback_flight_path_vs_test_object_collision.md) — 摆放物理测试物体(如雷达标定杆)时，安全确认必须核对航线会不会撞上它
-- [Pi sync line endings](feedback_pi_sync_line_endings.md) — 板子FJJ仓库换行符不统一，scp同步后commit前要按各文件原有约定核对LF/CRLF
-- [Start real flight scripts](feedback_start_real_flight_scripts.md) — 真机测试脚本由Claude通过SSH启动(方便读日志)，但解锁/起飞前仍要单独做安全确认
-- [Sync test version first](feedback_sync_test_version_first.md) — 多版本改动且要真机测试时，先只同步测试用的版本，其他版本测完再同步
-- [Codex review rigor](feedback_codex_review_rigor.md) — 用户会用Codex审查回答和代码质量，写代码后要自验证，结论要注明局限性
+- [CLAUDE.md sync lag](feedback_claude_md_sync_lag.md) — 已知问题速查表可能落后于实际测试进展，会话开始要核对
+- [SSH root tilde path bug](feedback_ssh_root_tilde_path_bug.md) — root登录ubuntu-pi时~展开成/root而非/home/sunrise，写路径必须用绝对路径
+- [N10P radar pole test](project_n10p_radar_pole_test.md) — yaw_sign未标定，雷达/dev/radar(需每次实测确认)；飞行振动会导致USB断开
+- [Flight path vs test object collision](feedback_flight_path_vs_test_object_collision.md) — 摆放物理测试物体时安全确认必须核对航线
+- [Pi sync line endings](feedback_pi_sync_line_endings.md) — 板子FJJ仓库换行符不统一，scp后commit前要核对LF/CRLF
+- [Start real flight scripts](feedback_start_real_flight_scripts.md) — 真机测试脚本由Claude通过SSH启动，但解锁/起飞前仍要单独做安全确认
+- [Sync test version first](feedback_sync_test_version_first.md) — 多版本改动且要真机测试时，先只同步测试用的版本
+- [Codex review rigor](feedback_codex_review_rigor.md) — 用户会用Codex审查回答和代码质量，写代码后要自验证
 - [Push after commit](feedback_push_after_commit.md) — 本机提交后主动push；板子FJJ独立git要及时commit(但不push)
-- [Battery endurance](project_battery_endurance.md) — 3300mAh旧电池约4分钟极限，新电池约5分钟极限，规划续航测试时长参考
-- [Landing timeout safety gap](project_land_timeout_safety_gap.md) — 10秒超时兜底已加高度门槛修复(2026-07-12)，低高度路径已验证，高度偏高分支仍未真机验证
-- [CLAUDE.md known issues moved](reference_claude_md_known_issues_location.md) — 已知问题详情已拆到docs/known_issues.md，CLAUDE.md只留状态表
-- [Verify known_issues detail before citing](feedback_verify_known_issues_detail_before_citing.md) — 引用摘要行论证设计决策前，先读docs/known_issues.md完整条目，摘要可能省略了后续推翻/修正
-- [circle_pole阶段1真机验证](project_circle_pole_phase1_validation.md) — 单杆环绕全链路通过，修复3个悬停/绕行bug，发现2个跟改动无关的位置精度现象
-- [circle_pole视觉辅助设计](project_circle_pole_vision_assist_design.md) — 前置摄像头判方向(不判距离)+闭环伺服对准，下置摄像头识别降落标记，尚未实现
-- [imx219摄像头硬件调通](project_imx219_camera_bringup.md) — 排线/驱动坑已解决，3套并行取流方案，画面偏暗噪点重待调增益，circle_pole+fire_patrol都要用
-- [fire_patrol G题空地协同消防设计](project_fire_patrol_g_competition_design.md) — 5次真机测试；APPROACH"发散"实为检测脆弱已证伪；HOVER_DROP后高度不恢复+疑似yaw导致xy耦合，未解决
-- [Background task completion misleading](feedback_background_task_completion_misleading.md) — nohup后台启动的"completed"通知不代表被启动的长时间任务(真机飞行)已结束，要单独等待
-- [circle_pole阶段2视觉伺服设计+实现+真机测试](project_circle_pole_vision_servo_stage2_design.md) — 双杆链路连续4测3成功；赛题8项要求核对：净空/降落识别/单按键3项未达标，巡航高度已改150cm
-- [板载资源监控ResourceMonitor](project_board_resource_monitor.md) — CPU/内存/温度记录已合并并真机验证，本进程占用超2核属正常
-- [板子git仓库损坏恢复](project_board_git_corruption_recovery.md) — FJJ/.git对象损坏已重新init(历史丢失，文件不受影响)，diff异常大先疑仓库损坏不只是换行符
-- [状态机加状态需同步补日志](feedback_state_machine_logging_sync.md) — 新增nav_mode子状态时要同步检查JSON飞行日志覆盖，别等测完才发现那段时间没数据
-- [ubuntu-pi动态IP](project_ubuntu_pi_dynamic_ip.md) — 局域网IP经常变(DHCP)，连不上先问用户新IP，改~/.ssh/config后用ssh-keyscan补known_hosts，不要StrictHostKeyChecking=no
-- [视觉调试必须基于真实飞行参照](feedback_vision_debug_flight_reference.md) — 固定点先实飞拍照、长航程按频率留图、拍照调试开关正式任务默认关闭；参数必须用真实飞行素材离线回放验证
-- [立体货架盘点赛题坐标系](project_warehouse_inventory_coordinate_frame.md) — 起飞点为T265局部原点，+Y沿场地5m长边，-X沿场地4m宽边，+Z向上；图纸坐标统一转换，禁止散落轴交换/正负号
-- [立体货架盘点地面站通信](project_warehouse_inventory_ground_link.md) — 端口/dev/bt_serial，训练阶段只广播且无接收端，不能等待ACK或阻塞飞行；正式地面站可靠模式以后配置化接入
-- [立体货架盘点QR视觉解码实测](project_warehouse_inventory_qr_vision.md) — 真实飞行裸pyzbar/OpenCV均零成功、adaptiveThreshold+pyzbar有效；当前飞行是ROI+pyzbar-only，下一步加有界OpenCV ROI回退和分层诊断，不能恢复17秒全帧搜索
-- [立体货架盘点异步扫码与返航实测](project_warehouse_inventory_async_return.md) — A1 qr_timeout已被消费且实际飞到首返航点1.5cm内；后续停止源于return timeout立即LAND，LAND又未完成，视觉/返航到达/降落是三个独立问题
-- [立体货架盘点赛题最终归档](project_warehouse_inventory_final_archive.md) — 2026-07-22阶段验收；40航点连续两轮完成，最新一轮24/24；扫码内容失败继续全程，硬故障仍安全降落
-- [2026无人机比赛备赛架构已完成](project_competition_2026_preparation_architecture.md) — 全部模块已实现、板载验证通过；T265/飞控串口/GPIO均正常
-- [competition_2026 无人机端架构文档](../../docs/competition_2026_airborne_architecture.md) — 模块总览、启动时序、事件总线、通信协议与安全边界
-- [competition_2026 板载验证记录](.../../docs/session-summaries/2026-07-23-competition-2026-modules-complete.md#第四阶段板载验证ubuntu-pi) — T265已识别(929122110888)、飞控串口收帧、UDP回环通过、139 pytest passed
-- [competition_2026 板载硬件测试脚本](../../docs/competition_2026_airborne_architecture.md#板载硬件测试脚本) — hardware_preflight/link_hardware_check/video_hardware_check，零风险
-- [Qoder固定审查模型](feedback_qoder_fixed_model.md) — 所有Qoder计划/实现审查显式使用Qwen3.8-Max-Preview，禁止使用Auto
-- [AI代码复盘方法论](feedback_ai_code_review_methodology.md) — 聚焦工程决策、调试关键点和架构特点，而非逐行理解
-- [向AI表达需求的方法](feedback_ai_requirement_expression.md) — 说问题不说解法、前置约束、带调试场景、引用已有模式
-- [basic框架架构](project_basic_framework_architecture.md) — basic版无人机飞控框架：分层设计、关键工程决策与调试关键点
-- [视觉子系统经验](feedback_vision_system_lessons.md) — 板载视觉伺服频率约束、QR高频原图优于低频后处理、标定距离依赖、符号错误诊断方法、调试接口前置设计
-- [控制层工程经验](feedback_control_layer_lessons.md) — yaw_pid事故→heading_hold正确时间线、到达判定三次演进、多信号交叉确认、滞回设计、动作中保持位置闭环、量纲一致性
+- [Battery endurance](project_battery_endurance.md) — 3300mAh旧电池约4分钟极限，新电池约5分钟极限
+- [Landing timeout safety gap](project_land_timeout_safety_gap.md) — 10秒超时兜底已加高度门槛修复(2026-07-12)
+- [CLAUDE.md known issues moved](reference_claude_md_known_issues_location.md) — 已知问题详情已拆到docs/known_issues.md
+- [Verify known_issues detail before citing](feedback_verify_known_issues_detail_before_citing.md) — 引用摘要行前先读完整条目
+- [circle_pole阶段1真机验证](project_circle_pole_phase1_validation.md) — 单杆环绕全链路通过
+- [circle_pole视觉辅助设计](project_circle_pole_vision_assist_design.md) — 前置+下置摄像头方案
+- [imx219摄像头硬件调通](project_imx219_camera_bringup.md) — 排线/驱动坑已解决
+- [fire_patrol G题空地协同消防设计](project_fire_patrol_g_competition_design.md) — 5次真机测试记录
+- [Background task completion misleading](feedback_background_task_completion_misleading.md) — nohup后台"completed"不代表长时间任务已结束
+- [circle_pole阶段2视觉伺服](project_circle_pole_vision_servo_stage2_design.md) — 双杆链路连续4测3成功
+- [板载资源监控 ResourceMonitor](project_board_resource_monitor.md) — CPU/内存/温度记录
+- [板子git仓库损坏恢复](project_board_git_corruption_recovery.md) — FJJ/.git对象损坏已重新init
+- [状态机加状态需同步补日志](feedback_state_machine_logging_sync.md) — 新增状态时同步检查JSON飞行日志覆盖
+- [ubuntu-pi动态IP](project_ubuntu_pi_dynamic_ip.md) — 局域网IP经常变(DHCP)
+- [视觉调试必须基于真实飞行参照](feedback_vision_debug_flight_reference.md) — 参数必须用真实飞行素材离线回放验证
+- [立体货架盘点赛题各模块记录](project_warehouse_inventory_coordinate_frame.md) — 坐标系/地面站/QR/异步扫码
+- [Qoder固定审查模型](feedback_qoder_fixed_model.md) — 所有Qoder审查显式使用Qwen3.8-Max-Preview
+- [AI代码复盘方法论](feedback_ai_code_review_methodology.md) — 聚焦工程决策和调试关键点
+- [向AI表达需求的方法](feedback_ai_requirement_expression.md) — 说问题不说解法
+- [basic框架架构](project_basic_framework_architecture.md) — basic版无人机飞控框架
+- [视觉子系统经验](feedback_vision_system_lessons.md) — 板载视觉伺服频率约束等
+- [控制层工程经验](feedback_control_layer_lessons.md) — yaw_pid事故→heading_hold时间线等
+- [2026无人机比赛备赛架构](project_competition_2026_preparation_architecture.md) — 全部模块已实现
