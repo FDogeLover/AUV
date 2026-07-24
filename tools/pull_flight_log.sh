@@ -6,9 +6,8 @@
 #   ./tools/pull_flight_log.sh basic_radar             # 拉取 basic_radar 版本
 #   ./tools/pull_flight_log.sh competition_2026        # 拉取备赛版
 #
-# 归档位置:
-#   板子: ~/Desktop/FJJ/<版本>/test_data_YYYYMMDD/
-#   本地: drone_control/tools/data_archive/test_data_YYYYMMDD/
+# 数据只保存在本地，板子上不留副本
+# 本地归档: drone_control/tools/data_archive/test_data_YYYYMMDD/
 
 set -e
 
@@ -26,29 +25,26 @@ LOCAL_PATH="$ARCHIVE_DIR/$ARCHIVE_SUBDIR"
 
 echo "=== 拉取 $VERSION 飞行日志 === "
 
-# 1) 板子上先生成测试描述
 BOARD_DIR="$BOARD_BASE/$VERSION"
+
+# 检查板子上有没有数据
+LOG_EXISTS=$(ssh "$BOARD_HOST" "test -f $BOARD_DIR/flight_data.jsonl && wc -c < $BOARD_DIR/flight_data.jsonl || echo 0" 2>/dev/null)
+if [ "$LOG_EXISTS" = "0" ] || [ -z "$LOG_EXISTS" ]; then
+    echo "⚠  板子上 $BOARD_DIR/flight_data.jsonl 不存在或为空"
+    exit 0
+fi
+
+# 从 router.txt 提取路径概要作为文件名描述
 DESC=$(ssh "$BOARD_HOST" "
-    cd $BOARD_DIR
-    # 从 router.txt 提取路径概要
-    if [ -f router.txt ]; then
-        awk -F, '{printf \"%.1f_%.1f_\", \$1, \$2}' router.txt | head -c 40
+    if [ -f $BOARD_DIR/router.txt ]; then
+        awk -F, '{printf \"%.1f_%.1f_\", \$1, \$2}' $BOARD_DIR/router.txt | head -c 40
+    else
+        echo 'norouter'
     fi
 " 2>/dev/null || echo "unknown")
 
-# 2) 板子上归档（保留副本）
-echo "  ① 板子归档..."
-ssh "$BOARD_HOST" "
-    mkdir -p $BOARD_DIR/test_data_${DATE_TAG}
-    if [ -f $BOARD_DIR/flight_data.jsonl ]; then
-        cp $BOARD_DIR/flight_data.jsonl $BOARD_DIR/test_data_${DATE_TAG}/flight_data_${DESC}_${DATE_TAG}.jsonl
-        cp $BOARD_DIR/router.txt $BOARD_DIR/test_data_${DATE_TAG}/router_${DATE_TAG}.txt 2>/dev/null || true
-        echo 'done'
-    fi
-" 2>/dev/null
-
-# 3) 拉取到本地
-echo "  ② 拉取到本地..."
+# 拉取到本地归档
+echo "  拉取中..."
 mkdir -p "$LOCAL_PATH"
 
 FILENAME="flight_data_${DESC}_${DATE_TAG}.jsonl"
@@ -58,14 +54,13 @@ while [ -f "$LOCAL_PATH/$FILENAME" ]; do
     FILENAME="flight_data_${DESC}_${DATE_TAG}_v${N}.jsonl"
 done
 
-scp "$BOARD_HOST:$BOARD_DIR/flight_data.jsonl" "$LOCAL_PATH/$FILENAME" 2>/dev/null
+scp "$BOARD_HOST:$BOARD_DIR/flight_data.jsonl" "$LOCAL_PATH/$FILENAME"
 scp "$BOARD_HOST:$BOARD_DIR/router.txt" "$LOCAL_PATH/router_${DATE_TAG}.txt" 2>/dev/null || true
 
-echo "     📁 $LOCAL_PATH/$FILENAME"
-echo "     📁 $LOCAL_PATH/router_${DATE_TAG}.txt"
+echo "  📁 $LOCAL_PATH/$FILENAME"
 
-# 4) 清空板子工作日志（为下次准备）
-echo "  ③ 清空板子工作日志..."
+# 清空板子工作日志（为下次测试准备）
+echo "  清空板子工作日志..."
 ssh "$BOARD_HOST" "truncate -s 0 $BOARD_DIR/flight_data.jsonl" 2>/dev/null
 
 echo ""
@@ -74,5 +69,5 @@ echo ""
 echo "分析:"
 echo "  python3 tools/flight_log_analyzer.py \"$LOCAL_PATH/$FILENAME\""
 echo ""
-echo "归档列表:"
+echo "当前归档:"
 ls -1 "$LOCAL_PATH/" 2>/dev/null
