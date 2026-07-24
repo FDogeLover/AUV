@@ -17,7 +17,7 @@ Codex 会话 `019f8766-d678-7d20-bd43-cb8d9bdc4a86`（2026-07-22~23）因用量�
 
 ## 第二阶段：架构文档
 
-- `docs/competition_2026_airborne_architecture.md`（504 行）
+- `docs/architecture/competition_2026_airborne_architecture.md`（504 行）
   - 设计原则、模块总览、启动/关闭时序、事件总线、可选后台服务
   - 通信协议（UDP 遥测帧 + UDP-JPEG 分片）、安全边界、配置参考
 

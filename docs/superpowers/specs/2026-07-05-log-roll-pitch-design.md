@@ -20,7 +20,7 @@ CLAUDE.md 已知问题第6条（高度控制异常）的三个候选原因都需
 
 - 不改协议、不改飞控固件（roll/pitch 早就在下行帧里，纯粹是上位机没读）
 - 不新增分析脚本（等下次实测数据出来再看要不要扩展 `analyze_of_t265_correlation.py` 或写新脚本关联倾角和高度异常）
-- 只改 basic 版，不改全功能版 `drone_control/Mission_GPT.py`
+- 只改 basic 版，不改全功能版 `drone_control/original/Mission_GPT.py`
 
 ## 验证
 

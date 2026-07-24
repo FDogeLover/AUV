@@ -98,3 +98,11 @@
 | 测试数据在哪 | `drone_control/tools/data_archive/test_data_YYYYMMDD/` |
 | 代码编译 / 固件编辑 | `.Codex/memory/project_board_git_corruption_recovery.md` |
 | 板子连不上 SSH | `.Codex/memory/project_ubuntu_pi_dynamic_ip.md` |
+
+## 可用技能
+
+| 技能 | 命令 | 用途 |
+|------|------|------|
+| 文档管理 | `/doc check/map/sync/todo` | 维护文档一致性、验证引用、结构图、TODO 核验 |
+| 会话总结 | `/session-summary save` | 保存/读取会话进度 |
+| Qoder 协作 | `/qoder-workflow` | 新功能/重构的完整设计→审查→实现流程 |

@@ -16,8 +16,8 @@
 |---|---|---|
 | `ANO_LX_FC_倾角保护版/Mycode/my_protocol.c` | Modify | Add state vars, rewrite `height_set()`, reset in `PID_init()` |
 | `ANO_LX_FC_倾角保护版/Mycode/my_protocol.h` | Modify | Update `height_set` declaration parameter name |
-| `drone_control/Lcode/Lpid.py` | Modify | D term default 0.05, configurable constructor params |
-| `drone_control/Mission_GPT.py` | Modify | `_ramp_z_cm` state, `_step_ramp_z()`, rewrite `takeoff()`, update `navigate()` |
+| `drone_control/basic/Lcode/Lpid.py` | Modify | D term default 0.05, configurable constructor params |
+| `drone_control/basic/Mission_GPT.py` | Modify | `_ramp_z_cm` state, `_step_ramp_z()`, rewrite `takeoff()`, update `navigate()` |
 | `drone_control/test_stability.py` | Create | pytest unit tests for all Python changes |
 
 ---
@@ -237,12 +237,12 @@ git commit -m "fc: rewrite height_set() with positional PID, tilt compensation, 
 ### Task 2: `Lpid.py` — add D term default, configurable params
 
 **Files:**
-- Modify: `drone_control/Lcode/Lpid.py`
-- Create: `drone_control/test_stability.py`
+- Modify: `drone_control/basic/Lcode/Lpid.py`
+- Create: `drone_control/basic/test_stability.py`
 
 - [ ] **Step 1: Write failing tests**
 
-Create `drone_control/test_stability.py`:
+Create `drone_control/basic/test_stability.py`:
 
 ```python
 import pytest
@@ -287,7 +287,7 @@ class TestLpid:
 - [ ] **Step 2: Run — verify FAIL**
 
 ```bash
-cd drone_control && python -m pytest test_stability.py::TestLpid -v 2>&1 | tail -10
+cd drone_control/basic && python -m pytest test_stability.py::TestLpid -v 2>&1 | tail -10
 ```
 
 Expected: `FAILED` on `test_xy_pid_default_d_is_0_05` (current value is 0.00).
@@ -337,7 +337,7 @@ class PID:
 - [ ] **Step 4: Run — verify PASS**
 
 ```bash
-cd drone_control && python -m pytest test_stability.py::TestLpid -v 2>&1 | tail -10
+cd drone_control/basic && python -m pytest test_stability.py::TestLpid -v 2>&1 | tail -10
 ```
 
 Expected: `5 passed`.
