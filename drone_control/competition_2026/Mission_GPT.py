@@ -996,10 +996,13 @@ class mission:
         self._heading_status = self._update_heading_hold(yaw, confidence)
         yaw_cmd = self._heading_status.command_dps
 
-        # 保持当前高度 ramp，施加 XY 修正
+        # 保持当前高度 ramp，施加 XY 修正（限幅 ±20 cm/s，视觉伺服无需高速）
+        _VS_MAX_CM_S = 20.0
+        vx = max(min(tick.vx_cm_s, _VS_MAX_CM_S), -_VS_MAX_CM_S)
+        vy = max(min(tick.vy_cm_s, _VS_MAX_CM_S), -_VS_MAX_CM_S)
         with lock:
             current_z = self.se_fc[5]
-        self.set_speed(tick.vx_cm_s, tick.vy_cm_s, yaw_cmd, current_z)
+        self.set_speed(vx, vy, yaw_cmd, current_z)
 
     # ================= 控制接口 =================
     def set_speed(self, x, y, yaw, z):
