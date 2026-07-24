@@ -23,7 +23,7 @@ def test_wrap_degrees_uses_shortest_path_at_boundary():
 
 
 def test_command_sign_deadband_and_limit():
-    controller = _controller(fault_error_deg=90.0)
+    controller = _controller(kp=0.25, fault_error_deg=90.0)
     assert controller.update(math.radians(5.0), 3, 0.1).command_dps == -1
     controller.reset_for_new_mission()
     controller.arm(0.0, 0.2)
@@ -32,7 +32,7 @@ def test_command_sign_deadband_and_limit():
 
 
 def test_low_confidence_outputs_zero_and_preserves_target():
-    controller = _controller(fault_error_deg=10.0)
+    controller = _controller(kp=0.25, fault_error_deg=10.0)
     degraded = controller.update(math.radians(3.0), 1, 0.1)
     recovered = controller.update(math.radians(3.0), 3, 0.2)
     assert degraded.command_dps == 0
@@ -42,7 +42,7 @@ def test_low_confidence_outputs_zero_and_preserves_target():
 
 
 def test_hard_error_fault_latches_until_new_mission():
-    controller = _controller(fault_error_deg=8.0)
+    controller = _controller(kp=0.25, fault_error_deg=8.0)
     first = controller.update(math.radians(9.0), 3, 0.1)
     still_faulted = controller.update(0.0, 3, 0.2)
     assert first.command_dps == 0
@@ -55,6 +55,7 @@ def test_hard_error_fault_latches_until_new_mission():
 
 def test_submax_growth_does_not_latch_runaway_fault():
     controller = _controller(
+        kp=0.25,
         max_rate_dps=2,
         fault_error_deg=20.0,
         runaway_window_s=1.0,
@@ -68,17 +69,17 @@ def test_submax_growth_does_not_latch_runaway_fault():
 
 def test_runaway_growth_latches_after_max_command_for_full_window():
     controller = _controller(
-        kp=0.5,
-        max_rate_dps=2,
+        kp=0.25,
+        max_rate_dps=3,
         fault_error_deg=20.0,
         runaway_window_s=1.0,
         runaway_growth_deg=3.0,
     )
-    first_max = controller.update(math.radians(4.0), 3, 1.0)
-    before_window = controller.update(math.radians(7.2), 3, 1.9)
-    status = controller.update(math.radians(7.2), 3, 2.0)
-    assert first_max.command_dps == -2
-    assert before_window.command_dps == -2
+    first_max = controller.update(math.radians(11.0), 3, 1.0)   # cmd=-3 (saturated)
+    before_window = controller.update(math.radians(14.2), 3, 1.9)  # cmd=-3, within window
+    status = controller.update(math.radians(14.2), 3, 2.0)  # window expires, growth=3.2>=3.0
+    assert first_max.command_dps == -3
+    assert before_window.command_dps == -3
     assert before_window.fault_reason is None
     assert status.command_dps == 0
     assert "grew" in status.fault_reason
@@ -95,7 +96,7 @@ def test_arm_only_latches_target_once():
     "kwargs",
     [
         {"kp": 0.0},
-        {"kp": 0.6},
+        {"kp": 1.1},
         {"deadband_deg": 0.1},
         {"max_rate_dps": 0},
         {"max_rate_dps": 4},

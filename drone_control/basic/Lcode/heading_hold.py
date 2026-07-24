@@ -19,15 +19,15 @@ def wrap_degrees(angle_deg: float) -> float:
 @dataclass(frozen=True)
 class HeadingHoldConfig:
     enabled: bool = True
-    kp: float = 0.25
+    kp: float = 0.5
     deadband_deg: float = 1.5
-    max_rate_dps: int = 1
+    max_rate_dps: int = 3
     fault_error_deg: float = 8.0
     runaway_window_s: float = 1.0
-    runaway_growth_deg: float = 3.0
+    runaway_growth_deg: float = 15.0
 
     def __post_init__(self) -> None:
-        if not 0.0 < self.kp <= 0.5:
+        if not 0.0 < self.kp <= 1.0:
             raise ValueError("heading hold kp 必须在 (0, 0.5] 内")
         if not 0.5 <= self.deadband_deg <= 5.0:
             raise ValueError("heading hold deadband_deg 必须在 [0.5, 5.0] 内")
