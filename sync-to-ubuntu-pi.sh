@@ -27,9 +27,10 @@ sync_original() {
 
 sync_competition_2026() {
     echo "同步 competition_2026/ -> $HOST:$REMOTE/competition_2026/ ..."
-    ssh "$HOST" "mkdir -p $REMOTE/competition_2026/Lcode"
+    ssh "$HOST" "mkdir -p $REMOTE/competition_2026/Lcode $REMOTE/competition_2026/vision"
     scp "$LOCAL/competition_2026/"*.py "$LOCAL/competition_2026/"*.txt "$LOCAL/competition_2026/"*.json "$HOST:$REMOTE/competition_2026/" 2>/dev/null
     scp "$LOCAL/competition_2026/Lcode/"*.py "$HOST:$REMOTE/competition_2026/Lcode/" 2>/dev/null
+    scp "$LOCAL/competition_2026/vision/"*.py "$HOST:$REMOTE/competition_2026/vision/" 2>/dev/null
 }
 
 case "$TARGET" in
