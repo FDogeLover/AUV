@@ -64,13 +64,19 @@ python edit_firmware.py verify <file>     # 验证编码不变
 | 26 | HOVER_DROP后高度不恢复 | 🔴 | 飞控/IMU状态复位问题，待下次复现诊断 |
 | 45 | 航向保持runaway误触 | ✅ | 2026-07-24调大阈值修复 |
 | 46 | 两级降落DESCEND/HOVER_WAIT | ✅ | 2026-07-24真机验证通过 |
+| T-004 | 视觉伺服精准降落（新功能） | 🟡 | 已完成设计+实现+Qoder审查，等Cyber Camera到货部署 |
 | 其余 | 见 `docs/known_issues.md` | — | 完整40条 |
 
 ## 索引
 
 ```
-docs/guides/imu_parameters_and_fusion_architecture.md   ← IMU参数理解（2026-07-24）
-docs/known_issues.md                                     ← 已知问题完整详情
-.codex/memory/                                           ← 48个详细记忆文件
-.zcode/plans/two_stage_landing_plan.md                   ← 两级降落计划文档
+docs/TODO.md                                         ← 待办事务总览（重要性×紧急性评分）
+docs/architecture/competition_2026_airborne_architecture.md  ← 备赛版架构+视觉伺服(5.3)
+docs/guides/imu_parameters_and_fusion_architecture.md ← IMU参数理解（2026-07-24）
+docs/known_issues.md                                  ← 已知问题完整详情
+.codex/memory/                                        ← 48个详细记忆文件
+CyberCamera/boards/cybercam/                          ← Cyber Camera（核桃派）端检测代码
+drone_control/competition_2026/vision/                ← Pi 端视觉伺服（servo_controller等）
+.zcode/plans/visual_servo_landing_plan.md             ← 视觉伺服计划文档（含3版迭代）
+.zcode/plans/two_stage_landing_plan.md                ← 两级降落计划文档
 ```

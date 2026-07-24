@@ -32,7 +32,7 @@
 | T-011 | ✈️ 台架预检（飞行前必做） | 5 | 4 | **20** | 🔴 待办 |
 | T-013 | ✈️ competition_2026 scout 任务实飞 | 5 | 3 | **15** | 🟡 待办 |
 | T-012 | ✈️ competition_2026 单航点悬停验证 | 4 | 3 | **12** | 🟡 待办 |
-| T-004 | 视觉伺服精准降落模块（新功能） | 4 | 3 | **12** | 🟡 规划中 |
+| T-004 | 视觉伺服精准降落模块（新功能） | 4 | 3 | **12** | 🟡 待部署 |
 | T-014 | ✈️ competition_2026 execute 任务实飞 | 5 | 2 | **10** | 🟡 待办 |
 | **T-015** | 两级降落同步到 basic_radar / competition 版本 | 4 | 2 | **8** | 🟢 待办 |
 | **T-016** | ✈️ Basic 版本完整系统测试（长/短/高） | 5 | 3 | **15** | 🟡 规划中 |
@@ -77,13 +77,20 @@
 
 ### T-004 · 视觉伺服精准降落模块（新功能）
 - **I**: 4 · **U**: 3 · **P**: 12
-- **状态**：规划中
+- **状态**：待部署（代码已完成）
 - **说明**：Cyber Camera 朝下 + 黑色实心方块标志，IBVS 控制回路
-- **下一步**：
-  - [ ] 确认 Cyber Camera 焦距 / 分辨率参数（或现场标定）
-  - [ ] 走 `/qoder-workflow` 生成完整实现计划
-  - [ ] 离线验证检测算法（打印方块 + 摄像头测试）
-  - [ ] 集成到 `mission_events` 事件总线
+- **已完成**：
+  - [x] `vision/servo_controller.py` — tick-based IBVS 控制器
+  - [x] `vision/cyber_cam_reader.py` — UART 串口接收解析
+  - [x] `vision/square_detector.py` — 桌面调试用 OpenCV 检测
+  - [x] `CyberCamera/boards/cybercam/` — Cyber CAM 端检测代码
+  - [x] Vision → VISUAL_SERVO 状态集成到 Mission_GPT
+  - [x] 20 个单元测试全部通过
+  - [x] Qoder 双轮审查通过
+- **待 Cyber Camera 到货后**：
+  - [ ] 跑 `calib.py` 标定 `focal_length_px`
+  - [ ] 部署 Cyber Camera 端代码到核桃派
+  - [ ] 台架验证 UART 读帧 + 视觉伺服回路
 
 ### T-014 · ✈️ competition_2026 execute 任务实飞
 - **I**: 5 · **U**: 2 · **P**: 10
