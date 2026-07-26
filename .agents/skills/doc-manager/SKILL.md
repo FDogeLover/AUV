@@ -27,13 +27,6 @@ description: >
 | | `.claude/CLAUDE.md` | 关键约束配置（含 frontmatter） | 1 | ✅ | ❌ 不动 |
 | **③ 全局记忆** | `~/.zcode/cli/memories/projects/<project-id>/` | ZCode 托管记忆（MEMORY.md, memory_summary.md, topics/*.md） | ~3 | ✅ | ❌ 只读检测，提示用户手动同步 |
 
-### 回退机制
-
-每次对 SKILL.md 的修改实施前，自动备份旧版到 `SKILL.md.bak`。若修改后的行为异常，可执行：
-```
-cp .agents/skills/doc-manager/SKILL.md.bak .agents/skills/doc-manager/SKILL.md
-```
-
 ### 工作范围原则
 - **读全部**：可以读取全部三层文件来验证引用和上下文
 - **写局部**：只自动修改第①层和②层中明确定义可写的文件

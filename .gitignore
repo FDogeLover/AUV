@@ -39,3 +39,6 @@ drone_control/tools/data_archive/
 
 # 2026 备赛真机任务会话、截图与事件记录
 drone_control/competition_2026/sessions/
+
+# 备份文件（git 历史本身可回退）
+*.bak
