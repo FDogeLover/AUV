@@ -3,7 +3,7 @@ name: doc-manager
 description: >
   文档管理子智能体，用于维护项目文档、智能体记忆、全局记忆的一致性和结构完整性。
   支持5种操作模式：完整性检查、文档地图生成、引用自动更新、TODO核验、根据变更更新文档。
-  覆盖三层文档/记忆体系：项目文档(docs/) + 智能体记忆(.Codex/.claude/) + 全局记忆(.zcode/)。
+  覆盖三层文档/记忆体系：项目文档(docs/) + 智能体记忆(.Codex/.claude/) + 全局记忆(~/.zcode/)
   当用户提到"检查文档"、"文档一致性"、"更新引用"、"生成文档地图"、"核验TODO"、
   或输入 /doc check、/doc map、/doc sync、/doc todo、/doc update 时触发
   也可通过自然语言描述触发。
@@ -21,10 +21,10 @@ description: >
 |------|------|------|-----------|------|------|
 | **① 项目文档** | `docs/` | 架构/指南/TODO/会话总结/规格 | ~30 | ✅ | ✅ |
 | **② 智能体记忆** | `.Codex/memory/*.md` | 独立记忆文件（项目经验/协作反馈） | ~50 | ✅ | ✅ |
-| | `.Codex/MEMORY.md` | 记忆索引文件（扁平链接列表） | 1 | ✅ | ✅（仅更新路径引用） |
+| | `.Codex/memory/MEMORY.md` | 记忆索引文件（扁平链接列表） | 1 | ✅ | ✅（仅更新路径引用） |
 | | `.claude/MEMORY.md` | 结构化约束记忆文档 | 1 | ✅ | ⚠️ 只读检测，提示用户手动同步 |
 | | `.claude/CLAUDE.md` | 关键约束配置（含 frontmatter） | 1 | ✅ | ❌ 不动 |
-| **③ 全局记忆** | `.zcode/cli/memories/projects/project2-*/` | ZCode 托管记忆（MEMORY.md, memory_summary.md, topics/*.md） | ~3 | ✅ | ❌ 只读检测，提示用户手动同步 |
+| **③ 全局记忆** | `~/.zcode/cli/memories/projects/<project-id>/` | ZCode 托管记忆（MEMORY.md, memory_summary.md, topics/*.md） | ~3 | ✅ | ❌ 只读检测，提示用户手动同步 |
 
 ### 回退机制
 
@@ -62,9 +62,9 @@ cp .agents/skills/doc-manager/SKILL.md.bak .agents/skills/doc-manager/SKILL.md
    | 层级 | 搜索路径 | 存在性要求 |
    |------|---------|-----------|
    | ① | `docs/**/*.md` | 目录缺失时跳过（不报错） |
-   | ② | `.Codex/memory/*.md` + `.Codex/MEMORY.md` | 目录缺失时跳过（不报错） |
+   | ② | `.Codex/memory/*.md` + `.Codex/memory/MEMORY.md` | 目录缺失时跳过（不报错） |
    | ② | `.claude/MEMORY.md` | 文件缺失时跳过 |
-   | ③ | `.zcode/cli/memories/projects/*/MEMORY.md` | 目录缺失时跳过（global degrade） |
+   | ③ | `~/.zcode/cli/memories/projects/*/`（绝对路径） | 目录缺失时跳过（global degrade） |
 
 3. 对每个 `.md` 文件，提取所有形如 `path/to/file`、`dir/file.md`、`subdir/` 的引用路径：
    - 使用正则：`(?<!\S)[./\w-]+/[.\w/-]+`（可跨行、含连接符）
@@ -72,9 +72,12 @@ cp .agents/skills/doc-manager/SKILL.md.bak .agents/skills/doc-manager/SKILL.md
 4. 对每个被引用路径，从项目根目录或文件所在目录构造绝对路径，检查是否存在
 
 5. **新增：跨层一致性检查**
-   - **索引文件检查**：`.Codex/MEMORY.md` 中所有 `[标题](路径)` 格式的链接，检查路径指向的文件是否存在
+   - **索引文件检查**：`.Codex/memory/MEMORY.md` 中所有 `[标题](路径)` 格式的链接，检查路径指向的文件是否存在
    - **状态一致性检查**：TODO.md 中的 T-xxx 条目状态与 `.Codex/memory/` 中的对应记录是否匹配
-     - **匹配规则**：在 `.Codex/memory/` 中搜索文件名或一级标题（`# 标题`）是否包含对应 T-xxx 编号或该 TODO 标题中的关键主题词（如 T-016 → 搜索 "T-016" 或 "系统测试"）
+     - **匹配规则**：在 `.Codex/memory/` 中搜索以下内容是否匹配：
+       1. 文件名包含 T-xxx 编号（如 `t016`、`T-016`）
+       2. 文件名或一级标题包含 TODO 条目标题中的**关键主题词**（如 T-016「Basic 版本完整系统测试」→ 搜索 "系统测试"、"basic"）
+       3. 若以上均无匹配，再搜索文件内容中是否包含 T-xxx 编号
      - **判定规则**：
        - TODO.md 状态为「已完成 ✅」且 `.Codex/memory/` 中有同主题记录 → ✅ 一致
        - TODO.md 状态为「已完成 ✅」且无对应记忆记录 → ⚠️ 可能遗漏归档
@@ -85,7 +88,7 @@ cp .agents/skills/doc-manager/SKILL.md.bak .agents/skills/doc-manager/SKILL.md
 
    ```
    [断裂] 文件A.md → 引用了「path/to/missing」→ 不存在
-   [跨层] .Codex/MEMORY.md → 索引指向「xxx.md」→ 文件不存在
+   [跨层] .Codex/memory/MEMORY.md → 索引指向「xxx.md」→ 文件不存在
    [跨层] TODO.md T-016 → 状态「已完成」但 .Codex/memory/ 无对应记录 → 可能遗漏归档
    ```
 
@@ -96,7 +99,7 @@ cp .agents/skills/doc-manager/SKILL.md.bak .agents/skills/doc-manager/SKILL.md
 - 只检查 `[...](path)` 和内联文本路径，不检查 HTTP URL
 - 不对猜测性的路径（如只写了文件名没有路径部分）发出警告
 - 目录不存在时 graceful degrade：跳过该层，不报错
-- `.zcode/` 和 `.claude/CLAUDE.md` 中的引用只检测，不修改
+- `~/.zcode/` 和 `.claude/CLAUDE.md` 中的引用只检测，不修改
 
 ---
 
@@ -144,9 +147,9 @@ cp .agents/skills/doc-manager/SKILL.md.bak .agents/skills/doc-manager/SKILL.md
    └── MEMORY.md                              ← 项目记忆 [仅检测]
    ```
 
-   ## 📁 ③ 全局记忆 .zcode/cli/memories/（N 文件）[只读]
+   ## 📁 ③ 全局记忆 ~/.zcode/cli/memories/（N 文件）[只读]
    ```
-   .zcode/cli/memories/projects/project2-*/
+   ~/.zcode/cli/memories/projects/<project-id>/
    ├── MEMORY.md                              ← 主题索引
    ├── memory_summary.md                      ← 会话摘要
    └── topics/*.md                            ← 主题记忆
@@ -156,7 +159,7 @@ cp .agents/skills/doc-manager/SKILL.md.bak .agents/skills/doc-manager/SKILL.md
    - 📄 文档总数：N
    - 📏 总行数：N
    - 🕐 最近修改：文件.md
-   - 🔒 只读层：③ .zcode/（不一致时需手动同步）
+   - 🔒 只读层：③ ~/.zcode/（不一致时需手动同步）
    ```
 
 4. 输出给用户
@@ -177,10 +180,10 @@ cp .agents/skills/doc-manager/SKILL.md.bak .agents/skills/doc-manager/SKILL.md
    |------|------|---------|------|
    | `docs/**/*.md` | ✅ | ✅ | 完全自动 |
    | `.Codex/memory/*.md` | ✅ | ✅ | 只替换路径引用字符串，不改语义内容 |
-   | `.Codex/MEMORY.md` | ✅ | ✅ | 只更新索引链接路径，保持 `- [标题](路径) — 描述` 格式 |
+   | `.Codex/memory/MEMORY.md` | ✅ | ✅ | 只更新索引链接路径，保持 `- [标题](路径) — 描述` 格式 |
    | `.claude/MEMORY.md` | ✅ | ⚠️ 预览后询问 | 结构化约束文档，修改需确认 |
    | `.claude/CLAUDE.md` | ✅ | ❌ 只报告 | 关键配置不动 |
-   | `.zcode/cli/memories/**/*.md` | ✅ | ❌ 只报告 | ZCode 托管，提示用户手动同步 |
+   | `~/.zcode/cli/memories/**/*.md` | ✅ | ❌ 只报告 | ZCode 托管，提示用户手动同步 |
 
 3. 搜索并显示所有包含旧路径的行（预览模式）
    - 显示格式：`[文件:行号] 旧路径 → 新路径`
@@ -193,15 +196,15 @@ cp .agents/skills/doc-manager/SKILL.md.bak .agents/skills/doc-manager/SKILL.md
    引用更新完成：
    ✅ docs/xxx.md → 2处自动更新
    ✅ .Codex/memory/xxx.md → 1处自动更新
-   ✅ .Codex/MEMORY.md → 1处索引更新
+   ✅ .Codex/memory/MEMORY.md → 1处索引更新
    ⚠️ .claude/MEMORY.md → 1处待用户确认（已预览）
-   ℹ️ .zcode/memory_summary.md → 1处需手动同步
+   ℹ️ ~/.zcode/cli/memories/...md → 1处需手动同步
    ```
 
 ### 安全约束
 - 必须显式确认才能执行修改
 - 不改动 fenced code block（```` 包裹区域）内部的路径
-- `.Codex/MEMORY.md` 的索引条目只更新 `](路径)` 部分，不改动标题和描述文本
+- `.Codex/memory/MEMORY.md` 的索引条目只更新 `](路径)` 部分，不改动标题和描述文本
 - 对于 `.Codex/memory/*.md` 文件，只替换文本中的路径引用，不增删段落
 
 ---
@@ -226,7 +229,7 @@ cp .agents/skills/doc-manager/SKILL.md.bak .agents/skills/doc-manager/SKILL.md
           - TODO.md 标记为「已完成 ✅」且 `.Codex/memory/` 中有同主题记录 → ✅ 一致
           - TODO.md 标记为「已完成 ✅」但无对应记忆记录 → ⚠️ 可能遗漏归档
           - TODO.md 标记为「待办/进行中 🟡」且 `.Codex/memory/` 有相关条目 → ℹ️ 该条目可能过时
-      - TODO.md 状态与 `.zcode/cli/memories/` 中 `memory_summary.md` 的摘要是否一致
+      - TODO.md 状态与 `~/.zcode/cli/memories/` 中 `memory_summary.md` 的摘要是否一致
         - 仅报告差异，不自动修改（只读层）
 
 3. 输出结果：
@@ -257,20 +260,20 @@ cp .agents/skills/doc-manager/SKILL.md.bak .agents/skills/doc-manager/SKILL.md
 
    | 变更类型 | `doc-manager` 动作 | 影响层级 |
    |---------|-------------------|---------|
-   | **新增文件/目录** | 检查 CLAUDE.md×2 / AGENTS_GUIDE.md 索引是否需要添加引用；检查 `.Codex/MEMORY.md` 是否需要新建索引条目 | ①② |
+   | **新增文件/目录** | 检查 CLAUDE.md×2 / AGENTS_GUIDE.md 索引是否需要添加引用；检查 `.Codex/memory/MEMORY.md` 是否需要新建索引条目 | ①② |
    | **重命名/移动** | 搜索全部三层，将旧路径引用更新为新路径（调用 `/doc sync` 逻辑） | ①②③(只报告) |
    | **修改源码** | 检查架构文档/设计文档中对应章节是否需要同步 | ① |
    | **新功能模块** | 提示是否创建 `.Codex/memory/` 条目并更新 `MEMORY.md` 索引 | ② |
-   | **文件删除** | 检查全部三层中的引用，标注或移除；清理 `.Codex/MEMORY.md` 中指向已删除文件的索引条目 | ①② |
-   | **会话总结新增** | 检查 `.Codex/MEMORY.md` 索引是否需要添加引用；检查 T-xxx 状态是否需要更新 | ② |
+   | **文件删除** | 检查全部三层中的引用，标注或移除；清理 `.Codex/memory/MEMORY.md` 中指向已删除文件的索引条目 | ①② |
+   | **会话总结新增** | 检查 `.Codex/memory/MEMORY.md` 索引是否需要添加引用；检查 T-xxx 状态是否需要更新 | ② |
    | **TODO.md 状态变更** | 检测是否需要更新 `.Codex/memory/` 中的相关反馈文件或新增经验记录 | ② |
 
 4. **安全约束**：
    - 每次修改前展示改动预览（影响哪些文件、改什么）
    - 等待用户确认后再执行
    - 对 `.Codex/memory/*.md` 的操作限制为：新增条目或更新路径引用，不改动已有条目的语义内容
-   - 对 `.Codex/MEMORY.md` 的操作限制为：新增/更新/删除索引链接，不改动描述文本
-   - `.zcode/` 和 `.claude/CLAUDE.md` 不写入
+   - 对 `.Codex/memory/MEMORY.md` 的操作限制为：新增/更新/删除索引链接，不改动描述文本
+   - `~/.zcode/` 和 `.claude/CLAUDE.md` 不写入
 
 ---
 
@@ -289,10 +292,10 @@ cp .agents/skills/doc-manager/SKILL.md.bak .agents/skills/doc-manager/SKILL.md
 6. **层级写入权限**：
    - `docs/` — 完全读写
    - `.Codex/memory/*.md` — 可更新路径引用、新增文件（不改已有语义内容）
-   - `.Codex/MEMORY.md` — 可更新索引链接路径、新增/移除索引条目（保持 `- [标题](路径) — 描述` 格式）
+   - `.Codex/memory/MEMORY.md` — 可更新索引链接路径、新增/移除索引条目（保持 `- [标题](路径) — 描述` 格式）
    - `.claude/MEMORY.md` — 只读检测，写入前必须单独确认
    - `.claude/CLAUDE.md` — 只读，不写入
-   - `.zcode/cli/memories/` — 只读，检测不一致时提示用户手动同步
+   - `~/.zcode/cli/memories/` — 只读，检测不一致时提示用户手动同步
 
 7. **异常处理**（目录/文件不存在）：
    - 任一搜索路径不存在时，跳过该路径，继续检查其他路径
