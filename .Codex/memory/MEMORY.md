@@ -48,3 +48,6 @@
 - [立体货架盘点 — 地面站通信](project_warehouse_inventory_ground_link.md) — 端口/dev/bt_serial，训练阶段无接收端
 - [立体货架盘点 — 异步扫码与返航](project_warehouse_inventory_async_return.md) — 扫码/返航到达/降落是三个独立问题
 - [立体货架盘点 — 最终归档](project_warehouse_inventory_final_archive.md) — 2026-07-22阶段验收，40航点两轮完成
+- [T-016 Basic 系统测试](project_t016_test_results.md) — 2026-07-26: 长/短/高三组路径实飞，短路径和高度变化通过，长路径远角 timeout 略超阈值
+- [长路径航点超时分析](feedback_long_path_timeout.md) — 2026-07-26: arrival_timeout_max=6.5s 对 2m 不够用，暂不调参
+- [板子同步与测试分析工具](project_sync_tools.md) — 2026-07-26: sync_to_board.sh(tar+ssh) + analyze_t016.py(精确分段分析)
