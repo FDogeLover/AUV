@@ -2,7 +2,8 @@
 name: doc-manager
 description: >
   文档管理子智能体，用于维护项目文档、智能体记忆、全局记忆的一致性和结构完整性。
-  支持5种操作模式：完整性检查、文档地图生成、引用自动更新、TODO核验、根据变更更新文档。
+  支持6种操作模式：完整性检查、文档地图生成、引用自动更新、TODO核验、
+  根据变更更新文档、会话记忆归档。
   覆盖三层文档/记忆体系：项目文档(docs/) + 智能体记忆(.Codex/.claude/) + 全局记忆(~/.zcode/)
   当用户提到"检查文档"、"文档一致性"、"更新引用"、"生成文档地图"、"核验TODO"、
   或输入 /doc check、/doc map、/doc sync、/doc todo、/doc update 时触发
@@ -47,6 +48,7 @@ cp .agents/skills/doc-manager/SKILL.md.bak .agents/skills/doc-manager/SKILL.md
 | `/doc sync` | 🔗 引用更新（三层搜索） | 仅根目录 |
 | `/doc todo` | ✅ TODO 核验（含跨层一致性） | 仅根目录（TODO.md 所在位置） |
 | `/doc update` | 🔄 根据 Git 变更同步文档生态 | 仅根目录 |
+| `/doc remember` | 🧠 会话记忆归档（从总结同步到记忆） | 仅根目录 |
 
 ---
 
@@ -274,6 +276,89 @@ cp .agents/skills/doc-manager/SKILL.md.bak .agents/skills/doc-manager/SKILL.md
    - 对 `.Codex/memory/*.md` 的操作限制为：新增条目或更新路径引用，不改动已有条目的语义内容
    - 对 `.Codex/memory/MEMORY.md` 的操作限制为：新增/更新/删除索引链接，不改动描述文本
    - `~/.zcode/` 和 `.claude/CLAUDE.md` 不写入
+
+---
+
+## 模式 6 — 🧠 会话记忆归档（`/doc remember`）
+
+**触发词**："归档记忆"、"同步会话"、"记住这次"、"更新记忆"
+
+将会话总结中的新信息同步到 `.Codex/memory/` 记忆系统，保持经验记录与项目进展一致。
+
+### 流程
+
+1. **获取输入源**：
+   - 默认：读取 `docs/session-summaries/` 中**最新的** `.md` 文件
+   - 可指定：`/doc remember docs/session-summaries/2026-07-26-t016-test.md`
+   - 辅助：执行 `git diff --stat` 了解文件变更
+
+2. **解析会话总结**，提取三类信息：
+
+   | 信息类型 | 在总结中的位置 | 提取方法 |
+   |---------|---------------|---------|
+   | ✅ **完成项** | `## 📋 完成项` 章节的列表项 | 按行提取，过滤已完成事项 |
+   | 💡 **决策/备注** | `## 💡 决策与备注` 章节 | 按行提取，含踩坑记录 |
+   | 🔜 **待办变化** | `## 🚧 未完成/待办` + `## 🔜 下一步建议` | 提取 T-xxx 状态变化 |
+
+3. **交叉检查**（与 `.Codex/memory/` 现有条目对比）：
+
+   - 对每个完成项，检查是否有同名/同主题的 `.md` 文件
+   - 对每个决策/备注，检查 `feedback_*.md` 中是否已有类似记录
+   - 对每个待办变化，与 TODO.md 最新状态核对
+
+4. **生成建议清单**（预览模式，不自动执行）：
+
+   ```
+   记忆归档建议：
+   
+   📝 新建条目（${N} 项）：
+     - 「T-016 系统测试结果」→ .Codex/memory/project_t016_test_results.md
+       (依据: 完成项中「测试A/B/C 实飞」+ 备注中「长路径超时分析」)
+     - 「长路径 timeout 参数」→ .Codex/memory/feedback_long_path_timeout.md
+       (依据: 决策中「arrival_timeout_max=6.5s 偏短」)
+   
+   🔗 需更新索引（${N} 项）：
+     - .Codex/memory/MEMORY.md → 添加「T-016 系统测试」链接
+   
+   ✅ 已存在无需操作（${N} 项）：
+     - 已有 flight_log_workflow 记录 → 跳过
+   ```
+
+5. **等待用户确认后执行**：
+   - 新建 `.Codex/memory/` 条目（使用与现有文件一致的命名和格式）
+   - 更新 `.Codex/memory/MEMORY.md` 索引
+   - 报告执行结果
+
+### 命名规范（新建文件时遵循）
+
+| 条目类型 | 文件名模式 | 示例 |
+|---------|-----------|------|
+| 项目经验（新功能/测试） | `project_<主题>.md` | `project_t016_test_results.md` |
+| 协作反馈（踩坑/决策） | `feedback_<主题>.md` | `feedback_long_path_timeout.md` |
+| 技术设计 | `design_<主题>.md` | `design_two_stage_landing.md` |
+
+### .Codex/memory/ 条目格式
+
+新建文件时遵循以下模板：
+
+```markdown
+# <标题>
+
+<时间> <简短背景>
+
+- **关键发现**：<1-2 句话>
+- **影响范围**：<哪些模块/文件受影响>
+- **后续动作**：<如果有待办>
+
+<详细内容（可选，1-3 段）>
+```
+
+### 安全约束
+- 所有新建/修改操作前展示完整预览
+- 等待用户逐项确认（可全选/单选）
+- 不改动已有 `.Codex/memory/` 文件的语义内容
+- 新建条目遵循现有文件的命名和格式惯例
+- 对 `.Codex/memory/MEMORY.md` 的索引更新限制为追加新链接，不改动已有条目
 
 ---
 
