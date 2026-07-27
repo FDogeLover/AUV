@@ -163,6 +163,9 @@ class mission:
         self._color_detector = color_detector
         self._color_frame_skip = 0  # 跳帧计数器
         self._last_grid_color: tuple = (None, 0.0)  # (GridColor or None, 置信度)
+        self._last_bgr_frame = None  # 最后抓取的 BGR 帧（用于快照）
+        self._snap_dir = None  # 快照目录，首次到达网格时创建
+        self._snap_seq = 0
 
     def load_waypoints(self):
         # 植保模式：从 plant_config.json 生成航线
@@ -336,6 +339,9 @@ class mission:
                         frame = self._video_source.read_frame(timeout_s=0.01)
                         if frame is not None:
                             self._color_detector.set_frame(frame)
+                            # 保存完整 BGR 帧用于快照
+                            if hasattr(frame.payload, 'copy') and hasattr(frame.payload, 'shape'):
+                                self._last_bgr_frame = frame.payload.copy()
                     except Exception:
                         pass
 
@@ -704,6 +710,9 @@ class mission:
                         f"网格 {gid} 颜色判定: {detected.name} "
                         f"(置信度 {conf:.0%})"
                     )
+
+                    # 保存网格快照
+                    self._save_grid_snapshot(gid, detected, completed_index)
         if YAW_TEST_BURST_ENABLED and self.target_index == 0 and not self._yaw_burst_done:
             self._yaw_burst_done = True
             self._do_yaw_test_burst()
@@ -723,6 +732,29 @@ class mission:
             self.arrival_start_time = time.time()
             self._cruise_arrival_count = 0
             self._active_segment_distance_m = 0.0
+
+    def _save_grid_snapshot(self, grid_id, detected_color, wp_index):
+        """保存当前帧为网格快照（不阻塞飞行）。"""
+        if self._last_bgr_frame is None:
+            return
+        try:
+            if self._snap_dir is None:
+                import datetime
+                ts = datetime.datetime.now().strftime("%m%d_%H%M%S")
+                self._snap_dir = os.path.join(
+                    os.path.dirname(os.path.realpath(sys.argv[0])),
+                    f"snapshots_{ts}",
+                )
+                os.makedirs(self._snap_dir, exist_ok=True)
+                logger.info(f"快照目录: {self._snap_dir}")
+
+            fname = f"g{grid_id:02d}_{detected.name}_wp{wp_index:02d}.jpg"
+            path = os.path.join(self._snap_dir, fname)
+            import cv2 as _cv2
+            _cv2.imwrite(path, self._last_bgr_frame)
+            self._snap_seq += 1
+        except Exception as e:
+            logger.warning(f"保存快照失败 (g{grid_id}): {e}")
 
     def _reset_arrival_tracking(self, pos):
         self.last_target_index = self.target_index
