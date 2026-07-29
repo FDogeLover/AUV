@@ -1,0 +1,89 @@
+"""小车速度前馈 + 相对位置/速度反馈的无副作用伴飞控制器。"""
+
+from __future__ import annotations
+
+import math
+from dataclasses import dataclass
+
+from ..vision.platform_tracker import PlatformEstimate
+
+
+@dataclass(frozen=True)
+class FormationConfig:
+    kp: float = 0.75
+    kd: float = 0.22
+    max_speed_m_s: float = 0.40
+    max_accel_m_s2: float = 0.45
+    max_jerk_m_s3: float = 1.2
+    max_estimate_age_s: float = 0.20
+    max_uncertainty_m: float = 0.30
+
+
+@dataclass(frozen=True)
+class FormationCommand:
+    vx_m_s: float
+    vy_m_s: float
+    valid: bool
+    reason: str
+
+
+class FormationController:
+    def __init__(self, config: FormationConfig | None = None) -> None:
+        self.config = config or FormationConfig()
+        self._last_time: float | None = None
+        self._last_velocity = (0.0, 0.0)
+        self._last_accel = (0.0, 0.0)
+
+    def reset(self, timestamp: float | None = None, velocity=(0.0, 0.0)) -> None:
+        self._last_time = timestamp
+        self._last_velocity = (float(velocity[0]), float(velocity[1]))
+        self._last_accel = (0.0, 0.0)
+
+    def command(
+        self,
+        estimate: PlatformEstimate | None,
+        drone_position_xy: tuple[float, float],
+        drone_velocity_xy: tuple[float, float],
+        timestamp: float,
+        desired_offset_xy: tuple[float, float] = (0.0, 0.0),
+    ) -> FormationCommand:
+        cfg = self.config
+        if estimate is None:
+            return FormationCommand(0.0, 0.0, False, "no_estimate")
+        if timestamp - estimate.timestamp > cfg.max_estimate_age_s:
+            return FormationCommand(0.0, 0.0, False, "stale_estimate")
+        if estimate.uncertainty_m > cfg.max_uncertainty_m:
+            return FormationCommand(0.0, 0.0, False, "uncertain_estimate")
+        ex = estimate.x_m + desired_offset_xy[0] - drone_position_xy[0]
+        ey = estimate.y_m + desired_offset_xy[1] - drone_position_xy[1]
+        evx = estimate.vx_m_s - drone_velocity_xy[0]
+        evy = estimate.vy_m_s - drone_velocity_xy[1]
+        target_vx = estimate.vx_m_s + cfg.kp * ex + cfg.kd * evx
+        target_vy = estimate.vy_m_s + cfg.kp * ey + cfg.kd * evy
+        target_vx, target_vy = self._limit_norm(target_vx, target_vy, cfg.max_speed_m_s)
+        if self._last_time is None or timestamp <= self._last_time:
+            self.reset(timestamp, self._last_velocity)
+            return FormationCommand(*self._last_velocity, True, "initialized")
+        dt = min(timestamp - self._last_time, 0.2)
+        desired_ax = (target_vx - self._last_velocity[0]) / dt
+        desired_ay = (target_vy - self._last_velocity[1]) / dt
+        desired_ax, desired_ay = self._limit_norm(desired_ax, desired_ay, cfg.max_accel_m_s2)
+        max_da = cfg.max_jerk_m_s3 * dt
+        ax = self._last_accel[0] + max(-max_da, min(max_da, desired_ax - self._last_accel[0]))
+        ay = self._last_accel[1] + max(-max_da, min(max_da, desired_ay - self._last_accel[1]))
+        ax, ay = self._limit_norm(ax, ay, cfg.max_accel_m_s2)
+        vx = self._last_velocity[0] + ax * dt
+        vy = self._last_velocity[1] + ay * dt
+        vx, vy = self._limit_norm(vx, vy, cfg.max_speed_m_s)
+        self._last_time = timestamp
+        self._last_velocity = (vx, vy)
+        self._last_accel = (ax, ay)
+        return FormationCommand(vx, vy, True, "ok")
+
+    @staticmethod
+    def _limit_norm(x: float, y: float, limit: float) -> tuple[float, float]:
+        norm = math.hypot(x, y)
+        if norm <= limit or norm <= 1e-9:
+            return x, y
+        scale = limit / norm
+        return x * scale, y * scale

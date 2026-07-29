@@ -1,0 +1,37 @@
+{
+  "cybercam": {
+    "port": "/dev/ttyS3",
+    "baudrate": 115200,
+    "max_age_s": 0.15,
+    "min_quality": 55
+  },
+  "bluetooth": {
+    "port": "/dev/bt_serial",
+    "baudrate": 115200,
+    "ack_timeout_s": 0.12,
+    "max_retries": 4
+  },
+  "formation": {
+    "kp": 0.75,
+    "kd": 0.22,
+    "max_speed_m_s": 0.4,
+    "max_accel_m_s2": 0.45,
+    "max_jerk_m_s3": 1.2
+  },
+  "terminal_landing": {
+    "max_duration_s": 0.5,
+    "max_drop_m": 0.1,
+    "max_position_error_m": 0.05,
+    "max_relative_speed_m_s": 0.08,
+    "max_uncertainty_m": 0.06,
+    "max_retries": 1
+  },
+  "touchdown": {
+    "height_margin_m": 0.03,
+    "max_vertical_speed_m_s": 0.08,
+    "max_relative_speed_m_s": 0.1,
+    "max_tilt_deg": 8.0,
+    "hold_s": 0.4,
+    "require_independent_contact": true
+  }
+}
