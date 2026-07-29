@@ -28,7 +28,8 @@ VEL_SCALE = 0.7
 posthreshold_xy = 0.15
 posthreshold_z = 0.20
 arrival_confirm_need = 15
-arrival_hold_s = 1.5   # 到达判定满足后，在原地强制停留观察的时长
+arrival_hold_s = float(os.getenv("DRONE_ARRIVAL_HOLD_S", "1.5"))
+# 到达判定满足后在原地强制停留观察；测试可用环境变量延长，默认行为不变。
 arrival_timeout_max = 5.0 + arrival_hold_s
 T265_CONFIDENCE_MIN = 2       # 定点所需最低追踪置信度 (0=失败,1=低,2=中,3=高)
 T265_CONFIDENCE_WAIT_S = 8.0  # 等待置信度达标的超时时间
@@ -153,8 +154,9 @@ class mission:
         self._yaw_burst_done = False
 
     def load_waypoints(self):
+        router_file = os.getenv("DRONE_ROUTER_FILE", "router.txt")
         try:
-            with open('router.txt', 'r') as f:
+            with open(router_file, 'r') as f:
                 waypoints = []
                 for line in f:
                     line = line.strip()
@@ -169,12 +171,12 @@ class mission:
                             except ValueError:
                                 logger.warning(f"无效航点: {line}")
                 if waypoints:
-                    logger.info(f"加载 {len(waypoints)} 个航点")
+                    logger.info(f"从 {router_file} 加载 {len(waypoints)} 个航点")
                     return waypoints
         except FileNotFoundError:
-            logger.warning("router.txt 不存在，使用默认航点")
+            logger.warning(f"{router_file} 不存在，使用默认航点")
         except Exception as e:
-            logger.warning(f"读取 router.txt 失败: {e}，使用默认航点")
+            logger.warning(f"读取 {router_file} 失败: {e}，使用默认航点")
 
         default = [[0.0, 0.0, put_height/100],
                    [0.5, 0.0, put_height/100],
@@ -403,6 +405,7 @@ class mission:
                             "yaw_cmd_sent": yaw_cmd,
                             "laser_cm": round(laser_cm, 1),
                             **self._heading_log_fields(),
+                            **self._height_source_log_fields(),
                         }) + "\n")
                         self._log_file.flush()
                 except Exception:
@@ -483,6 +486,7 @@ class mission:
                             "waypoint_mode": waypoint_mode,
                             "arrival_distance_m": round(arrival_distance, 4),
                             **self._heading_log_fields(),
+                            **self._height_source_log_fields(),
                         }) + "\n")
                         self._log_file.flush()
                 except Exception:
@@ -609,6 +613,7 @@ class mission:
                         "waypoint_mode": waypoint_mode,
                         "arrival_distance_m": round(arrival_distance, 4),
                         **self._heading_log_fields(),
+                        **self._height_source_log_fields(),
                     }) + "\n")
                     self._log_file.flush()
             except Exception:
@@ -912,6 +917,7 @@ class mission:
                         "unlock_sta": unlock_sta,
                         "yaw_cmd_sent": yaw_cmd,
                         **self._heading_log_fields(),
+                        **self._height_source_log_fields(),
                     }) + "\n")
                     self._log_file.flush()
             except Exception:
@@ -1016,6 +1022,33 @@ class mission:
             ),
             "heading_degraded_reason": status.degraded_reason,
             "heading_fault_reason": status.fault_reason,
+        }
+
+    def _height_source_log_fields(self):
+        """同时记录两路高度，避免pos[2]被激光覆盖后丢失T265 Z轴证据。"""
+        laser_m = None
+        if self.serial_fc_ref is not None:
+            with lock:
+                candidate = float(self.serial_fc_ref._last_laser_height_cm)
+            if laser_height_valid(candidate):
+                laser_m = round(candidate, 5)
+
+        raw_z = None
+        filtered_z = None
+        confidence = 0
+        if self.realsense is not None:
+            try:
+                raw_z = round(float(self.realsense.get_raw_position()[2]), 5)
+                filtered_z = round(float(self.realsense.get_position()[2]), 5)
+                confidence = int(self.realsense.get_tracking_confidence())
+            except Exception:
+                pass
+
+        return {
+            "laser_height_m": laser_m,
+            "t265_raw_z_m": raw_z,
+            "t265_filtered_z_m": filtered_z,
+            "t265_confidence": confidence,
         }
 
     def _format_heading_error(self):

@@ -52,3 +52,4 @@
 - [长路径航点超时分析](feedback_long_path_timeout.md) — 2026-07-26: arrival_timeout_max=6.5s 对 2m 不够用，暂不调参
 - [板子同步与测试分析工具](project_sync_tools.md) — 2026-07-26: sync_to_board.sh(tar+ssh) + analyze_t016.py(精确分段分析)
 - [D题中心AprilTag与T265高度策略](design_d_task_apriltag_t265_height.md) — 2026-07-29: 单个中心Tag主定位；T265 Z验证通过后主控高度，激光保留近地辅助
+- [T-017 T265与激光高度实飞结论](project_t017_t265_laser_height.md) — 2026-07-29: T265趋势可靠但跨次绝对偏差不固定；采用起飞后激光校准、上车后冻结、降落末段激光对盘测距
