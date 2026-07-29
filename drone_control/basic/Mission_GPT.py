@@ -12,7 +12,7 @@ import math
 import os
 import sys
 from collections import deque
-from typing import List, Optional
+from typing import Callable, List, Optional
 from Lcode.heading_hold import HeadingHoldConfig, HeadingHoldController
 from Lcode.Lpid import PID
 from Lcode.Logger import logger
@@ -106,7 +106,8 @@ class mission:
 
     def __init__(self, re_fc: List[int], se_fc: List[int],
                  realsense_obj: Optional[t265_class] = None,
-                 serial_fc_ref=None):
+                 serial_fc_ref=None,
+                 horizontal_velocity_provider: Optional[Callable] = None):
         self.re_fc = re_fc
         self.se_fc = se_fc
         self.serial_fc_ref = serial_fc_ref
@@ -118,6 +119,13 @@ class mission:
         self.task_running = False
         self.t265_ok = False
         self.realsense = realsense_obj
+
+        # 可选的通用XY速度接管点。provider只返回本周期候选值，最终仍由
+        # navigate()唯一调用set_speed()写飞控；None时保持原T265航点行为。
+        self.horizontal_velocity_provider = horizontal_velocity_provider
+        self._horizontal_provider_fault_latched = False
+        self._horizontal_control_source = "t265_waypoint"
+        self._horizontal_provider_reason = "not_installed"
 
         # XY PID + 独立航向保持外环
         self.x_pid = PID(0, 0)
@@ -506,15 +514,19 @@ class mission:
         else:
             vx, vy = 0, 0
 
-        self._step_ramp_z(target_z)
-        # HeadingHoldController已经生成target-current的正确符号，必须原样发送。
-        self.set_speed(vx, vy, yaw_cmd, int(self._ramp_z_cm))
-
-        # T265 速度（到达检测的速度门槛 + 后面日志/终端输出共用，避免重复取值）
+        # T265 速度供视觉provider、到达检测和日志共用。provider必须在
+        # T265 confidence==0的提前返回之后调用，不能覆盖定位失联保护。
         if self.t265_ok and self.realsense:
             tv = self.realsense.get_velocity()
         else:
             tv = (0.0, 0.0, 0.0)
+
+        vx, vy = self._select_horizontal_velocity(
+            vx, vy, pos, tv, confidence, target
+        )
+        self._step_ramp_z(target_z)
+        # HeadingHoldController已经生成target-current的正确符号，必须原样发送。
+        self.set_speed(vx, vy, yaw_cmd, int(self._ramp_z_cm))
 
         # 到达检测
         if self.t265_ok and self.realsense:
@@ -604,7 +616,9 @@ class mission:
                         "target_idx": self.target_index,
                         "pos": [round(pos[0], 4), round(pos[1], 4), round(pos[2], 4)],
                         "target": [round(target[0], 4), round(target[1], 4), round(target[2], 4)],
-                        "vx": vx, "vy": vy, "yaw_cmd_sent": yaw_cmd,
+                            "vx": vx, "vy": vy, "yaw_cmd_sent": yaw_cmd,
+                            "horizontal_control_source": self._horizontal_control_source,
+                            "horizontal_provider_reason": self._horizontal_provider_reason,
                         "t265_yaw_deg": round(math.degrees(yaw), 2),
                         "fc_yaw_deg": round(fc_yaw_deg, 2),
                         "t265_vel": [round(tv[0], 4), round(tv[1], 4)],
@@ -634,7 +648,8 @@ class mission:
             f"| tgt=({target[0]:+.2f},{target[1]:+.2f},{target[2]:+.2f}) "
             f"| v=({vx:>3},{vy:>3}) "
             f"| send=({self.se_fc[3]:>3},{self.se_fc[4]:>3},{self.se_fc[5]:>3})"
-            f" | mode={waypoint_mode[:4]} yawerr={self._format_heading_error():>5}"
+            f" | mode={waypoint_mode[:4]} src={self._horizontal_control_source[:4]}"
+            f" yawerr={self._format_heading_error():>5}"
             f" cmd={yaw_cmd:+d}"
             f"{t265_str}",
             end="", flush=True
@@ -1005,6 +1020,59 @@ class mission:
         self.task_running = False
 
     # ================= 控制接口 =================
+    def _select_horizontal_velocity(self, base_vx, base_vy, pos, velocity, confidence, target):
+        """选择本周期唯一XY来源，单位均为cm/s。
+
+        provider(context)返回None/active=False时使用基础T265航点速度；active=True
+        时必须同时返回有限的vx_cms/vy_cms。任何异常只影响当前NAVIGATE路径：
+        本周期归零并撤销provider，后续由基础安全状态机接管，绝不保留旧速度。
+        """
+        provider = self.horizontal_velocity_provider
+        if provider is None:
+            self._horizontal_control_source = "t265_waypoint"
+            self._horizontal_provider_reason = (
+                "fault_latched" if self._horizontal_provider_fault_latched else "not_installed"
+            )
+            return base_vx, base_vy
+
+        context = {
+            "now_monotonic": time.monotonic(),
+            "state": self.state,
+            "target_index": self.target_index,
+            "target": tuple(target),
+            "position_m": tuple(pos),
+            "velocity_m_s": tuple(velocity),
+            "t265_confidence": int(confidence),
+        }
+        try:
+            decision = provider(context)
+            if decision is None or not bool(decision.get("active", False)):
+                self._horizontal_control_source = "t265_waypoint"
+                self._horizontal_provider_reason = (
+                    "inactive" if decision is None else str(decision.get("reason", "inactive"))
+                )
+                return base_vx, base_vy
+            if bool(decision.get("fault", False)):
+                raise RuntimeError(str(decision.get("reason", "provider_fault")))
+            vx = float(decision["vx_cms"])
+            vy = float(decision["vy_cms"])
+            if not (math.isfinite(vx) and math.isfinite(vy)):
+                raise ValueError("provider返回非有限速度")
+            # basic飞控协议当前水平速度硬限幅为40cm/s。D题provider还有更低的
+            # 自身限幅，但这里保留最后一道通用边界。
+            if math.hypot(vx, vy) > 40.0 + 1e-6:
+                raise ValueError(f"provider速度超出40cm/s: ({vx:.2f},{vy:.2f})")
+            self._horizontal_control_source = str(decision.get("source", "external"))
+            self._horizontal_provider_reason = str(decision.get("reason", "active"))
+            return int(round(vx)), int(round(vy))
+        except Exception as exc:
+            logger.error(f"水平速度provider故障，本周期归零并撤销接管: {exc}")
+            self._horizontal_provider_fault_latched = True
+            self.horizontal_velocity_provider = None
+            self._horizontal_control_source = "provider_fault_zero"
+            self._horizontal_provider_reason = str(exc)
+            return 0, 0
+
     def set_speed(self, x, y, yaw, z):
         with lock:
             self.se_fc[3] = x + sp_side

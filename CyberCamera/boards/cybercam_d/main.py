@@ -17,14 +17,14 @@ import numpy as np
 
 try:
     from .camera_backend import create_capture
-    from .detector import BlueSquareDetector, PlatformDetector
+    from .detector import BlueSquareDetector, FeatureFlag, PlatformDetector
     from .display_backend import create_display
-    from .protocol import BAUDRATE, encode
+    from .protocol import BAUDRATE, encode, encode_control, parse_control
 except ImportError:  # 允许直接python main.py运行
     from camera_backend import create_capture
-    from detector import BlueSquareDetector, PlatformDetector
+    from detector import BlueSquareDetector, FeatureFlag, PlatformDetector
     from display_backend import create_display
-    from protocol import BAUDRATE, encode
+    from protocol import BAUDRATE, encode, encode_control, parse_control
 
 
 def _stream_id() -> int:
@@ -49,6 +49,7 @@ def _annotate_frame(frame, result, target: str, processing_fps: float):
         cv2.MARKER_CROSS, 24, 2,
     )
     if result and result.found:
+        mode = "PARTIAL" if FeatureFlag(result.flags) & FeatureFlag.PARTIAL else "FULL"
         if result.debug_polygon:
             polygon = cv2.convexHull(
                 np.asarray(result.debug_polygon, dtype=np.int32)
@@ -58,7 +59,7 @@ def _annotate_frame(frame, result, target: str, processing_fps: float):
         cv2.line(annotated, frame_center, (result.cx, result.cy), (0, 255, 255), 1)
         cv2.putText(
             annotated,
-            f"{target} Q={result.quality} E=({result.cx-frame_center[0]},"
+            f"{target} {mode} Q={result.quality} E=({result.cx-frame_center[0]},"
             f"{result.cy-frame_center[1]})",
             (12, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 0, 255), 2,
         )
@@ -118,6 +119,58 @@ class DebugFrameRecorder:
         return output_path
 
 
+class DuplexControlResponder:
+    """Non-blocking VC1 responder; one complete control line per image loop."""
+
+    def __init__(self, max_buffer_bytes: int = 512, read_bytes: int = 128):
+        self.max_buffer_bytes = int(max_buffer_bytes)
+        self.read_bytes = int(read_bytes)
+        self.buffer = bytearray()
+        self.parse_errors = 0
+        self.write_errors = 0
+        self.pongs_sent = 0
+
+    def _limit_buffer(self) -> None:
+        while len(self.buffer) > self.max_buffer_bytes:
+            newline = self.buffer.find(b"\n")
+            if newline < 0:
+                self.buffer.clear()
+                self.parse_errors += 1
+                return
+            del self.buffer[:newline + 1]
+            self.parse_errors += 1
+
+    def service(self, serial_port) -> bool:
+        try:
+            data = serial_port.read(self.read_bytes)
+        except Exception:
+            self.parse_errors += 1
+            return False
+        if data:
+            self.buffer.extend(data)
+            self._limit_buffer()
+        newline = self.buffer.find(b"\n")
+        if newline < 0:
+            return False
+        line = bytes(self.buffer[:newline])
+        del self.buffer[:newline + 1]
+        try:
+            command, seq = parse_control(line)
+        except ValueError:
+            self.parse_errors += 1
+            return False
+        if command != "PING":
+            self.parse_errors += 1
+            return False
+        try:
+            serial_port.write(encode_control("PONG", seq))
+        except Exception:
+            self.write_errors += 1
+            return False
+        self.pongs_sent += 1
+        return True
+
+
 def run(
     camera=0,
     serial_port: str | None = None,
@@ -157,6 +210,7 @@ def run(
     fps_started = time.monotonic()
     fps_frames = 0
     processing_fps = 0.0
+    control = DuplexControlResponder() if output is not None else None
     try:
         while True:
             ok, frame = capture.read()
@@ -177,6 +231,7 @@ def run(
                 sys.stdout.buffer.flush()
             else:
                 output.write(packet)
+                control.service(output)
             seq = (seq + 1) & 0xFFFFFFFF
             fps_frames += 1
             fps_now = time.monotonic()

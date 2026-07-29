@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 from .control.formation_controller import FormationCommand, FormationController
 from .vision.camera_model import DownwardCameraModel
-from .vision.platform_observation import PlatformObservation
+from .vision.platform_observation import FeatureFlag, PlatformObservation
 from .vision.platform_tracker import PlatformTracker
 
 
@@ -46,7 +46,8 @@ class VisualServoCore:
         relative_height_m: float,
         desired_offset_xy: tuple[float, float] = (0.0, 0.0),
     ) -> FormationCommand:
-        if observation is not None and observation.usable(
+        flags = FeatureFlag(observation.flags) if observation is not None else FeatureFlag(0)
+        if observation is not None and not (flags & FeatureFlag.PARTIAL) and observation.usable(
             now,
             self.max_observation_age_s,
             self.min_quality,

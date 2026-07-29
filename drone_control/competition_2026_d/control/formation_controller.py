@@ -51,11 +51,11 @@ class FormationController:
     ) -> FormationCommand:
         cfg = self.config
         if estimate is None:
-            return FormationCommand(0.0, 0.0, False, "no_estimate")
+            return self._brake(timestamp, "no_estimate")
         if timestamp - estimate.timestamp > cfg.max_estimate_age_s:
-            return FormationCommand(0.0, 0.0, False, "stale_estimate")
+            return self._brake(timestamp, "stale_estimate")
         if estimate.uncertainty_m > cfg.max_uncertainty_m:
-            return FormationCommand(0.0, 0.0, False, "uncertain_estimate")
+            return self._brake(timestamp, "uncertain_estimate")
         ex = estimate.x_m + desired_offset_xy[0] - drone_position_xy[0]
         ey = estimate.y_m + desired_offset_xy[1] - drone_position_xy[1]
         if math.hypot(ex, ey) <= cfg.position_deadband_m:
@@ -67,9 +67,30 @@ class FormationController:
         target_vx = feedforward_vx + cfg.kp * ex + cfg.kd * evx
         target_vy = feedforward_vy + cfg.kp * ey + cfg.kd * evy
         target_vx, target_vy = self._limit_norm(target_vx, target_vy, cfg.max_speed_m_s)
+        vx, vy = self._shape_velocity(target_vx, target_vy, timestamp)
+        return FormationCommand(vx, vy, True, "ok")
+
+    def _brake(self, timestamp: float, reason: str) -> FormationCommand:
+        vx, vy = self._shape_velocity(0.0, 0.0, timestamp)
+        return FormationCommand(vx, vy, False, reason)
+
+    def shape_velocity(
+        self, target_vx: float, target_vy: float, timestamp: float
+    ) -> FormationCommand:
+        """给粗跟踪等外部模式复用同一速度/加速度/jerk约束。"""
+        target_vx, target_vy = self._limit_norm(
+            target_vx, target_vy, self.config.max_speed_m_s
+        )
+        vx, vy = self._shape_velocity(target_vx, target_vy, timestamp)
+        return FormationCommand(vx, vy, True, "shaped_target")
+
+    def _shape_velocity(
+        self, target_vx: float, target_vy: float, timestamp: float
+    ) -> tuple[float, float]:
+        cfg = self.config
         if self._last_time is None or timestamp <= self._last_time:
             self.reset(timestamp, self._last_velocity)
-            return FormationCommand(*self._last_velocity, True, "initialized")
+            return self._last_velocity
         dt = min(timestamp - self._last_time, 0.2)
         desired_ax = (target_vx - self._last_velocity[0]) / dt
         desired_ay = (target_vy - self._last_velocity[1]) / dt
@@ -84,7 +105,7 @@ class FormationController:
         self._last_time = timestamp
         self._last_velocity = (vx, vy)
         self._last_accel = (ax, ay)
-        return FormationCommand(vx, vy, True, "ok")
+        return vx, vy
 
     @staticmethod
     def _limit_norm(x: float, y: float, limit: float) -> tuple[float, float]:

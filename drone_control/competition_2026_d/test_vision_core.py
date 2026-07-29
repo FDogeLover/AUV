@@ -20,6 +20,10 @@ from drone_control.competition_2026_d.vision.cybercam_protocol import Observatio
 from drone_control.competition_2026_d.vision.platform_tracker import PlatformTracker
 from drone_control.competition_2026_d.vision.platform_observation import PlatformObservation
 from drone_control.competition_2026_d.vision.platform_tracker import PlatformEstimate
+from drone_control.competition_2026_d.static_square_servo import (
+    StaticSquareServo,
+    StaticSquareServoConfig,
+)
 
 
 class VisionCoreTest(unittest.TestCase):
@@ -135,6 +139,24 @@ class VisionCoreTest(unittest.TestCase):
         cv2.rectangle(image, (30, 170), (230, 205), (255, 80, 0), -1)
         self.assertFalse(BlueSquareDetector().detect(image).found)
 
+    def test_partial_blue_square_at_edge_is_coarse_only(self):
+        image = np.full((240, 320, 3), 220, np.uint8)
+        cv2.rectangle(image, (105, 185), (215, 239), (255, 90, 0), -1)
+        result = BlueSquareDetector().detect(image)
+        self.assertTrue(result.found)
+        flags = FeatureFlag(result.flags)
+        self.assertTrue(flags & FeatureFlag.PARTIAL)
+        self.assertTrue(flags & FeatureFlag.SURROGATE_SQUARE)
+        self.assertEqual(result.outer_px, 0)
+
+    def test_two_valid_blue_targets_are_ambiguous(self):
+        image = np.full((240, 320, 3), 220, np.uint8)
+        cv2.rectangle(image, (30, 70), (100, 140), (255, 90, 0), -1)
+        cv2.rectangle(image, (210, 70), (280, 140), (255, 90, 0), -1)
+        result = BlueSquareDetector().detect(image)
+        self.assertFalse(result.found)
+        self.assertTrue(FeatureFlag(result.flags) & FeatureFlag.AMBIGUOUS)
+
     def test_surrogate_observation_requires_explicit_permission(self):
         obs = PlatformObservation(
             1, 2, 3, True, 160, 120, 70, 0, 0, 90,
@@ -174,6 +196,66 @@ class VisionCoreTest(unittest.TestCase):
         command = controller.command(estimate, (0, 0), (0, 0), 0.13)
         self.assertTrue(command.valid)
         self.assertLessEqual((command.vx_m_s ** 2 + command.vy_m_s ** 2) ** 0.5, 0.40)
+
+    def test_static_servo_left_is_positive_x_and_stale_is_zero(self):
+        class FakeReader:
+            def __init__(self):
+                self.observation = None
+
+            def latest(self, now, max_age_s):
+                if self.observation is None or self.observation.age_s(now) > max_age_s:
+                    return None
+                return self.observation
+
+            def is_running(self):
+                return True
+
+        reader = FakeReader()
+        servo = StaticSquareServo(reader, StaticSquareServoConfig())
+        servo.arm(0.0, (0.0, 0.0))
+        for seq, now in enumerate((0.03, 0.06, 0.09), 1):
+            reader.observation = PlatformObservation(
+                1, seq, seq, True, 220, 240, 80, 0, 0, 90,
+                int(FeatureFlag.SURROGATE_SQUARE), now,
+            )
+            servo({
+                "now_monotonic": now,
+                "position_m": (0.0, 0.0, 1.5),
+                "velocity_m_s": (0.0, 0.0, 0.0),
+                "t265_confidence": 3,
+            })
+        self.assertGreater(servo.snapshot().command_m_s[0], 0.0)
+        self.assertAlmostEqual(servo.snapshot().command_m_s[1], 0.0, places=6)
+        decision = servo({
+            "now_monotonic": 0.30,
+            "position_m": (0.0, 0.0, 1.5),
+            "velocity_m_s": (0.0, 0.0, 0.0),
+            "t265_confidence": 3,
+        })
+        self.assertEqual((decision["vx_cms"], decision["vy_cms"]), (0, 0))
+        self.assertEqual(servo.snapshot().mode, "LOST")
+
+    def test_static_servo_hard_geofence_and_t265_fault_latch(self):
+        class EmptyReader:
+            def latest(self, now, max_age_s):
+                return None
+
+            def is_running(self):
+                return True
+
+        servo = StaticSquareServo(EmptyReader(), StaticSquareServoConfig())
+        servo.arm(1.0, (0.0, 0.0))
+        decision = servo({
+            "now_monotonic": 1.03,
+            "position_m": (0.61, 0.0, 1.5),
+            "velocity_m_s": (0.0, 0.0, 0.0),
+            "t265_confidence": 3,
+        })
+        self.assertTrue(decision["fault"])
+        self.assertEqual(decision["reason"], "hard_geofence")
+        self.assertTrue(servo.faulted)
+        with self.assertRaises(RuntimeError):
+            servo.arm(2.0, (0.0, 0.0))
 
 
 if __name__ == "__main__":

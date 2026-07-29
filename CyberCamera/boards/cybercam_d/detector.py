@@ -58,6 +58,9 @@ class BlueSquareDetector:
         min_aspect_ratio: float = 0.70,
         min_rectangularity: float = 0.72,
         min_solidity: float = 0.88,
+        edge_margin_px: int = 3,
+        partial_min_solidity: float = 0.84,
+        partial_min_thickness_px: float = 12.0,
     ) -> None:
         self.hsv_lower = np.asarray(hsv_lower, dtype=np.uint8)
         self.hsv_upper = np.asarray(hsv_upper, dtype=np.uint8)
@@ -66,6 +69,9 @@ class BlueSquareDetector:
         self.min_aspect_ratio = min_aspect_ratio
         self.min_rectangularity = min_rectangularity
         self.min_solidity = min_solidity
+        self.edge_margin_px = max(0, int(edge_margin_px))
+        self.partial_min_solidity = partial_min_solidity
+        self.partial_min_thickness_px = partial_min_thickness_px
 
     def detect(self, frame: np.ndarray) -> PlatformDetection:
         if frame is None or frame.size == 0 or frame.ndim != 3:
@@ -78,7 +84,7 @@ class BlueSquareDetector:
         mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel, iterations=2)
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         frame_area = float(w * h)
-        best = None
+        candidates = []
         for contour in contours:
             area = abs(float(cv2.contourArea(contour)))
             area_ratio = area / max(frame_area, 1.0)
@@ -86,6 +92,38 @@ class BlueSquareDetector:
                 continue
             hull_area = abs(float(cv2.contourArea(cv2.convexHull(contour))))
             solidity = area / max(hull_area, 1.0)
+            x, y, bw, bh = cv2.boundingRect(contour)
+            touches_edge = (
+                x <= self.edge_margin_px
+                or y <= self.edge_margin_px
+                or x + bw >= w - self.edge_margin_px
+                or y + bh >= h - self.edge_margin_px
+            )
+            if touches_edge:
+                if (
+                    solidity < self.partial_min_solidity
+                    or min(bw, bh) < self.partial_min_thickness_px
+                ):
+                    continue
+                moments = cv2.moments(contour)
+                if abs(moments["m00"]) > 1e-6:
+                    cx = moments["m10"] / moments["m00"]
+                    cy = moments["m01"] / moments["m00"]
+                else:
+                    cx, cy = x + 0.5 * bw, y + 0.5 * bh
+                area_score = min(1.0, area_ratio / 0.04)
+                quality = 100.0 * (
+                    0.52 * solidity + 0.28 * area_score
+                    + 0.20 * min(1.0, min(bw, bh) / 60.0)
+                )
+                polygon = (
+                    (int(x), int(y)), (int(x + bw), int(y)),
+                    (int(x + bw), int(y + bh)), (int(x), int(y + bh)),
+                )
+                candidates.append((
+                    "partial", quality, cx, cy, 0.0, 0.0, quality, polygon,
+                ))
+                continue
             if solidity < self.min_solidity:
                 continue
             rect = cv2.minAreaRect(contour)
@@ -105,13 +143,33 @@ class BlueSquareDetector:
                 + 0.20 * solidity + 0.16 * area_score
             )
             score = quality + min(20.0, area_ratio * 200.0)
-            if best is None or score > best[0]:
-                box = cv2.boxPoints(rect)
-                polygon = tuple((int(round(x)), int(round(y))) for x, y in box)
-                best = (score, cx, cy, 0.5 * (rw + rh), angle, quality, polygon)
-        if best is None:
+            box = cv2.boxPoints(rect)
+            polygon = tuple((int(round(px)), int(round(py))) for px, py in box)
+            candidates.append((
+                "full", score, cx, cy, 0.5 * (rw + rh), angle, quality, polygon,
+            ))
+        if not candidates:
             return PlatformDetection(False)
-        _, cx, cy, side, angle, quality, polygon = best
+        # 飞行安全优先：两个相互独立的合格蓝色块不能默认选最大块。
+        # found=False确保控制端进入LOST；flags保留歧义原因供日志/调试显示。
+        if len(candidates) > 1:
+            return PlatformDetection(
+                False, quality=0,
+                flags=int(FeatureFlag.AMBIGUOUS | FeatureFlag.SURROGATE_SQUARE),
+            )
+        kind, _, cx, cy, side, angle, quality, polygon = candidates[0]
+        if kind == "partial":
+            return PlatformDetection(
+                True,
+                int(round(cx)),
+                int(round(cy)),
+                0,
+                0,
+                0,
+                int(round(max(0.0, min(100.0, quality)))),
+                int(FeatureFlag.PARTIAL | FeatureFlag.SURROGATE_SQUARE),
+                polygon,
+            )
         return PlatformDetection(
             True,
             int(round(cx)),
