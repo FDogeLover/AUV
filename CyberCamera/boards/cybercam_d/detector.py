@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import IntFlag
+import time
 
 import cv2
 import numpy as np
@@ -17,6 +18,9 @@ class FeatureFlag(IntFlag):
     TOO_CLOSE = 1 << 4
     AMBIGUOUS = 1 << 5
     SURROGATE_SQUARE = 1 << 6
+    APRILTAG_VALID = 1 << 7
+    TEMPORAL_TRACKED = 1 << 8
+    COLOR_SHAPE_TRACKED = 1 << 9
 
 
 @dataclass(frozen=True)
@@ -44,6 +48,300 @@ class _Ellipse:
     @property
     def diameter(self) -> float:
         return 0.5 * (self.major + self.minor)
+
+
+class AprilTagDetector:
+    """Detect one configured AprilTag using grayscale geometry only."""
+
+    _DICTIONARIES = {
+        "tag16h5": "DICT_APRILTAG_16H5",
+        "tag25h9": "DICT_APRILTAG_25H9",
+        "tag36h10": "DICT_APRILTAG_36H10",
+        "tag36h11": "DICT_APRILTAG_36H11",
+    }
+
+    def __init__(
+        self,
+        family: str = "tag36h11",
+        tag_id: int = 0,
+        min_side_px: float = 18.0,
+        detect_scale: float = 0.75,
+        redetect_interval: int = 5,
+        max_flow_age_s: float = 0.5,
+        min_flow_points: int = 6,
+    ) -> None:
+        family = str(family).lower()
+        if family not in self._DICTIONARIES:
+            raise ValueError(f"unsupported AprilTag family: {family}")
+        if not hasattr(cv2, "aruco") or not hasattr(cv2.aruco, "ArucoDetector"):
+            raise RuntimeError("OpenCV aruco/AprilTag support is unavailable")
+        dictionary_name = self._DICTIONARIES[family]
+        if not hasattr(cv2.aruco, dictionary_name):
+            raise RuntimeError(f"OpenCV lacks {dictionary_name}")
+        self.family = family
+        self.tag_id = int(tag_id)
+        self.min_side_px = max(1.0, float(min_side_px))
+        self.detect_scale = max(0.25, min(1.0, float(detect_scale)))
+        self.redetect_interval = max(1, int(redetect_interval))
+        self.max_flow_age_s = max(0.1, float(max_flow_age_s))
+        self.min_flow_points = max(4, int(min_flow_points))
+        dictionary = cv2.aruco.getPredefinedDictionary(
+            getattr(cv2.aruco, dictionary_name)
+        )
+        parameters = cv2.aruco.DetectorParameters()
+        # OpenCV's APRILTAG corner refiner drops the GC2093 live stream to
+        # about 1.6 FPS on Cyber Camera. Decoding already supplies four
+        # corners; Kalman filtering is performed on the RDK, so keep the
+        # detector unrefined here to preserve the observation rate.
+        parameters.cornerRefinementMethod = cv2.aruco.CORNER_REFINE_NONE
+        # The 12 cm printed tag is about 56 px wide at 1.5 m. Use the full
+        # dictionary correction capability and denser canonical cell sampling
+        # to reduce intermittent bit errors after the half-scale search.
+        parameters.errorCorrectionRate = 1.0
+        parameters.perspectiveRemovePixelPerCell = 8
+        self._detector = cv2.aruco.ArucoDetector(dictionary, parameters)
+        self._frame_index = 0
+        self._prev_gray: np.ndarray | None = None
+        self._track_points: np.ndarray | None = None
+        self._track_polygon: np.ndarray | None = None
+        self._last_direct_time: float | None = None
+
+    @staticmethod
+    def _clip01(value: float) -> float:
+        return max(0.0, min(1.0, float(value)))
+
+    def _candidate(self, corners: np.ndarray, width: int, height: int):
+        points = np.asarray(corners, dtype=np.float32).reshape(4, 2)
+        contour = points.reshape(-1, 1, 2)
+        if not cv2.isContourConvex(contour):
+            return None
+        if np.any(points[:, 0] < 0) or np.any(points[:, 0] >= width):
+            return None
+        if np.any(points[:, 1] < 0) or np.any(points[:, 1] >= height):
+            return None
+        sides = np.linalg.norm(points - np.roll(points, -1, axis=0), axis=1)
+        mean_side = float(np.mean(sides))
+        area = abs(float(cv2.contourArea(contour)))
+        (_, _), (rect_w, rect_h), _ = cv2.minAreaRect(contour)
+        rect_area = float(rect_w * rect_h)
+        if mean_side < self.min_side_px or area <= 0.0 or rect_area <= 0.0:
+            return None
+        border = float(np.min(np.column_stack((
+            points[:, 0], width - 1.0 - points[:, 0],
+            points[:, 1], height - 1.0 - points[:, 1],
+        ))))
+        size_score = self._clip01((mean_side - self.min_side_px) / 22.0)
+        margin_score = self._clip01(border / max(0.35 * mean_side, 1.0))
+        consistency_score = self._clip01(
+            1.0 - (float(np.max(sides)) - float(np.min(sides)))
+            / max(0.30 * mean_side, 1.0)
+        )
+        shape_score = self._clip01((area / rect_area - 0.55) / 0.35)
+        quality = int(round(100.0 * min(
+            size_score, margin_score, consistency_score, shape_score,
+        )))
+        center = np.mean(points, axis=0)
+        top_edge = points[1] - points[0]
+        angle_deg = float(np.degrees(np.arctan2(top_edge[1], top_edge[0])))
+        polygon = tuple(
+            (int(round(float(point[0]))), int(round(float(point[1]))))
+            for point in points
+        )
+        return PlatformDetection(
+            True,
+            int(round(float(center[0]))),
+            int(round(float(center[1]))),
+            int(round(mean_side)),
+            0,
+            int(round(angle_deg * 100.0)),
+            quality,
+            int(FeatureFlag.APRILTAG_VALID),
+            polygon,
+        )
+
+    def _direct_detect(self, gray: np.ndarray) -> PlatformDetection:
+        if self.detect_scale < 1.0:
+            detection_gray = cv2.resize(
+                gray, None, fx=self.detect_scale, fy=self.detect_scale,
+                interpolation=cv2.INTER_AREA,
+            )
+        else:
+            detection_gray = gray
+        corners, ids, _ = self._detector.detectMarkers(detection_gray)
+        if ids is None or len(ids) == 0:
+            return PlatformDetection(False)
+        valid = []
+        for marker_corners, marker_id in zip(corners, ids.reshape(-1)):
+            if self.detect_scale < 1.0:
+                marker_corners = np.asarray(marker_corners) / self.detect_scale
+            candidate = self._candidate(marker_corners, gray.shape[1], gray.shape[0])
+            if candidate is not None:
+                valid.append((int(marker_id), candidate))
+        if not valid:
+            return PlatformDetection(False)
+        if len(valid) != 1 or valid[0][0] != self.tag_id:
+            return PlatformDetection(False, flags=int(FeatureFlag.AMBIGUOUS))
+        return valid[0][1]
+
+    def _reset_track(self) -> None:
+        self._prev_gray = None
+        self._track_points = None
+        self._track_polygon = None
+        self._last_direct_time = None
+
+    def _start_track(
+        self, gray: np.ndarray, detection: PlatformDetection, now: float
+    ) -> None:
+        polygon = np.asarray(detection.debug_polygon, dtype=np.float32).reshape(4, 2)
+        mask = np.zeros(gray.shape[:2], dtype=np.uint8)
+        cv2.fillConvexPoly(mask, np.round(polygon).astype(np.int32), 255)
+        features = cv2.goodFeaturesToTrack(
+            gray,
+            maxCorners=40,
+            qualityLevel=0.01,
+            minDistance=4,
+            mask=mask,
+            blockSize=5,
+        )
+        corners = polygon.reshape(-1, 1, 2)
+        if features is None:
+            points = corners
+        else:
+            points = np.concatenate((features.astype(np.float32), corners), axis=0)
+        self._prev_gray = gray.copy()
+        self._track_points = points.astype(np.float32)
+        self._track_polygon = polygon
+        self._last_direct_time = float(now)
+
+    def _flow_detect(self, gray: np.ndarray, now: float) -> PlatformDetection:
+        if (
+            self._prev_gray is None
+            or self._track_points is None
+            or self._track_polygon is None
+            or self._last_direct_time is None
+            or now - self._last_direct_time > self.max_flow_age_s
+        ):
+            return PlatformDetection(False)
+        current, status_forward, _ = cv2.calcOpticalFlowPyrLK(
+            self._prev_gray,
+            gray,
+            self._track_points,
+            None,
+            winSize=(21, 21),
+            maxLevel=3,
+            criteria=(cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 20, 0.01),
+        )
+        if current is None or status_forward is None:
+            return PlatformDetection(False)
+        backward, status_backward, _ = cv2.calcOpticalFlowPyrLK(
+            gray,
+            self._prev_gray,
+            current,
+            None,
+            winSize=(21, 21),
+            maxLevel=3,
+            criteria=(cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 20, 0.01),
+        )
+        if backward is None or status_backward is None:
+            return PlatformDetection(False)
+        old = self._track_points.reshape(-1, 2)
+        new = current.reshape(-1, 2)
+        back = backward.reshape(-1, 2)
+        h, w = gray.shape[:2]
+        valid = (
+            status_forward.reshape(-1).astype(bool)
+            & status_backward.reshape(-1).astype(bool)
+            & (np.linalg.norm(old - back, axis=1) <= 1.5)
+            & (new[:, 0] >= 0.0)
+            & (new[:, 0] < w)
+            & (new[:, 1] >= 0.0)
+            & (new[:, 1] < h)
+        )
+        old_good = old[valid]
+        new_good = new[valid]
+        if len(old_good) < self.min_flow_points:
+            return PlatformDetection(False)
+        affine, inliers = cv2.estimateAffinePartial2D(
+            old_good,
+            new_good,
+            method=cv2.RANSAC,
+            ransacReprojThreshold=2.5,
+            maxIters=500,
+            confidence=0.99,
+            refineIters=5,
+        )
+        if affine is None or inliers is None:
+            return PlatformDetection(False)
+        inlier_mask = inliers.reshape(-1).astype(bool)
+        inlier_count = int(np.count_nonzero(inlier_mask))
+        if (
+            inlier_count < self.min_flow_points
+            or inlier_count / max(len(old_good), 1) < 0.55
+        ):
+            return PlatformDetection(False)
+        scale = float(np.hypot(affine[0, 0], affine[0, 1]))
+        translation = float(np.hypot(affine[0, 2], affine[1, 2]))
+        if not 0.82 <= scale <= 1.22 or translation > 0.30 * min(w, h):
+            return PlatformDetection(False)
+        homogeneous = np.column_stack((self._track_polygon, np.ones(4)))
+        polygon = homogeneous @ affine.T
+        candidate = self._candidate(polygon, w, h)
+        if candidate is None:
+            return PlatformDetection(False)
+        forward_backward = np.linalg.norm(old_good[inlier_mask] - back[valid][inlier_mask], axis=1)
+        error_score = self._clip01(1.0 - float(np.median(forward_backward)) / 1.5)
+        inlier_score = inlier_count / max(len(old_good), 1)
+        flow_quality = int(round(55.0 + 35.0 * min(error_score, inlier_score)))
+        quality = min(candidate.quality, flow_quality)
+        self._prev_gray = gray.copy()
+        self._track_points = new_good[inlier_mask].reshape(-1, 1, 2).astype(np.float32)
+        self._track_polygon = polygon.astype(np.float32)
+        return PlatformDetection(
+            True,
+            candidate.cx,
+            candidate.cy,
+            candidate.outer_px,
+            candidate.inner_px,
+            candidate.angle_cdeg,
+            quality,
+            int(FeatureFlag.APRILTAG_VALID | FeatureFlag.TEMPORAL_TRACKED),
+            candidate.debug_polygon,
+        )
+
+    def detect(self, frame: np.ndarray) -> PlatformDetection:
+        if frame is None or frame.size == 0 or frame.ndim not in (2, 3):
+            self._reset_track()
+            return PlatformDetection(False)
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) if frame.ndim == 3 else frame
+        now = time.monotonic()
+        self._frame_index += 1
+        direct_attempted = False
+        should_redetect = (
+            self._track_points is None
+            or self._frame_index % self.redetect_interval == 0
+        )
+        if should_redetect:
+            direct_attempted = True
+            direct = self._direct_detect(gray)
+            if direct.found:
+                self._start_track(gray, direct, now)
+                return direct
+            if FeatureFlag(direct.flags) & FeatureFlag.AMBIGUOUS:
+                self._reset_track()
+                return direct
+        tracked = self._flow_detect(gray, now)
+        if tracked.found:
+            return tracked
+        if not direct_attempted:
+            direct = self._direct_detect(gray)
+            if direct.found:
+                self._start_track(gray, direct, now)
+                return direct
+            if FeatureFlag(direct.flags) & FeatureFlag.AMBIGUOUS:
+                self._reset_track()
+                return direct
+        self._reset_track()
+        return PlatformDetection(False)
 
 
 class BlueSquareDetector:
@@ -181,6 +479,91 @@ class BlueSquareDetector:
             int(FeatureFlag.SURROGATE_SQUARE),
             polygon,
         )
+
+
+class AprilTagBlueFusionDetector:
+    """Tag确认身份，25cm蓝色外框提供高频中心观测。"""
+
+    def __init__(
+        self,
+        family: str = "tag36h11",
+        tag_id: int = 0,
+        min_side_px: float = 18.0,
+        detect_scale: float = 0.75,
+        redetect_interval: int = 5,
+        max_flow_age_s: float = 0.5,
+    ) -> None:
+        self.tag_detector = AprilTagDetector(
+            family,
+            tag_id,
+            min_side_px,
+            detect_scale,
+            redetect_interval,
+            max_flow_age_s,
+        )
+        self.blue_detector = BlueSquareDetector()
+        self._identity_locked = False
+        self._last_center: tuple[int, int] | None = None
+
+    def detect(self, frame: np.ndarray) -> PlatformDetection:
+        tag = self.tag_detector.detect(frame)
+        tag_flags = FeatureFlag(tag.flags)
+        if tag_flags & FeatureFlag.AMBIGUOUS:
+            self._identity_locked = False
+            self._last_center = None
+            return tag
+        direct_tag = (
+            tag.found
+            and bool(tag_flags & FeatureFlag.APRILTAG_VALID)
+            and not bool(tag_flags & FeatureFlag.TEMPORAL_TRACKED)
+        )
+        if direct_tag:
+            self._identity_locked = True
+            self._last_center = (tag.cx, tag.cy)
+
+        blue = self.blue_detector.detect(frame)
+        blue_flags = FeatureFlag(blue.flags)
+        if not self._identity_locked:
+            # 蓝色外框不能独立确认目标身份。
+            return tag if tag.found else PlatformDetection(False, flags=tag.flags)
+
+        blue_usable = (
+            blue.found
+            and bool(blue_flags & FeatureFlag.SURROGATE_SQUARE)
+            and not bool(blue_flags & (FeatureFlag.PARTIAL | FeatureFlag.AMBIGUOUS))
+            and blue.outer_px > 0
+        )
+        if blue_usable:
+            reference = (tag.cx, tag.cy) if tag.found else self._last_center
+            if reference is not None:
+                jump = float(np.hypot(blue.cx - reference[0], blue.cy - reference[1]))
+                if jump > max(80.0, 0.60 * blue.outer_px):
+                    blue_usable = False
+            if blue_usable and direct_tag:
+                ratio = blue.outer_px / max(tag.outer_px, 1)
+                center_error = float(np.hypot(blue.cx - tag.cx, blue.cy - tag.cy))
+                if not 1.25 <= ratio <= 2.40 or center_error > 0.25 * blue.outer_px:
+                    blue_usable = False
+
+        if blue_usable:
+            self._last_center = (blue.cx, blue.cy)
+            return PlatformDetection(
+                True,
+                blue.cx,
+                blue.cy,
+                blue.outer_px,
+                tag.outer_px if tag.found else 0,
+                blue.angle_cdeg,
+                max(55, min(100, blue.quality)),
+                int(FeatureFlag.APRILTAG_VALID | FeatureFlag.COLOR_SHAPE_TRACKED),
+                blue.debug_polygon,
+            )
+        if tag.found:
+            self._last_center = (tag.cx, tag.cy)
+            return tag
+        if blue_flags & FeatureFlag.AMBIGUOUS:
+            return PlatformDetection(False, flags=int(FeatureFlag.AMBIGUOUS))
+        return PlatformDetection(False)
 
 
 class PlatformDetector:

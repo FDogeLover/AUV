@@ -17,12 +17,18 @@ import numpy as np
 
 try:
     from .camera_backend import create_capture
-    from .detector import BlueSquareDetector, FeatureFlag, PlatformDetector
+    from .detector import (
+        AprilTagBlueFusionDetector, AprilTagDetector, BlueSquareDetector,
+        FeatureFlag, PlatformDetector,
+    )
     from .display_backend import create_display
     from .protocol import BAUDRATE, encode, encode_control, parse_control
 except ImportError:  # 允许直接python main.py运行
     from camera_backend import create_capture
-    from detector import BlueSquareDetector, FeatureFlag, PlatformDetector
+    from detector import (
+        AprilTagBlueFusionDetector, AprilTagDetector, BlueSquareDetector,
+        FeatureFlag, PlatformDetector,
+    )
     from display_backend import create_display
     from protocol import BAUDRATE, encode, encode_control, parse_control
 
@@ -32,11 +38,37 @@ def _stream_id() -> int:
     return value or 1
 
 
-def _create_detector(target: str):
+def _create_detector(
+    target: str,
+    tag_family: str = "tag36h11",
+    tag_id: int = 0,
+    tag_min_side_px: float = 18.0,
+    tag_detect_scale: float = 0.75,
+    tag_redetect_interval: int = 5,
+    tag_max_flow_age_s: float = 0.5,
+):
     if target == "formal":
         return PlatformDetector()
     if target == "blue_square":
         return BlueSquareDetector()
+    if target == "apriltag":
+        return AprilTagDetector(
+            tag_family,
+            tag_id,
+            tag_min_side_px,
+            tag_detect_scale,
+            tag_redetect_interval,
+            tag_max_flow_age_s,
+        )
+    if target == "apriltag_blue_fusion":
+        return AprilTagBlueFusionDetector(
+            tag_family,
+            tag_id,
+            tag_min_side_px,
+            tag_detect_scale,
+            tag_redetect_interval,
+            tag_max_flow_age_s,
+        )
     raise ValueError(f"未知目标类型: {target}")
 
 
@@ -49,7 +81,13 @@ def _annotate_frame(frame, result, target: str, processing_fps: float):
         cv2.MARKER_CROSS, 24, 2,
     )
     if result and result.found:
-        mode = "PARTIAL" if FeatureFlag(result.flags) & FeatureFlag.PARTIAL else "FULL"
+        flags = FeatureFlag(result.flags)
+        if flags & FeatureFlag.COLOR_SHAPE_TRACKED:
+            mode = "COLOR"
+        elif flags & FeatureFlag.TEMPORAL_TRACKED:
+            mode = "FLOW"
+        else:
+            mode = "PARTIAL" if flags & FeatureFlag.PARTIAL else "FULL"
         if result.debug_polygon:
             polygon = cv2.convexHull(
                 np.asarray(result.debug_polygon, dtype=np.int32)
@@ -187,6 +225,12 @@ def run(
     debug_record: str = "off",
     debug_record_dir: str = "debug_frames",
     debug_record_interval: float = 1.0,
+    tag_family: str = "tag36h11",
+    tag_id: int = 0,
+    tag_min_side_px: float = 18.0,
+    tag_detect_scale: float = 0.75,
+    tag_redetect_interval: int = 5,
+    tag_max_flow_age_s: float = 0.5,
 ) -> int:
     if debug_record_interval <= 0:
         raise ValueError("debug record interval must be greater than zero")
@@ -200,7 +244,10 @@ def run(
     if serial_port:
         import serial
         output = serial.Serial(serial_port, BAUDRATE, timeout=0, write_timeout=0.03)
-    detector = _create_detector(target)
+    detector = _create_detector(
+        target, tag_family, tag_id, tag_min_side_px, tag_detect_scale,
+        tag_redetect_interval, tag_max_flow_age_s,
+    )
     recorder = DebugFrameRecorder(
         debug_record == "on", debug_record_dir, debug_record_interval
     )
@@ -270,7 +317,17 @@ def main() -> int:
     parser.add_argument("--display", choices=("off", "builtin", "opencv"), default="off")
     parser.add_argument("--display-fps", type=float, default=10.0)
     parser.add_argument("--display-rotation", type=int, choices=(0, 90, 180, 270), default=0)
-    parser.add_argument("--target", choices=("formal", "blue_square"), default="formal")
+    parser.add_argument(
+        "--target",
+        choices=("formal", "blue_square", "apriltag", "apriltag_blue_fusion"),
+        default="formal",
+    )
+    parser.add_argument("--tag-family", default="tag36h11")
+    parser.add_argument("--tag-id", type=int, default=0)
+    parser.add_argument("--tag-min-side-px", type=float, default=18.0)
+    parser.add_argument("--tag-detect-scale", type=float, default=0.75)
+    parser.add_argument("--tag-redetect-interval", type=int, default=5)
+    parser.add_argument("--tag-max-flow-age", type=float, default=0.5)
     parser.add_argument("--debug-record", choices=("on", "off"), default="off")
     parser.add_argument("--debug-record-dir", default="debug_frames")
     parser.add_argument("--debug-record-interval", type=float, default=1.0)
@@ -282,6 +339,9 @@ def main() -> int:
         args.width, args.height, args.hmirror, args.vflip,
         display_mode, args.display_fps, args.display_rotation, args.target,
         args.debug_record, args.debug_record_dir, args.debug_record_interval,
+        args.tag_family, args.tag_id, args.tag_min_side_px,
+        args.tag_detect_scale, args.tag_redetect_interval,
+        args.tag_max_flow_age,
     )
 
 

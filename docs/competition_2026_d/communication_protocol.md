@@ -167,9 +167,11 @@ VS1,stream_id,seq,capture_ms,found,cx,cy,outer_px,inner_px,angle_cdeg,quality,fl
 - `seq` 每个采集帧递增；重复seq不能重复更新控制器。
 - Pi记录本地接收时间并判断新鲜度。
 - `quality` 范围0~100。
-- `flags` 定义 `OUTER_VALID/INNER_VALID/CROSS_VALID/PARTIAL/TOO_CLOSE/AMBIGUOUS/SURROGATE_SQUARE/APRILTAG_VALID`，支持以中心AprilTag主定位，并在近地由完整双圆切换到内圆、十字或部分特征。`APRILTAG_VALID`预留为bit 7；在Cyber Camera与Pi/RDK两端实现并通过测试向量之前不得置位。
+- `flags` 定义 `OUTER_VALID/INNER_VALID/CROSS_VALID/PARTIAL/TOO_CLOSE/AMBIGUOUS/SURROGATE_SQUARE/APRILTAG_VALID/TEMPORAL_TRACKED/COLOR_SHAPE_TRACKED`。`APRILTAG_VALID` 为 bit 7；`TEMPORAL_TRACKED` 为 bit 8，表示该观测由最近一次正确ID直接解码初始化后的短时光流续跟产生；`COLOR_SHAPE_TRACKED` 为 bit 9，表示已由正确ID Tag 建立身份锁、当前中心来自与Tag几何一致且连续的蓝色外框。光流和颜色均不得独立确认身份；两者在RDK按0.12 m/s低速模式使用。VS1字段数和CRC范围保持不变。
 - `SURROGATE_SQUARE` 仅用于器材未齐时的25 cm蓝色方形静态控制测试；此时 `outer_px` 表示方形平均像素边长。正式任务默认拒绝该flag，只有显式测试配置才允许进入视觉伺服。
 - 当前单Tag方案只接受配置的Tag ID，Tag贴在降落圆盘中心；VS1中`cx/cy`表示Tag中心，`outer_px`表示四边平均像素长度，`inner_px`置0，`angle_cdeg`表示Tag平面航向。Tag ID只在Cyber Camera本地完成白名单校验，不增加VS1字段。
+- RDK的 `vision_target_source` 只允许 `apriltag` 或 `blue_square`，两种来源互斥且只在进程启动时读取。融合模式仍归入经过身份确认的 `apriltag` 来源，使用 `APRILTAG_VALID|COLOR_SHAPE_TRACKED`，不得置 `SURROGATE_SQUARE`。`APRILTAG_VALID` 与 `SURROGATE_SQUARE` 同时置位、`APRILTAG_VALID|PARTIAL`、错误ID或多Tag场景均不得进入闭环。
+- 部署顺序固定为先RDK、后Cyber Camera；两端完成VS1和PING/PONG验证后才允许装桨。版本不确定时按无视觉能力处理。
 - 若以后增加多Tag或Tag不再位于圆盘中心，必须定义VS2并显式传递`target_kind/target_id`；不得改变VS1现有字段语义，也不得由各模块私自扩展不同格式。
 - 正式目标特征来源切换需要连续多帧确认；来源冲突或中心突跳必须设置 `AMBIGUOUS`，控制端不得使用。
 - CRC16覆盖 `VS1` 至 `flags` 的ASCII字节。

@@ -29,6 +29,7 @@ class StaticSquareServoConfig:
     max_jerk_m_s3: float = 0.60
     kp: float = 0.75
     kd: float = 0.22
+    target_velocity_feedforward_gain: float = 0.0
     deadband_m: float = 0.05
     centered_hold_s: float = 3.0
     max_duration_s: float = 15.0
@@ -40,6 +41,7 @@ class StaticSquareServoConfig:
     t265_jump_window_s: float = 0.20
     t265_jump_m: float = 0.30
     max_measurement_innovation_m: float = 0.20
+    vision_target_source: str = "apriltag"
 
 
 @dataclass(frozen=True)
@@ -57,6 +59,7 @@ class ServoSnapshot:
     command_m_s: tuple[float, float]
     command_cm_s: tuple[int, int]
     radius_m: float
+    target_source: str
 
 
 class StaticSquareServo:
@@ -68,6 +71,10 @@ class StaticSquareServo:
         self.reader = reader
         self.config = config or StaticSquareServoConfig()
         cfg = self.config
+        if cfg.vision_target_source not in ("apriltag", "blue_square"):
+            raise ValueError(
+                f"unsupported vision target source: {cfg.vision_target_source}"
+            )
         self.tracker = PlatformTracker(TrackerConfig(
             max_speed_m_s=0.50,
             max_innovation_m=cfg.max_measurement_innovation_m,
@@ -84,12 +91,13 @@ class StaticSquareServo:
             max_estimate_age_s=cfg.max_observation_age_s,
             max_uncertainty_m=0.30,
             position_deadband_m=cfg.deadband_m,
-            target_velocity_feedforward_gain=0.0,
+            target_velocity_feedforward_gain=cfg.target_velocity_feedforward_gain,
         ))
         self._armed = False
         self._finished = False
         self._faulted = False
         self._exiting = False
+        self._completion_enabled = True
         self._reason = "not_armed"
         self._mode = "LOST"
         self._start_time: float | None = None
@@ -100,13 +108,15 @@ class StaticSquareServo:
         self._full_measurements = deque(maxlen=max(1, cfg.confirm_frames))
         self._last_key: tuple[int, int] | None = None
         self._last_full_time: float | None = None
+        self._last_full_temporal = False
+        self._last_full_color = False
         self._last_partial_time: float | None = None
         self._partial_direction = (0.0, 0.0)
         self._centered_since: float | None = None
         self._last_command_m_s = (0.0, 0.0)
         self._last_snapshot = ServoSnapshot(
             "LOST", "not_armed", False, False, False, None, None, None,
-            None, None, (0.0, 0.0), (0, 0), 0.0,
+            None, None, (0.0, 0.0), (0, 0), 0.0, cfg.vision_target_source,
         )
 
     @property
@@ -128,6 +138,27 @@ class StaticSquareServo:
     def snapshot(self) -> ServoSnapshot:
         return self._last_snapshot
 
+    @property
+    def completion_enabled(self) -> bool:
+        return self._completion_enabled
+
+    def set_completion_enabled(self, enabled: bool) -> None:
+        """允许任务在下降期间持续追踪，到达目标高度后再允许居中退出。"""
+        self._completion_enabled = bool(enabled)
+
+    def observation_usable_for_preflight(self, observation, now: float) -> bool:
+        if observation is None:
+            return False
+        flags = FeatureFlag(observation.flags)
+        if flags & FeatureFlag.PARTIAL:
+            return False
+        return observation.usable(
+            now,
+            self.config.max_observation_age_s,
+            self.config.min_quality_full,
+            target_source=self.config.vision_target_source,
+        )
+
     def arm(self, now: float, position_xy: tuple[float, float]) -> None:
         if self._faulted:
             raise RuntimeError("视觉故障已锁存，本次任务禁止重新接管")
@@ -144,6 +175,8 @@ class StaticSquareServo:
         self._full_measurements.clear()
         self._last_key = None
         self._last_full_time = None
+        self._last_full_temporal = False
+        self._last_full_color = False
         self._last_partial_time = None
         self._partial_direction = (0.0, 0.0)
         self._centered_since = None
@@ -162,6 +195,7 @@ class StaticSquareServo:
         self._last_snapshot = ServoSnapshot(
             "FAULT", self._reason, False, True, True, None, None, None,
             None, None, (0.0, 0.0), (0, 0), 0.0,
+            self.config.vision_target_source,
         )
 
     def __call__(self, context: dict) -> dict | None:
@@ -177,7 +211,7 @@ class StaticSquareServo:
             return self._fault_decision(fault, position)
 
         radius = math.hypot(position[0] - self._anchor_xy[0], position[1] - self._anchor_xy[1])
-        if radius >= self.config.hard_radius_m:
+        if self.config.hard_radius_m > 0.0 and radius >= self.config.hard_radius_m:
             return self._fault_decision("hard_geofence", position)
         if now - self._start_time >= self.config.max_duration_s:
             self._begin_exit("hard_timeout")
@@ -185,6 +219,17 @@ class StaticSquareServo:
         observation = self.reader.latest(now, self.config.max_observation_age_s)
         if not self.reader.is_running():
             return self._fault_decision("cybercam_reader_stopped", position)
+        # 旧轨迹超过视觉新鲜度后不再用创新门限阻挡重新捕获。先清除旧状态，
+        # 随后的连续有效帧可在目标已移动到新位置时重新初始化跟踪器。
+        if (
+            self._last_full_time is not None
+            and now - self._last_full_time > self.config.max_observation_age_s
+        ):
+            self.tracker.reset()
+            self._last_full_time = None
+            self._last_full_temporal = False
+            self._last_full_color = False
+            self._full_measurements.clear()
         if observation is not None:
             self._consume_new_observation(now, observation, position, velocity)
 
@@ -242,10 +287,20 @@ class StaticSquareServo:
         if not observation.found or flags & (FeatureFlag.AMBIGUOUS | FeatureFlag.TOO_CLOSE):
             self._full_measurements.clear()
             return
-        if not flags & FeatureFlag.SURROGATE_SQUARE:
+        surrogate = bool(flags & FeatureFlag.SURROGATE_SQUARE)
+        apriltag = bool(flags & FeatureFlag.APRILTAG_VALID)
+        if surrogate and apriltag:
+            self._full_measurements.clear()
+            return
+        if self.config.vision_target_source == "apriltag":
+            source_matches = apriltag and not bool(flags & FeatureFlag.PARTIAL)
+        else:
+            source_matches = surrogate
+        if not source_matches:
             self._full_measurements.clear()
             return
         error_x_px = self.config.image_cx_px - observation.cx
+        # 融合闭环实飞1确认：目标在画面上方时必须输出+Y；X方向保持不变。
         error_y_px = self.config.image_cy_px - observation.cy
         if flags & FeatureFlag.PARTIAL:
             self._full_measurements.clear()
@@ -277,6 +332,8 @@ class StaticSquareServo:
             median_x, median_y, observation.received_monotonic, median_quality
         ) is not None:
             self._last_full_time = observation.received_monotonic
+            self._last_full_temporal = bool(flags & FeatureFlag.TEMPORAL_TRACKED)
+            self._last_full_color = bool(flags & FeatureFlag.COLOR_SHAPE_TRACKED)
 
     def _tracking_command(self, now, observation, position, velocity):
         if self._last_partial_time is not None and (
@@ -306,26 +363,42 @@ class StaticSquareServo:
             if fresh_full and error <= self.config.deadband_m:
                 if self._centered_since is None:
                     self._centered_since = now
-                elif now - self._centered_since >= self.config.centered_hold_s:
+                elif (
+                    self._completion_enabled
+                    and now - self._centered_since >= self.config.centered_hold_s
+                ):
                     self._begin_exit("centered_hold_complete")
                 mode = "CENTERED"
             else:
                 self._centered_since = None
                 mode = "FULL_TRACK" if fresh_full else "LOST"
             vx, vy = command.vx_m_s, command.vy_m_s
+            temporal = fresh_full and self._last_full_temporal
+            color = fresh_full and self._last_full_color
+            if temporal or color:
+                speed = math.hypot(vx, vy)
+                if speed > self.config.partial_max_speed_m_s:
+                    scale = self.config.partial_max_speed_m_s / speed
+                    vx, vy = vx * scale, vy * scale
             if not fresh_full:
                 age = now - self._last_full_time
                 decay = max(0.0, 1.0 - age / self.config.max_observation_age_s)
                 vx, vy = vx * decay, vy * decay
+            if color:
+                mode = "COLOR_TRACK"
+            elif temporal:
+                mode = "TEMPORAL_TRACK"
             return (vx, vy), mode
 
         self._centered_since = None
-        # 超过0.15s门限后安全性优先于平滑性：不能让限加速度器继续发送
+        # 超过配置的新鲜度门限后安全性优先于平滑性：不能让限加速度器继续发送
         # 由旧观测产生的残余速度。重置整形器并在本周期严格归零。
         self.controller.reset(now, (0.0, 0.0))
         return (0.0, 0.0), "LOST"
 
     def _apply_soft_geofence(self, command, position):
+        if self.config.soft_radius_m <= 0.0:
+            return command
         dx = position[0] - self._anchor_xy[0]
         dy = position[1] - self._anchor_xy[1]
         radius = math.hypot(dx, dy)
@@ -354,7 +427,7 @@ class StaticSquareServo:
         radius = math.hypot(position[0] - self._anchor_xy[0], position[1] - self._anchor_xy[1])
         self._last_snapshot = ServoSnapshot(
             "FAULT", reason, False, True, True, None, None, None, None, None,
-            (0.0, 0.0), (0, 0), radius,
+            (0.0, 0.0), (0, 0), radius, self.config.vision_target_source,
         )
         return {
             "active": True, "fault": True, "vx_cms": 0, "vy_cms": 0,
@@ -381,12 +454,14 @@ class StaticSquareServo:
             (float(command[0]), float(command[1])),
             (vx_cms, vy_cms),
             radius,
+            self.config.vision_target_source,
         )
         return {
-            "active": True,
+            # LOST阶段交回基础T265位置闭环，避免持续发送零速度造成惯性漂移。
+            "active": mode != "LOST",
             "fault": False,
             "vx_cms": vx_cms,
             "vy_cms": vy_cms,
-            "source": "vision_xy",
+            "source": f"vision_xy_{self.config.vision_target_source}",
             "reason": mode.lower(),
         }

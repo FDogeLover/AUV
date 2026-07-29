@@ -4,6 +4,7 @@ import cv2
 import numpy as np
 
 from CyberCamera.boards.cybercam_d.detector import (
+    AprilTagDetector,
     BlueSquareDetector,
     FeatureFlag,
     PlatformDetection,
@@ -24,6 +25,15 @@ from drone_control.competition_2026_d.static_square_servo import (
     StaticSquareServo,
     StaticSquareServoConfig,
 )
+
+
+def april_tag_canvas(markers, shape=(300, 400)):
+    dictionary = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_APRILTAG_36H11)
+    image = np.full(shape, 255, np.uint8)
+    for tag_id, x, y, size in markers:
+        marker = cv2.aruco.generateImageMarker(dictionary, tag_id, size)
+        image[y:y + size, x:x + size] = marker
+    return cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
 
 
 class VisionCoreTest(unittest.TestCase):
@@ -74,6 +84,13 @@ class VisionCoreTest(unittest.TestCase):
         self.assertIsNotNone(accepted)
         self.assertEqual(gate.active_stream, 8)
 
+        tag_line = encode(
+            9, 1, 3000, True, 320, 240, 46, 0, 9000, 80,
+            int(FeatureFlag.APRILTAG_VALID),
+        )
+        tag_obs = parse_line(tag_line, received_monotonic=3.0)
+        self.assertEqual(tag_obs.flags, int(FeatureFlag.APRILTAG_VALID))
+
     def test_concentric_target_detection(self):
         image = np.full((480, 640, 3), 255, np.uint8)
         center = (350, 210)
@@ -86,6 +103,45 @@ class VisionCoreTest(unittest.TestCase):
         self.assertLess(abs(result.cx - center[0]), 6)
         self.assertLess(abs(result.cy - center[1]), 6)
         self.assertTrue(FeatureFlag(result.flags) & FeatureFlag.INNER_VALID)
+
+    def test_apriltag_id_center_geometry_and_color_cast(self):
+        image = april_tag_canvas([(0, 140, 90, 100)])
+        image[:, :, 0] = (image[:, :, 0] * 0.45).astype(np.uint8)
+        image[:, :, 1] = (image[:, :, 1] * 0.75).astype(np.uint8)
+        result = AprilTagDetector("tag36h11", 0).detect(image)
+        self.assertTrue(result.found)
+        self.assertLess(abs(result.cx - 190), 3)
+        self.assertLess(abs(result.cy - 140), 3)
+        self.assertGreater(result.outer_px, 90)
+        self.assertGreaterEqual(result.quality, 55)
+        self.assertTrue(FeatureFlag(result.flags) & FeatureFlag.APRILTAG_VALID)
+        self.assertEqual(len(result.debug_polygon), 4)
+
+    def test_apriltag_wrong_or_mixed_ids_are_ambiguous(self):
+        detector = AprilTagDetector("tag36h11", 0)
+        wrong = detector.detect(april_tag_canvas([(1, 140, 90, 100)]))
+        self.assertFalse(wrong.found)
+        self.assertTrue(FeatureFlag(wrong.flags) & FeatureFlag.AMBIGUOUS)
+        mixed = detector.detect(april_tag_canvas([
+            (0, 40, 100, 80), (1, 270, 100, 80),
+        ]))
+        self.assertFalse(mixed.found)
+        self.assertTrue(FeatureFlag(mixed.flags) & FeatureFlag.AMBIGUOUS)
+
+    def test_apriltag_too_small_is_rejected(self):
+        image = april_tag_canvas([(0, 191, 141, 17)])
+        self.assertFalse(AprilTagDetector("tag36h11", 0).detect(image).found)
+
+    def test_apriltag_rotated_marker_remains_valid(self):
+        dictionary = cv2.aruco.getPredefinedDictionary(
+            cv2.aruco.DICT_APRILTAG_36H11
+        )
+        marker = cv2.aruco.generateImageMarker(dictionary, 0, 100)
+        image = np.full((300, 400), 255, np.uint8)
+        image[90:190, 140:240] = cv2.rotate(marker, cv2.ROTATE_90_CLOCKWISE)
+        result = AprilTagDetector("tag36h11", 0).detect(image)
+        self.assertTrue(result.found)
+        self.assertGreaterEqual(abs(result.angle_cdeg), 8900)
 
     def test_large_inner_circle_and_cross_support_partial_near_mode(self):
         detector = PlatformDetector()
@@ -211,7 +267,9 @@ class VisionCoreTest(unittest.TestCase):
                 return True
 
         reader = FakeReader()
-        servo = StaticSquareServo(reader, StaticSquareServoConfig())
+        servo = StaticSquareServo(
+            reader, StaticSquareServoConfig(vision_target_source="blue_square")
+        )
         servo.arm(0.0, (0.0, 0.0))
         for seq, now in enumerate((0.03, 0.06, 0.09), 1):
             reader.observation = PlatformObservation(

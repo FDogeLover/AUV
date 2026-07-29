@@ -54,3 +54,4 @@
 - [D题中心AprilTag与T265高度策略](design_d_task_apriltag_t265_height.md) — 2026-07-29: 单个中心Tag主定位；T265 Z验证通过后主控高度，激光保留近地辅助
 - [T-017 T265与激光高度实飞结论](project_t017_t265_laser_height.md) — 2026-07-29: T265趋势可靠但跨次绝对偏差不固定；采用起飞后激光校准、上车后冻结、降落末段激光对盘测距
 - [T-018 蓝色方块1.5米视觉采数](project_t018_blue_square_vision.md) — 2026-07-29: VS1链路稳定；部分出画是识别率下降主因；下一步验证带滤波、死区和限幅的XY视觉伺服
+- [D题 AprilTag＋蓝框融合视觉伺服](project_d_apriltag_blue_fusion_servo.md) — 2026-07-30: 1.5m检测率98%；XY误差227→31px；已实现下降期间持续追踪，待实飞验证
