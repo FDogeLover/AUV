@@ -3,13 +3,23 @@ import unittest
 import cv2
 import numpy as np
 
-from CyberCamera.boards.cybercam_d.detector import FeatureFlag, PlatformDetector
+from CyberCamera.boards.cybercam_d.detector import (
+    BlueSquareDetector,
+    FeatureFlag,
+    PlatformDetection,
+    PlatformDetector,
+)
 from CyberCamera.boards.cybercam_d.protocol import encode
 from CyberCamera.boards.cybercam_d.camera_backend import WalnutPiCSICapture
-from drone_control.competition_2026_d.control.formation_controller import FormationController
+from drone_control.competition_2026_d.control.formation_controller import (
+    FormationConfig,
+    FormationController,
+)
 from drone_control.competition_2026_d.vision.camera_model import CameraIntrinsics, DownwardCameraModel
 from drone_control.competition_2026_d.vision.cybercam_protocol import ObservationGate, parse_line
 from drone_control.competition_2026_d.vision.platform_tracker import PlatformTracker
+from drone_control.competition_2026_d.vision.platform_observation import PlatformObservation
+from drone_control.competition_2026_d.vision.platform_tracker import PlatformEstimate
 
 
 class VisionCoreTest(unittest.TestCase):
@@ -74,14 +84,81 @@ class VisionCoreTest(unittest.TestCase):
         self.assertTrue(FeatureFlag(result.flags) & FeatureFlag.INNER_VALID)
 
     def test_large_inner_circle_and_cross_support_partial_near_mode(self):
+        detector = PlatformDetector()
+        far = np.full((240, 320, 3), 255, np.uint8)
+        cv2.circle(far, (160, 120), 90, (0, 0, 0), 8)
+        cv2.circle(far, (160, 120), 54, (0, 0, 0), 7)
+        cv2.line(far, (125, 120), (195, 120), (0, 0, 0), 7)
+        cv2.line(far, (160, 85), (160, 155), (0, 0, 0), 7)
+        self.assertTrue(detector.detect(far).found)
         image = np.full((240, 320, 3), 255, np.uint8)
         center = (160, 120)
         cv2.circle(image, center, 55, (0, 0, 0), 8)
         cv2.line(image, (120, 120), (200, 120), (0, 0, 0), 9)
         cv2.line(image, (160, 80), (160, 160), (0, 0, 0), 9)
-        result = PlatformDetector().detect(image)
+        result = detector.detect(image)
         self.assertTrue(result.found)
         self.assertTrue(FeatureFlag(result.flags) & FeatureFlag.CROSS_VALID)
+
+    def test_cross_only_cannot_acquire_without_prior_circle_track(self):
+        image = np.full((240, 320, 3), 255, np.uint8)
+        cv2.line(image, (100, 120), (220, 120), (0, 0, 0), 9)
+        cv2.line(image, (160, 60), (160, 180), (0, 0, 0), 9)
+        self.assertFalse(PlatformDetector().detect(image).found)
+
+    def test_formal_detector_releases_stale_center_after_losses(self):
+        detector = PlatformDetector(source_confirm_frames=1)
+        first = PlatformDetection(True, 60, 60, 100, 60, 0, 90, 3)
+        far = PlatformDetection(True, 250, 170, 100, 60, 0, 90, 3)
+        self.assertTrue(detector._apply_temporal(first, "full", 320, 240).found)
+        for _ in range(5):
+            self.assertFalse(detector._apply_temporal(far, "full", 320, 240).found)
+        self.assertTrue(detector._apply_temporal(far, "full", 320, 240).found)
+
+    def test_blue_square_detection_and_surrogate_flag(self):
+        image = np.full((240, 320, 3), (95, 120, 145), np.uint8)
+        center = (190, 105)
+        box = cv2.boxPoints((center, (82, 78), 7.0)).astype(np.int32)
+        cv2.fillConvexPoly(image, box, (255, 120, 10))
+        result = BlueSquareDetector().detect(image)
+        self.assertTrue(result.found)
+        self.assertLess(abs(result.cx - center[0]), 3)
+        self.assertLess(abs(result.cy - center[1]), 3)
+        self.assertGreater(result.outer_px, 70)
+        self.assertTrue(FeatureFlag(result.flags) & FeatureFlag.SURROGATE_SQUARE)
+        self.assertFalse(FeatureFlag(result.flags) & FeatureFlag.OUTER_VALID)
+        self.assertEqual(len(result.debug_polygon), 4)
+
+    def test_blue_line_and_rectangle_are_rejected(self):
+        image = np.full((240, 320, 3), 220, np.uint8)
+        cv2.line(image, (10, 20), (300, 210), (255, 80, 0), 5)
+        cv2.rectangle(image, (30, 170), (230, 205), (255, 80, 0), -1)
+        self.assertFalse(BlueSquareDetector().detect(image).found)
+
+    def test_surrogate_observation_requires_explicit_permission(self):
+        obs = PlatformObservation(
+            1, 2, 3, True, 160, 120, 70, 0, 0, 90,
+            int(FeatureFlag.SURROGATE_SQUARE), 10.0,
+        )
+        self.assertFalse(obs.usable(10.05, 0.15, 55))
+        self.assertTrue(obs.usable(10.05, 0.15, 55, allow_surrogate=True))
+
+    def test_static_profile_disables_target_velocity_and_uses_deadband(self):
+        controller = FormationController(FormationConfig(
+            kp=0.75,
+            kd=0.22,
+            max_speed_m_s=0.10,
+            max_accel_m_s2=0.18,
+            max_jerk_m_s3=0.60,
+            position_deadband_m=0.05,
+            target_velocity_feedforward_gain=0.0,
+        ))
+        controller.reset(0.0)
+        estimate = PlatformEstimate(0.03, 0.0, 1.0, 0.0, 0.1, 0.02, False)
+        command = controller.command(estimate, (0.0, 0.0), (0.0, 0.0), 0.1)
+        self.assertTrue(command.valid)
+        self.assertAlmostEqual(command.vx_m_s, 0.0)
+        self.assertAlmostEqual(command.vy_m_s, 0.0)
 
     def test_camera_signs_tracker_and_controller_limits(self):
         model = DownwardCameraModel(CameraIntrinsics(500, 500, 320, 240))

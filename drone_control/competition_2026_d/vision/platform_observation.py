@@ -11,6 +11,7 @@ class FeatureFlag(IntFlag):
     PARTIAL = 1 << 3
     TOO_CLOSE = 1 << 4
     AMBIGUOUS = 1 << 5
+    SURROGATE_SQUARE = 1 << 6
 
 
 @dataclass(frozen=True)
@@ -31,11 +32,20 @@ class PlatformObservation:
     def age_s(self, now: float) -> float:
         return max(0.0, float(now) - self.received_monotonic)
 
-    def usable(self, now: float, max_age_s: float, min_quality: int) -> bool:
+    def usable(
+        self,
+        now: float,
+        max_age_s: float,
+        min_quality: int,
+        *,
+        allow_surrogate: bool = False,
+    ) -> bool:
         bad = FeatureFlag.TOO_CLOSE | FeatureFlag.AMBIGUOUS
+        flags = FeatureFlag(self.flags)
         return (
             self.found
             and self.age_s(now) <= max_age_s
             and self.quality >= min_quality
-            and not (FeatureFlag(self.flags) & bad)
+            and not (flags & bad)
+            and (allow_surrogate or not (flags & FeatureFlag.SURROGATE_SQUARE))
         )

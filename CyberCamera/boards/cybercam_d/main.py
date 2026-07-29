@@ -11,15 +11,16 @@ import sys
 import time
 
 import cv2
+import numpy as np
 
 try:
     from .camera_backend import create_capture
-    from .detector import PlatformDetector
+    from .detector import BlueSquareDetector, PlatformDetector
     from .display_backend import create_display
     from .protocol import BAUDRATE, encode
 except ImportError:  # 允许直接python main.py运行
     from camera_backend import create_capture
-    from detector import PlatformDetector
+    from detector import BlueSquareDetector, PlatformDetector
     from display_backend import create_display
     from protocol import BAUDRATE, encode
 
@@ -27,6 +28,14 @@ except ImportError:  # 允许直接python main.py运行
 def _stream_id() -> int:
     value = (time.monotonic_ns() ^ id(object())) & 0xFFFF
     return value or 1
+
+
+def _create_detector(target: str):
+    if target == "formal":
+        return PlatformDetector()
+    if target == "blue_square":
+        return BlueSquareDetector()
+    raise ValueError(f"未知目标类型: {target}")
 
 
 def run(
@@ -41,6 +50,7 @@ def run(
     display_mode: str = "off",
     display_fps: float = 10.0,
     display_rotation: int = 0,
+    target: str = "formal",
 ) -> int:
     capture = create_capture(
         backend, camera, width, height, hmirror=hmirror, vflip=vflip
@@ -52,10 +62,13 @@ def run(
     if serial_port:
         import serial
         output = serial.Serial(serial_port, BAUDRATE, timeout=0, write_timeout=0.03)
-    detector = PlatformDetector()
+    detector = _create_detector(target)
     stream_id = _stream_id()
     seq = 0
     next_display = 0.0
+    fps_started = time.monotonic()
+    fps_frames = 0
+    processing_fps = 0.0
     try:
         while True:
             ok, frame = capture.read()
@@ -76,12 +89,33 @@ def run(
             else:
                 output.write(packet)
             seq = (seq + 1) & 0xFFFFFFFF
+            fps_frames += 1
+            fps_now = time.monotonic()
+            fps_elapsed = fps_now - fps_started
+            if fps_elapsed >= 0.75:
+                processing_fps = fps_frames / fps_elapsed
+                fps_started = fps_now
+                fps_frames = 0
             if display.enabled and ok and time.monotonic() >= next_display:
                 annotated = frame.copy()
+                h, w = annotated.shape[:2]
+                frame_center = (w // 2, h // 2)
+                cv2.drawMarker(
+                    annotated, frame_center, (255, 255, 255),
+                    cv2.MARKER_CROSS, 24, 2,
+                )
                 if result and result.found:
+                    if result.debug_polygon:
+                        polygon = cv2.convexHull(
+                            np.asarray(result.debug_polygon, dtype=np.int32)
+                        )
+                        cv2.polylines(annotated, [polygon], True, (0, 255, 0), 2)
                     cv2.circle(annotated, (result.cx, result.cy), 6, (0, 0, 255), 2)
+                    cv2.line(annotated, frame_center, (result.cx, result.cy), (0, 255, 255), 1)
                     cv2.putText(
-                        annotated, f"FOUND Q={result.quality} flags=0x{result.flags:02X}",
+                        annotated,
+                        f"{target} Q={result.quality} E=({result.cx-frame_center[0]},"
+                        f"{result.cy-frame_center[1]})",
                         (12, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 0, 255), 2,
                     )
                 else:
@@ -89,6 +123,10 @@ def run(
                         annotated, "NO TARGET", (12, 28),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 180, 255), 2,
                     )
+                cv2.putText(
+                    annotated, f"PROC {processing_fps:.1f} FPS",
+                    (12, h - 14), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 255, 255), 2,
+                )
                 if not display.show(annotated):
                     break
                 next_display = time.monotonic() + 1.0 / max(1.0, display_fps)
@@ -113,13 +151,14 @@ def main() -> int:
     parser.add_argument("--display", choices=("off", "builtin", "opencv"), default="off")
     parser.add_argument("--display-fps", type=float, default=10.0)
     parser.add_argument("--display-rotation", type=int, choices=(0, 90, 180, 270), default=0)
+    parser.add_argument("--target", choices=("formal", "blue_square"), default="formal")
     args = parser.parse_args()
     camera = int(args.camera) if str(args.camera).isdigit() else args.camera
     display_mode = "opencv" if args.preview and args.display == "off" else args.display
     return run(
         camera, args.serial, args.preview, args.backend,
         args.width, args.height, args.hmirror, args.vflip,
-        display_mode, args.display_fps, args.display_rotation,
+        display_mode, args.display_fps, args.display_rotation, args.target,
     )
 
 

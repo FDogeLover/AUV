@@ -17,6 +17,8 @@ class FormationConfig:
     max_jerk_m_s3: float = 1.2
     max_estimate_age_s: float = 0.20
     max_uncertainty_m: float = 0.30
+    position_deadband_m: float = 0.0
+    target_velocity_feedforward_gain: float = 1.0
 
 
 @dataclass(frozen=True)
@@ -56,10 +58,14 @@ class FormationController:
             return FormationCommand(0.0, 0.0, False, "uncertain_estimate")
         ex = estimate.x_m + desired_offset_xy[0] - drone_position_xy[0]
         ey = estimate.y_m + desired_offset_xy[1] - drone_position_xy[1]
-        evx = estimate.vx_m_s - drone_velocity_xy[0]
-        evy = estimate.vy_m_s - drone_velocity_xy[1]
-        target_vx = estimate.vx_m_s + cfg.kp * ex + cfg.kd * evx
-        target_vy = estimate.vy_m_s + cfg.kp * ey + cfg.kd * evy
+        if math.hypot(ex, ey) <= cfg.position_deadband_m:
+            ex, ey = 0.0, 0.0
+        feedforward_vx = cfg.target_velocity_feedforward_gain * estimate.vx_m_s
+        feedforward_vy = cfg.target_velocity_feedforward_gain * estimate.vy_m_s
+        evx = feedforward_vx - drone_velocity_xy[0]
+        evy = feedforward_vy - drone_velocity_xy[1]
+        target_vx = feedforward_vx + cfg.kp * ex + cfg.kd * evx
+        target_vy = feedforward_vy + cfg.kp * ey + cfg.kd * evy
         target_vx, target_vy = self._limit_norm(target_vx, target_vy, cfg.max_speed_m_s)
         if self._last_time is None or timestamp <= self._last_time:
             self.reset(timestamp, self._last_velocity)

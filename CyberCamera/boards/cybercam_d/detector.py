@@ -16,6 +16,7 @@ class FeatureFlag(IntFlag):
     PARTIAL = 1 << 3
     TOO_CLOSE = 1 << 4
     AMBIGUOUS = 1 << 5
+    SURROGATE_SQUARE = 1 << 6
 
 
 @dataclass(frozen=True)
@@ -28,6 +29,7 @@ class PlatformDetection:
     angle_cdeg: int = 0
     quality: int = 0
     flags: int = 0
+    debug_polygon: tuple[tuple[int, int], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -44,6 +46,85 @@ class _Ellipse:
         return 0.5 * (self.major + self.minor)
 
 
+class BlueSquareDetector:
+    """25 cm蓝色方形临时靶标；只用于静态控制测试。"""
+
+    def __init__(
+        self,
+        hsv_lower: tuple[int, int, int] = (85, 75, 55),
+        hsv_upper: tuple[int, int, int] = (135, 255, 255),
+        min_area_ratio: float = 0.002,
+        max_area_ratio: float = 0.70,
+        min_aspect_ratio: float = 0.70,
+        min_rectangularity: float = 0.72,
+        min_solidity: float = 0.88,
+    ) -> None:
+        self.hsv_lower = np.asarray(hsv_lower, dtype=np.uint8)
+        self.hsv_upper = np.asarray(hsv_upper, dtype=np.uint8)
+        self.min_area_ratio = min_area_ratio
+        self.max_area_ratio = max_area_ratio
+        self.min_aspect_ratio = min_aspect_ratio
+        self.min_rectangularity = min_rectangularity
+        self.min_solidity = min_solidity
+
+    def detect(self, frame: np.ndarray) -> PlatformDetection:
+        if frame is None or frame.size == 0 or frame.ndim != 3:
+            return PlatformDetection(False)
+        h, w = frame.shape[:2]
+        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+        mask = cv2.inRange(hsv, self.hsv_lower, self.hsv_upper)
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel, iterations=2)
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        frame_area = float(w * h)
+        best = None
+        for contour in contours:
+            area = abs(float(cv2.contourArea(contour)))
+            area_ratio = area / max(frame_area, 1.0)
+            if not self.min_area_ratio <= area_ratio <= self.max_area_ratio:
+                continue
+            hull_area = abs(float(cv2.contourArea(cv2.convexHull(contour))))
+            solidity = area / max(hull_area, 1.0)
+            if solidity < self.min_solidity:
+                continue
+            rect = cv2.minAreaRect(contour)
+            (cx, cy), (rw, rh), angle = rect
+            short, long = min(rw, rh), max(rw, rh)
+            if short < 8.0 or long <= 0.0:
+                continue
+            aspect = short / long
+            rectangularity = area / max(rw * rh, 1.0)
+            if aspect < self.min_aspect_ratio or rectangularity < self.min_rectangularity:
+                continue
+            aspect_score = (aspect - self.min_aspect_ratio) / (1.0 - self.min_aspect_ratio)
+            rect_score = (rectangularity - self.min_rectangularity) / (1.0 - self.min_rectangularity)
+            area_score = min(1.0, area_ratio / 0.04)
+            quality = 100.0 * (
+                0.34 * aspect_score + 0.30 * rect_score
+                + 0.20 * solidity + 0.16 * area_score
+            )
+            score = quality + min(20.0, area_ratio * 200.0)
+            if best is None or score > best[0]:
+                box = cv2.boxPoints(rect)
+                polygon = tuple((int(round(x)), int(round(y))) for x, y in box)
+                best = (score, cx, cy, 0.5 * (rw + rh), angle, quality, polygon)
+        if best is None:
+            return PlatformDetection(False)
+        _, cx, cy, side, angle, quality, polygon = best
+        return PlatformDetection(
+            True,
+            int(round(cx)),
+            int(round(cy)),
+            int(round(side)),
+            0,
+            int(round(angle * 100.0)),
+            int(round(max(0.0, min(100.0, quality)))),
+            int(FeatureFlag.SURROGATE_SQUARE),
+            polygon,
+        )
+
+
 class PlatformDetector:
     """先找同心椭圆对；近地时退化到内圆/十字部分特征。"""
 
@@ -56,6 +137,8 @@ class PlatformDetector:
         too_close_ratio: float = 0.82,
         min_partial_diameter_px: float = 30.0,
         min_partial_cross_score: float = 0.60,
+        source_confirm_frames: int = 3,
+        max_center_jump_ratio: float = 0.25,
     ) -> None:
         self.min_diameter_px = min_diameter_px
         self.min_axis_ratio = min_axis_ratio
@@ -64,6 +147,13 @@ class PlatformDetector:
         self.too_close_ratio = too_close_ratio
         self.min_partial_diameter_px = min_partial_diameter_px
         self.min_partial_cross_score = min_partial_cross_score
+        self.source_confirm_frames = max(1, int(source_confirm_frames))
+        self.max_center_jump_ratio = max_center_jump_ratio
+        self._last_source: str | None = None
+        self._last_center: tuple[int, int] | None = None
+        self._pending_source: str | None = None
+        self._pending_count = 0
+        self._miss_count = 0
 
     def detect(self, frame: np.ndarray) -> PlatformDetection:
         if frame is None or frame.size == 0:
@@ -78,6 +168,8 @@ class PlatformDetector:
         ellipses = self._ellipses(contours)
         pair = self._best_pair(ellipses)
         h, w = gray.shape[:2]
+        candidate = None
+        source = None
         if pair is not None:
             outer, inner, score = pair
             cx = int(round((outer.cx + inner.cx) * 0.5))
@@ -89,26 +181,87 @@ class PlatformDetector:
             if outer.diameter > self.too_close_ratio * min(w, h):
                 flags |= FeatureFlag.TOO_CLOSE
             quality = int(round(max(0.0, min(1.0, 0.72 * score + 0.28 * cross)) * 100))
-            return PlatformDetection(
+            candidate = PlatformDetection(
                 True, cx, cy, int(round(outer.diameter)), int(round(inner.diameter)),
                 int(round(outer.angle * 100.0)), quality, int(flags),
             )
-
-        # 外圆出画后，完整的内圆仍可能保留。要求圆度和中心十字共同成立，
-        # 避免把赛道单条黑线当作近地目标。
-        partial = self._best_partial(ellipses, binary, w, h)
-        if partial is None:
+            source = "full"
+        else:
+            # 外圆出画后，完整的内圆仍可能保留。要求圆度和中心十字共同成立，
+            # 避免把赛道单条黑线当作近地目标。
+            partial = self._best_partial(ellipses, binary, w, h)
+            if partial is not None:
+                ellipse, cross = partial
+                flags = FeatureFlag.INNER_VALID | FeatureFlag.CROSS_VALID | FeatureFlag.PARTIAL
+                if ellipse.diameter > self.too_close_ratio * min(w, h):
+                    flags |= FeatureFlag.TOO_CLOSE
+                quality = int(round(min(0.78, 0.38 + 0.40 * cross) * 100))
+                candidate = PlatformDetection(
+                    True, int(round(ellipse.cx)), int(round(ellipse.cy)), 0,
+                    int(round(ellipse.diameter)), int(round(ellipse.angle * 100.0)),
+                    quality, int(flags),
+                )
+                source = "inner_cross"
+            else:
+                cross_only = self._best_cross(binary, w, h)
+                if cross_only is not None:
+                    cx, cy, score = cross_only
+                    candidate = PlatformDetection(
+                        True, cx, cy, 0, 0, 0,
+                        int(round(min(0.70, 0.30 + 0.40 * score) * 100)),
+                        int(FeatureFlag.CROSS_VALID | FeatureFlag.PARTIAL),
+                    )
+                    source = "cross"
+        if candidate is None or source is None:
+            self._pending_source = None
+            self._pending_count = 0
+            self._note_miss()
             return PlatformDetection(False)
-        ellipse, cross = partial
-        flags = FeatureFlag.INNER_VALID | FeatureFlag.CROSS_VALID | FeatureFlag.PARTIAL
-        if ellipse.diameter > self.too_close_ratio * min(w, h):
-            flags |= FeatureFlag.TOO_CLOSE
-        quality = int(round(min(0.78, 0.38 + 0.40 * cross) * 100))
-        return PlatformDetection(
-            True, int(round(ellipse.cx)), int(round(ellipse.cy)), 0,
-            int(round(ellipse.diameter)), int(round(ellipse.angle * 100.0)),
-            quality, int(flags),
-        )
+        return self._apply_temporal(candidate, source, w, h)
+
+    def _note_miss(self) -> None:
+        self._miss_count += 1
+        if self._miss_count >= 5:
+            self._last_source = None
+            self._last_center = None
+            self._pending_source = None
+            self._pending_count = 0
+
+    def _apply_temporal(
+        self, candidate: PlatformDetection, source: str, width: int, height: int
+    ) -> PlatformDetection:
+        if self._last_center is not None:
+            dx = candidate.cx - self._last_center[0]
+            dy = candidate.cy - self._last_center[1]
+            max_jump = max(24.0, self.max_center_jump_ratio * min(width, height))
+            if (dx * dx + dy * dy) ** 0.5 > max_jump:
+                self._note_miss()
+                return PlatformDetection(
+                    False, candidate.cx, candidate.cy,
+                    candidate.outer_px, candidate.inner_px, candidate.angle_cdeg,
+                    min(candidate.quality, 35),
+                    int(FeatureFlag(candidate.flags) | FeatureFlag.AMBIGUOUS),
+                )
+        if self._last_source is not None and source != self._last_source:
+            if source == self._pending_source:
+                self._pending_count += 1
+            else:
+                self._pending_source = source
+                self._pending_count = 1
+            if self._pending_count < self.source_confirm_frames:
+                return PlatformDetection(
+                    True, candidate.cx, candidate.cy,
+                    candidate.outer_px, candidate.inner_px, candidate.angle_cdeg,
+                    min(candidate.quality, 45),
+                    int(FeatureFlag(candidate.flags) | FeatureFlag.AMBIGUOUS),
+                    candidate.debug_polygon,
+                )
+        self._last_source = source
+        self._last_center = (candidate.cx, candidate.cy)
+        self._miss_count = 0
+        self._pending_source = None
+        self._pending_count = 0
+        return candidate
 
     def _ellipses(self, contours) -> list[_Ellipse]:
         result: list[_Ellipse] = []
@@ -146,6 +299,8 @@ class PlatformDetector:
         return best
 
     def _best_partial(self, ellipses, binary, width, height):
+        if self._last_center is None:
+            return None
         candidates = []
         for ellipse in ellipses:
             if ellipse.diameter < self.min_partial_diameter_px:
@@ -164,6 +319,48 @@ class PlatformDetector:
         if not candidates:
             return None
         return max(candidates, key=lambda item: item[0].diameter * item[1])
+
+    def _best_cross(self, binary: np.ndarray, width: int, height: int):
+        """在圆已出画时寻找完整十字交点；单臂或靠边交点不成立。"""
+        if self._last_center is None:
+            return None
+        arm = max(13, int(round(min(width, height) * 0.10)))
+        horizontal = cv2.morphologyEx(
+            binary, cv2.MORPH_OPEN,
+            cv2.getStructuringElement(cv2.MORPH_RECT, (arm, 3)),
+        )
+        vertical = cv2.morphologyEx(
+            binary, cv2.MORPH_OPEN,
+            cv2.getStructuringElement(cv2.MORPH_RECT, (3, arm)),
+        )
+        intersections = cv2.bitwise_and(
+            cv2.dilate(horizontal, np.ones((5, 5), np.uint8)),
+            cv2.dilate(vertical, np.ones((5, 5), np.uint8)),
+        )
+        count, _, stats, centroids = cv2.connectedComponentsWithStats(intersections)
+        candidates = []
+        margin = 0.08 * min(width, height)
+        for index in range(1, count):
+            if stats[index, cv2.CC_STAT_AREA] < 6:
+                continue
+            cx, cy = centroids[index]
+            if not (margin <= cx <= width - margin and margin <= cy <= height - margin):
+                continue
+            radius = max(arm, int(round(min(width, height) * 0.16)))
+            score = self._cross_score(binary, int(round(cx)), int(round(cy)), radius)
+            if score < max(0.68, self.min_partial_cross_score):
+                continue
+            if self._last_center is None:
+                center_distance = ((cx - width * 0.5) ** 2 + (cy - height * 0.5) ** 2) ** 0.5
+            else:
+                center_distance = (
+                    (cx - self._last_center[0]) ** 2 + (cy - self._last_center[1]) ** 2
+                ) ** 0.5
+            candidates.append((center_distance, -score, int(round(cx)), int(round(cy)), score))
+        if not candidates:
+            return None
+        _, _, cx, cy, score = min(candidates)
+        return cx, cy, score
 
     @staticmethod
     def _cross_score(binary: np.ndarray, cx: int, cy: int, radius: int) -> float:

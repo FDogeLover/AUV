@@ -28,12 +28,14 @@ class VisualServoCore:
         controller: FormationController | None = None,
         max_observation_age_s: float = 0.15,
         min_quality: int = 55,
+        allow_surrogate: bool = False,
     ) -> None:
         self.camera = camera
         self.tracker = tracker or PlatformTracker()
         self.controller = controller or FormationController()
         self.max_observation_age_s = max_observation_age_s
         self.min_quality = min_quality
+        self.allow_surrogate = allow_surrogate
         self._last_key: tuple[int, int] | None = None
 
     def tick(
@@ -45,7 +47,10 @@ class VisualServoCore:
         desired_offset_xy: tuple[float, float] = (0.0, 0.0),
     ) -> FormationCommand:
         if observation is not None and observation.usable(
-            now, self.max_observation_age_s, self.min_quality
+            now,
+            self.max_observation_age_s,
+            self.min_quality,
+            allow_surrogate=self.allow_surrogate,
         ):
             key = (observation.stream_id, observation.seq)
             if key != self._last_key:
