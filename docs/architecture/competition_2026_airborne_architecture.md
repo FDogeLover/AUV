@@ -111,7 +111,7 @@ drone_control/competition_2026/
 |------|------|
 | `preflight.py` | 静态检查：航线完整性、动作合法性、磁盘空间、会话可写、可选服务就绪状态 |
 | `gpio_led.py` | RGB LED 控制 + 优先级租约系统（`SAFETY > STARTUP > ACTION`），防止多模块争抢冲突 |
-| `gpio_button.py` | BCM17 一键起飞按钮，物理门禁 |
+| `gpio_button.py` | BCM5（物理Pin29）一键起飞按钮，物理门禁 |
 
 ---
 
@@ -149,7 +149,7 @@ competition_main.py
 │      └─ 失败时：required 服务失败 → 终止；非 required → warning 继续
 │
 ├─ 7. 导入 main.main() ─── 飞控阶段
-│      ├─ wait_for_start_button() → GPIO BCM17
+│      ├─ wait_for_start_button() → GPIO BCM5（物理Pin29）
 │      ├─ T265 初始化
 │      ├─ 飞控串口启动
 │      ├─ Mission_GPT.start() → 红灯5s → 状态机循环
@@ -451,7 +451,7 @@ Offset  Size  Field
 | 人工急停 | KeyboardInterrupt | `EMERGENCY_STOPPED` → `stop_all()` |
 | 近地强制锁定 | 高度 < 10cm 持续约 1s | `FC_Lock()` + 清零 PWM |
 | 落地超时 | 降落触发后约 10s | `FC_Lock()`（有高度门槛） |
-| 一键起飞门禁 | BCM17 物理按钮 | 按前不初始化 T265/飞控 |
+| 一键起飞门禁 | BCM5（物理Pin29）物理按钮 | 按前不初始化 T265/飞控 |
 
 ### 板载硬件测试脚本
 

@@ -31,8 +31,8 @@ class TestGpioButtonStart:
         assert btn.was_pressed() is False
 
     def test_default_pin_matches_reference_wiring(self):
-        """默认引脚应该跟Desktop/GPIO测试/按键测试.ipynb验证过的接线(BCM17)一致。"""
-        assert BUTTON_PIN_DEFAULT == 17
+        """默认引脚应使用已通过板端阻塞测试且不占用UART7的BCM5。"""
+        assert BUTTON_PIN_DEFAULT == 5
 
     def test_stop_before_start_does_not_raise(self):
         btn = GpioButton()

@@ -5,7 +5,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 import pytest
 
-from Lcode.gpio_led import set_rgb_led, _get_gpio
+from Lcode.gpio_led import LED_PINS, set_rgb_led, _get_gpio
 
 
 def _gpio_available():
@@ -13,6 +13,9 @@ def _gpio_available():
 
 
 class TestSetRgbLed:
+    def test_pin_map_avoids_uart7(self):
+        assert LED_PINS == {'R': 6, 'G': 25, 'B': 24}
+
     def test_does_not_raise_and_returns_bool(self):
         """两边环境都要能跑：本机(Windows)没有Hobot.GPIO，降级返回False；
         板载环境有Hobot.GPIO时走真实GPIO分支返回True(2026-07-16板载实测确认

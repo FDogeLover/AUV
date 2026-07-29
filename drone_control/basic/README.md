@@ -13,8 +13,8 @@
 | Intel RealSense T265 | 视觉里程计，提供局部坐标系位姿 |
 | 飞控（自制） | 通过串口 `/dev/ttyS6` 收发 AA 帧，460800 baud |
 | 激光测高 | 由飞控下发，覆盖 Z 轴定高 |
-| 一键起飞按钮 | BCM17，下降沿触发 |
-| RGB 警示灯 | R=BCM23 / G=BCM25 / B=BCM24 |
+| 一键起飞按钮 | BCM5（物理Pin29），下降沿触发 |
+| RGB 警示灯 | R=BCM6（物理Pin31） / G=BCM25 / B=BCM24 |
 
 ---
 
@@ -178,11 +178,26 @@ END
 | `DRONE_HEADING_HOLD_KP` | — | 航向保持 P 增益 |
 | `DRONE_CRUISE_RADIUS_M` | `0.15` | cruise 模式到达半径（m） |
 | `DRONE_CRUISE_TIMEOUT_S` | `25.0` | cruise 模式超时基准（s） |
+| `DRONE_ARRIVAL_HOLD_S` | `1.5` | 非最终精确航点到达后的观察停留时间（s） |
+| `DRONE_FINAL_WAYPOINT_HOLD_S` | `0` | 最终精确航点到达后的停留时间（s）；降落测试保持为0 |
+| `DRONE_FINAL_WAYPOINT_TIMEOUT_S` | `20` | 最终航点允许下降和到达确认的最长时间（s），不是到达后的停留 |
 | `DRONE_YAW_TEST_BURST` | `0` | `1` = 旧 Yaw 诊断脉冲（与航向保持互斥） |
 
 ---
 
 ## 运行测试
+
+T-018蓝色方块1.5米采数航线：
+
+```bash
+DRONE_ROUTER_FILE=router_tests/router_t018_blue_square_1p5m.txt \
+DRONE_ARRIVAL_HOLD_S=15 \
+DRONE_FINAL_WAYPOINT_HOLD_S=0 \
+DRONE_FINAL_WAYPOINT_TIMEOUT_S=20 \
+python3 main.py
+```
+
+航线为 `1.5m → 0.15m → DESCEND`。1.5米航点观察15秒，最终0.15米航点到达后不额外停留。
 
 ```bash
 # 全量测试（支持 Windows / 非板载环境）

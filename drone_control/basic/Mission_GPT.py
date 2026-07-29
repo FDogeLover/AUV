@@ -29,6 +29,8 @@ posthreshold_xy = 0.15
 posthreshold_z = 0.20
 arrival_confirm_need = 15
 arrival_hold_s = float(os.getenv("DRONE_ARRIVAL_HOLD_S", "1.5"))
+final_waypoint_hold_s = float(os.getenv("DRONE_FINAL_WAYPOINT_HOLD_S", "0"))
+final_waypoint_timeout_s = float(os.getenv("DRONE_FINAL_WAYPOINT_TIMEOUT_S", "20"))
 # 到达判定满足后在原地强制停留观察；测试可用环境变量延长，默认行为不变。
 arrival_timeout_max = 5.0 + arrival_hold_s
 T265_CONFIDENCE_MIN = 2       # 定点所需最低追踪置信度 (0=失败,1=低,2=中,3=高)
@@ -532,6 +534,7 @@ class mission:
                 self.y_pid.reset()
 
             if waypoint_mode == "precision":
+                waypoint_hold_s = self._waypoint_hold_s()
                 frame_ok = (
                     dx < xy_thresh
                     and dy < xy_thresh
@@ -545,9 +548,9 @@ class mission:
                     if self.arrival_confirmed_time is None:
                         self.arrival_confirmed_time = time.time()
                         logger.info(
-                            f"到达航点 {self.target_index}，停留 {arrival_hold_s:.0f}s 观察"
+                            f"到达航点 {self.target_index}，停留 {waypoint_hold_s:.0f}s 观察"
                         )
-                    elif time.time() - self.arrival_confirmed_time >= arrival_hold_s:
+                    if time.time() - self.arrival_confirmed_time >= waypoint_hold_s:
                         logger.info(f"航点 {self.target_index} 停留完成")
                         self._advance_waypoint("precision_arrival", pos, target, arrival_distance)
                         return
@@ -673,8 +676,18 @@ class mission:
             pos[0] - target[0], pos[1] - target[1]
         )
 
+    def _is_final_waypoint(self):
+        return bool(self.targets) and self.target_index == len(self.targets) - 1
+
+    def _waypoint_hold_s(self):
+        if self._is_final_waypoint():
+            return final_waypoint_hold_s
+        return arrival_hold_s
+
     def _waypoint_timeout_s(self, waypoint_mode):
         if waypoint_mode == "precision":
+            if self._is_final_waypoint():
+                return final_waypoint_timeout_s
             return arrival_timeout_max
         return self.navigation_profile.cruise_timeout_s(
             self._active_segment_distance_m

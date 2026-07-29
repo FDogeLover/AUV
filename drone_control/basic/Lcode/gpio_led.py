@@ -1,6 +1,7 @@
 """RGB警示灯GPIO驱动。地瓜派(RDK X5)专用，用`Hobot.GPIO`(不是`wiringpi`/
-`RPi.GPIO`)，BCM引脚编号——参照`Desktop/GPIO测试/LED测试.ipynb`验证过的接线方案
-(2026-07-16，R=BCM23/G=BCM25/B=BCM24)。
+`RPi.GPIO`)，BCM引脚编号。2026-07-29为避免BCM23（40Pin物理Pin16）
+与UART7_RTS冲突，红灯迁移到BCM6（40Pin物理Pin31）；当前接线为
+R=BCM6/G=BCM25/B=BCM24。
 
 `Hobot.GPIO`只在板子上能import，本机开发/测试环境(Windows)导入会失败——延迟
 导入+try/except，让本机pytest能正常跑(GPIO控制实际降级为空操作)，板子上真实
@@ -15,7 +16,7 @@ import threading
 
 from Lcode.Logger import logger
 
-LED_PINS = {'R': 23, 'G': 25, 'B': 24}
+LED_PINS = {'R': 6, 'G': 25, 'B': 24}
 
 _gpio_module = None
 _setup_done = False

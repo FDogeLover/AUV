@@ -1,6 +1,7 @@
 """按键GPIO驱动。地瓜派(RDK X5)专用，用`Hobot.GPIO`，BCM引脚编号——参照
-`Desktop/GPIO测试/按键测试.ipynb`验证过的接线方案(2026-07-16，BCM17，下降沿触发，
-说明按键默认拉高、按下接地)。
+`Desktop/GPIO测试/按键测试.ipynb`验证过的下降沿触发方式。按键已于
+2026-07-29从BCM17（40Pin物理Pin11，与UART7_TXD冲突）迁移到BCM5
+（40Pin物理Pin29）；按键默认拉高、按下接地。
 
 `Hobot.GPIO`只在板子上能import，本机开发/测试环境(Windows)导入会失败——
 `start()`延迟导入+try/except，本机环境下返回False不抛异常(同`Lcode/gpio_led.py`
@@ -13,7 +14,7 @@ import threading
 
 from Lcode.Logger import logger
 
-BUTTON_PIN_DEFAULT = 17
+BUTTON_PIN_DEFAULT = 5
 
 
 class GpioButton:
