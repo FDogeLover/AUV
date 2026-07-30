@@ -33,14 +33,14 @@
     "vision_target_source": "apriltag",
     "target_side_m": 0.25,
     "discovery_height_m": 1.5,
-    "test_height_m": 1.0,
+    "test_height_m": 1.5,
     "final_waypoint_height_m": 0.15,
     "final_waypoint_hold_s": 0.0,
     "image_center_px": [320.0, 240.0],
     "focal_px": [570.0, 570.0],
     "axis_mapping": {
       "image_left": "+x",
-      "image_up": "+y"
+      "image_up": "-y"
     },
     "min_quality": 55,
     "partial_min_quality": 40,
@@ -63,11 +63,15 @@
     "t265_jump_m": 0.3,
     "measurement_innovation_m": 0.2,
     "position_deadband_m": 0.05,
-    "target_velocity_feedforward_gain": 0.6,
-    "max_speed_m_s": 0.18,
-    "partial_max_speed_m_s": 0.12,
-    "max_accel_m_s2": 0.18,
-    "max_jerk_m_s3": 0.5,
+    "velocity_deadband_m_s": 0.02,
+    "position_kp": 0.35,
+    "velocity_kd": 0.5,
+    "platform_velocity_m_s": [0.0, 0.0],
+    "target_velocity_feedforward_gain": 0.0,
+    "max_speed_m_s": 0.15,
+    "partial_max_speed_m_s": 0.06,
+    "max_accel_m_s2": 0.15,
+    "max_jerk_m_s3": 1.0,
     "vertical_control_enabled": false
   },
   "terminal_landing": {

@@ -30,7 +30,10 @@ class t265_class:
         self.error_count = 0
         self.max_error_count = 10
         self.calibration_offset = np.array([0.0, 0.0, 0.0])
-        self.last_confidence = 3
+        # 未收到首个真实Pose帧前必须保持0，禁止用默认满置信度绕过启动门禁。
+        self.last_confidence = 0
+        self.last_pose_monotonic = 0.0
+        self.pose_frame_count = 0
         self.pipe = None
         self.cfg = None
         self.use_simulation = rs is None
@@ -99,6 +102,8 @@ class t265_class:
                         tracking_confidence = getattr(data, 'tracker_confidence', 3)
                         with self.lock:
                             self.last_confidence = tracking_confidence
+                            self.last_pose_monotonic = time.monotonic()
+                            self.pose_frame_count += 1
 
                         if tracking_confidence < 2:
                             if not hasattr(self, '_last_conf_warn') or time.time() - self._last_conf_warn > 2.0:
@@ -215,6 +220,9 @@ class t265_class:
                         self.raw_pose_data[:] = [rx, ry, rz]
                         self.raw_velocity_data[:] = [rvx, rvy, rvz]
                         self.raw_imu_data[:] = [sim_ax, sim_ay, sim_az, sim_gx, sim_gy, sim_gz]
+                        self.last_confidence = 3
+                        self.last_pose_monotonic = time.monotonic()
+                        self.pose_frame_count += 1
 
                 self.error_count = 0
             except Exception as e:
@@ -267,6 +275,17 @@ class t265_class:
     def get_tracking_confidence(self):
         with self.lock:
             return int(self.last_confidence)
+
+    def get_pose_age_s(self, now=None):
+        """最后一个真实/模拟Pose帧的年龄；从未收到时返回正无穷。"""
+        now = time.monotonic() if now is None else float(now)
+        with self.lock:
+            timestamp = float(self.last_pose_monotonic)
+        return math.inf if timestamp <= 0.0 else max(0.0, now - timestamp)
+
+    def get_pose_frame_count(self):
+        with self.lock:
+            return int(self.pose_frame_count)
 
     def autoset(self):
         logger.info("T265 自动校准...")

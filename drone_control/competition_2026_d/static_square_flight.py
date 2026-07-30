@@ -179,16 +179,29 @@ class StaticSquareMission(mission):
                     if self._discovery_confirm_count >= int(
                         self.flight_config["discovery_confirm_frames"]
                     ):
+                        discovery_height = float(
+                            self.flight_config["discovery_height_m"]
+                        )
+                        test_height = float(self.flight_config["test_height_m"])
+                        height_action = (
+                            f"保持{test_height:.1f}m高度"
+                            if abs(test_height - discovery_height) <= 0.02
+                            else f"进入{test_height:.1f}m高度航点"
+                        )
                         logger.info(
-                            "1.5m目标身份确认完成，立即开启XY持续追踪；进入"
-                            f"{float(self.flight_config['test_height_m']):.1f}m高度航点"
+                            "1.5m目标身份确认完成，立即开启XY持续追踪；"
+                            f"{height_action}"
                         )
                         self.targets[1][0] = float(pos[0])
                         self.targets[1][1] = float(pos[1])
                         self.servo.arm(now, (pos[0], pos[1]))
                         self.servo.set_completion_enabled(False)
                         self._lost_hold_latched = False
-                        self._visual_phase = "TRACKING_WHILE_DESCENDING"
+                        self._visual_phase = (
+                            "TRACKING_AT_FIXED_HEIGHT"
+                            if abs(test_height - discovery_height) <= 0.02
+                            else "TRACKING_WHILE_DESCENDING"
+                        )
                         target = self.targets[0]
                         distance = math.hypot(pos[0] - target[0], pos[1] - target[1])
                         super()._advance_waypoint(
@@ -258,12 +271,23 @@ class StaticSquareMission(mission):
                 ):
                     if self.servo.active:
                         if not self.servo.completion_enabled:
-                            self.servo.set_completion_enabled(True)
-                            self._visual_phase = "VISUAL_SERVO_AT_TEST_HEIGHT"
-                            logger.info(
-                                f"已在{test_height:.1f}m稳定，继续XY追踪并允许"
-                                "居中完成"
+                            platform_speed = math.hypot(
+                                *self.servo.config.platform_velocity_m_s
                             )
+                            if platform_speed > 1e-6:
+                                if self._visual_phase != "MOVING_PLATFORM_TRACK":
+                                    self._visual_phase = "MOVING_PLATFORM_TRACK"
+                                    logger.info(
+                                        f"已在{test_height:.1f}m稳定，保持XY伴飞"
+                                        "直到专项测试时限结束"
+                                    )
+                            else:
+                                self.servo.set_completion_enabled(True)
+                                self._visual_phase = "VISUAL_SERVO_AT_TEST_HEIGHT"
+                                logger.info(
+                                    f"已在{test_height:.1f}m稳定，继续XY追踪并允许"
+                                    "居中完成"
+                                )
                     elif not self.servo.finished:
                         observation = self.servo.reader.latest(
                             now, self.servo.config.max_observation_age_s
@@ -394,6 +418,13 @@ def _load_config(path: Path):
         partial_max_speed_m_s=float(square["partial_max_speed_m_s"]),
         max_accel_m_s2=float(square["max_accel_m_s2"]),
         max_jerk_m_s3=float(square["max_jerk_m_s3"]),
+        kp=float(square["position_kp"]),
+        kd=float(square["velocity_kd"]),
+        platform_velocity_m_s=(
+            float(square["platform_velocity_m_s"][0]),
+            float(square["platform_velocity_m_s"][1]),
+        ),
+        velocity_deadband_m_s=float(square["velocity_deadband_m_s"]),
         target_velocity_feedforward_gain=float(
             square["target_velocity_feedforward_gain"]
         ),
@@ -449,9 +480,16 @@ def main(argv=None):
     if args.observe_only:
         logger.info("VS1通信门禁通过；只观察模式不会启用视觉XY控制")
     else:
+        discovery_height = float(square_cfg["discovery_height_m"])
+        test_height = float(square_cfg["test_height_m"])
+        height_action = (
+            f"保持{test_height:.1f}m高度"
+            if abs(test_height - discovery_height) <= 0.02
+            else f"同步下降到{test_height:.1f}m"
+        )
         logger.info(
             f"VS1通信门禁通过；将在1.5m确认{servo_cfg.vision_target_source}后"
-            f"立即持续追踪，并同步下降到{float(square_cfg['test_height_m']):.1f}m"
+            f"立即持续追踪，并{height_action}"
         )
 
     telemetry = ServoTelemetryLogger(args.telemetry)

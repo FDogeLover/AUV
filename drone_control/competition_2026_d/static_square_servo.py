@@ -10,7 +10,6 @@ from dataclasses import dataclass
 from .control.formation_controller import FormationConfig, FormationController
 from .vision.cybercam_reader import CyberCamReader
 from .vision.platform_observation import FeatureFlag, PlatformObservation
-from .vision.platform_tracker import PlatformTracker, TrackerConfig
 
 
 @dataclass(frozen=True)
@@ -23,14 +22,16 @@ class StaticSquareServoConfig:
     min_quality_partial: int = 40
     max_observation_age_s: float = 0.15
     confirm_frames: int = 3
-    full_max_speed_m_s: float = 0.10
-    partial_max_speed_m_s: float = 0.05
-    max_accel_m_s2: float = 0.18
-    max_jerk_m_s3: float = 0.60
-    kp: float = 0.75
-    kd: float = 0.22
+    full_max_speed_m_s: float = 0.15
+    partial_max_speed_m_s: float = 0.06
+    max_accel_m_s2: float = 0.15
+    max_jerk_m_s3: float = 1.0
+    kp: float = 0.35
+    kd: float = 0.50
+    platform_velocity_m_s: tuple[float, float] = (0.0, 0.0)
     target_velocity_feedforward_gain: float = 0.0
     deadband_m: float = 0.05
+    velocity_deadband_m_s: float = 0.02
     centered_hold_s: float = 3.0
     max_duration_s: float = 15.0
     soft_radius_m: float = 0.50
@@ -75,23 +76,19 @@ class StaticSquareServo:
             raise ValueError(
                 f"unsupported vision target source: {cfg.vision_target_source}"
             )
-        self.tracker = PlatformTracker(TrackerConfig(
-            max_speed_m_s=0.50,
-            max_innovation_m=cfg.max_measurement_innovation_m,
-            max_predict_s=cfg.max_observation_age_s,
-            measurement_std_best_m=0.02,
-            measurement_std_worst_m=0.12,
-        ))
+        # 静态专项视觉只做“目标中心→画面中心”的相对误差闭环。
+        # 不估计目标世界速度，也不使用视觉速度前馈；移动小车的速度前馈
+        # 后续由双T265提供，避免下降/姿态变化被误判为目标运动。
         self.controller = FormationController(FormationConfig(
-            kp=cfg.kp,
-            kd=cfg.kd,
+            kp=0.0,
+            kd=0.0,
             max_speed_m_s=cfg.full_max_speed_m_s,
             max_accel_m_s2=cfg.max_accel_m_s2,
             max_jerk_m_s3=cfg.max_jerk_m_s3,
             max_estimate_age_s=cfg.max_observation_age_s,
             max_uncertainty_m=0.30,
             position_deadband_m=cfg.deadband_m,
-            target_velocity_feedforward_gain=cfg.target_velocity_feedforward_gain,
+            target_velocity_feedforward_gain=0.0,
         ))
         self._armed = False
         self._finished = False
@@ -110,6 +107,7 @@ class StaticSquareServo:
         self._last_full_time: float | None = None
         self._last_full_temporal = False
         self._last_full_color = False
+        self._last_relative_error_m: tuple[float, float] | None = None
         self._last_partial_time: float | None = None
         self._partial_direction = (0.0, 0.0)
         self._centered_since: float | None = None
@@ -177,11 +175,11 @@ class StaticSquareServo:
         self._last_full_time = None
         self._last_full_temporal = False
         self._last_full_color = False
+        self._last_relative_error_m = None
         self._last_partial_time = None
         self._partial_direction = (0.0, 0.0)
         self._centered_since = None
         self._last_command_m_s = (0.0, 0.0)
-        self.tracker.reset()
         self.controller.reset(now, (0.0, 0.0))
 
     def abort_before_arm(self, reason: str) -> None:
@@ -219,16 +217,15 @@ class StaticSquareServo:
         observation = self.reader.latest(now, self.config.max_observation_age_s)
         if not self.reader.is_running():
             return self._fault_decision("cybercam_reader_stopped", position)
-        # 旧轨迹超过视觉新鲜度后不再用创新门限阻挡重新捕获。先清除旧状态，
-        # 随后的连续有效帧可在目标已移动到新位置时重新初始化跟踪器。
+        # 旧相对误差超过视觉新鲜度后立即清除，重新捕获从新观测开始。
         if (
             self._last_full_time is not None
             and now - self._last_full_time > self.config.max_observation_age_s
         ):
-            self.tracker.reset()
             self._last_full_time = None
             self._last_full_temporal = False
             self._last_full_color = False
+            self._last_relative_error_m = None
             self._full_measurements.clear()
         if observation is not None:
             self._consume_new_observation(now, observation, position, velocity)
@@ -300,8 +297,9 @@ class StaticSquareServo:
             self._full_measurements.clear()
             return
         error_x_px = self.config.image_cx_px - observation.cx
-        # 融合闭环实飞1确认：目标在画面上方时必须输出+Y；X方向保持不变。
-        error_y_px = self.config.image_cy_px - observation.cy
+        # 2026-07-30实飞标定：目标在画面上方时输出+Y会继续把目标推向
+        # 上边缘，因此当前飞行链路必须输出-Y；X方向保持不变。
+        error_y_px = observation.cy - self.config.image_cy_px
         if flags & FeatureFlag.PARTIAL:
             self._full_measurements.clear()
             if observation.quality < self.config.min_quality_partial:
@@ -317,23 +315,17 @@ class StaticSquareServo:
             return
 
         height = statistics.median(self._height_samples)
-        age = min(self.config.max_observation_age_s, observation.age_s(now))
-        capture_drone_x = position[0] - velocity[0] * age
-        capture_drone_y = position[1] - velocity[1] * age
-        target_x = capture_drone_x + error_x_px * height / self.config.focal_x_px
-        target_y = capture_drone_y + error_y_px * height / self.config.focal_y_px
-        self._full_measurements.append((target_x, target_y, observation.quality))
+        relative_x = error_x_px * height / self.config.focal_x_px
+        relative_y = error_y_px * height / self.config.focal_y_px
+        self._full_measurements.append((relative_x, relative_y, observation.quality))
         if len(self._full_measurements) < self.config.confirm_frames:
             return
         median_x = statistics.median(item[0] for item in self._full_measurements)
         median_y = statistics.median(item[1] for item in self._full_measurements)
-        median_quality = int(statistics.median(item[2] for item in self._full_measurements))
-        if self.tracker.update(
-            median_x, median_y, observation.received_monotonic, median_quality
-        ) is not None:
-            self._last_full_time = observation.received_monotonic
-            self._last_full_temporal = bool(flags & FeatureFlag.TEMPORAL_TRACKED)
-            self._last_full_color = bool(flags & FeatureFlag.COLOR_SHAPE_TRACKED)
+        self._last_relative_error_m = (median_x, median_y)
+        self._last_full_time = observation.received_monotonic
+        self._last_full_temporal = bool(flags & FeatureFlag.TEMPORAL_TRACKED)
+        self._last_full_color = bool(flags & FeatureFlag.COLOR_SHAPE_TRACKED)
 
     def _tracking_command(self, now, observation, position, velocity):
         if self._last_partial_time is not None and (
@@ -347,20 +339,21 @@ class StaticSquareServo:
             self._centered_since = None
             return (shaped.vx_m_s, shaped.vy_m_s), "PARTIAL_COARSE"
 
-        estimate = self.tracker.predict(now)
-        if estimate is not None:
-            command = self.controller.command(
-                estimate,
-                (position[0], position[1]),
-                (velocity[0], velocity[1]),
-                now,
-            )
-            error = math.hypot(estimate.x_m - position[0], estimate.y_m - position[1])
-            fresh_full = (
-                self._last_full_time is not None
-                and now - self._last_full_time <= self.config.max_observation_age_s
-            )
-            if fresh_full and error <= self.config.deadband_m:
+        fresh_full = (
+            self._last_full_time is not None
+            and self._last_relative_error_m is not None
+            and now - self._last_full_time <= self.config.max_observation_age_s
+        )
+        if fresh_full:
+            error_x, error_y = self._last_relative_error_m
+            error = math.hypot(error_x, error_y)
+            platform_vx, platform_vy = self.config.platform_velocity_m_s
+            relative_vx = velocity[0] - platform_vx
+            relative_vy = velocity[1] - platform_vy
+            relative_speed = math.hypot(relative_vx, relative_vy)
+            position_centered = error <= self.config.deadband_m
+            velocity_stable = relative_speed <= self.config.velocity_deadband_m_s
+            if position_centered and velocity_stable:
                 if self._centered_since is None:
                     self._centered_since = now
                 elif (
@@ -371,19 +364,20 @@ class StaticSquareServo:
                 mode = "CENTERED"
             else:
                 self._centered_since = None
-                mode = "FULL_TRACK" if fresh_full else "LOST"
-            vx, vy = command.vx_m_s, command.vy_m_s
-            temporal = fresh_full and self._last_full_temporal
-            color = fresh_full and self._last_full_color
-            if temporal or color:
-                speed = math.hypot(vx, vy)
-                if speed > self.config.partial_max_speed_m_s:
-                    scale = self.config.partial_max_speed_m_s / speed
-                    vx, vy = vx * scale, vy * scale
-            if not fresh_full:
-                age = now - self._last_full_time
-                decay = max(0.0, 1.0 - age / self.config.max_observation_age_s)
-                vx, vy = vx * decay, vy * decay
+                mode = "FULL_TRACK"
+            p_vx = 0.0 if position_centered else self.config.kp * error_x
+            p_vy = 0.0 if position_centered else self.config.kp * error_y
+            # 视觉只提供相对位置反馈；D项直接使用T265实际速度，抑制飞控
+            # 约1.2～1.4秒的水平响应滞后。进入位置死区后仍继续制动，
+            # 直到实际速度也进入死区，避免零命令时靠惯性滑出中心区域。
+            d_vx = 0.0 if velocity_stable else self.config.kd * relative_vx
+            d_vy = 0.0 if velocity_stable else self.config.kd * relative_vy
+            target_vx = platform_vx + p_vx - d_vx
+            target_vy = platform_vy + p_vy - d_vy
+            shaped = self.controller.shape_velocity(target_vx, target_vy, now)
+            vx, vy = shaped.vx_m_s, shaped.vy_m_s
+            temporal = self._last_full_temporal
+            color = self._last_full_color
             if color:
                 mode = "COLOR_TRACK"
             elif temporal:
@@ -437,8 +431,13 @@ class StaticSquareServo:
     def _decision(self, now, observation, position, command, mode) -> dict:
         vx_cms = int(round(command[0] * 100.0))
         vy_cms = int(round(command[1] * 100.0))
-        estimate = self.tracker.predict(now)
         radius = math.hypot(position[0] - self._anchor_xy[0], position[1] - self._anchor_xy[1])
+        measured_target = None
+        if self._last_relative_error_m is not None:
+            measured_target = (
+                position[0] + self._last_relative_error_m[0],
+                position[1] + self._last_relative_error_m[1],
+            )
         self._mode = mode
         self._last_snapshot = ServoSnapshot(
             mode,
@@ -449,8 +448,8 @@ class StaticSquareServo:
             observation.seq if observation is not None else None,
             observation.age_s(now) if observation is not None else None,
             (observation.cx, observation.cy) if observation is not None else None,
-            (estimate.x_m, estimate.y_m) if estimate is not None and not estimate.predicted else None,
-            (estimate.x_m, estimate.y_m) if estimate is not None else None,
+            measured_target,
+            None,
             (float(command[0]), float(command[1])),
             (vx_cms, vy_cms),
             radius,

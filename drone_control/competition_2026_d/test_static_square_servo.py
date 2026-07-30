@@ -33,14 +33,12 @@ def blue_config(**kwargs):
 
 
 class StaticSquareServoSafetyTest(unittest.TestCase):
-    def test_target_velocity_feedforward_gain_reaches_controller(self):
+    def test_static_servo_forces_visual_velocity_feedforward_off(self):
         servo = StaticSquareServo(
             FakeReader(),
             StaticSquareServoConfig(target_velocity_feedforward_gain=0.6),
         )
-        self.assertEqual(
-            servo.controller.config.target_velocity_feedforward_gain, 0.6
-        )
+        self.assertEqual(servo.controller.config.target_velocity_feedforward_gain, 0.0)
 
     def test_confirmed_left_target_commands_positive_x_then_stale_zero(self):
         reader = FakeReader()
@@ -58,6 +56,137 @@ class StaticSquareServoSafetyTest(unittest.TestCase):
         self.assertEqual((decision["vx_cms"], decision["vy_cms"]), (0, 0))
         self.assertFalse(decision["active"])
         self.assertEqual(servo.snapshot().mode, "LOST")
+
+    def test_center_observation_brakes_without_visual_velocity_feedforward(self):
+        reader = FakeReader()
+        servo = StaticSquareServo(
+            reader,
+            StaticSquareServoConfig(
+                confirm_frames=3,
+                full_max_speed_m_s=0.08,
+                max_accel_m_s2=0.10,
+                max_jerk_m_s3=0.8,
+            ),
+        )
+        servo.arm(0.0, (0.0, 0.0))
+
+        # 先让静态目标保持在画面左侧，使速度整形器达到限速。
+        for seq in range(1, 21):
+            now = seq * 0.1
+            reader.observation = PlatformObservation(
+                1, seq, seq, True, 120, 240, 80, 0, 0, 90,
+                int(FeatureFlag.APRILTAG_VALID), now,
+            )
+            servo(context(now))
+            self.assertLessEqual(
+                math.hypot(*servo.snapshot().command_m_s), 0.08 + 1e-9
+            )
+        self.assertGreater(servo.snapshot().command_m_s[0], 0.07)
+
+        # 目标到达画面中心后只应制动，不能保留旧的“目标运动速度”。
+        braking_speeds = []
+        for seq in range(21, 36):
+            now = seq * 0.1
+            reader.observation = PlatformObservation(
+                1, seq, seq, True, 320, 240, 80, 0, 0, 90,
+                int(FeatureFlag.APRILTAG_VALID), now,
+            )
+            servo(context(now))
+            braking_speeds.append(servo.snapshot().command_m_s[0])
+        self.assertGreaterEqual(min(braking_speeds), -1e-8)
+        self.assertAlmostEqual(braking_speeds[-1], 0.0, places=6)
+
+    def test_t265_velocity_damping_reduces_command_in_same_direction(self):
+        def command_for_velocity(vx):
+            reader = FakeReader()
+            servo = StaticSquareServo(
+                reader,
+                StaticSquareServoConfig(
+                    confirm_frames=1,
+                    kp=0.35,
+                    kd=0.50,
+                    max_accel_m_s2=10.0,
+                    max_jerk_m_s3=100.0,
+                ),
+            )
+            servo.arm(0.0, (0.0, 0.0))
+            reader.observation = PlatformObservation(
+                1, 1, 1, True, 290, 240, 80, 0, 0, 90,
+                int(FeatureFlag.APRILTAG_VALID), 0.1,
+            )
+            ctx = context(0.1)
+            ctx["velocity_m_s"] = (vx, 0.0, 0.0)
+            servo(ctx)
+            return servo.snapshot().command_m_s[0]
+
+        stationary_command = command_for_velocity(0.0)
+        moving_toward_target_command = command_for_velocity(0.05)
+        self.assertGreater(stationary_command, 0.0)
+        self.assertLess(moving_toward_target_command, stationary_command)
+
+    def test_center_deadband_keeps_damping_until_t265_velocity_is_stable(self):
+        reader = FakeReader()
+        servo = StaticSquareServo(
+            reader,
+            StaticSquareServoConfig(
+                confirm_frames=1,
+                kd=0.50,
+                velocity_deadband_m_s=0.02,
+                max_accel_m_s2=10.0,
+                max_jerk_m_s3=100.0,
+            ),
+        )
+        servo.arm(0.0, (0.0, 0.0))
+        reader.observation = PlatformObservation(
+            1, 1, 1, True, 320, 240, 80, 0, 0, 90,
+            int(FeatureFlag.APRILTAG_VALID), 0.1,
+        )
+        moving = context(0.1)
+        moving["velocity_m_s"] = (0.05, 0.0, 0.0)
+        servo(moving)
+        self.assertLess(servo.snapshot().command_m_s[0], 0.0)
+        self.assertNotEqual(servo.snapshot().mode, "CENTERED")
+
+        reader.observation = PlatformObservation(
+            1, 2, 2, True, 320, 240, 80, 0, 0, 90,
+            int(FeatureFlag.APRILTAG_VALID), 0.2,
+        )
+        servo(context(0.2))
+        self.assertEqual(servo.snapshot().mode, "CENTERED")
+
+    def test_platform_velocity_feedforward_tracks_positive_y(self):
+        reader = FakeReader()
+        servo = StaticSquareServo(
+            reader,
+            StaticSquareServoConfig(
+                confirm_frames=1,
+                platform_velocity_m_s=(0.0, 0.10),
+                full_max_speed_m_s=0.15,
+                max_accel_m_s2=10.0,
+                max_jerk_m_s3=100.0,
+            ),
+        )
+        servo.arm(0.0, (0.0, 0.0))
+        reader.observation = PlatformObservation(
+            1, 1, 1, True, 320, 240, 80, 0, 0, 90,
+            int(FeatureFlag.APRILTAG_VALID), 0.1,
+        )
+        matched = context(0.1)
+        matched["velocity_m_s"] = (0.0, 0.10, 0.0)
+        servo(matched)
+        command_x, command_y = servo.snapshot().command_m_s
+        self.assertAlmostEqual(command_x, 0.0, places=9)
+        self.assertAlmostEqual(command_y, 0.10, places=9)
+        self.assertEqual(servo.snapshot().mode, "CENTERED")
+
+        reader.observation = PlatformObservation(
+            1, 2, 2, True, 320, 240, 80, 0, 0, 90,
+            int(FeatureFlag.APRILTAG_VALID), 0.2,
+        )
+        stationary = context(0.2)
+        servo(stationary)
+        self.assertGreater(servo.snapshot().command_m_s[1], 0.10)
+        self.assertLessEqual(servo.snapshot().command_m_s[1], 0.15)
 
     def test_reacquires_new_target_after_stale_tracker_reset(self):
         reader = FakeReader()
@@ -96,7 +225,7 @@ class StaticSquareServoSafetyTest(unittest.TestCase):
         self.assertLessEqual((decision["vx_cms"] ** 2 + decision["vy_cms"] ** 2) ** 0.5, 5.0)
 
     def test_partial_vertical_direction_matches_flight_calibration(self):
-        for cy, expected_sign in ((140, 1), (340, -1)):
+        for cy, expected_sign in ((140, -1), (340, 1)):
             reader = FakeReader()
             servo = StaticSquareServo(reader, blue_config())
             servo.arm(1.0, (0.0, 0.0))
@@ -108,7 +237,7 @@ class StaticSquareServoSafetyTest(unittest.TestCase):
             self.assertGreater(expected_sign * servo.snapshot().command_m_s[1], 0.0)
             self.assertAlmostEqual(servo.snapshot().command_m_s[0], 0.0, places=9)
 
-    def test_full_target_above_commands_positive_y_and_right_commands_negative_x(self):
+    def test_full_target_above_commands_negative_y_and_right_commands_negative_x(self):
         reader = FakeReader()
         servo = StaticSquareServo(reader, blue_config())
         servo.arm(2.0, (0.0, 0.0))
@@ -120,7 +249,7 @@ class StaticSquareServoSafetyTest(unittest.TestCase):
             servo(context(now))
         command_x, command_y = servo.snapshot().command_m_s
         self.assertLess(command_x, 0.0)
-        self.assertGreater(command_y, 0.0)
+        self.assertLess(command_y, 0.0)
 
     def test_hard_geofence_fault_is_latched(self):
         servo = StaticSquareServo(FakeReader())

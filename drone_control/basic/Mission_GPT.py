@@ -32,7 +32,9 @@ arrival_hold_s = float(os.getenv("DRONE_ARRIVAL_HOLD_S", "1.5"))
 final_waypoint_hold_s = float(os.getenv("DRONE_FINAL_WAYPOINT_HOLD_S", "0"))
 final_waypoint_timeout_s = float(os.getenv("DRONE_FINAL_WAYPOINT_TIMEOUT_S", "20"))
 # 到达判定满足后在原地强制停留观察；测试可用环境变量延长，默认行为不变。
-arrival_timeout_max = 5.0 + arrival_hold_s
+arrival_timeout_max = float(
+    os.getenv("DRONE_ARRIVAL_TIMEOUT_S", str(5.0 + arrival_hold_s))
+)
 T265_CONFIDENCE_MIN = 2       # 定点所需最低追踪置信度 (0=失败,1=低,2=中,3=高)
 T265_CONFIDENCE_WAIT_S = 8.0  # 等待置信度达标的超时时间
 FLIGHT_LOG_INTERVAL = 0.05
