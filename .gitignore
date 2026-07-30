@@ -17,6 +17,9 @@ build/
 __pycache__/
 *.pyc
 
+# Local flight-controller runtime logs
+fc_log.log
+
 # Claude Code 本地专属配置(权限白名单等，因机器而异，不共享)
 .claude/settings.local.json
 
