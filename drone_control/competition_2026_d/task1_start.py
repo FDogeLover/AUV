@@ -35,6 +35,7 @@ from shared.competition_2026_d_protocol import (  # noqa: E402
     Device,
     Flag,
     MessageType,
+    PositionFlag,
     pack_payload,
     seq_is_newer,
     unpack_car_state,
@@ -45,6 +46,10 @@ from .Lcode.air_ground_link import AirGroundLink, LinkConfig  # noqa: E402
 from .payload_servo import build_payload_actuator  # noqa: E402
 from .task1_flight import Task1FlightMission  # noqa: E402
 from .task1_mission import Task1Config  # noqa: E402
+from .task1_telemetry import (  # noqa: E402
+    Task1TelemetryPublisher,
+    Task1TelemetrySample,
+)
 from .vision.cybercam_reader import CyberCamReader  # noqa: E402
 
 
@@ -75,6 +80,25 @@ class CarStateSnapshot:
         return bool(
             self.state_flags & int(CarStateFlag.ENCODER_SPEED_VALID)
         )
+
+
+@dataclass(frozen=True)
+class CarPositionSnapshot:
+    session_id: int
+    seq: int
+    sender_ms: int
+    received_monotonic: float
+    position_xy_m: tuple[float, float]
+    pose_age_s: float
+    flags: int
+
+    @property
+    def pose_valid(self) -> bool:
+        return bool(self.flags & int(PositionFlag.CAR_POSE_VALID))
+
+    @property
+    def pose_fresh(self) -> bool:
+        return bool(self.flags & int(PositionFlag.CAR_POSE_FRESH))
 
 
 class Task1StartGate:
@@ -108,11 +132,15 @@ class Task1StartGate:
         self._session_id: int | None = None
         self._car_config_hash: int | None = None
         self._car_state: CarStateSnapshot | None = None
+        self._car_position: CarPositionSnapshot | None = None
         self._last_car_state_seq: int | None = None
+        self._last_car_position_seq: int | None = None
         self.rejected_start_frames = 0
         self.rejected_state_frames = 0
         self.duplicate_or_old_state_frames = 0
         self.legacy_state_frames = 0
+        self.rejected_position_frames = 0
+        self.duplicate_or_old_position_frames = 0
         self.link.add_callback(self._on_frame)
 
     @property
@@ -128,6 +156,7 @@ class Task1StartGate:
     def wait(self, timeout_s: float | None = None) -> int | None:
         started = self.clock()
         next_ready = 0.0
+        next_diagnostic = started + 3.0
         while not self._start_event.is_set():
             now = self.clock()
             if timeout_s is not None and now - started >= timeout_s:
@@ -146,6 +175,23 @@ class Task1StartGate:
                     ),
                     session_id=0,
                     dest=Device.CAR,
+                )
+            if now >= next_diagnostic:
+                next_diagnostic = now + 3.0
+                stats = self.link.stats
+                logger.info(
+                    "蓝牙接收诊断: "
+                    f"bytes={stats.rx_bytes}, "
+                    f"valid_frames={stats.rx_frames}, "
+                    f"parser_rejected={stats.rx_rejected}, "
+                    f"wrong_dest={stats.rx_wrong_dest}, "
+                    f"start_rejected={self.rejected_start_frames}, "
+                    f"state_rejected={self.rejected_state_frames}, "
+                    f"position_rejected={self.rejected_position_frames}, "
+                    f"last_type={stats.last_frame_type}, "
+                    f"last_src={stats.last_frame_source}, "
+                    f"last_dst={stats.last_frame_dest}, "
+                    f"last_hex={stats.last_rx_hex or '-'}"
                 )
             self._start_event.wait(0.05)
         return self.session_id
@@ -174,6 +220,18 @@ class Task1StartGate:
             return None
         return state
 
+    def latest_car_position(self) -> CarPositionSnapshot | None:
+        with self._lock:
+            position = self._car_position
+        if position is None:
+            return None
+        age = self.clock() - position.received_monotonic
+        if age < 0.0 or age > self.state_max_age_s:
+            return None
+        if not position.pose_valid or not position.pose_fresh:
+            return None
+        return position
+
     def _on_frame(self, frame) -> None:
         if (
             int(frame.source) != int(Device.CAR)
@@ -184,11 +242,18 @@ class Task1StartGate:
             self._handle_start(frame)
         elif int(frame.message_type) == int(MessageType.CAR_STATE):
             self._handle_car_state(frame)
+        elif int(frame.message_type) == int(MessageType.CAR_POSITION):
+            self._handle_car_position(frame)
 
     def _handle_start(self, frame) -> None:
         required = int(Flag.ACK_REQUIRED | Flag.EVENT)
         if int(frame.flags) & required != required:
             self.rejected_start_frames += 1
+            logger.warning(
+                "拒绝CAR_START: flags=0x%02X，必须包含0x%02X",
+                int(frame.flags),
+                required,
+            )
             return
         try:
             task_mode, car_config_hash = unpack_payload(
@@ -196,15 +261,26 @@ class Task1StartGate:
             )
         except ValueError:
             self.rejected_start_frames += 1
+            logger.warning(
+                "拒绝CAR_START: payload长度或格式错误，实际%d字节",
+                len(frame.payload),
+            )
             return
         if task_mode != TASK1_MODE or int(frame.session_id) == 0:
             self.rejected_start_frames += 1
+            logger.warning(
+                "拒绝CAR_START: task_mode=%d, session_id=%d",
+                task_mode,
+                int(frame.session_id),
+            )
             return
         with self._lock:
             if self._session_id is not None:
                 return
             self._session_id = int(frame.session_id)
             self._car_config_hash = int(car_config_hash)
+            self._car_position = None
+            self._last_car_position_seq = None
         self._start_event.set()
 
     def _handle_car_state(self, frame) -> None:
@@ -270,6 +346,46 @@ class Task1StartGate:
         with self._lock:
             self._car_state = snapshot
             self._last_car_state_seq = int(frame.seq)
+
+    def _handle_car_position(self, frame) -> None:
+        with self._lock:
+            session_id = self._session_id
+            previous_seq = self._last_car_position_seq
+        expected_session = 0 if session_id is None else session_id
+        if int(frame.session_id) != expected_session:
+            self.rejected_position_frames += 1
+            return
+        if previous_seq is not None and not seq_is_newer(
+            int(frame.seq), previous_seq
+        ):
+            self.duplicate_or_old_position_frames += 1
+            return
+        try:
+            x_mm, y_mm, pose_age_ms, flags = unpack_payload(
+                MessageType.CAR_POSITION, frame.payload
+            )
+        except ValueError:
+            self.rejected_position_frames += 1
+            return
+        if int(flags) & ~0x000F:
+            self.rejected_position_frames += 1
+            return
+        session_flag = bool(int(flags) & int(PositionFlag.SESSION_VALID))
+        if session_flag != (int(frame.session_id) != 0):
+            self.rejected_position_frames += 1
+            return
+        snapshot = CarPositionSnapshot(
+            session_id=int(frame.session_id),
+            seq=int(frame.seq),
+            sender_ms=int(frame.sender_ms),
+            received_monotonic=self.clock(),
+            position_xy_m=(float(x_mm) / 1000.0, float(y_mm) / 1000.0),
+            pose_age_s=float(pose_age_ms) / 1000.0,
+            flags=int(flags),
+        )
+        with self._lock:
+            self._car_position = snapshot
+            self._last_car_position_seq = int(frame.seq)
 
 
 def _load_task_config(data: dict) -> Task1Config:
@@ -341,6 +457,21 @@ def _stop_mission_safely(mission_obj, timeout_s: float = 0.8) -> None:
         mission_obj.stop_all()
 
 
+def _build_telemetry_sample(
+    mission_obj,
+    realsense,
+) -> Task1TelemetrySample | None:
+    try:
+        position = tuple(float(v) for v in realsense.get_position())
+    except Exception:
+        return None
+    return Task1TelemetrySample(
+        phase=mission_obj.director.phase,
+        base_state=str(mission_obj.state),
+        position_xyz_m=(position[0], position[1], position[2]),
+    )
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -364,6 +495,10 @@ def main(argv=None):
     cybercam = data["cybercam"]
     square = data["static_square_test"]
     payload_cfg = data.get("payload_servo", {})
+    dry_run = os.getenv("DRONE_DRY_RUN", "0").strip().lower() in {
+        "1",
+        "true",
+    }
 
     actuator, payload_hardware = build_payload_actuator(
         release_hold_s=float(payload_cfg.get("release_hold_s", 1.0))
@@ -385,6 +520,8 @@ def main(argv=None):
     reader = None
     serial_fc = None
     mission_obj = None
+    telemetry = None
+    telemetry_finished = False
     warning_led_active = False
     try:
         # 除T265外的硬件全部在等待小车按键之前完成初始化。
@@ -392,9 +529,20 @@ def main(argv=None):
             port=str(cybercam["port"]),
             baudrate=int(cybercam["baudrate"]),
         )
-        if not reader.start() or not _wait_for_vision(reader):
+        vision_started = reader.start()
+        vision_ready = (
+            vision_started and _wait_for_vision(reader)
+            if not dry_run
+            else False
+        )
+        if not dry_run and not vision_ready:
             raise RuntimeError("Cyber Camera双向通信预检失败，禁止起飞")
-        logger.info("Cyber Camera VS1与PING/PONG预检通过")
+        if vision_ready:
+            logger.info("Cyber Camera VS1与PING/PONG预检通过")
+        else:
+            logger.warning(
+                "DRONE_DRY_RUN桌面通信测试：跳过Cyber Camera双向预检"
+            )
 
         # 这里只构造Python对象，不访问T265硬件。pipeline.start严格放在
         # CAR_START解除阻塞后的mission.start()中。
@@ -466,6 +614,14 @@ def main(argv=None):
         if not set_rgb_led("R"):
             raise RuntimeError("收到CAR_START后红色起飞警示灯点亮失败")
         mission_obj.preflight_warning_started_at = time.monotonic()
+        telemetry_hz = max(
+            1.0, float(bluetooth.get("uav_state_hz", 10.0))
+        )
+        telemetry = Task1TelemetryPublisher(
+            link,
+            session_id=session_id,
+            state_interval_s=1.0 / telemetry_hz,
+        )
 
         # T265初始化与红灯5秒安全提示并行；两者都完成后mission.start才解锁。
         mission_obj.start()
@@ -473,7 +629,19 @@ def main(argv=None):
             raise RuntimeError("T265或起飞预检失败，任务未启动")
         warning_led_active = False
         while mission_obj.task_running:
-            time.sleep(0.10)
+            sample = _build_telemetry_sample(
+                mission_obj,
+                realsense,
+            )
+            if sample is not None:
+                telemetry.update(sample)
+            time.sleep(0.03)
+        telemetry.finish(
+            mission_success=mission_obj.director.mission_success,
+            faulted=bool(mission_obj.emergency_stop),
+        )
+        telemetry_finished = True
+        link.wait_pending(0.65)
     except KeyboardInterrupt:
         logger.warning("用户中断任务一启动程序")
         _stop_mission_safely(mission_obj)
@@ -482,6 +650,16 @@ def main(argv=None):
         raise
     finally:
         _stop_mission_safely(mission_obj)
+        if telemetry is not None and not telemetry_finished:
+            mission_success = bool(
+                mission_obj is not None
+                and mission_obj.director.mission_success
+            )
+            telemetry.finish(
+                mission_success=mission_success,
+                faulted=True,
+            )
+            link.wait_pending(0.65)
         if warning_led_active:
             try:
                 set_rgb_led("OFF")

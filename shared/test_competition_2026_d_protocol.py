@@ -9,6 +9,7 @@ from shared.competition_2026_d_protocol import (
     Frame,
     MessageType,
     StreamParser,
+    UavPhase,
     decode_frame,
     encode_frame,
     pack_car_state,
@@ -111,9 +112,31 @@ class DcpProtocolTest(unittest.TestCase):
         self.assertFalse(seq_is_newer(42, 42))
 
     def test_uav_state_payload_schema(self):
-        values = (6, 100, -200, 1500, 20, -30, 88, 3)
+        values = (100, -200, 1500)
         payload = pack_payload(MessageType.UAV_STATE, values)
         self.assertEqual(unpack_payload(MessageType.UAV_STATE, payload), values)
+
+    def test_uav_event_payload_schema(self):
+        values = (UavPhase.FORMATION_FOLLOW, 1234)
+        payload = pack_payload(MessageType.UAV_EVENT, values)
+        self.assertEqual(unpack_payload(MessageType.UAV_EVENT, payload), values)
+
+    def test_coordinate_fusion_payload_schemas(self):
+        car_position = (1500, 2000, 25, 0x000D)
+        payload = pack_payload(MessageType.CAR_POSITION, car_position)
+        self.assertEqual(len(payload), 12)
+        self.assertEqual(
+            unpack_payload(MessageType.CAR_POSITION, payload),
+            car_position,
+        )
+
+        fused = (1500, 2000, 750, 750, 1500, 42, 1234, 25, 0x000F)
+        payload = pack_payload(MessageType.FUSED_POSITION, fused)
+        self.assertEqual(len(payload), 28)
+        self.assertEqual(
+            unpack_payload(MessageType.FUSED_POSITION, payload),
+            fused,
+        )
 
 
 if __name__ == "__main__":

@@ -39,11 +39,9 @@ class MessageType(IntEnum):
     ACK = 0x04
     CAR_STATE = 0x10
     UAV_STATE = 0x11
-    DROP_RELEASED = 0x20
-    TOUCHDOWN_CONFIRMED = 0x21
-    RETAKEOFF_STARTED = 0x22
-    MISSION_COMPLETE = 0x23
-    FAULT_EVENT = 0x30
+    FUSED_POSITION = 0x12
+    CAR_POSITION = 0x13
+    UAV_EVENT = 0x20
 
 
 class UavPhase(IntEnum):
@@ -82,6 +80,13 @@ class CarStateFlag(IntFlag):
     PASSED_C = 1 << 2
     FINISH_DETECTION_ENABLED = 1 << 3
     ENCODER_SPEED_VALID = 1 << 4
+
+
+class PositionFlag(IntFlag):
+    CAR_POSE_VALID = 1 << 0
+    UAV_POSE_VALID = 1 << 1
+    CAR_POSE_FRESH = 1 << 2
+    SESSION_VALID = 1 << 3
 
 
 @dataclass(frozen=True)
@@ -264,12 +269,10 @@ _PAYLOAD_FORMATS = {
     MessageType.UAV_READY: struct.Struct("<BHI"),
     MessageType.CAR_START: struct.Struct("<BI"),
     MessageType.ACK: struct.Struct("<BHB"),
-    MessageType.UAV_STATE: struct.Struct("<BiihhhBH"),
-    MessageType.DROP_RELEASED: struct.Struct("<IB"),
-    MessageType.TOUCHDOWN_CONFIRMED: struct.Struct("<IB"),
-    MessageType.RETAKEOFF_STARTED: struct.Struct("<I"),
-    MessageType.MISSION_COMPLETE: struct.Struct("<BI"),
-    MessageType.FAULT_EVENT: struct.Struct("<HBH"),
+    MessageType.UAV_STATE: struct.Struct("<iih"),
+    MessageType.FUSED_POSITION: struct.Struct("<iiiihHIHH"),
+    MessageType.CAR_POSITION: struct.Struct("<iiHH"),
+    MessageType.UAV_EVENT: struct.Struct("<BI"),
 }
 
 

@@ -1,4 +1,4 @@
-"""任务一固定路径专项实飞入口（不使用视觉、不等待小车通信、不投放）。"""
+"""任务一固定路径专项实飞入口（不等待小车通信，可选视觉放行与投放）。"""
 
 from __future__ import annotations
 
@@ -23,6 +23,7 @@ from t265 import t265_class  # noqa: E402
 from .payload_servo import build_payload_actuator  # noqa: E402
 from .task1_flight import Task1FlightMission  # noqa: E402
 from .task1_mission import Task1Config  # noqa: E402
+from .vision.cybercam_reader import CyberCamReader  # noqa: E402
 
 
 class NullVisionReader:
@@ -81,22 +82,51 @@ def _stop_mission_safely(mission_obj, timeout_s: float = 0.8) -> None:
 def build_path_test_config(
     base,
     *,
-    height_m: float,
+    cruise_height_m: float,
+    follow_height_m: float,
     path_speed_m_s: float,
     intercept_speed_m_s: float,
     return_speed_m_s: float,
+    wait_for_target: bool = False,
+    curve_speed_m_s: float | None = None,
+    path_lookahead_m: float | None = None,
+    payload_drop_enabled: bool = False,
+    drop_max_error_m: float | None = None,
 ):
-    """保持正式路径算法，只关闭视觉等待、下降与投放。"""
+    """保持正式路径算法，可选择在B_PRE等待视觉目标放行。"""
     return replace(
         base,
-        cruise_height_m=height_m,
-        follow_height_m=height_m,
+        cruise_height_m=cruise_height_m,
+        follow_height_m=follow_height_m,
         car_speed_m_s=path_speed_m_s,
+        curve_speed_m_s=curve_speed_m_s,
         car_speed_scale=1.0,
         intercept_speed_m_s=intercept_speed_m_s,
         return_speed_m_s=return_speed_m_s,
-        acquire_timeout_s=0.0,
+        acquire_timeout_s=float("inf") if wait_for_target else 0.0,
+        path_only_b_pre_descent=not wait_for_target,
+        payload_drop_enabled=payload_drop_enabled,
+        drop_max_error_m=(
+            base.drop_max_error_m
+            if drop_max_error_m is None
+            else drop_max_error_m
+        ),
+        path_lookahead_m=(
+            base.path_lookahead_m
+            if path_lookahead_m is None
+            else path_lookahead_m
+        ),
     )
+
+
+def _wait_for_vision(reader: CyberCamReader, timeout_s: float = 5.0) -> bool:
+    deadline = time.monotonic() + timeout_s
+    while time.monotonic() < deadline:
+        stats = reader.stats()
+        if stats["accepted_frames"] >= 3 and stats["pongs_received"] >= 1:
+            return True
+        time.sleep(0.05)
+    return False
 
 
 def main(argv=None):
@@ -106,21 +136,62 @@ def main(argv=None):
         type=Path,
         default=Path(__file__).with_name("config.json"),
     )
-    parser.add_argument("--height", type=float, default=1.5)
+    parser.add_argument("--height", dest="cruise_height", type=float, default=1.5)
+    parser.add_argument("--follow-height", type=float, default=1.0)
     parser.add_argument("--path-speed", type=float, default=0.13)
+    parser.add_argument(
+        "--curve-speed",
+        type=float,
+        default=None,
+        help="B到C圆弧速度；未指定时与--path-speed相同",
+    )
+    parser.add_argument(
+        "--path-lookahead",
+        type=float,
+        default=None,
+        help="路径前视距离；圆弧贴合测试建议0.12m",
+    )
     parser.add_argument("--intercept-speed", type=float, default=0.38)
     parser.add_argument("--return-speed", type=float, default=0.35)
     parser.add_argument(
+        "--wait-for-target",
+        action="store_true",
+        help="在B_PRE等待Cyber Camera确认目标后再继续路径",
+    )
+    parser.add_argument(
+        "--enable-payload-drop",
+        action="store_true",
+        help="视觉投放门禁满足后下降至0.65m并驱动舵机",
+    )
+    parser.add_argument(
+        "--drop-max-error",
+        type=float,
+        default=None,
+        help="投放允许的最大视觉中心偏差；完整流程测试建议0.30m",
+    )
+    parser.add_argument(
         "--height-source",
         choices=("laser", "t265"),
-        default="laser",
+        default="t265",
     )
     args = parser.parse_args(argv)
 
-    if not 1.0 <= args.height <= 1.6:
+    if not 1.0 <= args.cruise_height <= 1.6:
         parser.error("--height建议范围为1.0~1.6 m")
+    if not 0.8 <= args.follow_height <= args.cruise_height:
+        parser.error("--follow-height必须在0.8m到巡航高度之间")
     if not 0.05 <= args.path_speed <= 0.20:
         parser.error("--path-speed安全范围为0.05~0.20 m/s")
+    if args.curve_speed is not None and not 0.05 <= args.curve_speed <= 0.20:
+        parser.error("--curve-speed安全范围为0.05~0.20 m/s")
+    if args.path_lookahead is not None and not 0.08 <= args.path_lookahead <= 0.30:
+        parser.error("--path-lookahead安全范围为0.08~0.30 m")
+    if args.enable_payload_drop and not args.wait_for_target:
+        parser.error("--enable-payload-drop必须与--wait-for-target同时使用")
+    if args.drop_max_error is not None and not 0.10 <= args.drop_max_error <= 0.50:
+        parser.error("--drop-max-error安全范围为0.10~0.50 m")
+    if args.drop_max_error is not None and not args.enable_payload_drop:
+        parser.error("--drop-max-error必须与--enable-payload-drop同时使用")
     if not 0.10 <= args.intercept_speed <= 0.40:
         parser.error("--intercept-speed安全范围为0.10~0.40 m/s")
     if not 0.10 <= args.return_speed <= 0.40:
@@ -129,10 +200,16 @@ def main(argv=None):
     data = json.loads(args.config.read_text(encoding="utf-8"))
     task_config = build_path_test_config(
         _load_task_config(data),
-        height_m=args.height,
+        cruise_height_m=args.cruise_height,
+        follow_height_m=args.follow_height,
         path_speed_m_s=args.path_speed,
         intercept_speed_m_s=args.intercept_speed,
         return_speed_m_s=args.return_speed,
+        wait_for_target=args.wait_for_target,
+        curve_speed_m_s=args.curve_speed,
+        path_lookahead_m=args.path_lookahead,
+        payload_drop_enabled=args.enable_payload_drop,
+        drop_max_error_m=args.drop_max_error,
     )
     payload_cfg = data.get("payload_servo", {})
     actuator, payload_hardware = build_payload_actuator(
@@ -143,10 +220,32 @@ def main(argv=None):
 
     serial_fc = None
     mission_obj = None
+    vision_reader = NullVisionReader()
     try:
+        if args.wait_for_target:
+            cybercam = data["cybercam"]
+            vision_reader = CyberCamReader(
+                port=str(cybercam["port"]),
+                baudrate=int(cybercam["baudrate"]),
+            )
+            if not vision_reader.start() or not _wait_for_vision(vision_reader):
+                raise RuntimeError(
+                    "Cyber Camera双向通信预检失败，禁止视觉协同测试"
+                )
+            logger.info(
+                "Cyber Camera预检通过；到达B_PRE后将等待目标连续确认"
+            )
         logger.warning(
-            "固定路径专项：不启用视觉、不等待小车通信、不执行投放；"
-            f"高度={args.height:.2f}m，路径速度={args.path_speed:.2f}m/s"
+            "固定路径专项：不等待小车通信；"
+            f"视觉放行={'启用' if args.wait_for_target else '禁用'}，"
+            f"巡航高度={args.cruise_height:.2f}m，"
+            f"B_PRE后高度={args.follow_height:.2f}m，"
+            f"测高源={args.height_source.upper()}，"
+            f"圆弧速度={task_config.curve_speed_m_s or args.path_speed:.2f}m/s，"
+            f"直线速度={args.path_speed:.2f}m/s，"
+            f"前视距离={task_config.path_lookahead_m:.2f}m，"
+            f"实际投放={'启用' if args.enable_payload_drop else '禁用'}，"
+            f"投放偏差门槛={task_config.drop_max_error_m:.2f}m"
         )
         if not wait_for_start_button():
             logger.error("本地按键门禁失败，程序退出")
@@ -168,9 +267,19 @@ def main(argv=None):
             se_fc,
             realsense,
             serial_fc,
-            vision_reader=NullVisionReader(),
+            vision_reader=vision_reader,
             payload_actuator=actuator,
             task_config=task_config,
+            vision_config={
+                "max_age_s": float(data["cybercam"]["max_age_s"]),
+                "min_quality": int(task_config.vision_min_quality),
+                "image_center_px": tuple(
+                    data["static_square_test"]["image_center_px"]
+                ),
+                "focal_px": tuple(
+                    data["static_square_test"]["focal_px"]
+                ),
+            },
             car_speed_provider=None,
             height_source=args.height_source,
         )
@@ -190,6 +299,8 @@ def main(argv=None):
         if serial_fc is not None:
             serial_fc.send_end()
             serial_fc.close()
+        if isinstance(vision_reader, CyberCamReader):
+            vision_reader.close()
 
 
 if __name__ == "__main__":

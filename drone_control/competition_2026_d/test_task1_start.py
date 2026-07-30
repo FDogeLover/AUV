@@ -6,10 +6,14 @@ from shared.competition_2026_d_protocol import (
     Flag,
     Frame,
     MessageType,
+    PositionFlag,
     pack_payload,
 )
 
-from drone_control.competition_2026_d.task1_start import Task1StartGate
+try:
+    from drone_control.competition_2026_d.task1_start import Task1StartGate
+except ModuleNotFoundError:
+    from competition_2026_d.task1_start import Task1StartGate
 
 
 class FakeLink:
@@ -91,6 +95,32 @@ def car_state(
         seq=seq,
         sender_ms=seq * 100,
         payload=payload,
+    )
+
+
+def car_position(
+    *,
+    session=0,
+    seq=1,
+    x_mm=1500,
+    y_mm=2000,
+    age_ms=25,
+    flags=int(
+        PositionFlag.CAR_POSE_VALID | PositionFlag.CAR_POSE_FRESH
+    ),
+):
+    return Frame(
+        message_type=MessageType.CAR_POSITION,
+        flags=Flag.NONE,
+        source=Device.CAR,
+        dest=Device.UAV,
+        session_id=session,
+        seq=seq,
+        sender_ms=seq * 100,
+        payload=pack_payload(
+            MessageType.CAR_POSITION,
+            (x_mm, y_mm, age_ms, flags),
+        ),
     )
 
 
@@ -184,3 +214,38 @@ def test_car_world_velocity_is_preserved_without_coordinate_conversion():
     link.feed(car_start(session=20))
     link.feed(car_state(vx_mm_s=100, vy_mm_s=-50))
     assert gate.car_velocity() == (0.1, -0.05)
+
+
+def test_car_position_accepts_session_zero_before_start_then_bound_session():
+    clock = Clock()
+    link = FakeLink()
+    gate = Task1StartGate(link, config_hash=99, clock=clock)
+    link.feed(car_position())
+    assert gate.latest_car_position().position_xy_m == (1.5, 2.0)
+
+    link.feed(car_start(session=20))
+    assert gate.latest_car_position() is None
+    link.feed(
+        car_position(
+            session=20,
+            seq=0,
+            x_mm=1510,
+            flags=int(
+                PositionFlag.CAR_POSE_VALID
+                | PositionFlag.CAR_POSE_FRESH
+                | PositionFlag.SESSION_VALID
+            ),
+        )
+    )
+    assert gate.latest_car_position().position_xy_m == (1.51, 2.0)
+    clock.now = 0.31
+    assert gate.latest_car_position() is None
+
+
+def test_car_position_rejects_session_and_reserved_flag_errors():
+    link = FakeLink()
+    gate = Task1StartGate(link, config_hash=99)
+    link.feed(car_position(session=9))
+    link.feed(car_position(seq=2, flags=0x0010))
+    assert gate.latest_car_position() is None
+    assert gate.rejected_position_frames == 2

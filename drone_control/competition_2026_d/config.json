@@ -19,6 +19,7 @@
     "baudrate": 115200,
     "ack_timeout_s": 0.12,
     "max_retries": 4,
+    "uav_state_hz": 10,
     "car_state_max_age_s": 0.3,
     "car_speed_max_m_s": 0.3,
     "car_component_max_m_s": 0.4

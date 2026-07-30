@@ -68,12 +68,10 @@
 | `0x03` | CAR_START | CAR→UAV | 必须ACK、幂等 | `task_mode:u8, car_config_hash:u32` |
 | `0x04` | ACK | 任意→任意 | 不再ACK | `acked_type:u8, acked_seq:u16, result:u8` |
 | `0x10` | CAR_STATE | CAR→UAV/GROUND | 10 Hz最新值 | `segment:u8, track_s_mm:u16, speed_mm_s:i16, heading_cdeg:i16, state_flags:u16, vx_mm_s:i16, vy_mm_s:i16` |
-| `0x11` | UAV_STATE | UAV→CAR/GROUND | 最新值 | `phase:u8, x_mm:i32, y_mm:i32, z_mm:i16, vx_mm_s:i16, vy_mm_s:i16, vision_quality:u8, flags:u16` |
-| `0x20` | DROP_RELEASED | UAV→CAR/GROUND | 事件、必须ACK | `elapsed_ms:u32, quality:u8` |
-| `0x21` | TOUCHDOWN_CONFIRMED | UAV→CAR/GROUND | 事件、必须ACK | `elapsed_ms:u32, confidence:u8` |
-| `0x22` | RETAKEOFF_STARTED | UAV→CAR/GROUND | 事件 | `elapsed_ms:u32` |
-| `0x23` | MISSION_COMPLETE | UAV→CAR/GROUND | 事件、必须ACK | `result:u8, elapsed_ms:u32` |
-| `0x30` | FAULT_EVENT | 任意→任意 | 事件 | `fault_code:u16, severity:u8, detail:u16` |
+| `0x11` | UAV_STATE | UAV→CAR/GROUND | 10 Hz最新值 | `x_mm:i32, y_mm:i32, z_mm:i16` |
+| `0x12` | FUSED_POSITION | CAR→GROUND | 每帧UAV_STATE触发 | `car_x_mm:i32, car_y_mm:i32, uav_x_mm:i32, uav_y_mm:i32, uav_z_mm:i16, uav_seq:u16, uav_sender_ms:u32, car_pose_age_ms:u16, flags:u16` |
+| `0x13` | CAR_POSITION | CAR→UAV | 10 Hz最新值 | `car_x_mm:i32, car_y_mm:i32, car_pose_age_ms:u16, flags:u16` |
+| `0x20` | UAV_EVENT | UAV→CAR/GROUND | 事件、必须ACK | `phase:u8, elapsed_ms:u32` |
 
 后续增加字段只能新增消息版本或追加可判长的尾部字段，不得改变v1已有字段语义。
 
@@ -112,7 +110,24 @@
 旧9字节载荷允许兼容读取基础字段，但没有`vx/vy`，不得伪造世界速度；正式联调应统计并
 提示旧帧，以便发现小车固件未升级。
 
-`UAV_STATE` 正常按 `10 Hz` 发送，状态切换时立即额外发送一帧。地面站超过 `500 ms` 未收到新状态时必须显示“状态已过期/链路异常”，不能继续把旧phase显示为实时状态；中文文字由各端按本节统一枚举映射，不在无线链路传输自由文本。
+`UAV_STATE`只传T265坐标，正常按`10 Hz`发送。`x/y/z`均为以本次T265初始化后的
+H点为原点的世界坐标，单位毫米；不传速度、视觉质量或状态位。正式任务默认使用T265
+高度，因此`z`表达T265世界Z坐标。
+
+无人机阶段变化时立即发送一帧可靠`UAV_EVENT`。`phase`使用下节统一枚举，
+`elapsed_ms`为本次无人机任务启动后的毫秒数。起飞、伴飞、抛投、返航、降落和完成等
+状态都通过该消息上报；中文文字由小车/地面站按枚举映射，不传自由文本。
+
+地面站超过`500 ms`未收到新`UAV_STATE`时必须把坐标显示为“已过期/链路异常”；
+阶段文字保持最近一次已ACK的`UAV_EVENT`，直到收到下一阶段事件。
+
+`CAR_POSITION`使用场地左下角为原点、向右为`+X`、向上为`+Y`的全局坐标。
+任务建立前允许`session_id=0`；收到并ACK非零session的`CAR_START`后，后续坐标必须使用
+同一session。flags bit0为车辆坐标有效、bit2为车辆坐标年龄不超过200 ms、bit3表示
+session非零，其余保留位必须为0。无人机当前只记录该坐标，不参与任务一飞行控制。
+
+`FUSED_POSITION`由小车在每次收到新`UAV_STATE`后生成并只发往地面站，无人机不接收。
+小车把H点相对无人机坐标和平移后的车辆T265坐标统一转换为场地全局坐标。
 
 ## 6. 状态枚举
 
@@ -174,7 +189,7 @@
 
 ## 8. ACK与重发
 
-- `CAR_START`、`DROP_RELEASED`、`TOUCHDOWN_CONFIRMED`、`MISSION_COMPLETE` 设置ACK_REQUIRED。
+- `CAR_START`和`UAV_EVENT`设置ACK_REQUIRED。
 - 发送端按有限间隔重复，收到匹配的 `acked_type + acked_seq + session_id` 后停止。
 - 接收端处理事件必须幂等：重复帧只重发ACK，不重复执行动作。
 - 周期状态不重传；接收端只保留最新有效seq。
@@ -191,7 +206,7 @@
 
 - 小车状态超时但视觉正常：无人机继续视觉闭环并标记降级。
 - VS1观测陈旧：暂停视觉动作，不复用最后一帧。
-- `TOUCHDOWN_CONFIRMED` 未确认：小车维持低速，直到收到确认或有效 `UAV_STATE` 明确退出 `DESCEND/TERMINAL_PREDICT`；无可靠链路时保持低速至A点停车。
+- 动态降落任务中未收到新的降落阶段事件时，小车维持既定低速策略；无可靠链路时保持低速至A点停车。
 - 地面站断开：任务继续。
 - Pi/RDK与STM32失联：执行既有飞行安全策略。
 

@@ -6,9 +6,11 @@ from drone_control.competition_2026_d.control.task1_path_controller import (
 )
 from drone_control.competition_2026_d.payload_actuator import ActuatorState
 from drone_control.competition_2026_d.task1_mission import (
+    B,
     B_PRE,
     C,
     D,
+    Task1Config,
     Task1Input,
     Task1MissionDirector,
     Task1Phase,
@@ -91,6 +93,42 @@ def test_b_pre_timeout_continues_fixed_path_without_descending():
     assert not command.target_acquired
 
 
+def test_path_only_holds_b_pre_until_t265_height_reaches_one_meter():
+    config = Task1Config(path_only_b_pre_descent=True)
+    director = Task1MissionDirector(config)
+    director._transition(Task1Phase.ACQUIRE_TARGET, 0.0, "test")
+
+    descending = director.tick(mission_input(0.1, (*B_PRE, 1.35)))
+    assert descending.phase == Task1Phase.ACQUIRE_TARGET
+    assert descending.target_world_height_m == 1.0
+    assert (descending.vx_m_s, descending.vy_m_s) == (0.0, 0.0)
+
+    ready = director.tick(mission_input(1.0, (*B_PRE, 1.08)))
+    assert ready.phase == Task1Phase.FOLLOW_B_C
+    assert ready.target_acquired
+
+
+def test_curve_and_straight_segments_can_use_different_speeds():
+    director = Task1MissionDirector(
+        Task1Config(car_speed_m_s=0.08, curve_speed_m_s=0.06)
+    )
+    director.target_acquired = True
+    director._transition(Task1Phase.FOLLOW_B_C, 0.0, "test")
+    director.bc_follower.reset(timestamp=0.0)
+    curve = director.tick(mission_input(1.0, (*B, 1.0)))
+    assert math.isclose(
+        math.hypot(curve.vx_m_s, curve.vy_m_s), 0.06, abs_tol=1e-9
+    )
+
+    director._transition(Task1Phase.DROP_WINDOW_C_D, 2.0, "test")
+    director.cd_follower.reset(timestamp=2.0)
+    director.tick(mission_input(3.0, (*C, 1.0)))
+    straight = director.tick(mission_input(3.2, (*C, 1.0)))
+    assert math.isclose(
+        math.hypot(straight.vx_m_s, straight.vy_m_s), 0.08, abs_tol=1e-9
+    )
+
+
 def test_vision_does_not_write_horizontal_velocity_during_b_c_follow():
     without_vision = Task1MissionDirector()
     with_vision = Task1MissionDirector()
@@ -171,6 +209,30 @@ def test_drop_gate_latches_and_visual_is_ignored_after_descent_starts():
     assert climb.phase == Task1Phase.CLIMB
     assert climb.drop_released
     assert climb.mission_success
+
+
+def test_drop_gate_is_disabled_for_visual_path_test():
+    director = Task1MissionDirector(
+        Task1Config(payload_drop_enabled=False)
+    )
+    director.target_acquired = True
+    director._transition(Task1Phase.DROP_WINDOW_C_D, 0.0, "test")
+    director.cd_follower.reset(timestamp=0.0)
+
+    for seq in (1, 2):
+        command = director.tick(
+            mission_input(
+                seq * 0.1,
+                (*C, 1.0),
+                vision_seq=seq,
+                vision_found=True,
+                vision_quality=100,
+                vision_error_xy_m=(0.0, 0.0),
+            )
+        )
+    assert command.phase == Task1Phase.DROP_WINDOW_C_D
+    assert not command.drop_committed
+    assert not command.release_requested
 
 
 def test_reaching_d_without_gate_skips_release_and_returns():

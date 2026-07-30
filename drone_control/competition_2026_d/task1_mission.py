@@ -54,6 +54,7 @@ class Task1Config:
     hold_duration_s: float = 3.0
     intercept_speed_m_s: float = 0.38
     car_speed_m_s: float = 0.13
+    curve_speed_m_s: float | None = None
     car_speed_scale: float = 1.0
     return_speed_m_s: float = 0.35
     point_kp: float = 0.90
@@ -75,6 +76,8 @@ class Task1Config:
     drop_time_margin_s: float = 0.80
     release_timeout_s: float = 1.0
     t265_min_confidence: int = 2
+    path_only_b_pre_descent: bool = False
+    payload_drop_enabled: bool = True
 
 
 @dataclass(frozen=True)
@@ -153,6 +156,12 @@ class Task1MissionDirector:
             else max(0.0, float(data.car_speed_m_s))
         )
         car_speed = raw_car_speed * max(0.0, cfg.car_speed_scale)
+        curve_speed = (
+            car_speed
+            if cfg.curve_speed_m_s is None
+            else max(0.0, cfg.curve_speed_m_s)
+            * max(0.0, cfg.car_speed_scale)
+        )
         target_xy = position_xy
         target_world_height = cfg.cruise_height_m
         target_deck_height = None
@@ -203,7 +212,20 @@ class Task1MissionDirector:
             vx, vy = self._point_velocity(
                 position_xy, B_PRE, cfg.hold_position_max_speed_m_s
             )
-            if self._confirm_vision(data, require_centered=False):
+            if cfg.path_only_b_pre_descent:
+                target_world_height = cfg.follow_height_m
+                if abs(z_world - cfg.follow_height_m) <= 0.10:
+                    self.target_acquired = True
+                    self.bc_follower.reset(
+                        timestamp=data.now,
+                        velocity_xy_m_s=data.velocity_xy_m_s,
+                    )
+                    self._transition(
+                        Task1Phase.FOLLOW_B_C,
+                        data.now,
+                        "path_test_b_pre_descent_complete",
+                    )
+            elif self._confirm_vision(data, require_centered=False):
                 self.target_acquired = True
                 self.bc_follower.reset(
                     timestamp=data.now, velocity_xy_m_s=data.velocity_xy_m_s
@@ -231,7 +253,9 @@ class Task1MissionDirector:
                 cfg.follow_height_m if self.target_acquired else cfg.cruise_height_m
             )
             path = self.bc_follower.command(
-                position_xy, nominal_speed_m_s=car_speed, timestamp=data.now
+                position_xy,
+                nominal_speed_m_s=curve_speed,
+                timestamp=data.now,
             )
             target_xy, vx, vy = self._from_path(path)
             if path.completed:
@@ -254,7 +278,8 @@ class Task1MissionDirector:
             available_time = path.remaining_m / max(car_speed, 1e-3)
             gate_has_time = available_time >= descent_time + cfg.drop_time_margin_s
             if (
-                self.target_acquired
+                cfg.payload_drop_enabled
+                and self.target_acquired
                 and gate_has_time
                 and self._confirm_vision(data, require_centered=True)
             ):

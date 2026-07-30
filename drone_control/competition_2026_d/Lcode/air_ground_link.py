@@ -40,13 +40,19 @@ class LinkConfig:
 @dataclass
 class LinkStats:
     tx_frames: int = 0
+    rx_bytes: int = 0
     rx_frames: int = 0
     tx_dropped: int = 0
     rx_rejected: int = 0
+    rx_wrong_dest: int = 0
     retries: int = 0
     ack_timeouts: int = 0
     duplicate_events: int = 0
     io_errors: int = 0
+    last_rx_hex: str = ""
+    last_frame_type: int | None = None
+    last_frame_source: int | None = None
+    last_frame_dest: int | None = None
 
 
 @dataclass
@@ -159,6 +165,17 @@ class AirGroundLink:
         except queue.Empty:
             return None
 
+    def wait_pending(self, timeout_s: float = 0.6) -> bool:
+        """等待可靠事件收到ACK；仅供任务结束清理路径使用。"""
+        deadline = time.monotonic() + max(0.0, float(timeout_s))
+        while time.monotonic() < deadline:
+            with self._pending_lock:
+                if not self._pending:
+                    return True
+            time.sleep(0.01)
+        with self._pending_lock:
+            return not self._pending
+
     def _enqueue(self, raw: bytes) -> bool:
         try:
             self._tx_queue.put_nowait(raw)
@@ -183,10 +200,16 @@ class AirGroundLink:
                 data = self._serial.read(256)
                 if not data:
                     continue
+                self.stats.rx_bytes += len(data)
+                self.stats.last_rx_hex = bytes(data[-32:]).hex()
                 frames = self._parser.feed(data)
                 self.stats.rx_rejected = self._parser.rejected
                 for frame in frames:
+                    self.stats.last_frame_type = int(frame.message_type)
+                    self.stats.last_frame_source = int(frame.source)
+                    self.stats.last_frame_dest = int(frame.dest)
                     if frame.dest not in (Device.UAV, Device.BROADCAST):
+                        self.stats.rx_wrong_dest += 1
                         continue
                     self.stats.rx_frames += 1
                     self._handle_frame(frame)
