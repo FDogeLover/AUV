@@ -1,4 +1,7 @@
+import struct
+
 from shared.competition_2026_d_protocol import (
+    CarStateFlag,
     Device,
     Flag,
     Frame,
@@ -49,6 +52,48 @@ def car_start(*, mode=1, session=10, flags=None):
     )
 
 
+def car_state(
+    *,
+    session=20,
+    seq=2,
+    segment=1,
+    track_s_mm=100,
+    speed_mm_s=130,
+    heading_cdeg=0,
+    state_flags=int(
+        CarStateFlag.NORMAL_TRACKING | CarStateFlag.ENCODER_SPEED_VALID
+    ),
+    vx_mm_s=130,
+    vy_mm_s=0,
+    legacy=False,
+):
+    values = (
+        segment,
+        track_s_mm,
+        speed_mm_s,
+        heading_cdeg,
+        state_flags,
+    )
+    payload = (
+        struct.pack("<BHhhH", *values)
+        if legacy
+        else pack_payload(
+            MessageType.CAR_STATE,
+            (*values, vx_mm_s, vy_mm_s),
+        )
+    )
+    return Frame(
+        message_type=MessageType.CAR_STATE,
+        flags=Flag.NONE,
+        source=Device.CAR,
+        dest=Device.UAV,
+        session_id=session,
+        seq=seq,
+        sender_ms=seq * 100,
+        payload=payload,
+    )
+
+
 def test_gate_rejects_wrong_mode_and_accepts_task1_once():
     link = FakeLink()
     gate = Task1StartGate(link, config_hash=99)
@@ -73,19 +118,69 @@ def test_car_speed_requires_bound_session_and_fresh_data():
     link = FakeLink()
     gate = Task1StartGate(link, config_hash=99, clock=clock)
     link.feed(car_start(session=20))
-    state = Frame(
-        message_type=MessageType.CAR_STATE,
-        flags=Flag.NONE,
-        source=Device.CAR,
-        dest=Device.UAV,
-        session_id=20,
-        seq=2,
-        sender_ms=2,
-        payload=pack_payload(
-            MessageType.CAR_STATE, (1, 100, 130, 0, 0)
-        ),
-    )
-    link.feed(state)
+    link.feed(car_state())
     assert gate.car_speed() == 0.13
-    clock.now = 0.6
+    assert gate.car_velocity() == (0.13, 0.0)
+    clock.now = 0.31
     assert gate.car_speed() is None
+    assert gate.car_velocity() is None
+
+
+def test_car_state_rejects_wrong_session_invalid_flag_and_reserved_bits():
+    link = FakeLink()
+    gate = Task1StartGate(link, config_hash=99)
+    link.feed(car_start(session=20))
+    link.feed(car_state(session=21))
+    link.feed(car_state(seq=3, state_flags=0))
+    assert gate.latest_car_state() is not None
+    assert gate.car_speed() is None
+    link.feed(car_state(seq=4, state_flags=0x0020))
+    assert gate.latest_car_state().seq == 3
+    assert gate.rejected_state_frames == 2
+
+
+def test_car_state_sequence_rejects_duplicate_and_old_but_allows_wrap():
+    link = FakeLink()
+    gate = Task1StartGate(link, config_hash=99)
+    link.feed(car_start(session=20))
+    link.feed(car_state(seq=65535))
+    link.feed(car_state(seq=65535, speed_mm_s=120, vx_mm_s=120))
+    link.feed(car_state(seq=65534, speed_mm_s=110, vx_mm_s=110))
+    assert gate.latest_car_state().seq == 65535
+    link.feed(car_state(seq=0, speed_mm_s=140, vx_mm_s=140))
+    assert gate.latest_car_state().seq == 0
+    assert gate.car_speed() == 0.14
+    assert gate.duplicate_or_old_state_frames == 2
+
+
+def test_legacy_state_keeps_scalar_but_has_no_world_velocity():
+    link = FakeLink()
+    gate = Task1StartGate(link, config_hash=99)
+    link.feed(car_start(session=20))
+    link.feed(car_state(legacy=True))
+    state = gate.latest_car_state()
+    assert state.legacy_payload
+    assert state.world_velocity_m_s is None
+    assert gate.car_speed() == 0.13
+    assert gate.car_velocity() is None
+    assert gate.legacy_state_frames == 1
+
+
+def test_signed_reverse_speed_is_saved_but_not_used_for_task1_forward_speed():
+    link = FakeLink()
+    gate = Task1StartGate(link, config_hash=99)
+    link.feed(car_start(session=20))
+    link.feed(
+        car_state(speed_mm_s=-100, vx_mm_s=-100, vy_mm_s=0)
+    )
+    assert gate.latest_car_state().speed_m_s == -0.1
+    assert gate.car_speed() is None
+    assert gate.car_velocity() == (-0.1, 0.0)
+
+
+def test_car_world_velocity_is_preserved_without_coordinate_conversion():
+    link = FakeLink()
+    gate = Task1StartGate(link, config_hash=99)
+    link.feed(car_start(session=20))
+    link.feed(car_state(vx_mm_s=100, vy_mm_s=-50))
+    assert gate.car_velocity() == (0.1, -0.05)

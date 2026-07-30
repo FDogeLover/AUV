@@ -1,6 +1,6 @@
 # D题统一通信协议
 
-状态：v1 设计冻结前草案
+状态：DCP v1冻结；CAR_STATE 13字节扩展已冻结
 唯一维护位置：本文件
 
 ## 1. 适用链路
@@ -67,7 +67,7 @@
 | `0x02` | UAV_READY | UAV→CAR/GROUND | 周期广播 | `task_mask:u8, ready_bits:u16, config_hash:u32` |
 | `0x03` | CAR_START | CAR→UAV | 必须ACK、幂等 | `task_mode:u8, car_config_hash:u32` |
 | `0x04` | ACK | 任意→任意 | 不再ACK | `acked_type:u8, acked_seq:u16, result:u8` |
-| `0x10` | CAR_STATE | CAR→UAV/GROUND | 最新值 | `segment:u8, track_s_mm:u16, speed_mm_s:i16, heading_cdeg:i16, flags:u16` |
+| `0x10` | CAR_STATE | CAR→UAV/GROUND | 10 Hz最新值 | `segment:u8, track_s_mm:u16, speed_mm_s:i16, heading_cdeg:i16, state_flags:u16, vx_mm_s:i16, vy_mm_s:i16` |
 | `0x11` | UAV_STATE | UAV→CAR/GROUND | 最新值 | `phase:u8, x_mm:i32, y_mm:i32, z_mm:i16, vx_mm_s:i16, vy_mm_s:i16, vision_quality:u8, flags:u16` |
 | `0x20` | DROP_RELEASED | UAV→CAR/GROUND | 事件、必须ACK | `elapsed_ms:u32, quality:u8` |
 | `0x21` | TOUCHDOWN_CONFIRMED | UAV→CAR/GROUND | 事件、必须ACK | `elapsed_ms:u32, confidence:u8` |
@@ -76,6 +76,41 @@
 | `0x30` | FAULT_EVENT | 任意→任意 | 事件 | `fault_code:u16, severity:u8, detail:u16` |
 
 后续增加字段只能新增消息版本或追加可判长的尾部字段，不得改变v1已有字段语义。
+
+### CAR_STATE冻结定义
+
+`CAR_STATE`的新载荷为13字节，Python解包格式为`<BHhhHhh`。前9字节的字段顺序和
+语义保持不变，尾部追加世界坐标速度分量：
+
+| payload偏移 | 类型 | 字段 | 说明 |
+|---:|---|---|---|
+| 0 | `u8` | `segment` | 当前赛道分段 |
+| 1 | `u16` | `track_s_mm` | 从A点横线起累计路径长度，mm |
+| 3 | `i16` | `speed_mm_s` | 车体中心有符号合速度，mm/s |
+| 5 | `i16` | `heading_cdeg` | 从小车世界`+X`起逆时针为正，0.01° |
+| 7 | `u16` | `state_flags` | 小车状态位 |
+| 9 | `i16` | `vx_mm_s` | 小车世界X轴速度，mm/s |
+| 11 | `i16` | `vy_mm_s` | 小车世界Y轴速度，mm/s |
+
+`state_flags`定义：
+
+- bit0：已进入正常循迹阶段。
+- bit1：循迹控制器确认处于弯道。
+- bit2：已通过C点并切换速度档。
+- bit3：已越过终点识别使能距离。
+- bit4 `0x0010`：本帧编码器速度有效；未置位时无人机不得使用速度前馈。
+- bit5..15：保留，发送端必须置0。
+
+小车和无人机后续将统一世界速度坐标系，因此接收端当前原样保存`vx/vy`，不进行坐标旋转。
+在两端坐标定义完成联合校准前，`speed/vx/vy`都只用于通信记录和诊断，不参与任务一飞行
+控制，也不直接写入飞控水平速度。
+
+无人机按同一会话的u16半区规则只接受更新seq，允许`65535→0`回绕；
+接收超过300 ms未更新、session不匹配、bit4无效、保留位非零或数值越界时，速度查询
+立即返回不可用，不能无限复用上一帧。
+
+旧9字节载荷允许兼容读取基础字段，但没有`vx/vy`，不得伪造世界速度；正式联调应统计并
+提示旧帧，以便发现小车固件未升级。
 
 `UAV_STATE` 正常按 `10 Hz` 发送，状态切换时立即额外发送一帧。地面站超过 `500 ms` 未收到新状态时必须显示“状态已过期/链路异常”，不能继续把旧phase显示为实时状态；中文文字由各端按本节统一枚举映射，不在无线链路传输自由文本。
 
@@ -189,3 +224,15 @@ VS1,stream_id,seq,capture_ms,found,cx,cy,outer_px,inner_px,angle_cdeg,quality,fl
 - Python端共享同一模块。
 - 小车MCU/其他语言实现必须通过相同黄金帧测试。
 - 每次协议升级同时提交正常帧、CRC错误帧、截断帧、重复事件和旧session测试向量。
+
+冻结的`CAR_STATE`黄金帧字段为
+`session=0x12345678, seq=42, sender_ms=1000, segment=A_B, track_s=1500 mm,
+speed=130 mm/s, heading=0, state_flags=0x0011, vx=130 mm/s, vy=0`，完整34字节为：
+
+```text
+AA 01 10 00 02 01 78 56 34 12 2A 00 E8 03 00 00
+0D 00 01 DC 05 82 00 00 00 11 00 82 00 00 00 B9
+42 FF
+```
+
+CRC为`0x42B9`，在线路中按小端顺序发送`B9 42`。

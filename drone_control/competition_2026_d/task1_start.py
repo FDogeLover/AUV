@@ -16,6 +16,7 @@ import sys
 import threading
 import time
 import zlib
+from dataclasses import dataclass
 from pathlib import Path
 
 BASIC_DIR = Path(__file__).resolve().parents[1] / "basic"
@@ -29,10 +30,14 @@ from Lcode.global_variable import fc_last_rx_time, sp_side  # noqa: E402
 from t265 import t265_class  # noqa: E402
 
 from shared.competition_2026_d_protocol import (  # noqa: E402
+    CarSegment,
+    CarStateFlag,
     Device,
     Flag,
     MessageType,
     pack_payload,
+    seq_is_newer,
+    unpack_car_state,
     unpack_payload,
 )
 
@@ -51,6 +56,27 @@ READY_VISION = 1 << 2
 READY_FC_LINK = 1 << 3
 
 
+@dataclass(frozen=True)
+class CarStateSnapshot:
+    session_id: int
+    seq: int
+    sender_ms: int
+    received_monotonic: float
+    segment: int
+    track_s_mm: int
+    speed_m_s: float
+    heading_deg: float
+    state_flags: int
+    world_velocity_m_s: tuple[float, float] | None
+    legacy_payload: bool
+
+    @property
+    def encoder_speed_valid(self) -> bool:
+        return bool(
+            self.state_flags & int(CarStateFlag.ENCODER_SPEED_VALID)
+        )
+
+
 class Task1StartGate:
     """只接受来自小车、任务模式为1、session非0的CAR_START。"""
 
@@ -61,7 +87,9 @@ class Task1StartGate:
         config_hash: int,
         ready_bits: int = READY_BT | READY_PAYLOAD_LOCKED,
         ready_interval_s: float = 0.5,
-        state_max_age_s: float = 0.5,
+        state_max_age_s: float = 0.30,
+        state_max_speed_m_s: float = 0.30,
+        state_max_component_m_s: float = 0.40,
         clock=time.monotonic,
     ) -> None:
         self.link = link
@@ -69,14 +97,22 @@ class Task1StartGate:
         self.ready_bits = int(ready_bits) & 0xFFFF
         self.ready_interval_s = max(0.1, float(ready_interval_s))
         self.state_max_age_s = max(0.1, float(state_max_age_s))
+        self.state_max_speed_m_s = max(0.01, float(state_max_speed_m_s))
+        self.state_max_component_m_s = max(
+            self.state_max_speed_m_s,
+            float(state_max_component_m_s),
+        )
         self.clock = clock
         self._start_event = threading.Event()
         self._lock = threading.Lock()
         self._session_id: int | None = None
         self._car_config_hash: int | None = None
-        self._car_speed_m_s: float | None = None
-        self._car_state_time: float | None = None
+        self._car_state: CarStateSnapshot | None = None
+        self._last_car_state_seq: int | None = None
         self.rejected_start_frames = 0
+        self.rejected_state_frames = 0
+        self.duplicate_or_old_state_frames = 0
+        self.legacy_state_frames = 0
         self.link.add_callback(self._on_frame)
 
     @property
@@ -115,19 +151,34 @@ class Task1StartGate:
         return self.session_id
 
     def car_speed(self) -> float | None:
-        with self._lock:
-            speed = self._car_speed_m_s
-            received = self._car_state_time
-        if (
-            speed is None
-            or received is None
-            or self.clock() - received > self.state_max_age_s
-        ):
+        state = self.latest_car_state()
+        if state is None or not state.encoder_speed_valid:
             return None
-        return speed
+        if not 0.0 <= state.speed_m_s <= self.state_max_speed_m_s:
+            return None
+        return state.speed_m_s
+
+    def car_velocity(self) -> tuple[float, float] | None:
+        state = self.latest_car_state()
+        if state is None or not state.encoder_speed_valid:
+            return None
+        return state.world_velocity_m_s
+
+    def latest_car_state(self) -> CarStateSnapshot | None:
+        with self._lock:
+            state = self._car_state
+        if state is None:
+            return None
+        age = self.clock() - state.received_monotonic
+        if age < 0.0 or age > self.state_max_age_s:
+            return None
+        return state
 
     def _on_frame(self, frame) -> None:
-        if int(frame.source) != int(Device.CAR):
+        if (
+            int(frame.source) != int(Device.CAR)
+            or int(frame.dest) not in (int(Device.UAV), int(Device.BROADCAST))
+        ):
             return
         if int(frame.message_type) == int(MessageType.CAR_START):
             self._handle_start(frame)
@@ -159,20 +210,66 @@ class Task1StartGate:
     def _handle_car_state(self, frame) -> None:
         with self._lock:
             session_id = self._session_id
+            previous_seq = self._last_car_state_seq
         if session_id is None or int(frame.session_id) != session_id:
+            self.rejected_state_frames += 1
+            return
+        if previous_seq is not None and not seq_is_newer(
+            int(frame.seq), previous_seq
+        ):
+            self.duplicate_or_old_state_frames += 1
             return
         try:
-            _segment, _track_s, speed_mm_s, _heading, _flags = unpack_payload(
-                MessageType.CAR_STATE, frame.payload
-            )
+            payload = unpack_car_state(frame.payload)
         except ValueError:
+            self.rejected_state_frames += 1
             return
-        speed_m_s = float(speed_mm_s) / 1000.0
-        if not 0.0 <= speed_m_s <= 0.30:
+        try:
+            CarSegment(payload.segment)
+        except ValueError:
+            self.rejected_state_frames += 1
             return
+        if int(payload.state_flags) & ~0x001F:
+            self.rejected_state_frames += 1
+            return
+
+        speed_m_s = float(payload.speed_mm_s) / 1000.0
+        if abs(speed_m_s) > self.state_max_speed_m_s:
+            self.rejected_state_frames += 1
+            return
+
+        car_velocity = None
+        if payload.has_world_velocity:
+            car_velocity = (
+                float(payload.vx_mm_s) / 1000.0,
+                float(payload.vy_mm_s) / 1000.0,
+            )
+            if any(
+                abs(component) > self.state_max_component_m_s
+                for component in car_velocity
+            ):
+                self.rejected_state_frames += 1
+                return
+        else:
+            self.legacy_state_frames += 1
+
+        received = self.clock()
+        snapshot = CarStateSnapshot(
+            session_id=int(frame.session_id),
+            seq=int(frame.seq),
+            sender_ms=int(frame.sender_ms),
+            received_monotonic=received,
+            segment=int(payload.segment),
+            track_s_mm=int(payload.track_s_mm),
+            speed_m_s=speed_m_s,
+            heading_deg=float(payload.heading_cdeg) / 100.0,
+            state_flags=int(payload.state_flags),
+            world_velocity_m_s=car_velocity,
+            legacy_payload=not payload.has_world_velocity,
+        )
         with self._lock:
-            self._car_speed_m_s = speed_m_s
-            self._car_state_time = self.clock()
+            self._car_state = snapshot
+            self._last_car_state_seq = int(frame.seq)
 
 
 def _load_task_config(data: dict) -> Task1Config:
@@ -343,11 +440,19 @@ def main(argv=None):
                 | READY_VISION
                 | READY_FC_LINK
             ),
+            state_max_age_s=float(
+                bluetooth.get("car_state_max_age_s", 0.30)
+            ),
+            state_max_speed_m_s=float(
+                bluetooth.get("car_speed_max_m_s", 0.30)
+            ),
+            state_max_component_m_s=float(
+                bluetooth.get("car_component_max_m_s", 0.40)
+            ),
         )
-        mission_obj.car_speed_provider = start_gate.car_speed
         logger.info(
             "绿灯：蓝牙、视觉、飞控和舵机均已就绪；等待小车按键发送CAR_START。"
-            "T265尚未初始化"
+            "T265尚未初始化；CAR_STATE当前仅记录，不参与飞行控制"
         )
         session_id = start_gate.wait(args.start_timeout)
         if session_id is None:

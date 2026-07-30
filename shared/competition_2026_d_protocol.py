@@ -68,6 +68,37 @@ class UavPhase(IntEnum):
     SEARCH_TARGET = 18
 
 
+class CarSegment(IntEnum):
+    UNKNOWN = 0
+    A_B = 1
+    B_C = 2
+    C_D = 3
+    D_A = 4
+
+
+class CarStateFlag(IntFlag):
+    NORMAL_TRACKING = 1 << 0
+    IN_CURVE = 1 << 1
+    PASSED_C = 1 << 2
+    FINISH_DETECTION_ENABLED = 1 << 3
+    ENCODER_SPEED_VALID = 1 << 4
+
+
+@dataclass(frozen=True)
+class CarStatePayload:
+    segment: int
+    track_s_mm: int
+    speed_mm_s: int
+    heading_cdeg: int
+    state_flags: int
+    vx_mm_s: int | None = None
+    vy_mm_s: int | None = None
+
+    @property
+    def has_world_velocity(self) -> bool:
+        return self.vx_mm_s is not None and self.vy_mm_s is not None
+
+
 @dataclass(frozen=True)
 class Frame:
     message_type: int
@@ -197,12 +228,42 @@ class StreamParser:
         return frames
 
 
+_CAR_STATE_BASE = struct.Struct("<BHhhH")
+_CAR_STATE_EXTENDED = struct.Struct("<BHhhHhh")
+
+
+def pack_car_state(payload: CarStatePayload | Iterable[int]) -> bytes:
+    if isinstance(payload, CarStatePayload):
+        values = (
+            payload.segment,
+            payload.track_s_mm,
+            payload.speed_mm_s,
+            payload.heading_cdeg,
+            payload.state_flags,
+            payload.vx_mm_s,
+            payload.vy_mm_s,
+        )
+    else:
+        values = tuple(payload)
+    if len(values) != 7 or values[5] is None or values[6] is None:
+        raise ValueError("新CAR_STATE必须包含13字节的vx/vy字段")
+    return _CAR_STATE_EXTENDED.pack(*values)
+
+
+def unpack_car_state(payload: bytes) -> CarStatePayload:
+    raw = bytes(payload)
+    if len(raw) == _CAR_STATE_EXTENDED.size:
+        return CarStatePayload(*_CAR_STATE_EXTENDED.unpack(raw))
+    if len(raw) == _CAR_STATE_BASE.size:
+        return CarStatePayload(*_CAR_STATE_BASE.unpack(raw))
+    raise ValueError("CAR_STATE载荷长度必须为9或13字节")
+
+
 _PAYLOAD_FORMATS = {
     MessageType.HEARTBEAT: struct.Struct("<BH"),
     MessageType.UAV_READY: struct.Struct("<BHI"),
     MessageType.CAR_START: struct.Struct("<BI"),
     MessageType.ACK: struct.Struct("<BHB"),
-    MessageType.CAR_STATE: struct.Struct("<BHhhH"),
     MessageType.UAV_STATE: struct.Struct("<BiihhhBH"),
     MessageType.DROP_RELEASED: struct.Struct("<IB"),
     MessageType.TOUCHDOWN_CONFIRMED: struct.Struct("<IB"),
@@ -213,6 +274,8 @@ _PAYLOAD_FORMATS = {
 
 
 def pack_payload(message_type: MessageType | int, values: Iterable[int]) -> bytes:
+    if int(message_type) == int(MessageType.CAR_STATE):
+        return pack_car_state(values)
     try:
         spec = _PAYLOAD_FORMATS[MessageType(message_type)]
     except (KeyError, ValueError) as exc:
@@ -221,6 +284,19 @@ def pack_payload(message_type: MessageType | int, values: Iterable[int]) -> byte
 
 
 def unpack_payload(message_type: MessageType | int, payload: bytes) -> tuple[int, ...]:
+    if int(message_type) == int(MessageType.CAR_STATE):
+        state = unpack_car_state(payload)
+        if not state.has_world_velocity:
+            raise ValueError("旧9字节CAR_STATE请使用unpack_car_state兼容解析")
+        return (
+            state.segment,
+            state.track_s_mm,
+            state.speed_mm_s,
+            state.heading_cdeg,
+            state.state_flags,
+            state.vx_mm_s,
+            state.vy_mm_s,
+        )
     try:
         spec = _PAYLOAD_FORMATS[MessageType(message_type)]
     except (KeyError, ValueError) as exc:

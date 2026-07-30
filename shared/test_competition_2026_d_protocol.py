@@ -1,6 +1,9 @@
 import unittest
+import struct
 
 from shared.competition_2026_d_protocol import (
+    CarStateFlag,
+    CarStatePayload,
     Device,
     Flag,
     Frame,
@@ -8,8 +11,10 @@ from shared.competition_2026_d_protocol import (
     StreamParser,
     decode_frame,
     encode_frame,
+    pack_car_state,
     pack_payload,
     seq_is_newer,
+    unpack_car_state,
     unpack_payload,
 )
 
@@ -46,6 +51,59 @@ class DcpProtocolTest(unittest.TestCase):
         self.assertEqual(len(frames), 1)
         self.assertEqual(frames[0].seq, 9)
         self.assertGreaterEqual(parser.rejected, 1)
+
+    def test_official_extended_car_state_golden_frame(self):
+        raw = bytes.fromhex(
+            "AA 01 10 00 02 01 78 56 34 12 2A 00 E8 03 00 00 "
+            "0D 00 01 DC 05 82 00 00 00 11 00 82 00 00 00 B9 "
+            "42 FF"
+        )
+        frame = decode_frame(raw)
+        self.assertEqual(frame.message_type, MessageType.CAR_STATE)
+        self.assertEqual(frame.source, Device.CAR)
+        self.assertEqual(frame.dest, Device.UAV)
+        state = unpack_car_state(frame.payload)
+        self.assertEqual(
+            state,
+            CarStatePayload(
+                segment=1,
+                track_s_mm=1500,
+                speed_mm_s=130,
+                heading_cdeg=0,
+                state_flags=0x0011,
+                vx_mm_s=130,
+                vy_mm_s=0,
+            ),
+        )
+        self.assertEqual(encode_frame(frame), raw)
+        self.assertEqual(raw[-3:-1], bytes.fromhex("B9 42"))
+
+    def test_car_state_extended_round_trip_signed_values(self):
+        values = (
+            2,
+            65535,
+            -130,
+            -18000,
+            int(CarStateFlag.ENCODER_SPEED_VALID),
+            -120,
+            50,
+        )
+        payload = pack_car_state(values)
+        self.assertEqual(len(payload), 13)
+        self.assertEqual(unpack_payload(MessageType.CAR_STATE, payload), values)
+
+    def test_legacy_car_state_is_explicitly_compatible(self):
+        payload = struct.pack("<BHhhH", 1, 100, 130, 0, 0x0011)
+        state = unpack_car_state(payload)
+        self.assertEqual(state.speed_mm_s, 130)
+        self.assertFalse(state.has_world_velocity)
+        self.assertIsNone(state.vx_mm_s)
+        with self.assertRaises(ValueError):
+            unpack_payload(MessageType.CAR_STATE, payload)
+
+    def test_new_car_state_packer_rejects_missing_velocity(self):
+        with self.assertRaises(ValueError):
+            pack_payload(MessageType.CAR_STATE, (1, 100, 130, 0, 0x0011))
 
     def test_sequence_wrap(self):
         self.assertTrue(seq_is_newer(0, 65535))
