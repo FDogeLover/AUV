@@ -20,12 +20,55 @@
     "ack_timeout_s": 0.12,
     "max_retries": 4
   },
+  "payload_servo": {
+    "pwm_chip": 0,
+    "pwm_channel": 0,
+    "physical_pin": 32,
+    "locked_angle_deg": 180,
+    "release_angle_deg": 0,
+    "release_hold_s": 1.0
+  },
   "formation": {
     "kp": 0.75,
     "kd": 0.22,
     "max_speed_m_s": 0.4,
     "max_accel_m_s2": 0.45,
     "max_jerk_m_s3": 1.2
+  },
+  "task1": {
+    "route": {
+      "H": [0.0, 0.0],
+      "B_PRE": [0.375, 1.75],
+      "B": [0.375, 2.25],
+      "BC_1": [0.595, 2.78],
+      "BC_2": [1.125, 3.0],
+      "BC_3": [1.655, 2.78],
+      "C": [1.875, 2.25],
+      "D": [1.875, 0.75]
+    },
+    "cruise_height_m": 1.5,
+    "follow_height_m": 1.0,
+    "drop_height_m": 0.65,
+    "final_height_m": 0.15,
+    "hover_duration_s": 3.0,
+    "intercept_speed_m_s": 0.38,
+    "car_speed_m_s": 0.13,
+    "car_speed_scale": 1.0,
+    "return_speed_m_s": 0.35,
+    "path_lookahead_m": 0.2,
+    "path_capture_radius_m": 0.14,
+    "path_cross_track_kp": 0.8,
+    "path_max_correction_m_s": 0.08,
+    "path_max_speed_m_s": 0.2,
+    "path_max_accel_m_s2": 0.3,
+    "hold_position_max_speed_m_s": 0.15,
+    "hold_stable_speed_m_s": 0.12,
+    "vision_min_quality": 55,
+    "vision_confirm_frames": 2,
+    "drop_max_error_m": 0.12,
+    "drop_descent_speed_m_s": 0.09,
+    "drop_time_margin_s": 0.8,
+    "release_timeout_s": 1.0
   },
   "static_square_test": {
     "enabled": false,

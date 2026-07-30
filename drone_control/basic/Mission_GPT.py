@@ -16,7 +16,12 @@ from typing import Callable, List, Optional
 from Lcode.heading_hold import HeadingHoldConfig, HeadingHoldController
 from Lcode.Lpid import PID
 from Lcode.Logger import logger
-from Lcode.global_variable import sp_side, lock, fc_last_rx_time
+from Lcode.global_variable import (
+    sp_side,
+    lock,
+    fc_last_rx_monotonic,
+    fc_last_rx_time,
+)
 from Lcode.navigation_profile import NavigationProfileConfig
 from Lcode.resource_monitor import ResourceMonitor
 from t265 import t265_class
@@ -109,7 +114,10 @@ class mission:
     def __init__(self, re_fc: List[int], se_fc: List[int],
                  realsense_obj: Optional[t265_class] = None,
                  serial_fc_ref=None,
-                 horizontal_velocity_provider: Optional[Callable] = None):
+                 horizontal_velocity_provider: Optional[Callable] = None,
+                 interactive_preflight: bool = True,
+                 preflight_warning_completed: bool = False,
+                 preflight_warning_started_at: Optional[float] = None):
         self.re_fc = re_fc
         self.se_fc = se_fc
         self.serial_fc_ref = serial_fc_ref
@@ -121,6 +129,9 @@ class mission:
         self.task_running = False
         self.t265_ok = False
         self.realsense = realsense_obj
+        self.interactive_preflight = bool(interactive_preflight)
+        self.preflight_warning_completed = bool(preflight_warning_completed)
+        self.preflight_warning_started_at = preflight_warning_started_at
 
         # 可选的通用XY速度接管点。provider只返回本周期候选值，最终仍由
         # navigate()唯一调用set_speed()写飞控；None时保持原T265航点行为。
@@ -219,6 +230,10 @@ class mission:
 
             if confidence < T265_CONFIDENCE_MIN:
                 logger.error(f"T265 置信度 {T265_CONFIDENCE_WAIT_S:.0f} 秒内仍偏低(confidence={confidence})，定点可能不稳定")
+                if not self.interactive_preflight:
+                    logger.error("严格自动模式禁止人工强制起飞，任务已取消")
+                    self.realsense.stop()
+                    return
                 confirm = input(f"T265置信度过低(confidence={confidence})，输入 YES 强制起飞，其他任意键取消任务: ")
                 if confirm.strip() != "YES":
                     logger.error("任务已取消（T265置信度未确认）")
@@ -228,17 +243,47 @@ class mission:
                 logger.info(f"T265 追踪置信度已稳定 (confidence={confidence})")
         else:
             logger.error("T265 FAILED — 无水平位置反馈，仅高度模式起飞有失控风险")
+            if not self.interactive_preflight:
+                logger.error("严格自动模式禁止无T265起飞，任务已取消")
+                return
             confirm = input("T265 未连接，输入 YES 强制以仅高度模式起飞，其他任意键取消任务: ")
             if confirm.strip() != "YES":
                 logger.error("任务已取消（T265 未确认）")
                 return
             logger.warning("已人工确认，强制以仅高度模式起飞")
 
-        if not self._blink_warning_led():
+        if (
+            not self.preflight_warning_completed
+            and self.preflight_warning_started_at is not None
+        ):
+            remaining = TAKEOFF_WARN_LED_DURATION_S - (
+                time.monotonic() - self.preflight_warning_started_at
+            )
+            if remaining > 0:
+                time.sleep(remaining)
+            try:
+                from Lcode.gpio_led import set_rgb_led
+                warning_finished = bool(set_rgb_led("OFF"))
+            except Exception as e:
+                logger.error(f"外部起飞红灯警示结束失败: {e}")
+                warning_finished = False
+            if not warning_finished:
+                logger.error("起飞红灯无法关闭，任务取消；飞控不会解锁")
+                if self.realsense and self.t265_ok:
+                    self.realsense.stop()
+                return
+            self.preflight_warning_completed = True
+
+        if (
+            not self.preflight_warning_completed
+            and not self._blink_warning_led()
+        ):
             logger.error("起飞前红灯警示失败，任务取消；飞控不会解锁")
             if self.realsense and self.t265_ok:
                 self.realsense.stop()
             return
+        if self.preflight_warning_completed:
+            logger.info("起飞红灯警示已在等待CAR_START期间完成")
 
         logger.info(
             f"任务启动, {len(self.targets)} 个航点 | 导航={self.navigation_profile.profile}"
@@ -274,7 +319,10 @@ class mission:
                 continue
 
             # FC 串口超时
-            if fc_last_rx_time.value > 0 and time.time() - fc_last_rx_time.value > 2.0:
+            if (
+                fc_last_rx_monotonic.value > 0
+                and time.monotonic() - fc_last_rx_monotonic.value > 2.0
+            ):
                 logger.error("飞控串口超时 2s，紧急降落")
                 self.emergency_stop = True
                 continue

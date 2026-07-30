@@ -119,15 +119,20 @@
 ## 7. 启动握手
 
 ```text
-UAV完成T265拔插等待、初始化、预检和警示
+ UAV先完成蓝牙、Cyber Camera、飞控串口和投放舵机预检
+ -> T265暂不初始化，程序停在原本的本地一键启动阻塞位置
+ -> 绿灯常亮，表示无人机正在等待小车一键启动
  -> 周期发送 UAV_READY(session_id=0)
-CAR收到连续有效READY并允许按钮
+ CAR收到连续有效READY并允许按钮
  -> 按键后生成新session_id并立即行进
  -> 重发 CAR_START(session_id)
-UAV只在READY状态接受一次
+ UAV只在READY状态接受一次
  -> 任务绑定session_id
  -> 返回ACK(CAR_START)
- -> 开始起飞
+ -> 收到CAR_START立即由绿灯切换为红灯
+ -> CAR_START直接解除T265拔插阻塞，红灯警示与T265初始化/校准并行
+ -> 红灯累计满5秒且T265严格预检通过后开始起飞
+ -> T265失败则取消任务，不等待终端人工输入
 ```
 
 重复 `CAR_START` 不得重复起飞；session不匹配的旧包不得改变状态。
