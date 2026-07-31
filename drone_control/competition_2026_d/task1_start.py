@@ -16,7 +16,7 @@ import sys
 import threading
 import time
 import zlib
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 BASIC_DIR = Path(__file__).resolve().parents[1] / "basic"
@@ -416,8 +416,16 @@ def _load_task_config(data: dict) -> Task1Config:
         drop_height_m=float(task["drop_height_m"]),
         final_height_m=float(task["final_height_m"]),
         hold_duration_s=float(task["hover_duration_s"]),
+        takeoff_ascent_slew_m_s=float(
+            task.get("takeoff_ascent_slew_m_s", 0.40)
+        ),
         intercept_speed_m_s=float(task["intercept_speed_m_s"]),
         car_speed_m_s=float(task["car_speed_m_s"]),
+        curve_speed_m_s=(
+            None
+            if task.get("curve_speed_m_s") is None
+            else float(task["curve_speed_m_s"])
+        ),
         car_speed_scale=float(task.get("car_speed_scale", 1.0)),
         return_speed_m_s=float(task["return_speed_m_s"]),
         point_arrival_radius_m=float(task["path_capture_radius_m"]),
@@ -426,6 +434,18 @@ def _load_task_config(data: dict) -> Task1Config:
         ),
         hold_stable_speed_m_s=float(
             task.get("hold_stable_speed_m_s", 0.12)
+        ),
+        final_landing_radius_m=float(
+            task.get("final_landing_radius_m", 0.08)
+        ),
+        final_landing_max_speed_m_s=float(
+            task.get("final_landing_max_speed_m_s", 0.05)
+        ),
+        final_landing_stable_s=float(
+            task.get("final_landing_stable_s", 0.50)
+        ),
+        final_descend_horizontal_max_speed_m_s=float(
+            task.get("final_descend_horizontal_max_speed_m_s", 0.06)
         ),
         acquire_timeout_s=float(task.get("acquire_timeout_s", 0.0)),
         path_lookahead_m=float(task.get("path_lookahead_m", 0.20)),
@@ -441,10 +461,123 @@ def _load_task_config(data: dict) -> Task1Config:
         ),
         vision_min_quality=int(task["vision_min_quality"]),
         vision_confirm_frames=int(task["vision_confirm_frames"]),
+        intercept_vision_confirm_frames=int(
+            task.get("intercept_vision_confirm_frames", 5)
+        ),
+        intercept_vision_max_error_m=float(
+            task.get("intercept_vision_max_error_m", 0.35)
+        ),
+        acquire_max_error_m=float(
+            task.get("acquire_max_error_m", task["drop_max_error_m"])
+        ),
         drop_max_error_m=float(task["drop_max_error_m"]),
+        drop_confirm_duration_s=float(
+            task.get("drop_confirm_duration_s", 0.0)
+        ),
+        min_follow_before_drop_s=float(
+            task.get("min_follow_before_drop_s", 0.0)
+        ),
+        vision_trim_kp=float(task.get("vision_trim_kp", 0.0)),
+        vision_trim_deadband_m=float(
+            task.get("vision_trim_deadband_m", 0.0)
+        ),
+        vision_trim_max_speed_m_s=float(
+            task.get("vision_trim_max_speed_m_s", 0.0)
+        ),
+        vision_trim_max_accel_m_s2=float(
+            task.get("vision_trim_max_accel_m_s2", 0.0)
+        ),
+        acquire_vision_min_quality=int(
+            task.get("acquire_vision_min_quality", 40)
+        ),
+        acquire_vision_kp=float(task.get("acquire_vision_kp", 0.45)),
+        acquire_vision_deadband_m=float(
+            task.get("acquire_vision_deadband_m", 0.04)
+        ),
+        acquire_vision_max_speed_m_s=float(
+            task.get("acquire_vision_max_speed_m_s", 0.12)
+        ),
+        acquire_vision_max_accel_m_s2=float(
+            task.get("acquire_vision_max_accel_m_s2", 0.25)
+        ),
+        acquire_vision_control_period_s=float(
+            task.get("acquire_vision_control_period_s", 0.20)
+        ),
+        acquire_vision_filter_window_s=float(
+            task.get("acquire_vision_filter_window_s", 0.60)
+        ),
+        acquire_vision_loss_grace_s=float(
+            task.get("acquire_vision_loss_grace_s", 0.30)
+        ),
+        vision_takeover_max_speed_m_s=float(
+            task.get("vision_takeover_max_speed_m_s", 0.08)
+        ),
+        intercept_vision_early_stop_enabled=bool(
+            task.get("intercept_vision_early_stop_enabled", True)
+        ),
+        drop_during_bc_enabled=bool(
+            task.get("drop_during_bc_enabled", False)
+        ),
+        drop_at_follow_height=bool(
+            task.get("drop_at_follow_height", False)
+        ),
         drop_descent_speed_m_s=float(task["drop_descent_speed_m_s"]),
         drop_time_margin_s=float(task["drop_time_margin_s"]),
         release_timeout_s=float(task["release_timeout_s"]),
+    )
+
+
+def build_joint_drop_test_config(base: Task1Config) -> Task1Config:
+    """Pure-vision joint test: track for 3 s and release at 1.5 m."""
+    return replace(
+        base,
+        cruise_height_m=1.50,
+        follow_height_m=1.50,
+        intercept_speed_m_s=0.20,
+        car_speed_m_s=0.05,
+        curve_speed_m_s=0.05,
+        drop_max_error_m=0.20,
+        drop_confirm_duration_s=3.0,
+        payload_drop_enabled=True,
+        drop_during_bc_enabled=True,
+        drop_at_follow_height=True,
+        vision_track_only=True,
+    )
+
+
+def build_joint_path_drop_test_config(
+    base: Task1Config,
+    *,
+    follow_speed_m_s: float = 0.060,
+    follow_duration_s: float = 3.0,
+) -> Task1Config:
+    """Stable joint test: wait at B_PRE, then use a constant T265 path speed."""
+    speed = float(follow_speed_m_s)
+    duration = float(follow_duration_s)
+    if not 0.02 <= speed <= 0.20:
+        raise ValueError("固定路径伴飞速度必须在0.02~0.20m/s之间")
+    if not 0.0 <= duration <= 20.0:
+        raise ValueError("投放前伴飞时间必须在0~20s之间")
+    return replace(
+        base,
+        cruise_height_m=1.50,
+        follow_height_m=1.50,
+        car_speed_m_s=speed,
+        curve_speed_m_s=speed,
+        vision_min_quality=40,
+        vision_confirm_frames=3,
+        acquire_max_error_m=0.30,
+        drop_max_error_m=0.30,
+        drop_confirm_duration_s=0.20,
+        min_follow_before_drop_s=duration,
+        vision_trim_kp=0.0,
+        vision_trim_max_speed_m_s=0.0,
+        vision_trim_max_accel_m_s2=0.0,
+        payload_drop_enabled=True,
+        drop_during_bc_enabled=True,
+        drop_at_follow_height=True,
+        vision_track_only=False,
+        intercept_vision_early_stop_enabled=False,
     )
 
 
@@ -506,16 +639,88 @@ def main(argv=None):
         default=None,
         help="等待CAR_START的秒数；默认无限等待",
     )
+    test_mode = parser.add_mutually_exclusive_group()
+    test_mode.add_argument(
+        "--joint-drop-test",
+        action="store_true",
+        help=(
+            "联合投放测试：等待小车CAR_START，1.5m慢速伴飞，"
+            "视觉门槛连续满足3s后直接投放"
+        ),
+    )
+    test_mode.add_argument(
+        "--joint-path-drop-test",
+        action="store_true",
+        help=(
+            "联合固定路径投放测试：到达B_PRE并确认目标后，"
+            "按T265固定路径恒速伴飞一段时间再投放"
+        ),
+    )
+    parser.add_argument(
+        "--path-follow-speed",
+        type=float,
+        default=0.060,
+        help="固定路径联合测试的B-C伴飞速度，单位m/s，默认0.060",
+    )
+    parser.add_argument(
+        "--path-follow-duration",
+        type=float,
+        default=3.0,
+        help="固定路径联合测试投放前的最短伴飞时间，默认3.0s",
+    )
     args = parser.parse_args(argv)
 
     raw_config = args.config.read_bytes()
     data = json.loads(raw_config.decode("utf-8"))
     config_hash = zlib.crc32(raw_config) & 0xFFFFFFFF
     task_config = _load_task_config(data)
+    if args.joint_drop_test:
+        task_config = build_joint_drop_test_config(task_config)
+    elif args.joint_path_drop_test:
+        try:
+            task_config = build_joint_path_drop_test_config(
+                task_config,
+                follow_speed_m_s=args.path_follow_speed,
+                follow_duration_s=args.path_follow_duration,
+            )
+        except ValueError as exc:
+            parser.error(str(exc))
     bluetooth = data["bluetooth"]
     cybercam = data["cybercam"]
     square = data["static_square_test"]
     payload_cfg = data.get("payload_servo", {})
+    vision_target_offset_xy_m = (
+        float(data["task1"].get("vision_target_offset_x_m", 0.0)),
+        float(data["task1"].get("vision_target_offset_y_m", 0.0)),
+    )
+    if args.joint_drop_test:
+        logger.warning(
+            "联合投放测试模式：等待小车CAR_START；高度=1.50m，"
+            "中央门槛后由纯视觉持续追踪，不执行B-C固定路径；"
+            "视觉偏差<=0.20m连续3.0s后直接投放，禁止下降到0.65m"
+        )
+    elif args.joint_path_drop_test:
+        logger.warning(
+            "联合固定路径投放测试：高度=1.50m；必须到达B_PRE后才等待目标；"
+            f"目标确认后以{task_config.curve_speed_m_s:.3f}m/s沿B-C恒速伴飞；"
+            f"至少伴飞{task_config.min_follow_before_drop_s:.1f}s后，"
+            "目标在0.30m投放区域内稳定0.20s即投放；视觉不参与速度控制，"
+            "C点保留等待目标的兜底"
+        )
+    else:
+        logger.info(
+            "任务一策略：B-C固定路径+限幅视觉微调，1.0m直接投放，"
+            "C点等待居中作为兜底；不执行0.65m投放下降"
+        )
+    logger.info(
+        "任务一视觉/T265/控制数据按10Hz写入: "
+        f"{Path(__file__).with_name('flight_data.jsonl')}"
+    )
+    logger.info(
+        "任务一视觉投放对准偏置: "
+        f"X={vision_target_offset_xy_m[0]:+.2f}m, "
+        f"Y={vision_target_offset_xy_m[1]:+.2f}m"
+    )
     dry_run = os.getenv("DRONE_DRY_RUN", "0").strip().lower() in {
         "1",
         "true",
@@ -596,9 +801,13 @@ def main(argv=None):
             task_config=task_config,
             vision_config={
                 "max_age_s": float(cybercam["max_age_s"]),
-                "min_quality": int(task_config.vision_min_quality),
+                "min_quality": min(
+                    int(task_config.vision_min_quality),
+                    int(task_config.acquire_vision_min_quality),
+                ),
                 "image_center_px": tuple(square["image_center_px"]),
                 "focal_px": tuple(square["focal_px"]),
+                "target_offset_xy_m": vision_target_offset_xy_m,
             },
             car_speed_provider=None,
         )
@@ -627,7 +836,8 @@ def main(argv=None):
         )
         logger.info(
             "绿灯：蓝牙、视觉、飞控和舵机均已就绪；等待小车按键发送CAR_START。"
-            "T265尚未初始化；CAR_STATE当前仅记录，不参与飞行控制"
+            "无人机T265尚未初始化；CAR_STATE与CAR_POSITION仅记录诊断，"
+            "小车T265不参与任务一飞行控制"
         )
         session_id = start_gate.wait(args.start_timeout)
         if session_id is None:

@@ -56,7 +56,31 @@ def test_visual_path_mode_can_explicitly_enable_real_payload_drop():
         path_lookahead_m=0.12,
         payload_drop_enabled=True,
         drop_max_error_m=0.30,
+        drop_confirm_duration_s=3.0,
+        drop_at_follow_height=True,
     )
     assert config.payload_drop_enabled
     assert config.car_speed_m_s == 0.075
     assert config.drop_max_error_m == 0.30
+    assert config.drop_confirm_duration_s == 3.0
+    assert config.drop_during_bc_enabled
+    assert config.drop_at_follow_height
+
+
+def test_vision_track_only_locks_height_and_disables_path_and_payload():
+    config = build_path_test_config(
+        Task1Config(),
+        cruise_height_m=1.5,
+        follow_height_m=1.0,
+        path_speed_m_s=0.075,
+        intercept_speed_m_s=0.20,
+        return_speed_m_s=0.35,
+        payload_drop_enabled=True,
+        vision_track_only=True,
+    )
+    assert config.vision_track_only
+    assert config.follow_height_m == 1.5
+    assert config.acquire_timeout_s == float("inf")
+    assert not config.path_only_b_pre_descent
+    assert not config.c_sync_vision_enabled
+    assert not config.payload_drop_enabled

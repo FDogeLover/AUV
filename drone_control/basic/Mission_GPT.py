@@ -910,15 +910,18 @@ class mission:
             time.sleep(LAND_LOCK_RETRY_INTERVAL)
 
     # ================= 两级下降：DESCEND =================
+    def _descend_horizontal_command(self, pos):
+        """末段下降水平速度钩子；基础任务保持原有开环零速度。"""
+        return 0, 0
+
     def descend(self, pos):
-        """两级下降第二阶段：水平开环、ramp 递减高度至 0、贴地后转 LAND。
+        """两级下降第二阶段：ramp 递减高度至 0、贴地后转 LAND。
 
         入口条件（由 navigate() 触发）：
           - 最后一个航点、已到达确认、高度 ≤ 20cm
 
         工作方式：
-          - set_speed(vx=0, vy=0, yaw=航向保持, z=ramp 递减)
-          - 水平开环（不依赖 T265 位置反馈），消除近地漂移影响
+          - 水平速度由 _descend_horizontal_command() 提供；基础任务默认开环零速度
           - 专用的 _is_near_ground() 检测贴地（放宽下限，原始激光值）
           - 固件可能通过近地强制锁定抢先锁桨，首帧检查 unlock_sta
         """
@@ -957,8 +960,8 @@ class mission:
             except Exception:
                 pass
 
-        # 水平开环，只发垂降 + 航向保持
-        self.set_speed(0, 0, yaw_cmd, int(self._ramp_z_cm))
+        vx_cmd, vy_cmd = self._descend_horizontal_command(pos)
+        self.set_speed(vx_cmd, vy_cmd, yaw_cmd, int(self._ramp_z_cm))
 
         # 贴地检测（用原始激光值）
         with lock:
@@ -993,6 +996,8 @@ class mission:
                         "descend_confirm": self._descend_confirm,
                         "elapsed_s": round(elapsed, 2),
                         "unlock_sta": unlock_sta,
+                        "vx_cmd_sent": vx_cmd,
+                        "vy_cmd_sent": vy_cmd,
                         "yaw_cmd_sent": yaw_cmd,
                         **self._heading_log_fields(),
                         **self._height_source_log_fields(),
@@ -1004,6 +1009,7 @@ class mission:
 
         print(
             f"\rDESCEND h={laser_cm:5.0f}cm ramp={self._ramp_z_cm:5.0f} "
+            f"xy=({vx_cmd:+3d},{vy_cmd:+3d}) "
             f"confirm={self._descend_confirm}/{DESCEND_CONFIRM_COUNT} "
             f"t={elapsed:4.1f}s",
             end="", flush=True

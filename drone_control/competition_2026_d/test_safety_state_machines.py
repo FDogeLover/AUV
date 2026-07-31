@@ -108,6 +108,42 @@ class SafetyStateMachinesTest(unittest.TestCase):
         command = controller.tick(with_contact)
         self.assertTrue(command.touchdown_confirmed)
 
+    def test_touchdown_holds_five_seconds_before_retakeoff_gate(self):
+        clock = Clock()
+        controller = DynamicLandingController(clock=clock)
+        controller.state = LandingState.TOUCHDOWN_CANDIDATE
+        controller._state_since = clock()
+        controller._touchdown_since = clock()
+        contact = LandingInput(
+            relative_height_m=0.10,
+            vertical_speed_m_s=0.0,
+            relative_velocity_xy_m_s=(0.0, 0.0),
+            position_error_xy_m=(0.0, 0.0),
+            estimate_uncertainty_m=0.01,
+            visual_usable=False,
+            visual_too_close=True,
+            car_motion_fresh=True,
+            roll_deg=0,
+            pitch_deg=0,
+            contact_evidence=True,
+            t265_healthy=True,
+        )
+
+        clock.advance(0.41)
+        touchdown = controller.tick(contact)
+        self.assertEqual(touchdown.state, LandingState.DECK_RIDE)
+        self.assertTrue(touchdown.touchdown_confirmed)
+        self.assertEqual(touchdown.vertical_speed_m_s, 0.0)
+
+        clock.advance(4.99)
+        holding = controller.tick(contact)
+        self.assertEqual(holding.state, LandingState.DECK_RIDE)
+        self.assertTrue(holding.hold_car_velocity)
+
+        clock.advance(0.02)
+        released = controller.tick(contact)
+        self.assertEqual(released.state, LandingState.RETAKEOFF_GATE)
+
 
 if __name__ == "__main__":
     unittest.main()

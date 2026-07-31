@@ -6,12 +6,12 @@ import numpy as np
 try:
     from .detector import (
         AprilTagBlueFusionDetector, AprilTagDetector, BlueSquareDetector,
-        FeatureFlag,
+        FeatureFlag, RingCrossDetector,
     )
 except ImportError:
     from detector import (
         AprilTagBlueFusionDetector, AprilTagDetector, BlueSquareDetector,
-        FeatureFlag,
+        FeatureFlag, RingCrossDetector,
     )
 
 
@@ -36,6 +36,29 @@ def fusion_frame(tag_id=0, blue_center=(320, 240), blue_side=250, tag_side=120):
     x = cx - tag_side // 2
     y = cy - tag_side // 2
     image[y:y + tag_side, x:x + tag_side] = cv2.cvtColor(marker, cv2.COLOR_GRAY2BGR)
+    return image
+
+
+def ring_cross_frame(center=(320, 240), side=300, visible_corners=(0, 1, 2, 3)):
+    image = np.full((480, 640, 3), 225, np.uint8)
+    cx, cy = center
+    half = side // 2
+    cv2.circle(image, (cx, cy), int(side * 0.44), (15, 15, 15), 12)
+    cv2.circle(image, (cx, cy), int(side * 0.27), (15, 15, 15), 12)
+    cv2.line(image, (cx - half, cy), (cx + half, cy), (15, 15, 15), 12)
+    cv2.line(image, (cx, cy - half), (cx, cy + half), (15, 15, 15), 12)
+    corners = (
+        (cx - half, cy - half), (cx + half, cy - half),
+        (cx + half, cy + half), (cx - half, cy + half),
+    )
+    red_side = max(22, int(round(side / 6.2)))
+    red_half = red_side // 2
+    for index in visible_corners:
+        x, y = corners[index]
+        cv2.rectangle(
+            image, (x - red_half, y - red_half),
+            (x + red_half, y + red_half), (0, 0, 230), -1,
+        )
     return image
 
 
@@ -110,6 +133,63 @@ class AprilTagBlueFusionSafetyTest(unittest.TestCase):
         result = detector.detect(image)
         self.assertFalse(result.found)
         self.assertFalse(detector._identity_locked)
+
+
+class RingCrossSafetyTest(unittest.TestCase):
+    def test_four_red_corners_and_cross_locate_center(self):
+        result = RingCrossDetector().detect(ring_cross_frame(center=(350, 220)))
+        self.assertTrue(result.found)
+        self.assertAlmostEqual(result.cx, 350, delta=8)
+        self.assertAlmostEqual(result.cy, 220, delta=8)
+        flags = FeatureFlag(result.flags)
+        self.assertTrue(flags & FeatureFlag.COLOR_SHAPE_TRACKED)
+        self.assertTrue(flags & FeatureFlag.CROSS_VALID)
+
+    def test_two_same_edge_corners_still_locate_center(self):
+        result = RingCrossDetector().detect(
+            ring_cross_frame(center=(410, 240), visible_corners=(0, 3))
+        )
+        self.assertTrue(result.found)
+        self.assertAlmostEqual(result.cx, 410, delta=10)
+        self.assertAlmostEqual(result.cy, 240, delta=10)
+        self.assertTrue(FeatureFlag(result.flags) & FeatureFlag.PARTIAL)
+
+    def test_small_red_distractor_does_not_bias_three_corner_center(self):
+        image = ring_cross_frame(
+            center=(410, 225), visible_corners=(0, 1, 3)
+        )
+        cv2.rectangle(image, (70, 400), (88, 418), (0, 0, 230), -1)
+        result = RingCrossDetector().detect(image)
+        self.assertTrue(result.found)
+        self.assertAlmostEqual(result.cx, 410, delta=10)
+        self.assertAlmostEqual(result.cy, 225, delta=10)
+
+    def test_dark_mirror_side_does_not_steal_two_corner_center(self):
+        image = ring_cross_frame(
+            center=(520, 235), visible_corners=(0, 3)
+        )
+        cv2.rectangle(image, (120, 60), (360, 410), (20, 20, 20), -1)
+        result = RingCrossDetector().detect(image)
+        self.assertTrue(result.found)
+        self.assertGreater(result.cx, 430)
+        self.assertAlmostEqual(result.cy, 235, delta=12)
+
+    def test_estimated_center_outside_frame_is_rejected(self):
+        image = ring_cross_frame(
+            center=(320, -20), visible_corners=(2, 3)
+        )
+        self.assertFalse(RingCrossDetector().detect(image).found)
+
+    def test_map_cross_without_red_anchor_is_rejected(self):
+        image = np.full((480, 640, 3), 225, np.uint8)
+        cv2.line(image, (50, 240), (590, 240), (10, 10, 10), 14)
+        cv2.line(image, (320, 30), (320, 450), (10, 10, 10), 14)
+        self.assertFalse(RingCrossDetector().detect(image).found)
+
+    def test_red_square_without_ring_cross_is_rejected(self):
+        image = np.full((480, 640, 3), 225, np.uint8)
+        cv2.rectangle(image, (80, 80), (135, 135), (0, 0, 230), -1)
+        self.assertFalse(RingCrossDetector().detect(image).found)
 
     def test_wrong_tag_clears_identity_lock(self):
         detector = AprilTagBlueFusionDetector(redetect_interval=1)

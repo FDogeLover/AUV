@@ -1,4 +1,6 @@
+import json
 import struct
+from pathlib import Path
 
 from shared.competition_2026_d_protocol import (
     CarStateFlag,
@@ -11,9 +13,19 @@ from shared.competition_2026_d_protocol import (
 )
 
 try:
-    from drone_control.competition_2026_d.task1_start import Task1StartGate
+    from drone_control.competition_2026_d.task1_start import (
+        Task1StartGate,
+        build_joint_drop_test_config,
+        build_joint_path_drop_test_config,
+        _load_task_config,
+    )
 except ModuleNotFoundError:
-    from competition_2026_d.task1_start import Task1StartGate
+    from competition_2026_d.task1_start import (
+        Task1StartGate,
+        build_joint_drop_test_config,
+        build_joint_path_drop_test_config,
+        _load_task_config,
+    )
 
 
 class FakeLink:
@@ -43,6 +55,84 @@ class Clock:
 
     def __call__(self):
         return self.now
+
+
+def test_formal_task1_config_loads_validated_curve_and_straight_speeds():
+    config_path = Path(__file__).with_name("config.json")
+    data = json.loads(config_path.read_text(encoding="utf-8"))
+
+    config = _load_task_config(data)
+
+    assert config.curve_speed_m_s == 0.06
+    assert config.car_speed_m_s == 0.075
+    assert config.path_lookahead_m == 0.12
+    assert config.drop_during_bc_enabled
+    assert config.drop_at_follow_height
+    assert config.drop_max_error_m == 0.15
+    assert config.drop_confirm_duration_s == 0.40
+    assert config.min_follow_before_drop_s == 0.0
+    assert config.vision_trim_deadband_m == 0.05
+    assert config.vision_trim_max_speed_m_s == 0.03
+    assert config.release_timeout_s == 2.0
+    assert config.hold_duration_s == 2.0
+    assert config.takeoff_ascent_slew_m_s == 0.40
+    assert config.acquire_vision_min_quality == 40
+    assert config.acquire_vision_max_speed_m_s == 0.12
+    assert config.acquire_vision_control_period_s == 0.20
+    assert config.acquire_vision_filter_window_s == 0.60
+    assert config.vision_takeover_max_speed_m_s == 0.08
+    assert config.intercept_vision_early_stop_enabled
+    assert config.final_landing_radius_m == 0.08
+    assert config.final_landing_max_speed_m_s == 0.05
+    assert config.final_landing_stable_s == 0.50
+    assert config.final_descend_horizontal_max_speed_m_s == 0.06
+
+
+def test_joint_drop_test_overrides_only_runtime_mission_parameters():
+    config = build_joint_drop_test_config(_load_task_config(
+        json.loads(
+            Path(__file__).with_name("config.json").read_text(encoding="utf-8")
+        )
+    ))
+
+    assert config.cruise_height_m == 1.5
+    assert config.follow_height_m == 1.5
+    assert config.car_speed_m_s == 0.05
+    assert config.curve_speed_m_s == 0.05
+    assert config.drop_max_error_m == 0.20
+    assert config.drop_confirm_duration_s == 3.0
+    assert config.payload_drop_enabled
+    assert config.drop_during_bc_enabled
+    assert config.drop_at_follow_height
+    assert config.vision_track_only
+
+
+def test_joint_path_drop_test_waits_at_b_pre_then_uses_constant_speed():
+    config = build_joint_path_drop_test_config(
+        _load_task_config(
+            json.loads(
+                Path(__file__).with_name("config.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+        ),
+        follow_speed_m_s=0.08,
+        follow_duration_s=3.5,
+    )
+
+    assert config.cruise_height_m == 1.5
+    assert config.follow_height_m == 1.5
+    assert config.car_speed_m_s == 0.08
+    assert config.curve_speed_m_s == 0.08
+    assert config.min_follow_before_drop_s == 3.5
+    assert config.drop_confirm_duration_s == 0.20
+    assert config.drop_max_error_m == 0.30
+    assert config.vision_trim_max_speed_m_s == 0.0
+    assert config.payload_drop_enabled
+    assert config.drop_during_bc_enabled
+    assert config.drop_at_follow_height
+    assert not config.vision_track_only
+    assert not config.intercept_vision_early_stop_enabled
 
 
 def car_start(*, mode=1, session=10, flags=None):

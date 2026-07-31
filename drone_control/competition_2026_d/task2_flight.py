@@ -19,7 +19,8 @@ if str(BASIC_DIR) not in sys.path:
     sys.path.insert(0, str(BASIC_DIR))
 
 from Lcode.Logger import logger  # noqa: E402
-from Mission_GPT import laser_height_valid, mission  # noqa: E402
+from Lcode.global_variable import lock  # noqa: E402
+from Mission_GPT import DRY_RUN, laser_height_valid, mission  # noqa: E402
 
 from .control.formation_controller import (  # noqa: E402
     FormationConfig,
@@ -40,7 +41,6 @@ from .task1_runtime import (  # noqa: E402
 )
 from .task2_mission import (  # noqa: E402
     B_PRE,
-    C,
     H,
     Task2Config,
     Task2Input,
@@ -99,9 +99,18 @@ class Task2FlightMission(mission):
         self.payload_actuator = payload_actuator
         self.height_controller = WorldDeckHeightController()
         self.t265_safety = Task1T265SafetyMonitor()
+        effective_landing_config = landing_config or LandingConfig()
+        if tracker_config is None:
+            tracker_config = TrackerConfig(
+                max_predict_s=max(
+                    0.15, effective_landing_config.terminal_max_s
+                )
+            )
         self.platform_tracker = PlatformTracker(tracker_config)
         self.formation_controller = FormationController(formation_config)
-        self.dynamic_landing = DynamicLandingController(landing_config)
+        self.dynamic_landing = DynamicLandingController(
+            effective_landing_config
+        )
         self.offset_calibrator = OffsetCalibrator()
         self.laser_contact = LaserContactDetector(
             LaserContactConfig(
@@ -120,6 +129,8 @@ class Task2FlightMission(mission):
             "image_center_px": (320.0, 240.0),
             "focal_px": (570.0, 570.0),
             **(vision_config or {}),
+            # 任务一的投放对准偏置不得带入任务二；任务二始终以图像中心为零点。
+            "target_offset_xy_m": (0.0, 0.0),
         }
         self._last_task2_phase = self.director.phase
         self._last_runtime_log = 0.0
@@ -133,6 +144,11 @@ class Task2FlightMission(mission):
         self._touchdown_confirmed = False
         self._deck_ride_complete = False
         self._landing_aborted = False
+        self._dry_run = DRY_RUN
+        self._stationary_platform_measurement: tuple[float, float] | None = None
+        self._last_platform_vision_seq: int | None = None
+        self._platform_measurement_source = "none"
+        self._landing_vz_applied_m_s = 0.0
 
     def navigate(self, _laser_position, yaw):
         now = time.monotonic()
@@ -154,6 +170,19 @@ class Task2FlightMission(mission):
             self.set_speed(0, 0, 0, int(self._ramp_z_cm))
             logger.warning("任务二T265置信度为0，冻结状态机并原地悬停")
             return
+        if (
+            (
+                self.director.config.safe_open_loop_cd_test
+                or self.director.config.stationary_retakeoff_test
+            )
+            and confidence < self.director.config.t265_min_confidence
+        ):
+            self.set_speed(0, 0, 0, int(self._ramp_z_cm))
+            logger.error(
+                "任务二安全联调T265置信度不足；停止运动并转HOVER_WAIT"
+            )
+            self.state = "HOVER_WAIT"
+            return
 
         phase_before_tick = self.director.phase
         hold_anchor = self._hold_anchor_for_phase(phase_before_tick)
@@ -163,7 +192,10 @@ class Task2FlightMission(mission):
             Task2Phase.HOLD_3S,
             Task2Phase.INTERCEPT_B_PRE,
             Task2Phase.ACQUIRE_TARGET,
+            Task2Phase.TRANSIT_C,
             Task2Phase.SYNC_TARGET_AT_C,
+            Task2Phase.OPEN_LOOP_C_D,
+            Task2Phase.SAFE_HOVER_D,
             Task2Phase.ACTIVATE_TRACKER,
             Task2Phase.LAND_H,
         )
@@ -200,6 +232,9 @@ class Task2FlightMission(mission):
             min_quality=int(self.vision_config["min_quality"]),
             image_center_px=tuple(self.vision_config["image_center_px"]),
             focal_px=tuple(self.vision_config["focal_px"]),
+            target_offset_xy_m=tuple(
+                self.vision_config["target_offset_xy_m"]
+            ),
         )
 
         car_speed = (
@@ -273,14 +308,22 @@ class Task2FlightMission(mission):
             )
         )
 
+        if not self._verify_continuous_arm_contract(command):
+            return
+
         vx = command.vx_m_s
         vy = command.vy_m_s
+        horizontal_control_source = "task2_director"
         landing_vz = 0.0
         estimate: PlatformEstimate | None = None
 
         if command.tracker_active:
             if not self._tracker_active_prev:
                 self.platform_tracker.reset()
+                self._stationary_platform_measurement = None
+                self._last_platform_vision_seq = None
+                self._platform_measurement_source = "none"
+                self._landing_vz_applied_m_s = 0.0
                 self.formation_controller.reset(
                     timestamp=now,
                     velocity=(velocity[0], velocity[1]),
@@ -295,8 +338,29 @@ class Task2FlightMission(mission):
                     "DynamicLandingController"
                 )
 
-            # 小车坐标 + offset 变换到无人机 T265 系
-            if car_position is not None and offset_ready:
+            landing_car_velocity = car_velocity
+            if self.director.config.stationary_retakeoff_test:
+                estimate = self._update_stationary_platform_estimate(
+                    gate=gate,
+                    world_position=world_position,
+                    now=now,
+                )
+                landing_car_velocity = (0.0, 0.0)
+                self._platform_measurement_source = "stationary_visual"
+            # 正式任务优先使用视觉相对误差；同一视觉帧只更新一次滤波器。
+            elif gate.found and gate.error_xy_m is not None:
+                estimate = self._update_visual_platform_estimate(
+                    gate=gate,
+                    world_position=world_position,
+                    now=now,
+                )
+                if estimate is not None:
+                    landing_car_velocity = (
+                        estimate.vx_m_s,
+                        estimate.vy_m_s,
+                    )
+            # 视觉暂时不可用时，小车坐标 + offset 作为后备测量。
+            elif car_position is not None and offset_ready:
                 car_in_uav = (
                     car_position[0] - offset[0],
                     car_position[1] - offset[1],
@@ -304,8 +368,17 @@ class Task2FlightMission(mission):
                 estimate = self.platform_tracker.update(
                     car_in_uav[0], car_in_uav[1], now
                 )
+                self._platform_measurement_source = "car_t265"
             else:
                 estimate = self.platform_tracker.predict(now)
+                self._platform_measurement_source = (
+                    "visual_prediction" if estimate is not None else "lost"
+                )
+                if estimate is not None:
+                    landing_car_velocity = (
+                        estimate.vx_m_s,
+                        estimate.vy_m_s,
+                    )
 
             if command.landing_active and estimate is not None:
                 landing_cmd = self._run_landing(
@@ -317,7 +390,7 @@ class Task2FlightMission(mission):
                     observation,
                     contact_evidence,
                     safety_fault,
-                    car_velocity,
+                    landing_car_velocity,
                 )
                 if landing_cmd is not None:
                     self._landing_gate_passed = (
@@ -341,6 +414,12 @@ class Task2FlightMission(mission):
                         if formation_cmd.valid:
                             vx = formation_cmd.vx_m_s
                             vy = formation_cmd.vy_m_s
+                            vx, vy = self._limit_xy_speed(
+                                vx,
+                                vy,
+                                self._landing_xy_speed_limit(relative_height),
+                            )
+                            horizontal_control_source = "visual_formation"
         else:
             if self._tracker_active_prev:
                 self._landing_gate_passed = False
@@ -365,13 +444,21 @@ class Task2FlightMission(mission):
                 dt = min(max(now - self._last_nav_time, 0.001), 0.05)
             else:
                 dt = 0.02
-            # vertical_speed_m_s 正为爬升、负为下降
-            self._ramp_z_cm -= landing_vz * 100.0 * dt
-            self._ramp_z_cm = max(5.0, min(self._ramp_z_cm, 200.0))
+            self._landing_vz_applied_m_s = self._smooth_landing_vz(
+                landing_vz, dt
+            )
+            self._step_landing_height(self._landing_vz_applied_m_s, dt)
             height = HeightReference(
                 self._ramp_z_cm / 100.0, True, "landing_vz", "ok"
             )
+        elif command.phase == Task2Phase.LANDED_ON_PLATFORM:
+            self._landing_vz_applied_m_s = 0.0
+            # Keep the FC armed but command a height below the physical laser
+            # rest height so collective thrust remains near its ground minimum.
+            self._ramp_z_cm = 5.0
+            height = HeightReference(0.05, True, "platform_ground_rest", "ok")
         elif self.height_source == "laser":
+            self._landing_vz_applied_m_s = 0.0
             target_laser_height = (
                 command.target_world_height_m
                 if command.target_deck_height_m is None
@@ -390,6 +477,7 @@ class Task2FlightMission(mission):
                     self._ramp_z_cm / 100.0, True, "laser_height", "ok"
                 )
         else:
+            self._landing_vz_applied_m_s = 0.0
             height = self.height_controller.command(
                 timestamp=now,
                 current_world_height_m=world_position[2],
@@ -409,6 +497,21 @@ class Task2FlightMission(mission):
         self.set_speed(vx_cms, vy_cms, yaw_cmd, int(round(self._ramp_z_cm)))
 
         if command.phase != self._last_task2_phase:
+            if command.phase == Task2Phase.RETAKEOFF:
+                logger.info(
+                    "任务二平台停留完成：保持首次解锁状态，不发送锁桨或第二次起飞指令；"
+                    f"直接复升至{self.director.config.retakeoff_height_m:.2f}m"
+                )
+            elif command.phase == Task2Phase.SAFE_HOVER_AFTER_RETAKEOFF:
+                logger.warning(
+                    "静止平台复升联调通过：已到达复升高度并保持T265定点；"
+                    "请用遥控器安全接管、落地并确认电机停稳后再终止程序"
+                )
+            elif command.phase == Task2Phase.LANDED_ON_PLATFORM:
+                logger.warning(
+                    "任务二静止平台降落完成：不执行复升，保持5cm低高度目标；"
+                    "确认飞行器稳定后使用遥控器停止电机，再终止程序"
+                )
             logger.info(
                 f"任务二状态: {self._last_task2_phase.value} -> "
                 f"{command.phase.value} ({command.reason})"
@@ -430,6 +533,8 @@ class Task2FlightMission(mission):
             offset,
             estimate,
             landing_vz,
+            (vx, vy),
+            horizontal_control_source,
         )
 
         if (
@@ -441,14 +546,137 @@ class Task2FlightMission(mission):
             logger.info("任务二到达H点0.15m末航点，转入basic两级降落")
             self.state = "DESCEND"
 
+    def _step_landing_height(self, vertical_speed_m_s: float, dt: float) -> None:
+        """Integrate signed vertical speed into the laser height setpoint."""
+        # Positive means climb and negative means descend in
+        # DynamicLandingController, while the laser setpoint is height above
+        # the surface.  Therefore the signed velocity must be added.
+        self._ramp_z_cm += float(vertical_speed_m_s) * 100.0 * float(dt)
+        self._ramp_z_cm = max(5.0, min(self._ramp_z_cm, 200.0))
+
+    def _smooth_landing_vz(self, target_vz_m_s: float, dt: float) -> float:
+        """Slew only downward commands; stop/climb commands take effect now."""
+        target = float(target_vz_m_s)
+        if target >= 0.0:
+            return target
+        current = float(self._landing_vz_applied_m_s)
+        max_delta = self.dynamic_landing.config.descend_slew_m_s2 * max(
+            0.0, float(dt)
+        )
+        delta = target - current
+        return current + max(-max_delta, min(max_delta, delta))
+
+    def _verify_continuous_arm_contract(self, command) -> bool:
+        """保证中途触地到复升期间不会清任务位或尝试二次解锁。"""
+        if not command.keep_armed:
+            return True
+
+        with lock:
+            task_sta = int(self.se_fc[2])
+            next_task_sign = int(self.se_fc[7])
+            unlock_sta = int(self.re_fc[5]) if len(self.re_fc) > 5 else 0
+
+        expected_task_sta = 0 if self._dry_run else 1
+        if task_sta != expected_task_sta or next_task_sign != 0:
+            logger.error(
+                "任务二持续解锁契约被破坏："
+                f"phase={command.phase.value}, task_sta={task_sta}, "
+                f"expected_task_sta={expected_task_sta}, "
+                f"next_task_sign={next_task_sign}；禁止继续飞行并转HOVER_WAIT"
+            )
+            self.set_speed(0, 0, 0, int(round(self._ramp_z_cm)))
+            self.state = "HOVER_WAIT"
+            return False
+
+        # 平台停留结束时若飞控已经锁桨，绝不能再制造 task_sta 0->1 边沿
+        # 尝试复飞；保留 T265 坐标并等待人工处理。
+        if (
+            not self._dry_run
+            and command.phase == Task2Phase.RETAKEOFF
+            and unlock_sta == 0
+        ):
+            logger.error(
+                "任务二复升门禁拒绝：飞控反馈已锁桨；"
+                "不会发送第二次解锁/起飞指令，转HOVER_WAIT等待人工处理"
+            )
+            self.set_speed(0, 0, 0, int(round(self._ramp_z_cm)))
+            self.state = "HOVER_WAIT"
+            return False
+
+        return True
+
+    def _update_stationary_platform_estimate(
+        self, *, gate, world_position, now: float
+    ) -> PlatformEstimate | None:
+        """视觉更新固定平台世界位置，近地丢失后保持最后一次测量。"""
+        if gate.found and gate.error_xy_m is not None:
+            self._stationary_platform_measurement = (
+                world_position[0] + gate.error_xy_m[0],
+                world_position[1] + gate.error_xy_m[1],
+            )
+        if self._stationary_platform_measurement is None:
+            self._stationary_platform_measurement = self.director.sync_c
+        return self.platform_tracker.update(
+            self._stationary_platform_measurement[0],
+            self._stationary_platform_measurement[1],
+            now,
+            quality=gate.quality if gate.found else 80,
+        )
+
+    def _update_visual_platform_estimate(
+        self, *, gate, world_position, now: float
+    ) -> PlatformEstimate | None:
+        """Fuse each new visual frame into the moving-platform world estimate."""
+        if (
+            gate.found
+            and gate.error_xy_m is not None
+            and gate.seq != self._last_platform_vision_seq
+        ):
+            self._last_platform_vision_seq = gate.seq
+            self._platform_measurement_source = "visual"
+            return self.platform_tracker.update(
+                world_position[0] + gate.error_xy_m[0],
+                world_position[1] + gate.error_xy_m[1],
+                now,
+                quality=gate.quality,
+            )
+        estimate = self.platform_tracker.predict(now)
+        self._platform_measurement_source = (
+            "visual_prediction" if estimate is not None else "lost"
+        )
+        return estimate
+
+    def _landing_xy_speed_limit(self, relative_height_m: float) -> float:
+        cfg = self.director.config
+        if relative_height_m > self.dynamic_landing.config.mid_height_m:
+            return cfg.landing_xy_speed_high_m_s
+        if relative_height_m > self.dynamic_landing.config.low_height_m:
+            return cfg.landing_xy_speed_mid_m_s
+        return cfg.landing_xy_speed_low_m_s
+
     @staticmethod
-    def _hold_anchor_for_phase(phase: Task2Phase):
+    def _limit_xy_speed(vx: float, vy: float, limit: float):
+        norm = math.hypot(vx, vy)
+        safe_limit = max(0.0, float(limit))
+        if norm <= safe_limit or norm <= 1e-9:
+            return vx, vy
+        scale = safe_limit / norm
+        return vx * scale, vy * scale
+
+    def _hold_anchor_for_phase(self, phase: Task2Phase):
         if phase in (Task2Phase.WAIT_START, Task2Phase.TAKEOFF, Task2Phase.HOLD_3S):
             return H
         if phase == Task2Phase.ACQUIRE_TARGET:
             return B_PRE
         if phase in (Task2Phase.SYNC_TARGET_AT_C, Task2Phase.ACTIVATE_TRACKER):
-            return C
+            return self.director.sync_c
+        if phase == Task2Phase.RETAKEOFF:
+            return self.director._retakeoff_anchor
+        if phase in (
+            Task2Phase.SAFE_HOVER_D,
+            Task2Phase.SAFE_HOVER_AFTER_RETAKEOFF,
+        ):
+            return self.director._safe_hover_anchor
         return None
 
     def _run_landing(
@@ -481,8 +709,16 @@ class Task2FlightMission(mission):
         if observation is not None:
             flags = FeatureFlag(observation.flags)
             visual_too_close = bool(flags & FeatureFlag.TOO_CLOSE)
-        visual_usable = gate.found and not gate.ambiguous
-        car_motion_fresh = car_velocity is not None
+        fixed_point_no_vision = (
+            self.director.config.stationary_retakeoff_test
+            and self.director.config.stationary_skip_vision
+        )
+        visual_usable = fixed_point_no_vision or (
+            gate.found and not gate.ambiguous
+        )
+        # In the fixed-platform no-vision test, the repeatedly refreshed T265
+        # platform coordinate replaces both visual and car-motion freshness.
+        car_motion_fresh = fixed_point_no_vision or car_velocity is not None
         # roll/pitch: 后续接入飞控遥测
         roll_deg = 0.0
         pitch_deg = 0.0
@@ -524,6 +760,8 @@ class Task2FlightMission(mission):
         offset,
         estimate,
         landing_vz,
+        actual_command_xy,
+        horizontal_control_source,
     ) -> None:
         if self._log_file is None or now - self._last_runtime_log < 0.10:
             return
@@ -550,6 +788,10 @@ class Task2FlightMission(mission):
                                 round(command.target_xy_m[1], 4),
                             ],
                             "command_xy_m_s": [
+                                round(actual_command_xy[0], 4),
+                                round(actual_command_xy[1], 4),
+                            ],
+                            "director_command_xy_m_s": [
                                 round(command.vx_m_s, 4),
                                 round(command.vy_m_s, 4),
                             ],
@@ -594,6 +836,9 @@ class Task2FlightMission(mission):
                                 else None
                             ),
                             "landing_vz_m_s": round(landing_vz, 4),
+                            "landing_vz_applied_m_s": round(
+                                self._landing_vz_applied_m_s, 4
+                            ),
                             "landing_gate_passed": self._landing_gate_passed,
                             "touchdown_confirmed": self._touchdown_confirmed,
                             "deck_ride_complete": self._deck_ride_complete,
@@ -601,13 +846,8 @@ class Task2FlightMission(mission):
                             "tracker_active": command.tracker_active,
                             "landing_active": command.landing_active,
                             "mission_success": command.mission_success,
-                            "horizontal_control_source": (
-                                "formation_controller"
-                                if command.phase
-                                == Task2Phase.DYNAMIC_LANDING
-                                and command.tracker_active
-                                else "task2_director"
-                            ),
+                            "platform_measurement_source": self._platform_measurement_source,
+                            "horizontal_control_source": horizontal_control_source,
                         },
                         ensure_ascii=False,
                     )
