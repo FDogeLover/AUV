@@ -1,7 +1,13 @@
 from drone_control.competition_2026_d.task1_runtime import (
+    HeightReferenceConfig,
     Task1T265SafetyMonitor,
     WorldDeckHeightController,
     observation_to_gate_sample,
+)
+from drone_control.competition_2026_d.task1_flight import Task1FlightMission
+from drone_control.competition_2026_d.task1_mission import (
+    Task1Config,
+    Task1MissionDirector,
 )
 from drone_control.competition_2026_d.vision.platform_observation import (
     FeatureFlag,
@@ -39,7 +45,57 @@ def test_observation_is_converted_to_gate_error_but_not_velocity():
         focal_px=(500.0, 500.0),
     )
     assert sample.found
-    assert sample.error_xy_m == (0.04, -0.04)
+    assert sample.error_xy_m == (-0.04, -0.04)
+
+
+def test_usb_visual_axes_match_down_positive_x_and_right_positive_y():
+    left_down = observation_to_gate_sample(
+        observation(cx=300, cy=260),
+        now=1.05,
+        relative_height_m=1.0,
+        max_age_s=0.15,
+        min_quality=55,
+        image_center_px=(320.0, 240.0),
+        focal_px=(500.0, 500.0),
+    )
+    assert left_down.error_xy_m == (0.04, -0.04)
+
+    right_up = observation_to_gate_sample(
+        observation(cx=340, cy=220),
+        now=1.05,
+        relative_height_m=1.0,
+        max_age_s=0.15,
+        min_quality=55,
+        image_center_px=(320.0, 240.0),
+        focal_px=(500.0, 500.0),
+    )
+    assert right_up.error_xy_m == (-0.04, 0.04)
+
+
+def test_visual_target_center_applies_physical_xy_offset():
+    centered_on_offset = observation_to_gate_sample(
+        observation(cx=360, cy=215),
+        now=1.05,
+        relative_height_m=1.0,
+        max_age_s=0.15,
+        min_quality=55,
+        image_center_px=(320.0, 240.0),
+        focal_px=(500.0, 500.0),
+        target_offset_xy_m=(-0.05, 0.08),
+    )
+    assert centered_on_offset.error_xy_m == (0.0, 0.0)
+
+    geometric_center = observation_to_gate_sample(
+        observation(cx=320, cy=240),
+        now=1.05,
+        relative_height_m=1.0,
+        max_age_s=0.15,
+        min_quality=55,
+        image_center_px=(320.0, 240.0),
+        focal_px=(500.0, 500.0),
+        target_offset_xy_m=(-0.05, 0.08),
+    )
+    assert geometric_center.error_xy_m == (0.05, -0.08)
 
 
 def test_observation_without_height_can_confirm_identity_not_center_error():
@@ -55,6 +111,24 @@ def test_observation_without_height_can_confirm_identity_not_center_error():
     assert sample.found
     assert sample.error_xy_m is None
     assert sample.reason == "height_unavailable"
+
+
+def test_task1_final_descend_keeps_limited_t265_horizontal_feedback():
+    class FakeRealsense:
+        @staticmethod
+        def get_tracking_confidence():
+            return 3
+
+    flight = object.__new__(Task1FlightMission)
+    flight.realsense = FakeRealsense()
+    flight.director = Task1MissionDirector(
+        Task1Config(final_descend_horizontal_max_speed_m_s=0.06)
+    )
+
+    vx_cms, vy_cms = flight._descend_horizontal_command([0.20, -0.10, 0.15])
+    assert vx_cms < 0
+    assert vy_cms > 0
+    assert (vx_cms * vx_cms + vy_cms * vy_cms) ** 0.5 <= 6.1
 
 
 def test_ambiguous_observation_is_rejected():
@@ -117,6 +191,30 @@ def test_drop_height_uses_slew_limited_deck_relative_reference():
     # dt is capped at 0.2 s: 0.09 m/s * 0.2 s = 0.018 m.
     assert abs(command.laser_setpoint_m - 0.982) < 1e-9
     assert command.mode == "deck_relative"
+
+
+def test_task1_ascent_can_be_faster_without_accelerating_descent():
+    controller = WorldDeckHeightController(
+        HeightReferenceConfig(normal_ascent_slew_m_s=0.40)
+    )
+    controller.reset(timestamp=0.0, laser_height_m=1.0)
+    climb = controller.command(
+        timestamp=0.2,
+        current_world_height_m=1.0,
+        current_laser_height_m=1.0,
+        target_world_height_m=1.5,
+        target_deck_height_m=None,
+    )
+    assert abs(climb.laser_setpoint_m - 1.08) < 1e-9
+
+    descent = controller.command(
+        timestamp=0.4,
+        current_world_height_m=1.5,
+        current_laser_height_m=1.08,
+        target_world_height_m=1.0,
+        target_deck_height_m=None,
+    )
+    assert abs(descent.laser_setpoint_m - 1.03) < 1e-9
 
 
 def test_t265_safety_detects_position_jump_even_with_valid_confidence():

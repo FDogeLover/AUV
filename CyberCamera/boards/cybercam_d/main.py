@@ -19,7 +19,7 @@ try:
     from .camera_backend import create_capture
     from .detector import (
         AprilTagBlueFusionDetector, AprilTagDetector, BlueSquareDetector,
-        FeatureFlag, PlatformDetector,
+        FeatureFlag, PlatformDetector, RingCrossDetector,
     )
     from .display_backend import create_display
     from .protocol import BAUDRATE, encode, encode_control, parse_control
@@ -27,7 +27,7 @@ except ImportError:  # 允许直接python main.py运行
     from camera_backend import create_capture
     from detector import (
         AprilTagBlueFusionDetector, AprilTagDetector, BlueSquareDetector,
-        FeatureFlag, PlatformDetector,
+        FeatureFlag, PlatformDetector, RingCrossDetector,
     )
     from display_backend import create_display
     from protocol import BAUDRATE, encode, encode_control, parse_control
@@ -49,6 +49,8 @@ def _create_detector(
 ):
     if target == "formal":
         return PlatformDetector()
+    if target == "ring_cross":
+        return RingCrossDetector()
     if target == "blue_square":
         return BlueSquareDetector()
     if target == "apriltag":
@@ -319,7 +321,10 @@ def main() -> int:
     parser.add_argument("--display-rotation", type=int, choices=(0, 90, 180, 270), default=0)
     parser.add_argument(
         "--target",
-        choices=("formal", "blue_square", "apriltag", "apriltag_blue_fusion"),
+        choices=(
+            "formal", "ring_cross", "blue_square", "apriltag",
+            "apriltag_blue_fusion",
+        ),
         default="formal",
     )
     parser.add_argument("--tag-family", default="tag36h11")

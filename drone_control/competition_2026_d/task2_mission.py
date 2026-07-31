@@ -43,7 +43,12 @@ class Task2Phase(enum.Enum):
     INTERCEPT_B_PRE = "intercept_b_pre"
     ACQUIRE_TARGET = "acquire_target"
     FOLLOW_B_C = "follow_b_c"
+    TRANSIT_C = "transit_c"
     SYNC_TARGET_AT_C = "sync_target_at_c"
+    OPEN_LOOP_C_D = "open_loop_c_d"
+    SAFE_HOVER_D = "safe_hover_d"
+    SAFE_HOVER_AFTER_RETAKEOFF = "safe_hover_after_retakeoff"
+    LANDED_ON_PLATFORM = "landed_on_platform"
     ACTIVATE_TRACKER = "activate_tracker"
     DYNAMIC_LANDING = "dynamic_landing"
     RETAKEOFF = "retakeoff"
@@ -69,6 +74,7 @@ class Task2Config:
     point_arrival_radius_m: float = 0.14
     max_point_speed_m_s: float = 0.40
     hold_position_max_speed_m_s: float = 0.15
+    hold_velocity_kd: float = 0.0
     hold_stable_speed_m_s: float = 0.12
     path_lookahead_m: float = 0.20
     path_cross_track_kp: float = 0.80
@@ -87,6 +93,21 @@ class Task2Config:
     abort_climb_height_m: float = 1.50
     activate_tracker_timeout_s: float = 3.0
     require_car_position_at_c: bool = True
+    safe_open_loop_cd_test: bool = False
+    safe_hover_height_m: float = 0.50
+    safe_c_offset_x_m: float = 0.0
+    safe_c_offset_y_m: float = 0.0
+    safe_descent_rate_m_s: float = 0.03
+    safe_follow_cutoff_s: float = 25.0
+    vision_landing_test: bool = False
+    landing_xy_speed_high_m_s: float = 0.15
+    landing_xy_speed_mid_m_s: float = 0.10
+    landing_xy_speed_low_m_s: float = 0.07
+    stationary_retakeoff_test: bool = False
+    stationary_skip_vision: bool = False
+    land_only_after_touchdown: bool = False
+    stationary_test_point_x_m: float = 0.0
+    stationary_test_point_y_m: float = 0.50
 
 
 @dataclass(frozen=True)
@@ -128,6 +149,7 @@ class Task2Command:
     land_requested: bool
     tracker_active: bool
     landing_active: bool
+    keep_armed: bool
     fixed_heading: bool
     mission_success: bool
     reason: str
@@ -154,6 +176,27 @@ class Task2MissionDirector:
         self.bc_follower = Task1PathFollower(
             PolylinePath((B_PRE, B, BC_1, BC_2, BC_3, C)), path_cfg
         )
+        if self.config.stationary_retakeoff_test:
+            self.sync_c = (
+                self.config.stationary_test_point_x_m,
+                self.config.stationary_test_point_y_m,
+            )
+        else:
+            self.sync_c = (
+                C[0] + (
+                    self.config.safe_c_offset_x_m
+                    if self.config.safe_open_loop_cd_test
+                    else 0.0
+                ),
+                C[1] + (
+                    self.config.safe_c_offset_y_m
+                    if self.config.safe_open_loop_cd_test
+                    else 0.0
+                ),
+            )
+        self.cd_follower = Task1PathFollower(
+            PolylinePath((self.sync_c, D)), path_cfg
+        )
         self.phase = Task2Phase.WAIT_START
         self._phase_since = 0.0
         self._stable_since: float | None = None
@@ -163,6 +206,8 @@ class Task2MissionDirector:
         self.mission_success = False
         self.reason = "waiting_for_car_start"
         self._climb_anchor = H
+        self._safe_hover_anchor = D
+        self._retakeoff_anchor = H
 
     def tick(self, data: Task2Input) -> Task2Command:
         cfg = self.config
@@ -170,7 +215,7 @@ class Task2MissionDirector:
         position_xy = (x, y)
         raw_car_speed = (
             cfg.car_speed_m_s
-            if data.car_speed_m_s is None
+            if cfg.safe_open_loop_cd_test or data.car_speed_m_s is None
             else max(0.0, float(data.car_speed_m_s))
         )
         car_speed = raw_car_speed * max(0.0, cfg.car_speed_scale)
@@ -195,8 +240,11 @@ class Task2MissionDirector:
 
         elif self.phase == Task2Phase.TAKEOFF:
             target_xy = H
-            vx, vy = self._point_velocity(
-                position_xy, H, cfg.hold_position_max_speed_m_s
+            vx, vy = self._hold_velocity(
+                position_xy,
+                H,
+                data.velocity_xy_m_s,
+                cfg.hold_position_max_speed_m_s,
             )
             takeoff_requested = True
             if z_world >= cfg.cruise_height_m - 0.10:
@@ -207,14 +255,61 @@ class Task2MissionDirector:
 
         elif self.phase == Task2Phase.HOLD_3S:
             target_xy = H
-            vx, vy = self._point_velocity(
-                position_xy, H, cfg.hold_position_max_speed_m_s
+            vx, vy = self._hold_velocity(
+                position_xy,
+                H,
+                data.velocity_xy_m_s,
+                cfg.hold_position_max_speed_m_s,
             )
             hold_elapsed = data.now - self._phase_since
             height_safe = abs(z_world - cfg.cruise_height_m) <= 0.15
             if hold_elapsed >= cfg.hold_duration_s and height_safe:
+                if (
+                    cfg.safe_open_loop_cd_test
+                    or cfg.vision_landing_test
+                    or cfg.stationary_retakeoff_test
+                ):
+                    self._transition(
+                        Task2Phase.TRANSIT_C,
+                        data.now,
+                        (
+                            "stationary_test_takeoff_height_reached"
+                            if cfg.stationary_retakeoff_test
+                            else (
+                                "vision_landing_test_takeoff_height_reached"
+                                if cfg.vision_landing_test
+                                else "safe_test_takeoff_height_reached"
+                            )
+                        ),
+                    )
+                else:
+                    self._transition(
+                        Task2Phase.INTERCEPT_B_PRE,
+                        data.now,
+                        "hover_3s_complete",
+                    )
+
+        elif self.phase == Task2Phase.TRANSIT_C:
+            target_xy = self.sync_c
+            target_world_height = cfg.cruise_height_m
+            vx, vy = self._point_velocity(
+                position_xy, self.sync_c, cfg.intercept_speed_m_s
+            )
+            if self._near(position_xy, self.sync_c) and math.hypot(
+                *data.velocity_xy_m_s
+            ) <= cfg.hold_stable_speed_m_s:
                 self._transition(
-                    Task2Phase.INTERCEPT_B_PRE, data.now, "hover_3s_complete"
+                    Task2Phase.SYNC_TARGET_AT_C,
+                    data.now,
+                    (
+                        "stationary_test_point_reached"
+                        if cfg.stationary_retakeoff_test
+                        else (
+                            "vision_landing_test_c_reached"
+                            if cfg.vision_landing_test
+                            else "safe_test_c_reached"
+                        )
+                    ),
                 )
 
         elif self.phase == Task2Phase.INTERCEPT_B_PRE:
@@ -293,14 +388,19 @@ class Task2MissionDirector:
                     )
 
         elif self.phase == Task2Phase.SYNC_TARGET_AT_C:
-            target_xy = C
+            target_xy = self.sync_c
             target_world_height = cfg.follow_height_m
             vx, vy = self._point_velocity(
-                position_xy, C, cfg.hold_position_max_speed_m_s
+                position_xy, self.sync_c, cfg.hold_position_max_speed_m_s
             )
             ready = True
-            if cfg.c_sync_vision_enabled and not self._confirm_vision(
-                data, require_centered=True
+            if (
+                cfg.c_sync_vision_enabled
+                and not (
+                    cfg.stationary_retakeoff_test
+                    and cfg.stationary_skip_vision
+                )
+                and not self._confirm_vision(data, require_centered=True)
             ):
                 ready = False
             if cfg.require_car_position_at_c and not (
@@ -308,9 +408,93 @@ class Task2MissionDirector:
             ):
                 ready = False
             if ready:
+                if cfg.safe_open_loop_cd_test:
+                    self.cd_follower.reset(
+                        timestamp=data.now,
+                        velocity_xy_m_s=data.velocity_xy_m_s,
+                    )
+                    self._transition(
+                        Task2Phase.OPEN_LOOP_C_D,
+                        data.now,
+                        "safe_test_c_vision_centered",
+                    )
+                else:
+                    self._transition(
+                        Task2Phase.ACTIVATE_TRACKER,
+                        data.now,
+                        (
+                            "stationary_test_fixed_point_ready_no_vision"
+                            if cfg.stationary_skip_vision
+                            else "c_sync_ready"
+                        ),
+                    )
+
+        elif self.phase == Task2Phase.OPEN_LOOP_C_D:
+            path = self.cd_follower.command(
+                position_xy,
+                nominal_speed_m_s=car_speed,
+                timestamp=data.now,
+            )
+            target_xy, vx, vy = self._from_path(path)
+            # 下降目标仍由实际路径进度驱动，避免水平受阻时按时间盲降；
+            # 但下降速率与整段长度解耦，可在到D前提前到达0.5m。
+            height_drop = path.progress_m * (
+                max(0.0, cfg.safe_descent_rate_m_s)
+                / max(car_speed, 1e-3)
+            )
+            target_world_height = max(
+                cfg.safe_hover_height_m,
+                cfg.cruise_height_m - height_drop,
+            )
+            if (
+                target_world_height <= cfg.safe_hover_height_m + 1e-6
+                and z_world <= cfg.safe_hover_height_m + 0.08
+            ):
+                # 达到0.5m测试高度后立即终止水平伴随，保持当前位置悬停。
+                self._safe_hover_anchor = position_xy
+                target_xy = position_xy
+                vx = vy = 0.0
                 self._transition(
-                    Task2Phase.ACTIVATE_TRACKER, data.now, "c_sync_ready"
+                    Task2Phase.SAFE_HOVER_D,
+                    data.now,
+                    "safe_test_50cm_reached_stop_forward_motion",
                 )
+            elif data.now - self._phase_since >= cfg.safe_follow_cutoff_s:
+                # 小车即将到D转弯；安全测试在固定世界坐标悬停，绝不跟随转弯。
+                self._safe_hover_anchor = position_xy
+                target_xy = position_xy
+                vx = vy = 0.0
+                self._transition(
+                    Task2Phase.SAFE_HOVER_D,
+                    data.now,
+                    "safe_test_cutoff_before_car_reaches_d",
+                )
+            elif path.completed:
+                target_xy = D
+                vx, vy = self._point_velocity(
+                    position_xy, D, cfg.hold_position_max_speed_m_s
+                )
+                if (
+                    z_world <= cfg.safe_hover_height_m + 0.08
+                    and math.hypot(*data.velocity_xy_m_s)
+                    <= cfg.hold_stable_speed_m_s
+                ):
+                    self._safe_hover_anchor = D
+                    self._transition(
+                        Task2Phase.SAFE_HOVER_D,
+                        data.now,
+                        "safe_test_d_reached_at_50cm",
+                    )
+
+        elif self.phase == Task2Phase.SAFE_HOVER_D:
+            target_xy = self._safe_hover_anchor
+            target_world_height = cfg.safe_hover_height_m
+            vx, vy = self._point_velocity(
+                position_xy,
+                self._safe_hover_anchor,
+                cfg.hold_position_max_speed_m_s,
+            )
+            self.reason = "safe_test_hovering_before_d_no_landing"
 
         elif self.phase == Task2Phase.ACTIVATE_TRACKER:
             # 激活 PlatformTracker 和 DynamicLandingController；水平控制仍由
@@ -318,10 +502,13 @@ class Task2MissionDirector:
             # 切换到 FormationController
             tracker_active = True
             landing_active = True
-            target_xy = C
+            target_xy = self.sync_c
             target_world_height = cfg.follow_height_m
-            vx, vy = self._point_velocity(
-                position_xy, C, cfg.hold_position_max_speed_m_s
+            vx, vy = self._hold_velocity(
+                position_xy,
+                self.sync_c,
+                data.velocity_xy_m_s,
+                cfg.hold_position_max_speed_m_s,
             )
             if data.landing_aborted:
                 self._begin_climb(data.now, position_xy, "landing_aborted_at_gate")
@@ -342,19 +529,63 @@ class Task2MissionDirector:
                 self._begin_climb(data.now, position_xy, "landing_aborted")
             elif data.deck_ride_complete:
                 self.mission_success = True
-                self._transition(
-                    Task2Phase.RETAKEOFF, data.now, "deck_ride_complete"
-                )
+                self._retakeoff_anchor = position_xy
+                if cfg.land_only_after_touchdown:
+                    self._safe_hover_anchor = position_xy
+                    self._transition(
+                        Task2Phase.LANDED_ON_PLATFORM,
+                        data.now,
+                        "deck_ride_complete_land_only",
+                    )
+                else:
+                    self._transition(
+                        Task2Phase.RETAKEOFF, data.now, "deck_ride_complete"
+                    )
+
+        elif self.phase == Task2Phase.LANDED_ON_PLATFORM:
+            tracker_active = False
+            landing_active = False
+            target_xy = self._safe_hover_anchor
+            target_world_height = 0.05
+            vx = vy = 0.0
+            self.reason = "landed_on_platform_waiting_for_manual_shutdown"
 
         elif self.phase == Task2Phase.RETAKEOFF:
             tracker_active = False
             landing_active = False
-            target_xy = position_xy
+            target_xy = self._retakeoff_anchor
             target_world_height = cfg.retakeoff_height_m
+            vx, vy = self._hold_velocity(
+                position_xy,
+                self._retakeoff_anchor,
+                data.velocity_xy_m_s,
+                cfg.hold_position_max_speed_m_s,
+            )
             if z_world >= cfg.retakeoff_height_m - 0.10:
-                self._transition(
-                    Task2Phase.RETURN_H, data.now, "retakeoff_height_reached"
-                )
+                if cfg.stationary_retakeoff_test:
+                    self._safe_hover_anchor = self._retakeoff_anchor
+                    self._transition(
+                        Task2Phase.SAFE_HOVER_AFTER_RETAKEOFF,
+                        data.now,
+                        "stationary_test_retakeoff_height_reached",
+                    )
+                else:
+                    self._transition(
+                        Task2Phase.RETURN_H,
+                        data.now,
+                        "retakeoff_height_reached",
+                    )
+
+        elif self.phase == Task2Phase.SAFE_HOVER_AFTER_RETAKEOFF:
+            target_xy = self._safe_hover_anchor
+            target_world_height = cfg.retakeoff_height_m
+            vx, vy = self._hold_velocity(
+                position_xy,
+                self._safe_hover_anchor,
+                data.velocity_xy_m_s,
+                cfg.hold_position_max_speed_m_s,
+            )
+            self.reason = "stationary_test_hovering_after_retakeoff_manual_land"
 
         elif self.phase == Task2Phase.CLIMB_150CM:
             target_xy = self._climb_anchor
@@ -395,6 +626,13 @@ class Task2MissionDirector:
             land_requested=land_requested,
             tracker_active=tracker_active,
             landing_active=landing_active,
+            # 任务二从首次起飞到返回 H 点的最终降落，全程只保持第一次
+            # task_sta=1；中途落到小车平台后不清零、不锁桨，也不产生
+            # 第二次起飞边沿。最终 LAND_H 交给 basic 降落流程后才允许锁桨。
+            keep_armed=self.phase not in (
+                Task2Phase.WAIT_START,
+                Task2Phase.COMPLETE,
+            ),
             fixed_heading=True,
             mission_success=self.mission_success,
             reason=self.reason,
@@ -435,6 +673,31 @@ class Task2MissionDirector:
         dy = target_xy[1] - position_xy[1]
         vx = self.config.point_kp * dx
         vy = self.config.point_kp * dy
+        return _limit_norm(
+            vx,
+            vy,
+            min(self.config.max_point_speed_m_s, max(0.0, speed_limit)),
+        )
+
+    def _hold_velocity(
+        self,
+        position_xy: tuple[float, float],
+        target_xy: tuple[float, float],
+        velocity_xy_m_s: tuple[float, float],
+        speed_limit: float,
+    ) -> tuple[float, float]:
+        """Position hold with optional velocity damping.
+
+        The damping gain defaults to zero, so the formal task keeps its
+        established P-only behavior.  The stationary retakeoff test enables
+        damping to arrest takeoff/relaunch drift before it reaches the safety
+        geofence.
+        """
+        dx = target_xy[0] - position_xy[0]
+        dy = target_xy[1] - position_xy[1]
+        kd = max(0.0, self.config.hold_velocity_kd)
+        vx = self.config.point_kp * dx - kd * velocity_xy_m_s[0]
+        vy = self.config.point_kp * dy - kd * velocity_xy_m_s[1]
         return _limit_norm(
             vx,
             vy,

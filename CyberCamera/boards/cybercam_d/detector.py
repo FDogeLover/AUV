@@ -816,3 +816,381 @@ class PlatformDetector:
         if horizontal.size == 0 or vertical.size == 0:
             return 0.0
         return float(min(np.mean(horizontal > 0), np.mean(vertical > 0)))
+
+
+@dataclass(frozen=True)
+class _RedBlock:
+    cx: float
+    cy: float
+    side: float
+    area: float
+    polygon: tuple[tuple[int, int], ...]
+
+
+class RingCrossDetector:
+    """Detect the red-cornered concentric-ring target and return its cross center.
+
+    Red blocks establish target identity.  The black cross refines the geometric
+    center, while the two rings contribute confidence.  Requiring a red anchor
+    prevents map lines, letters, and the preview crosshair from becoming a
+    flight-control target.
+    """
+
+    def __init__(
+        self,
+        min_red_area_ratio: float = 0.0006,
+        max_red_area_ratio: float = 0.08,
+        detect_scale: float = 0.5,
+    ) -> None:
+        self.min_red_area_ratio = float(min_red_area_ratio)
+        self.max_red_area_ratio = float(max_red_area_ratio)
+        self.detect_scale = max(0.35, min(1.0, float(detect_scale)))
+
+    @staticmethod
+    def _clip01(value: float) -> float:
+        return max(0.0, min(1.0, float(value)))
+
+    def _red_blocks(self, frame: np.ndarray) -> list[_RedBlock]:
+        h, w = frame.shape[:2]
+        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+        low_red = cv2.inRange(
+            hsv, np.asarray((0, 70, 45), np.uint8),
+            np.asarray((14, 255, 255), np.uint8),
+        )
+        high_red = cv2.inRange(
+            hsv, np.asarray((165, 70, 45), np.uint8),
+            np.asarray((179, 255, 255), np.uint8),
+        )
+        mask = cv2.bitwise_or(low_red, high_red)
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel, iterations=2)
+        contours, _ = cv2.findContours(
+            mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+        )
+        frame_area = float(w * h)
+        blocks: list[_RedBlock] = []
+        for contour in contours:
+            area = abs(float(cv2.contourArea(contour)))
+            ratio = area / max(frame_area, 1.0)
+            if not self.min_red_area_ratio <= ratio <= self.max_red_area_ratio:
+                continue
+            hull_area = abs(float(cv2.contourArea(cv2.convexHull(contour))))
+            solidity = area / max(hull_area, 1.0)
+            rect = cv2.minAreaRect(contour)
+            (cx, cy), (rw, rh), _ = rect
+            short, long = min(rw, rh), max(rw, rh)
+            rectangularity = area / max(rw * rh, 1.0)
+            if (
+                short < 8.0
+                or short / max(long, 1.0) < 0.52
+                or solidity < 0.78
+                or rectangularity < 0.55
+            ):
+                continue
+            box = cv2.boxPoints(rect)
+            polygon = tuple(
+                (int(round(float(px))), int(round(float(py)))) for px, py in box
+            )
+            blocks.append(_RedBlock(cx, cy, 0.5 * (rw + rh), area, polygon))
+        blocks.sort(key=lambda item: item.area, reverse=True)
+        if blocks:
+            # The four printed corners have comparable projected areas.  Tiny
+            # reddish objects (skin, debug text, payload) must not be promoted
+            # to a fourth corner because that would bias the geometric center.
+            minimum_consistent_area = 0.32 * blocks[0].area
+            blocks = [
+                block for block in blocks
+                if block.area >= minimum_consistent_area
+            ]
+        return blocks[:4]
+
+    @staticmethod
+    def _target_polygon(blocks: list[_RedBlock]) -> tuple[tuple[int, int], ...]:
+        points = np.asarray([(block.cx, block.cy) for block in blocks], np.float32)
+        if len(points) == 1:
+            return blocks[0].polygon
+        hull = cv2.convexHull(points.reshape(-1, 1, 2)).reshape(-1, 2)
+        return tuple(
+            (int(round(float(point[0]))), int(round(float(point[1]))))
+            for point in hull
+        )
+
+    def _seed_candidates(
+        self, blocks: list[_RedBlock], width: int, height: int
+    ) -> list[tuple[float, float, float, float]]:
+        """Return (cx, cy, target_side, red_geometry_score) candidates."""
+        points = np.asarray([(block.cx, block.cy) for block in blocks], np.float64)
+        mean_red_side = float(np.median([block.side for block in blocks]))
+        if len(blocks) >= 4:
+            center = np.mean(points, axis=0)
+            distances = []
+            for index, point in enumerate(points):
+                others = np.delete(points, index, axis=0)
+                distances.append(float(np.min(np.linalg.norm(others - point, axis=1))))
+            side = float(np.median(distances))
+            return [(center[0], center[1], side, 1.0)]
+        if len(blocks) == 3:
+            pairs = [
+                (float(np.linalg.norm(points[i] - points[j])), i, j)
+                for i in range(3) for j in range(i + 1, 3)
+            ]
+            diagonal, i, j = max(pairs)
+            center = 0.5 * (points[i] + points[j])
+            side = float(np.median(sorted(distance for distance, _, _ in pairs)[:2]))
+            return [(center[0], center[1], side, 0.92)]
+        if len(blocks) == 2:
+            vector = points[1] - points[0]
+            distance = float(np.linalg.norm(vector))
+            if distance < max(18.0, 1.8 * mean_red_side):
+                return []
+            midpoint = 0.5 * (points[0] + points[1])
+            # A diagonal pair is much farther apart relative to the printed
+            # red block.  Its midpoint is already the target center.
+            if distance / max(mean_red_side, 1.0) >= 7.4:
+                side = distance / np.sqrt(2.0)
+                return [(midpoint[0], midpoint[1], side, 0.82)]
+            perpendicular = np.asarray((-vector[1], vector[0])) * 0.5
+            candidates = []
+            for center in (midpoint + perpendicular, midpoint - perpendicular):
+                # Keep a modest outside margin: the real center may be just
+                # outside the image, but such a target must not drive flight.
+                if -0.08 * width <= center[0] <= 1.08 * width and -0.08 * height <= center[1] <= 1.08 * height:
+                    candidates.append((center[0], center[1], distance, 0.78))
+            return candidates
+        return []
+
+    @staticmethod
+    def _black_mask(frame: np.ndarray, blocks: list[_RedBlock]) -> np.ndarray:
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        gray = cv2.GaussianBlur(gray, (5, 5), 0)
+        binary = cv2.adaptiveThreshold(
+            gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+            cv2.THRESH_BINARY_INV, 31, 7,
+        )
+        # Red blocks also appear dark in grayscale.  Remove them so their
+        # straight edges cannot create a false cross intersection.
+        for block in blocks:
+            polygon = np.asarray(block.polygon, np.int32)
+            cv2.fillConvexPoly(binary, polygon, 0)
+        return binary
+
+    @staticmethod
+    def _oriented_cross_score(
+        binary: np.ndarray, cx: float, cy: float, side: float
+    ) -> float:
+        """Fast rotation-tolerant cross evidence at a red-derived center."""
+        h, w = binary.shape[:2]
+        radius = max(16.0, 0.24 * side)
+        count = max(25, int(round(0.55 * side)))
+        samples = np.linspace(-radius, radius, count, dtype=np.float32)
+        thickness = max(1.0, 0.015 * side)
+        angles = np.deg2rad(np.arange(0.0, 180.0, 15.0, dtype=np.float32))
+        axes = np.stack((angles, angles + np.pi * 0.5), axis=1)
+        axis_x = np.cos(axes)[:, :, None, None]
+        axis_y = np.sin(axes)[:, :, None, None]
+        normal_x = -axis_y
+        normal_y = axis_x
+        offsets = np.asarray((-thickness, 0.0, thickness), np.float32)[None, None, :, None]
+        travel = samples[None, None, None, :]
+        xs = np.rint(cx + travel * axis_x + offsets * normal_x).astype(np.int32)
+        ys = np.rint(cy + travel * axis_y + offsets * normal_y).astype(np.int32)
+        valid = (xs >= 0) & (xs < w) & (ys >= 0) & (ys < h)
+        clipped_x = np.clip(xs, 0, w - 1)
+        clipped_y = np.clip(ys, 0, h - 1)
+        dark = (binary[clipped_y, clipped_x] > 0) & valid
+        valid_count = np.sum(valid, axis=-1)
+        density = np.divide(
+            np.sum(dark, axis=-1),
+            np.maximum(valid_count, 1),
+            dtype=np.float32,
+        )
+        density = np.where(valid_count >= 0.65 * count, density, 0.0)
+        # Best thickness sample for each arm, weaker of the two arms, then
+        # best rotation.  All angles are evaluated in one NumPy operation.
+        return float(np.max(np.min(np.max(density, axis=2), axis=1)))
+
+    @staticmethod
+    def _ring_support(binary: np.ndarray, cx: float, cy: float, side: float):
+        h, w = binary.shape[:2]
+        angles = np.linspace(
+            0.0, 2.0 * np.pi, 72, endpoint=False, dtype=np.float32
+        )
+        radii = side * np.asarray((0.27, 0.44), np.float32)[:, None, None]
+        radial_offsets = np.asarray((-2.0, 0.0, 2.0), np.float32)[None, :, None]
+        sample_radii = radii + radial_offsets
+        xs = np.rint(cx + sample_radii * np.cos(angles)[None, None, :]).astype(np.int32)
+        ys = np.rint(cy + sample_radii * np.sin(angles)[None, None, :]).astype(np.int32)
+        valid = (xs >= 0) & (xs < w) & (ys >= 0) & (ys < h)
+        dark = (
+            binary[np.clip(ys, 0, h - 1), np.clip(xs, 0, w - 1)] > 0
+        ) & valid
+        angle_valid = np.any(valid, axis=1)
+        angle_dark = np.any(dark, axis=1)
+        valid_count = np.sum(angle_valid, axis=1)
+        support = np.divide(
+            np.sum(angle_dark, axis=1), np.maximum(valid_count, 1),
+            dtype=np.float32,
+        )
+        support = np.where(valid_count >= 12, support, 0.0)
+        return float(support[0]), float(support[1])
+
+    @staticmethod
+    def _interior_score(
+        frame: np.ndarray,
+        blocks: list[_RedBlock],
+        cx: float,
+        cy: float,
+        side: float,
+    ) -> float:
+        """Score the printed white/black target interior for a two-corner side.
+
+        Two corners on one side produce mirror-image center candidates.  The
+        real inward direction contains mostly light target paper plus a stable
+        fraction of black ring/cross ink.  Bare floor is almost entirely light;
+        a laptop or other obstacle is excessively dark.
+        """
+        if len(blocks) != 2:
+            return 1.0
+        points = np.asarray(
+            [(block.cx, block.cy) for block in blocks], dtype=np.float32
+        )
+        midpoint = np.mean(points, axis=0)
+        edge = points[1] - points[0]
+        edge_length = float(np.linalg.norm(edge))
+        inward = np.asarray((cx, cy), np.float32) - midpoint
+        inward_length = float(np.linalg.norm(inward))
+        if edge_length < 1.0 or inward_length < 1.0:
+            return 0.0
+        edge /= edge_length
+        inward /= inward_length
+        travel = np.linspace(0.12, 0.88, 20, dtype=np.float32) * 0.5 * side
+        lateral = np.linspace(-0.30, 0.30, 15, dtype=np.float32) * side
+        points_to_sample = (
+            midpoint[None, None, :]
+            + travel[:, None, None] * inward[None, None, :]
+            + lateral[None, :, None] * edge[None, None, :]
+        )
+        h, w = frame.shape[:2]
+        xs = np.rint(points_to_sample[:, :, 0]).astype(np.int32)
+        ys = np.rint(points_to_sample[:, :, 1]).astype(np.int32)
+        valid = (xs >= 0) & (xs < w) & (ys >= 0) & (ys < h)
+        if np.count_nonzero(valid) < 0.55 * valid.size:
+            return 0.0
+        xs = np.clip(xs, 0, w - 1)
+        ys = np.clip(ys, 0, h - 1)
+        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        light = (hsv[ys, xs, 2] > 90) & (hsv[ys, xs, 1] < 100) & valid
+        dark = (gray[ys, xs] < 55) & valid
+        valid_count = max(1, int(np.count_nonzero(valid)))
+        light_fraction = float(np.count_nonzero(light)) / valid_count
+        dark_fraction = float(np.count_nonzero(dark)) / valid_count
+        light_score = RingCrossDetector._clip01(
+            1.0 - abs(light_fraction - 0.76) / 0.24
+        )
+        dark_score = RingCrossDetector._clip01(
+            1.0 - abs(dark_fraction - 0.20) / 0.18
+        )
+        return min(light_score, dark_score)
+
+    def detect(self, frame: np.ndarray) -> PlatformDetection:
+        if frame is None or frame.size == 0 or frame.ndim != 3:
+            return PlatformDetection(False)
+        if self.detect_scale < 1.0:
+            working = cv2.resize(
+                frame, None, fx=self.detect_scale, fy=self.detect_scale,
+                interpolation=cv2.INTER_AREA,
+            )
+        else:
+            working = frame
+        h, w = working.shape[:2]
+        blocks = self._red_blocks(working)
+        if not blocks:
+            return PlatformDetection(False)
+        binary = self._black_mask(working, blocks)
+        seeds = self._seed_candidates(blocks, w, h)
+        # A lone corner cannot distinguish the printed target from the map's
+        # own line intersection with adequate flight safety.  Wait for a
+        # second corner; detection resumes on the next usable frame.
+        if len(blocks) < 2:
+            return PlatformDetection(False, flags=int(FeatureFlag.PARTIAL))
+        ranked_seeds = []
+        for seed_x, seed_y, side, red_score in seeds:
+            local_cross = self._oriented_cross_score(binary, seed_x, seed_y, side)
+            inner_seed, outer_seed = self._ring_support(
+                binary, seed_x, seed_y, side
+            )
+            interior_score = self._interior_score(
+                working, blocks, seed_x, seed_y, side
+            )
+            seed_rank = (
+                0.35 * local_cross
+                + 0.15 * 0.5 * (inner_seed + outer_seed)
+                + 0.50 * interior_score
+            )
+            ranked_seeds.append(
+                (
+                    seed_rank, local_cross, interior_score,
+                    seed_x, seed_y, side, red_score,
+                )
+            )
+        ranked_seeds.sort(reverse=True)
+        ranked_seeds = ranked_seeds[:1]
+        solutions = []
+        for (
+            _, local_cross, interior_score,
+            seed_x, seed_y, side, red_score,
+        ) in ranked_seeds:
+            if not (0.0 <= seed_x < w and 0.0 <= seed_y < h):
+                continue
+            if len(blocks) == 2 and interior_score < 0.35:
+                continue
+            if len(blocks) > 2 and local_cross < 0.24:
+                continue
+            cx, cy, cross_score = seed_x, seed_y, local_cross
+            inner_support, outer_support = self._ring_support(binary, cx, cy, side)
+            ring_score = 0.5 * (inner_support + outer_support)
+            score = (
+                0.42 * red_score + 0.28 * cross_score
+                + 0.15 * ring_score + 0.15 * interior_score
+            )
+            solutions.append((score, cx, cy, side, cross_score, inner_support, outer_support))
+        if not solutions:
+            return PlatformDetection(False)
+        solutions.sort(reverse=True)
+        best = solutions[0]
+        if len(solutions) > 1:
+            distance = float(np.hypot(best[1] - solutions[1][1], best[2] - solutions[1][2]))
+            if distance > max(24.0, 0.16 * best[3]) and best[0] - solutions[1][0] < 0.10:
+                return PlatformDetection(False, flags=int(FeatureFlag.AMBIGUOUS))
+        score, cx, cy, side, _, inner_support, outer_support = best
+        flags = FeatureFlag.COLOR_SHAPE_TRACKED
+        if best[4] >= 0.24:
+            flags |= FeatureFlag.CROSS_VALID
+        if inner_support >= 0.16:
+            flags |= FeatureFlag.INNER_VALID
+        if outer_support >= 0.16:
+            flags |= FeatureFlag.OUTER_VALID
+        if len(blocks) < 4:
+            flags |= FeatureFlag.PARTIAL
+        quality = int(round(100.0 * self._clip01(score)))
+        inverse_scale = 1.0 / self.detect_scale
+        polygon = tuple(
+            (
+                int(round(point[0] * inverse_scale)),
+                int(round(point[1] * inverse_scale)),
+            )
+            for point in self._target_polygon(blocks)
+        )
+        return PlatformDetection(
+            True,
+            int(round(cx * inverse_scale)),
+            int(round(cy * inverse_scale)),
+            int(round(side * inverse_scale)),
+            int(round(0.55 * side * inverse_scale)),
+            0,
+            quality,
+            int(flags),
+            polygon,
+        )

@@ -27,11 +27,12 @@ def observation_to_gate_sample(
     min_quality: int,
     image_center_px: tuple[float, float],
     focal_px: tuple[float, float],
+    target_offset_xy_m: tuple[float, float] = (0.0, 0.0),
 ) -> VisionGateSample:
     """把 VS1 转成门禁样本，不生成任何速度。
 
-    坐标符号沿用 2026-07-30 实飞结果：画面左侧为 +X，画面上方对应 -Y
-    控制方向，因此相对误差为 ``(cx0-cx, cy-cy0)``。
+    坐标符号按 2026-07-31 USB 摄像头现场观察：画面下方为 +X，
+    画面右侧为 +Y，因此相对误差为 ``(cy-cy0, cx-cx0)``。
     """
     if observation is None:
         return VisionGateSample(None, False, 0, False, None, "no_observation")
@@ -75,8 +76,14 @@ def observation_to_gate_sample(
     if fx <= 0.0 or fy <= 0.0:
         raise ValueError("视觉焦距必须为正")
     cx0, cy0 = image_center_px
-    error_x = (cx0 - observation.cx) * relative_height_m / fx
-    error_y = (observation.cy - cy0) * relative_height_m / fy
+    measured_x = (observation.cy - cy0) * relative_height_m / fy
+    measured_y = (observation.cx - cx0) * relative_height_m / fx
+    target_x, target_y = target_offset_xy_m
+    # The configured offset is the desired target position relative to the UAV.
+    # At (-0.05, +0.08), for example, the detector reports zero control error
+    # only when the observed target is 5 cm toward -X and 8 cm toward +Y.
+    error_x = measured_x - target_x
+    error_y = measured_y - target_y
     return VisionGateSample(
         observation.seq,
         True,
@@ -92,6 +99,7 @@ class HeightReferenceConfig:
     world_kp: float = 1.0
     world_deadband_m: float = 0.03
     normal_slew_m_s: float = 0.25
+    normal_ascent_slew_m_s: float | None = None
     drop_slew_m_s: float = 0.09
     min_laser_setpoint_m: float = 0.12
     max_laser_setpoint_m: float = 1.60
@@ -165,7 +173,12 @@ class WorldDeckHeightController:
                 current_world_height_m
             )
             candidate = laser_height + cfg.world_kp * world_error
-            slew = cfg.normal_slew_m_s
+            slew = (
+                cfg.normal_ascent_slew_m_s
+                if world_error > 0.0
+                and cfg.normal_ascent_slew_m_s is not None
+                else cfg.normal_slew_m_s
+            )
             mode = "world_height"
             if abs(world_error) <= cfg.world_deadband_m:
                 # 世界高度没有变化而激光基准突变，说明地面/平台表面发生切换。

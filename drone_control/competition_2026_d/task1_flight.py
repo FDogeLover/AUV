@@ -1,7 +1,7 @@
 """任务一核心与 basic 飞控安全状态机的飞行适配类。
 
-通信协议尚未冻结，因此本文件暂不创建 ``main()``。调用方在确认 CAR_START 后
-构造并启动本类；小车状态以后只需通过 ``car_speed_provider`` 接口补入。
+正式任务一由无人机自身 T265 和固定场地路径生成主水平速度。小车 T265/
+``CAR_POSITION`` 不参与控制；Cyber Camera 只提供受限微调、目标确认与投放门禁。
 """
 
 from __future__ import annotations
@@ -31,6 +31,7 @@ from .task1_mission import (  # noqa: E402
 )
 from .task1_runtime import (  # noqa: E402
     HeightReference,
+    HeightReferenceConfig,
     Task1T265SafetyMonitor,
     WorldDeckHeightController,
     observation_to_gate_sample,
@@ -69,7 +70,13 @@ class Task1FlightMission(mission):
         self.director = Task1MissionDirector(task_config)
         self.vision_reader = vision_reader
         self.payload_actuator = payload_actuator
-        self.height_controller = WorldDeckHeightController()
+        self.height_controller = WorldDeckHeightController(
+            HeightReferenceConfig(
+                normal_ascent_slew_m_s=(
+                    self.director.config.takeoff_ascent_slew_m_s
+                )
+            )
+        )
         self.t265_safety = Task1T265SafetyMonitor()
         self.car_speed_provider = car_speed_provider
         if height_source not in ("t265", "laser"):
@@ -77,9 +84,13 @@ class Task1FlightMission(mission):
         self.height_source = height_source
         self.vision_config = {
             "max_age_s": 0.15,
-            "min_quality": self.director.config.vision_min_quality,
+            "min_quality": min(
+                self.director.config.vision_min_quality,
+                self.director.config.acquire_vision_min_quality,
+            ),
             "image_center_px": (320.0, 240.0),
             "focal_px": (570.0, 570.0),
+            "target_offset_xy_m": (0.0, 0.0),
             **(vision_config or {}),
         }
         self._last_task1_phase = self.director.phase
@@ -110,7 +121,12 @@ class Task1FlightMission(mission):
             Task1Phase.HOLD_3S,
         ):
             hold_anchor = H
-        elif phase_before_tick == Task1Phase.ACQUIRE_TARGET:
+        elif (
+            phase_before_tick == Task1Phase.ACQUIRE_TARGET
+            and not self.director.config.vision_track_only
+            and not self.director.config.intercept_vision_early_stop_enabled
+        ):
+            # 固定路径联合模式必须在B_PRE定点等待；纯视觉模式仍允许离开B_PRE。
             hold_anchor = B_PRE
         ground_reference_expected = phase_before_tick in (
             Task1Phase.WAIT_START,
@@ -154,6 +170,9 @@ class Task1FlightMission(mission):
             min_quality=int(self.vision_config["min_quality"]),
             image_center_px=tuple(self.vision_config["image_center_px"]),
             focal_px=tuple(self.vision_config["focal_px"]),
+            target_offset_xy_m=tuple(
+                self.vision_config["target_offset_xy_m"]
+            ),
         )
         payload_state = self.payload_actuator.poll()
         car_speed = (
@@ -242,6 +261,7 @@ class Task1FlightMission(mission):
             laser_height,
             height,
             gate,
+            observation,
             payload_state,
         )
 
@@ -249,10 +269,28 @@ class Task1FlightMission(mission):
             command.phase == Task1Phase.LAND_H
             and command.land_requested
             and math.hypot(world_position[0], world_position[1])
-            <= self.director.config.point_arrival_radius_m
+            <= self.director.config.final_landing_radius_m
         ):
-            logger.info("任务一到达H点0.15m末航点，转入basic两级降落")
+            logger.info(
+                "任务一在(0,0,0.15)稳定满足最终门槛，"
+                "转入带T265水平闭环的两级降落"
+            )
             self.state = "DESCEND"
+
+    def _descend_horizontal_command(self, pos) -> tuple[int, int]:
+        """任务一末段下降继续低速闭环到H，避免开环零速度随气流漂移。"""
+        try:
+            confidence = int(self.realsense.get_tracking_confidence())
+        except Exception:
+            return 0, 0
+        if confidence < self.director.config.t265_min_confidence:
+            return 0, 0
+        vx, vy = self.director._point_velocity(
+            (float(pos[0]), float(pos[1])),
+            H,
+            self.director.config.final_descend_horizontal_max_speed_m_s,
+        )
+        return int(round(vx * 100.0)), int(round(vy * 100.0))
 
     def _laser_height(self) -> float | None:
         if self.serial_fc_ref is None:
@@ -270,6 +308,7 @@ class Task1FlightMission(mission):
         laser_height,
         height,
         gate,
+        observation,
         payload_state,
     ) -> None:
         if self._log_file is None or now - self._last_runtime_log < 0.10:
@@ -300,15 +339,68 @@ class Task1FlightMission(mission):
                                 round(command.vx_m_s, 4),
                                 round(command.vy_m_s, 4),
                             ],
+                            "base_path_command_xy_m_s": [
+                                round(command.base_vx_m_s, 4),
+                                round(command.base_vy_m_s, 4),
+                            ],
+                            "vision_trim_command_xy_m_s": [
+                                round(command.vision_trim_vx_m_s, 4),
+                                round(command.vision_trim_vy_m_s, 4),
+                            ],
                             "vision_seq": gate.seq,
+                            "vision_stream_id": (
+                                None
+                                if observation is None
+                                else observation.stream_id
+                            ),
+                            "vision_capture_ms": (
+                                None
+                                if observation is None
+                                else observation.capture_ms
+                            ),
+                            "vision_age_s": (
+                                None
+                                if observation is None
+                                else round(observation.age_s(now), 4)
+                            ),
+                            "vision_center_px": (
+                                None
+                                if observation is None
+                                else [observation.cx, observation.cy]
+                            ),
+                            "vision_outer_px": (
+                                None
+                                if observation is None
+                                else observation.outer_px
+                            ),
+                            "vision_flags": (
+                                None
+                                if observation is None
+                                else observation.flags
+                            ),
                             "vision_found": gate.found,
                             "vision_quality": gate.quality,
                             "vision_error_xy_m": gate.error_xy_m,
+                            "vision_error_norm_m": (
+                                None
+                                if gate.error_xy_m is None
+                                else round(math.hypot(*gate.error_xy_m), 4)
+                            ),
                             "vision_reason": gate.reason,
                             "payload_state": payload_state.value,
                             "drop_committed": command.drop_committed,
                             "drop_released": command.drop_released,
-                            "horizontal_control_source": "task1_fixed_path_t265",
+                            "horizontal_control_source": (
+                                "task1_braking_before_pure_vision"
+                                if command.reason
+                                == "pure_vision_takeover_braking"
+                                else (
+                                    "task1_pure_vision_centering"
+                                    if command.phase
+                                    == Task1Phase.ACQUIRE_TARGET
+                                    else "task1_fixed_path_uav_t265_plus_limited_vision_trim"
+                                )
+                            ),
                         },
                         ensure_ascii=False,
                     )
