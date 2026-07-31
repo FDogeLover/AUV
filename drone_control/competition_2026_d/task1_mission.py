@@ -68,10 +68,11 @@ class Task1Config:
     path_max_correction_m_s: float = 0.08
     path_max_speed_m_s: float = 0.20
     path_max_accel_m_s2: float = 0.30
-    acquire_timeout_s: float = 4.0
+    # 0 表示在 B_PRE 持续等待视觉确认；正赛默认不能因超时越过小车。
+    acquire_timeout_s: float = 0.0
     vision_min_quality: int = 55
     vision_confirm_frames: int = 2
-    drop_max_error_m: float = 0.12
+    drop_max_error_m: float = 0.30
     drop_rel_height_tolerance_m: float = 0.05
     drop_descent_speed_m_s: float = 0.09
     drop_time_margin_s: float = 0.80
@@ -237,7 +238,10 @@ class Task1MissionDirector:
                 self._transition(
                     Task1Phase.FOLLOW_B_C, data.now, "target_acquired_at_b_pre"
                 )
-            elif data.now - self._phase_since >= cfg.acquire_timeout_s:
+            elif (
+                cfg.acquire_timeout_s > 0.0
+                and data.now - self._phase_since >= cfg.acquire_timeout_s
+            ):
                 self.bc_follower.reset(
                     timestamp=data.now, velocity_xy_m_s=data.velocity_xy_m_s
                 )

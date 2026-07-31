@@ -299,8 +299,14 @@ def main(argv=None):
         LinkConfig(
             port=str(bluetooth["port"]),
             baudrate=int(bluetooth["baudrate"]),
+            write_timeout_s=float(
+                bluetooth.get("write_timeout_s", 0.20)
+            ),
             ack_timeout_s=float(bluetooth["ack_timeout_s"]),
             max_retries=int(bluetooth["max_retries"]),
+            max_consecutive_tx_errors=int(
+                bluetooth.get("max_consecutive_tx_errors", 3)
+            ),
         )
     )
     if not link.start():
@@ -418,9 +424,13 @@ def main(argv=None):
             session_id=session_id,
             state_interval_s=1.0 / telemetry_hz,
         )
+        if not link.is_running:
+            raise RuntimeError("蓝牙链路已在起飞预检前中断，取消任务")
         mission_obj.start()
         if not mission_obj.task_running:
             raise RuntimeError("T265或起飞预检失败，任务未启动")
+        if not link.is_running:
+            raise RuntimeError("蓝牙链路在起飞预检期间中断，紧急停止任务")
         warning_led_active = False
         while mission_obj.task_running:
             sample = _build_telemetry_sample(mission_obj)

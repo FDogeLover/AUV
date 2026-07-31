@@ -192,8 +192,12 @@ def main(argv=None) -> None:
         LinkConfig(
             port=str(bt["port"]),
             baudrate=int(bt["baudrate"]),
+            write_timeout_s=float(bt.get("write_timeout_s", 0.20)),
             ack_timeout_s=float(bt["ack_timeout_s"]),
             max_retries=int(bt["max_retries"]),
+            max_consecutive_tx_errors=int(
+                bt.get("max_consecutive_tx_errors", 3)
+            ),
         )
     )
     stats = FrameStats()

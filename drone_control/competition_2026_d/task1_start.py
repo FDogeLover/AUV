@@ -281,13 +281,26 @@ class Task1StartGate:
         with self._lock:
             if self._session_id is not None:
                 result = 0 if self._session_id == int(frame.session_id) else 1
-                self.link.acknowledge(frame, result=result)
+                ack_frame_seq = self.link.acknowledge(frame, result=result)
+                logger.info(
+                    "重复CAR_START已幂等回复ACK: "
+                    f"ack_frame_seq={ack_frame_seq}, "
+                    f"acked_seq={int(frame.seq)}, "
+                    f"session={int(frame.session_id)}, result={result}"
+                )
                 return
             self._session_id = int(frame.session_id)
             self._car_config_hash = int(car_config_hash)
             self._car_position = None
             self._last_car_position_seq = None
-        self.link.acknowledge(frame, result=0)
+        ack_frame_seq = self.link.acknowledge(frame, result=0)
+        logger.info(
+            "CAR_START ACK已入发送队列: "
+            f"ack_frame_seq={ack_frame_seq}, "
+            f"acked_type=0x{int(frame.message_type):02X}, "
+            f"acked_seq={int(frame.seq)}, "
+            f"session={int(frame.session_id)}, result=0"
+        )
         self._start_event.set()
 
     def _handle_car_state(self, frame) -> None:
@@ -414,6 +427,7 @@ def _load_task_config(data: dict) -> Task1Config:
         hold_stable_speed_m_s=float(
             task.get("hold_stable_speed_m_s", 0.12)
         ),
+        acquire_timeout_s=float(task.get("acquire_timeout_s", 0.0)),
         path_lookahead_m=float(task.get("path_lookahead_m", 0.20)),
         path_cross_track_kp=float(
             task.get("path_cross_track_kp", 0.80)
@@ -517,8 +531,14 @@ def main(argv=None):
         LinkConfig(
             port=str(bluetooth["port"]),
             baudrate=int(bluetooth["baudrate"]),
+            write_timeout_s=float(
+                bluetooth.get("write_timeout_s", 0.20)
+            ),
             ack_timeout_s=float(bluetooth["ack_timeout_s"]),
             max_retries=int(bluetooth["max_retries"]),
+            max_consecutive_tx_errors=int(
+                bluetooth.get("max_consecutive_tx_errors", 3)
+            ),
         )
     )
     if not link.start():
@@ -618,6 +638,19 @@ def main(argv=None):
             f"car_config_hash=0x{start_gate.car_config_hash:08X}；"
             "解除T265拔插阻塞并开始初始化"
         )
+        ack_tx_deadline = time.monotonic() + 0.20
+        while (
+            link.stats.tx_ack_frames < 1
+            and time.monotonic() < ack_tx_deadline
+        ):
+            time.sleep(0.005)
+        if link.stats.tx_ack_frames < 1:
+            raise RuntimeError("CAR_START ACK未能写入蓝牙串口，取消任务")
+        logger.info(
+            "CAR_START ACK已写入蓝牙串口: "
+            f"tx_ack_frames={link.stats.tx_ack_frames}, "
+            f"raw={link.stats.last_ack_tx_hex}"
+        )
         if not set_rgb_led("R"):
             raise RuntimeError("收到CAR_START后红色起飞警示灯点亮失败")
         mission_obj.preflight_warning_started_at = time.monotonic()
@@ -631,9 +664,13 @@ def main(argv=None):
         )
 
         # T265初始化与红灯5秒安全提示并行；两者都完成后mission.start才解锁。
+        if not link.is_running:
+            raise RuntimeError("蓝牙链路已在起飞预检前中断，取消任务")
         mission_obj.start()
         if not mission_obj.task_running:
             raise RuntimeError("T265或起飞预检失败，任务未启动")
+        if not link.is_running:
+            raise RuntimeError("蓝牙链路在起飞预检期间中断，紧急停止任务")
         warning_led_active = False
         while mission_obj.task_running:
             sample = _build_telemetry_sample(

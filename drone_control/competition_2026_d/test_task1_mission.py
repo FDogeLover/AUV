@@ -83,8 +83,18 @@ def test_takeoff_and_hold_use_t265_position_feedback():
     assert hold.vy_m_s < 0.0
 
 
-def test_b_pre_timeout_continues_fixed_path_without_descending():
+def test_b_pre_waits_indefinitely_for_current_vision_by_default():
     director = Task1MissionDirector()
+    director._transition(Task1Phase.ACQUIRE_TARGET, 0.0, "test")
+    command = director.tick(mission_input(4.1, (*B_PRE, 1.5)))
+    assert command.phase == Task1Phase.ACQUIRE_TARGET
+    command = director.tick(mission_input(30.0, (*B_PRE, 1.5)))
+    assert command.phase == Task1Phase.ACQUIRE_TARGET
+    assert not command.target_acquired
+
+
+def test_b_pre_timeout_fallback_remains_available_when_explicitly_enabled():
+    director = Task1MissionDirector(Task1Config(acquire_timeout_s=4.0))
     director._transition(Task1Phase.ACQUIRE_TARGET, 0.0, "test")
     command = director.tick(mission_input(4.1, (*B_PRE, 1.5)))
     assert command.phase == Task1Phase.FOLLOW_B_C

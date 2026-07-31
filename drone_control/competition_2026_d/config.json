@@ -17,8 +17,10 @@
   "bluetooth": {
     "port": "/dev/bt_serial",
     "baudrate": 115200,
-    "ack_timeout_s": 0.12,
+    "write_timeout_s": 0.2,
+    "ack_timeout_s": 0.5,
     "max_retries": 4,
+    "max_consecutive_tx_errors": 3,
     "uav_state_hz": 10,
     "car_state_max_age_s": 0.3,
     "car_speed_max_m_s": 0.3,
@@ -67,9 +69,10 @@
     "path_max_accel_m_s2": 0.3,
     "hold_position_max_speed_m_s": 0.15,
     "hold_stable_speed_m_s": 0.12,
+    "acquire_timeout_s": 0.0,
     "vision_min_quality": 55,
     "vision_confirm_frames": 2,
-    "drop_max_error_m": 0.12,
+    "drop_max_error_m": 0.3,
     "drop_descent_speed_m_s": 0.09,
     "drop_time_margin_s": 0.8,
     "release_timeout_s": 1.0
