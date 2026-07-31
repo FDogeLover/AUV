@@ -20,6 +20,7 @@ class FakeLink:
     def __init__(self):
         self.callbacks = []
         self.published = []
+        self.acks = []
 
     def add_callback(self, callback):
         self.callbacks.append(callback)
@@ -27,6 +28,9 @@ class FakeLink:
     def publish(self, message_type, payload, **kwargs):
         self.published.append((message_type, payload, kwargs))
         return len(self.published)
+
+    def acknowledge(self, frame, result=0):
+        self.acks.append((frame, result))
 
     def feed(self, frame):
         for callback in self.callbacks:
@@ -133,6 +137,7 @@ def test_gate_rejects_wrong_mode_and_accepts_task1_once():
     link.feed(car_start(session=21))
     assert gate.session_id == 20
     assert gate.car_config_hash == 1234
+    assert [result for _frame, result in link.acks] == [1, 0, 1]
 
 
 def test_gate_requires_event_and_ack_flags():
@@ -141,6 +146,16 @@ def test_gate_requires_event_and_ack_flags():
     link.feed(car_start(flags=Flag.EVENT))
     assert gate.session_id is None
     assert gate.rejected_start_frames == 1
+    assert link.acks == []
+
+
+def test_gate_replies_negative_ack_to_ack_required_invalid_start():
+    link = FakeLink()
+    gate = Task1StartGate(link, config_hash=99)
+    frame = car_start(flags=Flag.ACK_REQUIRED)
+    link.feed(frame)
+    assert gate.session_id is None
+    assert link.acks == [(frame, 1)]
 
 
 def test_car_speed_requires_bound_session_and_fresh_data():

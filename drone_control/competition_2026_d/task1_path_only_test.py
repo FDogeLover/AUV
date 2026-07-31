@@ -105,6 +105,7 @@ def build_path_test_config(
         return_speed_m_s=return_speed_m_s,
         acquire_timeout_s=float("inf") if wait_for_target else 0.0,
         path_only_b_pre_descent=not wait_for_target,
+        c_sync_vision_enabled=wait_for_target,
         payload_drop_enabled=payload_drop_enabled,
         drop_max_error_m=(
             base.drop_max_error_m
@@ -151,7 +152,7 @@ def main(argv=None):
         default=None,
         help="路径前视距离；圆弧贴合测试建议0.12m",
     )
-    parser.add_argument("--intercept-speed", type=float, default=0.38)
+    parser.add_argument("--intercept-speed", type=float, default=0.20)
     parser.add_argument("--return-speed", type=float, default=0.35)
     parser.add_argument(
         "--wait-for-target",
@@ -233,7 +234,8 @@ def main(argv=None):
                     "Cyber Camera双向通信预检失败，禁止视觉协同测试"
                 )
             logger.info(
-                "Cyber Camera预检通过；到达B_PRE后将等待目标连续确认"
+                "Cyber Camera预检通过；到达B_PRE后等待目标确认，"
+                "到达C点后等待目标居中确认"
             )
         logger.warning(
             "固定路径专项：不等待小车通信；"

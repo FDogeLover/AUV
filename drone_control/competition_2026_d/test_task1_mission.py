@@ -108,6 +108,97 @@ def test_path_only_holds_b_pre_until_t265_height_reaches_one_meter():
     assert ready.target_acquired
 
 
+def test_b_pre_wait_anchor_is_not_armed_while_aircraft_is_still_fast():
+    director = Task1MissionDirector(
+        Task1Config(hold_stable_speed_m_s=0.12)
+    )
+    director._transition(Task1Phase.INTERCEPT_B_PRE, 0.0, "test")
+
+    fast = director.tick(
+        mission_input(
+            0.1,
+            (*B_PRE, 1.5),
+            velocity_xy_m_s=(0.0, 0.28),
+        )
+    )
+    assert fast.phase == Task1Phase.INTERCEPT_B_PRE
+
+    stable = director.tick(
+        mission_input(
+            0.2,
+            (*B_PRE, 1.5),
+            velocity_xy_m_s=(0.03, 0.04),
+        )
+    )
+    assert stable.phase == Task1Phase.ACQUIRE_TARGET
+
+
+def test_target_seen_during_intercept_does_not_release_b_pre_gate():
+    director = Task1MissionDirector(
+        Task1Config(vision_confirm_frames=2, drop_max_error_m=0.30)
+    )
+    director._transition(Task1Phase.INTERCEPT_B_PRE, 0.0, "test")
+
+    for seq in (1, 2):
+        approach = director.tick(
+            mission_input(
+                seq * 0.1,
+                (B_PRE[0], B_PRE[1] - 0.30, 1.5),
+                velocity_xy_m_s=(0.0, 0.25),
+                vision_seq=seq,
+                vision_found=True,
+                vision_quality=90,
+                vision_error_xy_m=(0.0, 0.0),
+            )
+        )
+    assert approach.phase == Task1Phase.INTERCEPT_B_PRE
+    assert not approach.target_acquired
+
+    waiting = director.tick(
+        mission_input(
+            0.3,
+            (*B_PRE, 1.5),
+            velocity_xy_m_s=(0.0, 0.05),
+            vision_found=False,
+        )
+    )
+    assert waiting.phase == Task1Phase.ACQUIRE_TARGET
+
+
+def test_b_pre_gate_requires_current_centered_vision():
+    director = Task1MissionDirector(
+        Task1Config(vision_confirm_frames=2, drop_max_error_m=0.30)
+    )
+    director._transition(Task1Phase.ACQUIRE_TARGET, 0.0, "test")
+
+    for seq in (1, 2):
+        off_center = director.tick(
+            mission_input(
+                seq * 0.1,
+                (*B_PRE, 1.5),
+                vision_seq=seq,
+                vision_found=True,
+                vision_quality=90,
+                vision_error_xy_m=(0.31, 0.0),
+            )
+        )
+    assert off_center.phase == Task1Phase.ACQUIRE_TARGET
+
+    for seq in (3, 4):
+        centered = director.tick(
+            mission_input(
+                seq * 0.1,
+                (*B_PRE, 1.5),
+                vision_seq=seq,
+                vision_found=True,
+                vision_quality=90,
+                vision_error_xy_m=(0.20, 0.10),
+            )
+        )
+    assert centered.phase == Task1Phase.FOLLOW_B_C
+    assert centered.target_acquired
+
+
 def test_curve_and_straight_segments_can_use_different_speeds():
     director = Task1MissionDirector(
         Task1Config(car_speed_m_s=0.08, curve_speed_m_s=0.06)
@@ -127,6 +218,52 @@ def test_curve_and_straight_segments_can_use_different_speeds():
     assert math.isclose(
         math.hypot(straight.vx_m_s, straight.vy_m_s), 0.08, abs_tol=1e-9
     )
+
+
+def test_c_sync_holds_until_centered_target_is_confirmed():
+    director = Task1MissionDirector(
+        Task1Config(drop_max_error_m=0.30, vision_confirm_frames=2)
+    )
+    director.target_acquired = True
+    director._transition(Task1Phase.SYNC_TARGET_AT_C, 0.0, "test")
+
+    off_center = director.tick(
+        mission_input(
+            0.1,
+            (*C, 1.0),
+            vision_seq=1,
+            vision_found=True,
+            vision_quality=90,
+            vision_error_xy_m=(0.31, 0.0),
+        )
+    )
+    assert off_center.phase == Task1Phase.SYNC_TARGET_AT_C
+    assert (off_center.vx_m_s, off_center.vy_m_s) == (0.0, 0.0)
+
+    first = director.tick(
+        mission_input(
+            0.2,
+            (*C, 1.0),
+            vision_seq=2,
+            vision_found=True,
+            vision_quality=90,
+            vision_error_xy_m=(0.20, 0.10),
+        )
+    )
+    assert first.phase == Task1Phase.SYNC_TARGET_AT_C
+
+    second = director.tick(
+        mission_input(
+            0.3,
+            (*C, 1.0),
+            vision_seq=3,
+            vision_found=True,
+            vision_quality=90,
+            vision_error_xy_m=(0.18, 0.08),
+        )
+    )
+    assert second.phase == Task1Phase.DROP_WINDOW_C_D
+    assert second.reason == "centered_target_confirmed_at_c"
 
 
 def test_vision_does_not_write_horizontal_velocity_during_b_c_follow():

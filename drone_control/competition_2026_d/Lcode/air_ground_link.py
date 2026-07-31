@@ -176,6 +176,20 @@ class AirGroundLink:
         with self._pending_lock:
             return not self._pending
 
+    def acknowledge(self, received: Frame, result: int = 0) -> None:
+        """业务层校验完成后回复ACK；result=0表示接受。"""
+        payload = pack_payload(
+            MessageType.ACK,
+            (received.message_type, received.seq, int(result) & 0xFF),
+        )
+        self.publish(
+            MessageType.ACK,
+            payload,
+            session_id=received.session_id,
+            dest=received.source,
+            flags=Flag.IS_ACK,
+        )
+
     def _enqueue(self, raw: bytes) -> bool:
         try:
             self._tx_queue.put_nowait(raw)
@@ -229,13 +243,19 @@ class AirGroundLink:
                 self._pending.pop((acked_type, acked_seq, frame.session_id), None)
             return
         event_key = (frame.source, frame.session_id, frame.message_type, frame.seq)
+        deferred_start_ack = (
+            int(frame.message_type) == int(MessageType.CAR_START)
+        )
         duplicate = event_key in self._seen_set
-        if frame.flags & Flag.ACK_REQUIRED:
-            self._send_ack(frame)
-        if duplicate:
+        if frame.flags & Flag.ACK_REQUIRED and not deferred_start_ack:
+            self.acknowledge(frame)
+        if duplicate and not deferred_start_ack:
             self.stats.duplicate_events += 1
             return
-        if frame.flags & Flag.EVENT or frame.flags & Flag.ACK_REQUIRED:
+        if (
+            not deferred_start_ack
+            and (frame.flags & Flag.EVENT or frame.flags & Flag.ACK_REQUIRED)
+        ):
             self._remember(event_key)
         try:
             self._rx_queue.put_nowait(frame)
@@ -256,13 +276,6 @@ class AirGroundLink:
                 except queue.Empty:
                     pass
                 self._callback_queue.put_nowait(frame)
-
-    def _send_ack(self, received: Frame) -> None:
-        payload = pack_payload(MessageType.ACK, (received.message_type, received.seq, 0))
-        self.publish(
-            MessageType.ACK, payload, session_id=received.session_id,
-            dest=received.source, flags=Flag.IS_ACK,
-        )
 
     def _remember(self, key: tuple[int, int, int, int]) -> None:
         self._seen_order.append(key)

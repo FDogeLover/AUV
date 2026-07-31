@@ -1,4 +1,9 @@
-"""任务一无人机坐标遥测与阶段事件发布。"""
+"""任务二无人机坐标遥测与阶段事件发布。
+
+与任务一的区别：DYNAMIC_LANDING 阶段会根据 DynamicLandingController 的
+内部状态进一步细分为 DESCEND / TERMINAL_PREDICT / TOUCHDOWN / DECK_RIDE /
+CONTROLLED_ABORT，让小车端能看到动态降落进度并配合。
+"""
 
 from __future__ import annotations
 
@@ -13,35 +18,51 @@ from shared.competition_2026_d_protocol import (
     pack_payload,
 )
 
-from .task1_mission import Task1Phase
+from .dynamic_landing import LandingState
+from .task2_mission import Task2Phase
 
 
 @dataclass(frozen=True)
-class Task1TelemetrySample:
-    phase: Task1Phase
+class Task2TelemetrySample:
+    phase: Task2Phase
     base_state: str
     position_xyz_m: tuple[float, float, float]
+    landing_state: LandingState | None = None
+    mission_success: bool = False
 
 
+# Task2Phase → UavPhase（DYNAMIC_LANDING 单独处理）
 _PHASE_MAP = {
-    Task1Phase.WAIT_START: UavPhase.READY,
-    Task1Phase.TAKEOFF: UavPhase.TAKEOFF,
-    Task1Phase.HOLD_3S: UavPhase.HOVER,
-    Task1Phase.INTERCEPT_B_PRE: UavPhase.INTERCEPT,
-    Task1Phase.ACQUIRE_TARGET: UavPhase.SEARCH_TARGET,
-    Task1Phase.FOLLOW_B_C: UavPhase.FORMATION_FOLLOW,
-    Task1Phase.SYNC_TARGET_AT_C: UavPhase.FORMATION_FOLLOW,
-    Task1Phase.DROP_WINDOW_C_D: UavPhase.FORMATION_FOLLOW,
-    Task1Phase.DROP_DESCENT: UavPhase.DESCEND,
-    Task1Phase.RELEASING: UavPhase.DROP,
-    Task1Phase.CLIMB: UavPhase.RETURN_H,
-    Task1Phase.RETURN_H: UavPhase.RETURN_H,
-    Task1Phase.LAND_H: UavPhase.LAND_H,
-    Task1Phase.COMPLETE: UavPhase.COMPLETE,
+    Task2Phase.WAIT_START: UavPhase.READY,
+    Task2Phase.TAKEOFF: UavPhase.TAKEOFF,
+    Task2Phase.HOLD_3S: UavPhase.HOVER,
+    Task2Phase.INTERCEPT_B_PRE: UavPhase.INTERCEPT,
+    Task2Phase.ACQUIRE_TARGET: UavPhase.SEARCH_TARGET,
+    Task2Phase.FOLLOW_B_C: UavPhase.FORMATION_FOLLOW,
+    Task2Phase.SYNC_TARGET_AT_C: UavPhase.FORMATION_FOLLOW,
+    Task2Phase.ACTIVATE_TRACKER: UavPhase.DESCEND,
+    Task2Phase.RETAKEOFF: UavPhase.RETAKEOFF,
+    Task2Phase.CLIMB_150CM: UavPhase.RETURN_H,
+    Task2Phase.RETURN_H: UavPhase.RETURN_H,
+    Task2Phase.LAND_H: UavPhase.LAND_H,
+    Task2Phase.COMPLETE: UavPhase.COMPLETE,
+}
+
+# DYNAMIC_LANDING 内部 LandingState → UavPhase
+_LANDING_STATE_MAP = {
+    LandingState.LANDING_GATE: UavPhase.DESCEND,
+    LandingState.DESCEND_HIGH: UavPhase.DESCEND,
+    LandingState.DESCEND_MID: UavPhase.DESCEND,
+    LandingState.DESCEND_LOW: UavPhase.DESCEND,
+    LandingState.TERMINAL_PREDICT: UavPhase.TERMINAL_PREDICT,
+    LandingState.TOUCHDOWN_CANDIDATE: UavPhase.TOUCHDOWN,
+    LandingState.DECK_RIDE: UavPhase.DECK_RIDE,
+    LandingState.RETAKEOFF_GATE: UavPhase.RETAKEOFF,
+    LandingState.CONTROLLED_ABORT: UavPhase.CONTROLLED_ABORT,
 }
 
 
-class Task1TelemetryPublisher:
+class Task2TelemetryPublisher:
     def __init__(
         self,
         link,
@@ -59,7 +80,7 @@ class Task1TelemetryPublisher:
         self._last_event_phase: UavPhase | None = None
         self._complete_sent = False
 
-    def update(self, sample: Task1TelemetrySample) -> bool:
+    def update(self, sample: Task2TelemetrySample) -> bool:
         now = self.clock()
         state_sent = False
         if (
@@ -107,7 +128,7 @@ class Task1TelemetryPublisher:
 
     def _publish_state(
         self,
-        sample: Task1TelemetrySample,
+        sample: Task2TelemetrySample,
         now: float,
     ) -> bool:
         x, y, z = sample.position_xyz_m
@@ -133,9 +154,16 @@ class Task1TelemetryPublisher:
         return sent
 
     @staticmethod
-    def _phase(sample: Task1TelemetrySample) -> UavPhase:
+    def _phase(sample: Task2TelemetrySample) -> UavPhase:
+        # base_state DESCEND/LAND（basic 两级降落接管）优先映射到 LAND_H
         if sample.base_state in ("DESCEND", "LAND"):
             return UavPhase.LAND_H
+        if sample.phase == Task2Phase.DYNAMIC_LANDING:
+            if sample.landing_state is not None:
+                return _LANDING_STATE_MAP.get(
+                    sample.landing_state, UavPhase.DESCEND
+                )
+            return UavPhase.DESCEND
         return _PHASE_MAP[sample.phase]
 
     def _elapsed_ms(self, now: float) -> int:

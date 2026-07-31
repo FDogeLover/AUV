@@ -249,6 +249,8 @@ class Task1StartGate:
         required = int(Flag.ACK_REQUIRED | Flag.EVENT)
         if int(frame.flags) & required != required:
             self.rejected_start_frames += 1
+            if int(frame.flags) & int(Flag.ACK_REQUIRED):
+                self.link.acknowledge(frame, result=1)
             logger.warning(
                 "拒绝CAR_START: flags=0x%02X，必须包含0x%02X",
                 int(frame.flags),
@@ -261,6 +263,7 @@ class Task1StartGate:
             )
         except ValueError:
             self.rejected_start_frames += 1
+            self.link.acknowledge(frame, result=1)
             logger.warning(
                 "拒绝CAR_START: payload长度或格式错误，实际%d字节",
                 len(frame.payload),
@@ -268,6 +271,7 @@ class Task1StartGate:
             return
         if task_mode != TASK1_MODE or int(frame.session_id) == 0:
             self.rejected_start_frames += 1
+            self.link.acknowledge(frame, result=1)
             logger.warning(
                 "拒绝CAR_START: task_mode=%d, session_id=%d",
                 task_mode,
@@ -276,11 +280,14 @@ class Task1StartGate:
             return
         with self._lock:
             if self._session_id is not None:
+                result = 0 if self._session_id == int(frame.session_id) else 1
+                self.link.acknowledge(frame, result=result)
                 return
             self._session_id = int(frame.session_id)
             self._car_config_hash = int(car_config_hash)
             self._car_position = None
             self._last_car_position_seq = None
+        self.link.acknowledge(frame, result=0)
         self._start_event.set()
 
     def _handle_car_state(self, frame) -> None:
