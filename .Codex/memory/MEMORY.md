@@ -55,3 +55,5 @@
 - [T-017 T265与激光高度实飞结论](project_t017_t265_laser_height.md) — 2026-07-29: T265趋势可靠但跨次绝对偏差不固定；采用起飞后激光校准、上车后冻结、降落末段激光对盘测距
 - [T-018 蓝色方块1.5米视觉采数](project_t018_blue_square_vision.md) — 2026-07-29: VS1链路稳定；部分出画是识别率下降主因；下一步验证带滤波、死区和限幅的XY视觉伺服
 - [D题 AprilTag＋蓝框融合视觉伺服](project_d_apriltag_blue_fusion_servo.md) — 2026-07-30: 1.5m检测率98%；XY误差227→31px；已实现下降期间持续追踪，待实飞验证
+- [任务二动态降落设计与实现](project_task2_dynamic_landing.md) — 2026-07-31: 方案A——T265坐标驱动+偏差变换，视觉不进控制闭环；C点前复用任务一，C点后激活PlatformTracker+FormationController
+- [通信诊断脚本与联调结果](project_comm_diagnostic.md) — 2026-07-31: comm_diagnostic.py；CAR_STATE扩展格式(13B)验证通过，任务二速度前馈OK
