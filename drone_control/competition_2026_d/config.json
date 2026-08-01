@@ -100,7 +100,7 @@
     "vision_takeover_max_speed_m_s": 0.08,
     "intercept_vision_early_stop_enabled": true,
     "vision_target_offset_x_m": -0.05,
-    "vision_target_offset_y_m": 0.08,
+    "vision_target_offset_y_m": -0.08,
     "drop_during_bc_enabled": true,
     "drop_at_follow_height": true,
     "drop_descent_speed_m_s": 0.09,

@@ -243,6 +243,21 @@ class t265_class:
         with self.lock:
             return self.pose_data[:3].copy() - self.calibration_offset[:3]
 
+    def apply_position_continuity_correction(self, delta_xyz):
+        """Shift the software origin without restarting or re-zeroing T265.
+
+        ``delta_xyz`` is an impossible discontinuity observed in the already
+        calibrated position.  Adding it to ``calibration_offset`` removes the
+        same discontinuity from all subsequent ``get_position()`` calls while
+        preserving the original H-point coordinate frame.
+        """
+        delta = np.asarray(delta_xyz, dtype=float)
+        if delta.shape != (3,) or not np.all(np.isfinite(delta)):
+            raise ValueError("delta_xyz must contain three finite values")
+        with self.lock:
+            self.calibration_offset[:3] += delta
+            return self.pose_data[:3].copy() - self.calibration_offset[:3]
+
     def get_orientation(self):
         with self.lock:
             return self.pose_data[3:].copy()

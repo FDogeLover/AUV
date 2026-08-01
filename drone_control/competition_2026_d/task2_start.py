@@ -265,7 +265,20 @@ def build_vision_landing_test_config(base: Task2Config) -> Task2Config:
         require_car_position_at_c=False,
         safe_open_loop_cd_test=False,
         vision_landing_test=True,
-        land_only_after_touchdown=True,
+        direct_descent_after_trigger=True,
+        fc_one_key_land_enabled=False,
+        fc_one_key_land_height_m=0.10,
+        fc_direct_lock_enabled=True,
+        fc_direct_lock_height_m=0.05,
+        fc_direct_lock_stable_height_m=0.10,
+        fc_direct_lock_stable_hold_s=0.80,
+        fc_direct_lock_stable_tolerance_m=0.01,
+        fc_direct_lock_stable_min_samples=8,
+        platform_retakeoff_enabled=True,
+        platform_locked_hold_s=5.0,
+        platform_task_reset_hold_s=0.30,
+        retakeoff_stabilize_s=0.80,
+        land_only_after_touchdown=False,
         landing_xy_speed_high_m_s=0.12,
         landing_xy_speed_mid_m_s=0.09,
         landing_xy_speed_low_m_s=0.06,
@@ -583,9 +596,14 @@ def main(argv=None):
     elif args.vision_landing_test:
         logger.warning(
             "任务二视觉动态降落联合测试：起飞至1.20m后直接飞往C点等待小车；"
-            "目标居中连续5帧后，视觉持续更新平台位置并执行分段下降；"
-            "高于近地门槛丢失目标将停止下降并重新获取，近地允许短时预测；"
-            "激光确认触地并停留5秒后保持平台落地状态，不执行复升"
+            "目标居中连续5帧后，以0.30m/s持续纠偏下降；"
+            "视觉失效后以相同速度开环下降，不暂停、不爬升且不使用失效观测追偏；"
+            "触地候选后持续下压0cm高度目标；激光低于0.10m且稳定0.8秒后，"
+            "保持task_sta=1并发送"
+            "next_task_sign=102，由飞控近地门禁直接锁桨；锁桨保持5秒后重新起飞，"
+            "保留T265原点；复飞若发生一次物理不可能的重定位跳变则做坐标连续性补偿，"
+            "爬升至1.50m原地稳定0.8秒后返回H点并完成最终降落；"
+            "平台降落阶段不调用OneKey_Land"
         )
         logger.warning(
             "安全提示：该模式会真实降落到移动平台；测试前确认小车平台平整、"

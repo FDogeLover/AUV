@@ -18,6 +18,7 @@ try:
         build_joint_drop_test_config,
         build_joint_path_drop_test_config,
         _load_task_config,
+        _wait_for_vision,
     )
 except ModuleNotFoundError:
     from competition_2026_d.task1_start import (
@@ -25,6 +26,7 @@ except ModuleNotFoundError:
         build_joint_drop_test_config,
         build_joint_path_drop_test_config,
         _load_task_config,
+        _wait_for_vision,
     )
 
 
@@ -55,6 +57,36 @@ class Clock:
 
     def __call__(self):
         return self.now
+
+
+class FakeVisionReader:
+    def __init__(self, stats):
+        self._stats = stats
+
+    def stats(self):
+        return dict(self._stats)
+
+
+def test_vision_startup_wait_accepts_ready_duplex_link():
+    reader = FakeVisionReader({
+        "running": True,
+        "accepted_frames": 3,
+        "pongs_received": 1,
+        "ping_write_errors": 0,
+    })
+
+    assert _wait_for_vision(reader, timeout_s=0.1)
+
+
+def test_vision_startup_wait_stops_when_reader_thread_dies():
+    reader = FakeVisionReader({
+        "running": False,
+        "accepted_frames": 0,
+        "pongs_received": 0,
+        "ping_write_errors": 1,
+    })
+
+    assert not _wait_for_vision(reader, timeout_s=1.0)
 
 
 def test_formal_task1_config_loads_validated_curve_and_straight_speeds():
@@ -95,8 +127,9 @@ def test_joint_drop_test_overrides_only_runtime_mission_parameters():
         )
     ))
 
-    assert config.cruise_height_m == 1.5
-    assert config.follow_height_m == 1.5
+    assert config.cruise_height_m == 1.2
+    assert config.follow_height_m == 1.2
+    assert config.hold_duration_s == 3.0
     assert config.car_speed_m_s == 0.05
     assert config.curve_speed_m_s == 0.05
     assert config.drop_max_error_m == 0.20
@@ -120,8 +153,8 @@ def test_joint_path_drop_test_waits_at_b_pre_then_uses_constant_speed():
         follow_duration_s=3.5,
     )
 
-    assert config.cruise_height_m == 1.5
-    assert config.follow_height_m == 1.5
+    assert config.cruise_height_m == 1.2
+    assert config.follow_height_m == 1.2
     assert config.car_speed_m_s == 0.08
     assert config.curve_speed_m_s == 0.08
     assert config.min_follow_before_drop_s == 3.5

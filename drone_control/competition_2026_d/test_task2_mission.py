@@ -188,6 +188,55 @@ def test_retakeoff_to_return_at_height():
     assert director.phase == Task2Phase.RETURN_H
 
 
+def test_platform_retakeoff_stabilizes_before_return_h():
+    director = Task2MissionDirector(
+        Task2Config(
+            platform_retakeoff_enabled=True,
+            retakeoff_stabilize_s=0.80,
+        )
+    )
+    director._transition(Task2Phase.RETAKEOFF, 0.0, "test")
+
+    director.tick(mission_input(0.1, (C[0], C[1], 1.45)))
+    assert director.phase == Task2Phase.STABILIZE_AFTER_RETAKEOFF
+
+    director.tick(
+        mission_input(
+            0.80,
+            (C[0], C[1], 1.50),
+            velocity_xy_m_s=(0.0, 0.0),
+        )
+    )
+    assert director.phase == Task2Phase.STABILIZE_AFTER_RETAKEOFF
+    director.tick(
+        mission_input(
+            0.91,
+            (C[0], C[1], 1.50),
+            velocity_xy_m_s=(0.0, 0.0),
+        )
+    )
+    assert director.phase == Task2Phase.RETURN_H
+
+
+def test_platform_lock_completion_enters_existing_retakeoff_return_path():
+    director = Task2MissionDirector(
+        Task2Config(platform_retakeoff_enabled=True)
+    )
+    director._transition(Task2Phase.DYNAMIC_LANDING, 0.0, "test")
+
+    director.begin_platform_retakeoff(
+        now=5.0,
+        anchor_xy_m=(1.20, 0.80),
+    )
+
+    assert director.phase == Task2Phase.RETAKEOFF
+    assert director._retakeoff_anchor == (1.20, 0.80)
+    assert director.mission_success
+    command = director.tick(mission_input(5.1, (1.20, 0.80, 0.30)))
+    assert command.target_xy_m == (1.20, 0.80)
+    assert command.target_world_height_m == 1.50
+
+
 def test_climb_150cm_to_return_at_height():
     director = Task2MissionDirector()
     director._transition(Task2Phase.CLIMB_150CM, 0.0, "test")
@@ -294,7 +343,20 @@ def test_vision_landing_test_flies_directly_to_c_then_activates_tracker():
     cfg = build_vision_landing_test_config(Task2Config())
     director = Task2MissionDirector(cfg)
     assert cfg.vision_landing_test
-    assert cfg.land_only_after_touchdown
+    assert cfg.direct_descent_after_trigger
+    assert not cfg.fc_one_key_land_enabled
+    assert cfg.fc_one_key_land_height_m == 0.10
+    assert cfg.fc_direct_lock_enabled
+    assert cfg.fc_direct_lock_height_m == 0.05
+    assert cfg.fc_direct_lock_stable_height_m == 0.10
+    assert cfg.fc_direct_lock_stable_hold_s == 0.80
+    assert cfg.fc_direct_lock_stable_tolerance_m == 0.01
+    assert cfg.fc_direct_lock_stable_min_samples == 8
+    assert cfg.platform_retakeoff_enabled
+    assert cfg.platform_locked_hold_s == 5.0
+    assert cfg.platform_task_reset_hold_s == 0.30
+    assert cfg.retakeoff_stabilize_s == 0.80
+    assert not cfg.land_only_after_touchdown
     assert not cfg.require_car_position_at_c
     assert cfg.hold_position_max_speed_m_s == 0.22
     assert cfg.hold_velocity_kd == 0.45
@@ -318,7 +380,10 @@ def test_vision_landing_test_flies_directly_to_c_then_activates_tracker():
                 vision_error_xy_m=(0.02, -0.01),
             )
         )
-    assert ready.phase == Task2Phase.ACTIVATE_TRACKER
+    assert ready.phase == Task2Phase.DYNAMIC_LANDING
+    assert ready.tracker_active
+    assert ready.landing_active
+    assert ready.reason == "c_sync_ready_direct_descent"
 
 
 def test_vision_landing_mode_is_mutually_exclusive_with_other_test_modes():
