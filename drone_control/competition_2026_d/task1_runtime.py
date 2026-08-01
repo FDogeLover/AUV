@@ -304,6 +304,12 @@ class Task1T265SafetyMonitor:
         elif not ground_reference_expected or not laser_valid:
             self._height_mismatch_since = None
             self._height_mismatch_samples = 0
+            if not ground_reference_expected:
+                # The laser may cross a platform edge or a different-height
+                # surface while this check is intentionally inactive.  Its
+                # old offset is therefore not a valid baseline when a later
+                # ground-reference phase starts (for example LAND_H).
+                self._ground_height_offset_m = None
 
         self._last_time = timestamp
         self._last_position = position

@@ -119,6 +119,7 @@ class Task1FlightMission(mission):
             Task1Phase.WAIT_START,
             Task1Phase.TAKEOFF,
             Task1Phase.HOLD_3S,
+            Task1Phase.LAND_H,
         ):
             hold_anchor = H
         elif (

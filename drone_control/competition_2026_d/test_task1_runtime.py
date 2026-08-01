@@ -310,3 +310,35 @@ def test_platform_height_change_is_ignored_outside_ground_reference_phase():
         ground_reference_expected=False,
         hold_anchor_xy_m=None,
     ) is None
+
+
+def test_new_ground_reference_phase_rebaselines_after_platform_edge():
+    monitor = Task1T265SafetyMonitor()
+    assert monitor.update(
+        timestamp=0.0,
+        world_position_xyz_m=(0.0, 0.0, 1.20),
+        laser_height_m=1.15,
+        ground_reference_expected=True,
+        hold_anchor_xy_m=None,
+    ) is None
+
+    # During return flight the laser crosses from the raised H platform to
+    # the lower floor.  Height consistency is intentionally inactive here.
+    assert monitor.update(
+        timestamp=1.0,
+        world_position_xyz_m=(0.1, 0.1, 1.20),
+        laser_height_m=1.40,
+        ground_reference_expected=False,
+        hold_anchor_xy_m=None,
+    ) is None
+
+    # LAND_H starts on that new surface.  It must establish a fresh baseline
+    # instead of comparing against the takeoff-platform offset.
+    for timestamp in (2.0, 2.2, 2.4, 2.6):
+        assert monitor.update(
+            timestamp=timestamp,
+            world_position_xyz_m=(0.05, 0.05, 1.20),
+            laser_height_m=1.40,
+            ground_reference_expected=True,
+            hold_anchor_xy_m=(0.0, 0.0),
+        ) is None

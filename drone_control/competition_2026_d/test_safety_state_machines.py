@@ -3,6 +3,7 @@ import unittest
 from drone_control.competition_2026_d.drop_controller import DropController, DropState
 from drone_control.competition_2026_d.dynamic_landing import (
     DynamicLandingController,
+    LandingConfig,
     LandingInput,
     LandingState,
 )
@@ -143,6 +144,54 @@ class SafetyStateMachinesTest(unittest.TestCase):
         clock.advance(0.02)
         released = controller.tick(contact)
         self.assertEqual(released.state, LandingState.RETAKEOFF_GATE)
+
+    def test_direct_descent_continues_through_vision_loss_until_contact(self):
+        clock = Clock()
+        controller = DynamicLandingController(
+            LandingConfig(direct_descent_after_gate=True),
+            clock=clock,
+        )
+        airborne = LandingInput(
+            relative_height_m=1.20,
+            vertical_speed_m_s=0.0,
+            relative_velocity_xy_m_s=(0.5, 0.5),
+            position_error_xy_m=(0.5, 0.5),
+            estimate_uncertainty_m=1.0,
+            visual_usable=False,
+            visual_too_close=False,
+            car_motion_fresh=False,
+            roll_deg=0.0,
+            pitch_deg=0.0,
+            contact_evidence=False,
+            t265_healthy=True,
+        )
+
+        descending = controller.tick(airborne)
+        self.assertEqual(descending.state, LandingState.DESCEND_HIGH)
+        self.assertEqual(descending.vertical_speed_m_s, -0.30)
+        self.assertEqual(descending.reason, "direct_descent_to_contact")
+
+        clock.advance(2.0)
+        still_descending = controller.tick(airborne)
+        self.assertEqual(still_descending.state, LandingState.DESCEND_HIGH)
+        self.assertEqual(still_descending.vertical_speed_m_s, -0.30)
+
+        contact = LandingInput(
+            **{
+                **airborne.__dict__,
+                "relative_height_m": 0.10,
+                "vertical_speed_m_s": -0.30,
+                "contact_evidence": True,
+            }
+        )
+        touchdown = controller.tick(contact)
+        self.assertEqual(touchdown.state, LandingState.TOUCHDOWN_CANDIDATE)
+        self.assertEqual(touchdown.vertical_speed_m_s, 0.0)
+
+        clock.advance(0.41)
+        confirmed = controller.tick(contact)
+        self.assertEqual(confirmed.state, LandingState.DECK_RIDE)
+        self.assertTrue(confirmed.touchdown_confirmed)
 
 
 if __name__ == "__main__":

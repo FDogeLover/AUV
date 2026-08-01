@@ -19,7 +19,7 @@ void UserTask_OneKeyCmd(void)// 一键功能
   static u8 one_key_land_f = 1, one_key_mission_f = 0;
 //    static u8 mission_step,eme_stop=1,pi_start_f=0,now_task_mode=0,land_triggered_f = 0;
 	static u8 mission_step,eme_stop=1,pi_start_f=0,now_task_mode=0,
-					land_triggered_f=0,landing_f=0;
+					land_triggered_f=0,landing_f=0,direct_lock_completed_f=0;
 					static u16 landing_cnt=0;
 					static u16 land_timeout_cnt=0;  //2026-07-10新增:纯超时兜底,不依赖高度/光流状态
 					static u8 land_cmd_sent_f=0;           // 降落路径上通用降落指令的标志
@@ -143,6 +143,7 @@ void UserTask_OneKeyCmd(void)// 一键功能
 				landing_cnt = 0;
 				land_timeout_cnt = 0;
 				land_timeout_gaveup_f = 0;
+			direct_lock_completed_f = 0;
 			}
 		}
 		else
@@ -150,8 +151,12 @@ void UserTask_OneKeyCmd(void)// 一键功能
 				//清空标记，以便再次执行
 			if(one_key_mission_f==1)
 			{
-					OneKey_Land();
-					land_cmd_sent_f = 1;   // 标记降落
+					if(direct_lock_completed_f==0)
+					{
+						OneKey_Land();
+						land_cmd_sent_f = 1;   // 标记降落
+					}
+					// 102已确认锁桨时这里只复位任务边沿，禁止再次调用OneKey_Land。
 			}		
 			one_key_mission_f = 0;		
 		}
@@ -208,6 +213,11 @@ void UserTask_OneKeyCmd(void)// 一键功能
 						time_dly_cnt_ms = 0;
 						mission_step = 6;
 					}
+					else if(received_data.next_task_sign==102)
+					{
+						// Dedicated near-ground direct lock; never calls OneKey_Land.
+						mission_step = 102;
+					}
 					else
 					{
 						mission_step = 101;
@@ -227,12 +237,39 @@ void UserTask_OneKeyCmd(void)// 一键功能
 						time_dly_cnt_ms = 0;
 						mission_step =5;
 					}
+					else if(received_data.next_task_sign==102)
+					{
+						mission_step = 102;
+					}
 					else
 					{
 						mission_step = 101;
 					}
 				}
 				break;
+				case 102://Near-ground direct lock without OneKey_Land
+				{
+					// Continue real-time XY/height control while the independent
+					// onboard laser guard validates that locking is safe.
+					tar_setdata(received_data.com_x,received_data.com_y,
+						height_set(ano_of.of_alt_cm,received_data.com_z),
+						received_data.com_yaw);
+					if(fc_sta.unlock_sta == 0)
+					{
+						// Once FC telemetry confirms locked, retain this latch even if
+						// the laser becomes too close to report during the five-second hold.
+						pwm_to_esc.pwm_m1 = 0;
+						pwm_to_esc.pwm_m2 = 0;
+						pwm_to_esc.pwm_m3 = 0;
+						pwm_to_esc.pwm_m4 = 0;
+						direct_lock_completed_f = 1;
+					}
+					else if(ano_of.work_sta && ano_of.of_alt_cm <= 12)
+					{
+						FC_Lock();
+					}
+				}
+					break;
 				default:
 				{
 					OneKey_Land();

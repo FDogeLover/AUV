@@ -11,6 +11,8 @@ import json
 import math
 import sys
 import time
+from collections import deque
+from dataclasses import replace
 from pathlib import Path
 from typing import Callable
 
@@ -61,6 +63,16 @@ from .vision.platform_tracker import (  # noqa: E402
 )
 
 
+FC_DIRECT_LOCK_SIGN = 102
+FC_DIRECT_LOCK_CONFIRM_COUNT = 5
+FC_DIRECT_LOCK_WARN_TIMEOUT_S = 3.0
+FC_TASK_RESET_CONFIRM_COUNT = 3
+T265_RETAKEOFF_JUMP_TRIGGER_M = 0.30
+T265_RETAKEOFF_RECOVERY_INNOVATION_M = 0.05
+T265_RETAKEOFF_RECOVERY_WINDOW_S = 0.80
+T265_RETAKEOFF_MAX_NET_CORRECTION_M = 2.00
+
+
 class Task2FlightMission(mission):
     """飞控循环内唯一写入 XY 速度的任务二适配器。"""
 
@@ -100,6 +112,11 @@ class Task2FlightMission(mission):
         self.height_controller = WorldDeckHeightController()
         self.t265_safety = Task1T265SafetyMonitor()
         effective_landing_config = landing_config or LandingConfig()
+        if self.director.config.direct_descent_after_trigger:
+            effective_landing_config = replace(
+                effective_landing_config,
+                direct_descent_after_gate=True,
+            )
         if tracker_config is None:
             tracker_config = TrackerConfig(
                 max_predict_s=max(
@@ -149,6 +166,23 @@ class Task2FlightMission(mission):
         self._last_platform_vision_seq: int | None = None
         self._platform_measurement_source = "none"
         self._landing_vz_applied_m_s = 0.0
+        self._last_platform_estimate: PlatformEstimate | None = None
+        self._direct_lock_active = False
+        self._direct_lock_started_at: float | None = None
+        self._direct_lock_confirm_count = 0
+        self._direct_lock_timeout_logged = False
+        self._direct_lock_confirmed_at: float | None = None
+        self._direct_lock_reset_started_at: float | None = None
+        self._direct_lock_reset_confirm_count = 0
+        self._direct_lock_retakeoff_blocked = False
+        self._direct_lock_retakeoff_block_logged = False
+        self._direct_lock_laser_samples: deque[tuple[float, float]] = deque()
+        self._direct_lock_zero_setpoint_since: float | None = None
+        self._t265_continuity_last_time: float | None = None
+        self._t265_continuity_last_position: tuple[float, float, float] | None = None
+        self._t265_recovery_until: float | None = None
+        self._t265_recovery_used = False
+        self._t265_continuity_net_correction = (0.0, 0.0, 0.0)
 
     def navigate(self, _laser_position, yaw):
         now = time.monotonic()
@@ -183,6 +217,12 @@ class Task2FlightMission(mission):
             )
             self.state = "HOVER_WAIT"
             return
+
+        world_position = self._preserve_retakeoff_t265_continuity(
+            now=now,
+            world_position=world_position,
+            velocity=velocity,
+        )
 
         phase_before_tick = self.director.phase
         hold_anchor = self._hold_anchor_for_phase(phase_before_tick)
@@ -324,6 +364,7 @@ class Task2FlightMission(mission):
                 self._last_platform_vision_seq = None
                 self._platform_measurement_source = "none"
                 self._landing_vz_applied_m_s = 0.0
+                self._last_platform_estimate = None
                 self.formation_controller.reset(
                     timestamp=now,
                     velocity=(velocity[0], velocity[1]),
@@ -380,9 +421,22 @@ class Task2FlightMission(mission):
                         estimate.vy_m_s,
                     )
 
-            if command.landing_active and estimate is not None:
+            if estimate is not None:
+                self._last_platform_estimate = estimate
+            landing_estimate = estimate
+            if (
+                landing_estimate is None
+                and self.director.config.direct_descent_after_trigger
+                and self._landing_gate_passed
+            ):
+                # 触发后的垂直下降不依赖持续视觉。保留最后一次平台估计只用于
+                # 驱动降落状态机；FormationController 会自行拒绝过期估计，
+                # 因此视觉长期丢失时水平命令自然回到零而不会追逐陈旧目标。
+                landing_estimate = self._last_platform_estimate
+
+            if command.landing_active and landing_estimate is not None:
                 landing_cmd = self._run_landing(
-                    estimate,
+                    landing_estimate,
                     world_position,
                     velocity,
                     laser_height,
@@ -406,7 +460,7 @@ class Task2FlightMission(mission):
                     if command.phase == Task2Phase.DYNAMIC_LANDING:
                         landing_vz = landing_cmd.vertical_speed_m_s
                         formation_cmd = self.formation_controller.command(
-                            estimate,
+                            landing_estimate,
                             (world_position[0], world_position[1]),
                             (velocity[0], velocity[1]),
                             now,
@@ -420,6 +474,18 @@ class Task2FlightMission(mission):
                                 self._landing_xy_speed_limit(relative_height),
                             )
                             horizontal_control_source = "visual_formation"
+                        elif self.director.config.direct_descent_after_trigger:
+                            # 视觉预测也失效后不瞬间把水平速度砍到零；复用
+                            # FormationController 的限加速度/限jerk刹车输出，
+                            # 在持续开环下降的同时平滑收住水平运动。
+                            vx = formation_cmd.vx_m_s
+                            vy = formation_cmd.vy_m_s
+                            vx, vy = self._limit_xy_speed(
+                                vx,
+                                vy,
+                                self._landing_xy_speed_limit(relative_height),
+                            )
+                            horizontal_control_source = "open_loop_smooth_brake"
         else:
             if self._tracker_active_prev:
                 self._landing_gate_passed = False
@@ -435,22 +501,54 @@ class Task2FlightMission(mission):
             else None
         )
 
+        if self._should_begin_fc_direct_lock(
+            command, laser_height, contact_evidence, now
+        ):
+            self._begin_fc_direct_lock(laser_height)
+            return
+
+        if self._should_handoff_to_fc_one_key_land(command, laser_height):
+            self._begin_fc_one_key_land(laser_height)
+            return
+
         # 高度控制
         if (
             command.phase == Task2Phase.DYNAMIC_LANDING
             and command.landing_active
         ):
-            if self._last_nav_time is not None:
-                dt = min(max(now - self._last_nav_time, 0.001), 0.05)
+            direct_ground_contact = (
+                self.director.config.direct_descent_after_trigger
+                and self.dynamic_landing.state
+                in (
+                    LandingState.TOUCHDOWN_CANDIDATE,
+                    LandingState.DECK_RIDE,
+                    LandingState.RETAKEOFF_GATE,
+                )
+            )
+            if direct_ground_contact:
+                # A 5 cm setpoint can create a real hover equilibrium.  Keep
+                # commanding zero until the platform physically supports the
+                # aircraft; only then may the stable-laser lock gate fire.
+                self._landing_vz_applied_m_s = 0.0
+                self._ramp_z_cm = 0.0
+                if self._direct_lock_zero_setpoint_since is None:
+                    self._direct_lock_zero_setpoint_since = now
+                height = HeightReference(
+                    0.0, True, "direct_touchdown_press", "ok"
+                )
             else:
-                dt = 0.02
-            self._landing_vz_applied_m_s = self._smooth_landing_vz(
-                landing_vz, dt
-            )
-            self._step_landing_height(self._landing_vz_applied_m_s, dt)
-            height = HeightReference(
-                self._ramp_z_cm / 100.0, True, "landing_vz", "ok"
-            )
+                self._direct_lock_zero_setpoint_since = None
+                if self._last_nav_time is not None:
+                    dt = min(max(now - self._last_nav_time, 0.001), 0.05)
+                else:
+                    dt = 0.02
+                self._landing_vz_applied_m_s = self._smooth_landing_vz(
+                    landing_vz, dt
+                )
+                self._step_landing_height(self._landing_vz_applied_m_s, dt)
+                height = HeightReference(
+                    self._ramp_z_cm / 100.0, True, "landing_vz", "ok"
+                )
         elif command.phase == Task2Phase.LANDED_ON_PLATFORM:
             self._landing_vz_applied_m_s = 0.0
             # Keep the FC armed but command a height below the physical laser
@@ -499,8 +597,13 @@ class Task2FlightMission(mission):
         if command.phase != self._last_task2_phase:
             if command.phase == Task2Phase.RETAKEOFF:
                 logger.info(
-                    "任务二平台停留完成：保持首次解锁状态，不发送锁桨或第二次起飞指令；"
-                    f"直接复升至{self.director.config.retakeoff_height_m:.2f}m"
+                    "任务二第二次起飞成功：保持复飞锚点并继续爬升至"
+                    f"{self.director.config.retakeoff_height_m:.2f}m"
+                )
+            elif command.phase == Task2Phase.STABILIZE_AFTER_RETAKEOFF:
+                logger.info(
+                    "任务二达到复飞高度：原地稳定"
+                    f"{self.director.config.retakeoff_stabilize_s:.1f}秒后返航"
                 )
             elif command.phase == Task2Phase.SAFE_HOVER_AFTER_RETAKEOFF:
                 logger.warning(
@@ -546,13 +649,458 @@ class Task2FlightMission(mission):
             logger.info("任务二到达H点0.15m末航点，转入basic两级降落")
             self.state = "DESCEND"
 
+    def _preserve_retakeoff_t265_continuity(
+        self,
+        *,
+        now: float,
+        world_position: tuple[float, float, float],
+        velocity: tuple[float, float, float],
+    ) -> tuple[float, float, float]:
+        """Absorb one T265 relocalization episode during platform retakeoff.
+
+        Landing vibration can make T265 relocalize while still reporting high
+        confidence.  A 30+ cm step in one control period is physically
+        impossible here, so shift the software calibration offset to keep the
+        original H-point frame continuous.  Only one short recovery window is
+        allowed; a later independent jump is still handled by the normal
+        safety monitor and forces HOVER_WAIT.
+        """
+        position = tuple(float(v) for v in world_position)
+        last_time = self._t265_continuity_last_time
+        last_position = self._t265_continuity_last_position
+        self._t265_continuity_last_time = float(now)
+
+        if last_time is None or last_position is None:
+            self._t265_continuity_last_position = position
+            return position
+
+        dt = float(now) - last_time
+        if not (0.0 < dt <= 0.30):
+            self._t265_continuity_last_position = position
+            return position
+
+        predicted = tuple(
+            last_position[index] + float(velocity[index]) * dt
+            for index in range(3)
+        )
+        innovation = tuple(
+            position[index] - predicted[index] for index in range(3)
+        )
+        step = math.dist(position, last_position)
+        innovation_norm = math.sqrt(sum(value * value for value in innovation))
+        active_phase = self.director.phase in (
+            Task2Phase.RETAKEOFF,
+            Task2Phase.STABILIZE_AFTER_RETAKEOFF,
+        )
+        recovering = (
+            self._t265_recovery_until is not None
+            and now <= self._t265_recovery_until
+        )
+        should_correct = active_phase and (
+            (not self._t265_recovery_used and step > T265_RETAKEOFF_JUMP_TRIGGER_M)
+            or (
+                recovering
+                and innovation_norm > T265_RETAKEOFF_RECOVERY_INNOVATION_M
+            )
+        )
+        if not should_correct:
+            self._t265_continuity_last_position = position
+            return position
+
+        if not self._t265_recovery_used:
+            self._t265_recovery_used = True
+            self._t265_recovery_until = now + T265_RETAKEOFF_RECOVERY_WINDOW_S
+
+        proposed_net = tuple(
+            self._t265_continuity_net_correction[index] + innovation[index]
+            for index in range(3)
+        )
+        if math.sqrt(sum(value * value for value in proposed_net)) > (
+            T265_RETAKEOFF_MAX_NET_CORRECTION_M
+        ):
+            # Leave this sample unmodified so Task1T265SafetyMonitor fails
+            # closed instead of hiding an unbounded coordinate failure.
+            self._t265_recovery_until = None
+            self._t265_continuity_last_position = position
+            return position
+
+        apply_correction = getattr(
+            self.realsense, "apply_position_continuity_correction", None
+        )
+        if not callable(apply_correction):
+            self._t265_recovery_until = None
+            self._t265_continuity_last_position = position
+            return position
+
+        apply_correction(innovation)
+        self._t265_continuity_net_correction = proposed_net
+        self._t265_continuity_last_position = predicted
+        logger.warning(
+            "任务二复飞T265坐标连续性补偿："
+            f"step={step:.3f}m/{dt:.3f}s, "
+            f"delta=({innovation[0]:+.3f},{innovation[1]:+.3f},"
+            f"{innovation[2]:+.3f})m；保留原H点坐标"
+        )
+        return predicted
+
     def _step_landing_height(self, vertical_speed_m_s: float, dt: float) -> None:
         """Integrate signed vertical speed into the laser height setpoint."""
         # Positive means climb and negative means descend in
         # DynamicLandingController, while the laser setpoint is height above
         # the surface.  Therefore the signed velocity must be added.
         self._ramp_z_cm += float(vertical_speed_m_s) * 100.0 * float(dt)
-        self._ramp_z_cm = max(5.0, min(self._ramp_z_cm, 200.0))
+        self._ramp_z_cm = max(0.0, min(self._ramp_z_cm, 200.0))
+
+    def _should_begin_fc_direct_lock(
+        self,
+        command,
+        laser_height: float | None,
+        contact_evidence: bool,
+        now: float,
+    ) -> bool:
+        """Lock only after a zero-height command proves physical support."""
+        cfg = self.director.config
+        if (
+            not cfg.fc_direct_lock_enabled
+            or command.phase != Task2Phase.DYNAMIC_LANDING
+            or not command.landing_active
+        ):
+            self._direct_lock_laser_samples.clear()
+            self._direct_lock_zero_setpoint_since = None
+            return False
+        if laser_height is None or not math.isfinite(float(laser_height)):
+            self._direct_lock_laser_samples.clear()
+            return False
+        relative_height = float(laser_height)
+        zero_target_active = (
+            self._direct_lock_zero_setpoint_since is not None
+            and self._ramp_z_cm <= 0.5
+        )
+        if not zero_target_active:
+            self._direct_lock_laser_samples.clear()
+            return False
+        stable_below_ten_cm = self._laser_stable_for_direct_lock(
+            now=now,
+            laser_height_m=relative_height,
+        )
+        zero_setpoint_sustained = (
+            now - self._direct_lock_zero_setpoint_since
+            >= cfg.fc_direct_lock_stable_hold_s
+        )
+        return contact_evidence and zero_setpoint_sustained and stable_below_ten_cm
+
+    def _laser_stable_for_direct_lock(
+        self,
+        *,
+        now: float,
+        laser_height_m: float,
+    ) -> bool:
+        """Confirm that a sub-10cm laser reading has stopped changing."""
+        cfg = self.director.config
+        height = float(laser_height_m)
+        if not (0.02 <= height < cfg.fc_direct_lock_stable_height_m):
+            self._direct_lock_laser_samples.clear()
+            return False
+
+        samples = self._direct_lock_laser_samples
+        samples.append((float(now), height))
+        cutoff = float(now) - cfg.fc_direct_lock_stable_hold_s
+        # Keep one sample immediately before the window boundary so duration
+        # can be proven without depending on exact camera/control tick timing.
+        while len(samples) >= 2 and samples[1][0] <= cutoff:
+            samples.popleft()
+        if (
+            len(samples) < cfg.fc_direct_lock_stable_min_samples
+            or float(now) - samples[0][0]
+            < cfg.fc_direct_lock_stable_hold_s
+        ):
+            return False
+        heights = [sample[1] for sample in samples]
+        return max(heights) - min(heights) <= (
+            cfg.fc_direct_lock_stable_tolerance_m
+        )
+
+    def _begin_fc_direct_lock(self, laser_height: float | None) -> None:
+        """Keep task_sta asserted and request the firmware's guarded direct lock."""
+        relative_height = (
+            f"{laser_height:.2f}m" if laser_height is not None else "setpoint"
+        )
+        logger.warning(
+            "任务二实时帧降落进入近地直接锁桨："
+            f"relative_height={relative_height}, task_sta保持1, "
+            f"next_task_sign={FC_DIRECT_LOCK_SIGN}；不调用OneKey_Land"
+        )
+        self._direct_lock_active = True
+        self._direct_lock_started_at = time.monotonic()
+        self._direct_lock_confirm_count = 0
+        self._direct_lock_timeout_logged = False
+        self._direct_lock_confirmed_at = None
+        self._direct_lock_reset_started_at = None
+        self._direct_lock_reset_confirm_count = 0
+        self._direct_lock_retakeoff_blocked = False
+        self._direct_lock_retakeoff_block_logged = False
+        self._direct_lock_laser_samples.clear()
+        self._direct_lock_zero_setpoint_since = None
+        self.heading_hold.disarm("task2_fc_direct_lock")
+        self._landing_vz_applied_m_s = 0.0
+        self._ramp_z_cm = 0.0
+        self.set_speed(0, 0, 0, 0)
+        with lock:
+            # Do not clear task_sta: its 1->0 edge is the legacy OneKey_Land path.
+            self.se_fc[7] = FC_DIRECT_LOCK_SIGN
+        self.state = "LAND"
+
+    def land(self):
+        """Confirm direct lock, hold five seconds, then safely re-arm."""
+        if not self._direct_lock_active:
+            return super().land()
+
+        now = time.monotonic()
+        resetting_task = self._direct_lock_reset_started_at is not None
+        self.set_speed(0, 0, 0, 0)
+        with lock:
+            if resetting_task:
+                # 102锁桨确认后才允许制造新的0->1任务边沿。固件在该专用
+                # 情况下只复位任务状态，不会调用OneKey_Land。
+                self.se_fc[2] = 0
+                self.se_fc[7] = 0
+            else:
+                self.se_fc[7] = FC_DIRECT_LOCK_SIGN
+            unlock_sta = int(self.re_fc[5]) if len(self.re_fc) > 5 else 1
+            mission_stage = int(self.re_fc[0]) if self.re_fc else -1
+
+        motor_pwm_mask = self._motor_pwm_mask()
+        # 缺少PWM反馈不能当作“电机已停”；必须同时收到锁定状态和
+        # 四路PWM为零的明确遥测，才允许开始平台停留计时。
+        motor_stopped = (
+            motor_pwm_mask is not None and int(motor_pwm_mask) == 0
+        )
+
+        if resetting_task:
+            self._tick_platform_task_reset(
+                now=now,
+                unlock_sta=unlock_sta,
+                motor_stopped=motor_stopped,
+                mission_stage=mission_stage,
+            )
+            return
+
+        if unlock_sta == 0 and motor_stopped:
+            self._direct_lock_confirm_count += 1
+        else:
+            self._direct_lock_confirm_count = 0
+
+        cfg = self.director.config
+        if (
+            self._direct_lock_confirm_count >= FC_DIRECT_LOCK_CONFIRM_COUNT
+            and self._direct_lock_confirmed_at is None
+        ):
+            logger.info(
+                "任务二近地直接锁桨确认成功：unlock_sta=0, "
+                f"motor_pwm_mask={motor_pwm_mask}"
+            )
+            self.director.mission_success = True
+            if not cfg.platform_retakeoff_enabled:
+                self.stop_all()
+                return
+            self._direct_lock_confirmed_at = now
+            logger.warning(
+                "任务二平台锁桨停留开始：保持锁桨"
+                f"{cfg.platform_locked_hold_s:.1f}秒，T265持续运行且不重新校零"
+            )
+
+        if self._direct_lock_confirmed_at is not None:
+            if unlock_sta != 0 or not motor_stopped:
+                self._block_platform_retakeoff(
+                    "平台停留期间锁桨或PWM零值反馈丢失"
+                )
+                return
+            if self._direct_lock_retakeoff_blocked:
+                return
+            hold_elapsed = now - self._direct_lock_confirmed_at
+            if hold_elapsed >= cfg.platform_locked_hold_s:
+                if not self._t265_ready_for_platform_retakeoff():
+                    self._block_platform_retakeoff(
+                        "平台复飞前T265未运行、数据过期或置信度不足"
+                    )
+                    return
+                self._direct_lock_reset_started_at = now
+                self._direct_lock_reset_confirm_count = 0
+                with lock:
+                    self.se_fc[2] = 0
+                    self.se_fc[7] = 0
+                logger.warning(
+                    "任务二平台停留5秒完成：拉低task_sta并等待飞控"
+                    "mission_stage=0，随后产生第二次起飞边沿"
+                )
+                return
+
+        elapsed = now - (self._direct_lock_started_at or now)
+        if (
+            self._direct_lock_confirmed_at is None
+            and elapsed >= FC_DIRECT_LOCK_WARN_TIMEOUT_S
+            and not self._direct_lock_timeout_logged
+        ):
+            logger.error(
+                "任务二近地直接锁桨3秒内未确认；继续保持0cm实时高度目标并重试102，"
+                "不会回退到OneKey_Land，请准备遥控器接管"
+            )
+            self._direct_lock_timeout_logged = True
+
+    def _motor_pwm_mask(self) -> int | None:
+        if self.serial_fc_ref is None:
+            return None
+        with lock:
+            value = self.serial_fc_ref.debug_data.get("motor_pwm_mask")
+        return None if value is None else int(value)
+
+    def _t265_ready_for_platform_retakeoff(self) -> bool:
+        if self.realsense is None or not self.realsense.is_running():
+            return False
+        try:
+            if (
+                int(self.realsense.get_tracking_confidence())
+                < self.director.config.t265_min_confidence
+            ):
+                return False
+            get_age = getattr(self.realsense, "get_pose_age_s", None)
+            return get_age is None or float(get_age()) <= 0.20
+        except Exception:
+            return False
+
+    def _block_platform_retakeoff(self, reason: str) -> None:
+        self._direct_lock_retakeoff_blocked = True
+        if not self._direct_lock_retakeoff_block_logged:
+            logger.error(
+                f"任务二平台复飞已禁止：{reason}；保持锁桨等待人工处理"
+            )
+            self._direct_lock_retakeoff_block_logged = True
+
+    def _tick_platform_task_reset(
+        self,
+        *,
+        now: float,
+        unlock_sta: int,
+        motor_stopped: bool,
+        mission_stage: int,
+    ) -> None:
+        """Hold task_sta low until firmware confirms a clean reset."""
+        if self._direct_lock_retakeoff_blocked:
+            return
+        if unlock_sta != 0 or not motor_stopped:
+            self._block_platform_retakeoff(
+                "任务位复位期间锁桨或PWM零值反馈异常"
+            )
+            return
+        if mission_stage == 0:
+            self._direct_lock_reset_confirm_count += 1
+        else:
+            self._direct_lock_reset_confirm_count = 0
+
+        cfg = self.director.config
+        reset_elapsed = now - (self._direct_lock_reset_started_at or now)
+        if (
+            reset_elapsed < cfg.platform_task_reset_hold_s
+            or self._direct_lock_reset_confirm_count
+            < FC_TASK_RESET_CONFIRM_COUNT
+        ):
+            return
+        if not self._t265_ready_for_platform_retakeoff():
+            self._block_platform_retakeoff(
+                "第二次起飞边沿发送前T265状态不满足门槛"
+            )
+            return
+
+        try:
+            position = tuple(float(v) for v in self.realsense.get_position())
+            anchor_xy = (position[0], position[1])
+        except Exception as exc:
+            self._block_platform_retakeoff(f"无法读取复飞锚点: {exc}")
+            return
+
+        self.director.begin_platform_retakeoff(
+            now=now,
+            anchor_xy_m=anchor_xy,
+        )
+        self._landing_gate_passed = False
+        self._touchdown_confirmed = False
+        self._deck_ride_complete = False
+        self._landing_aborted = False
+        self._tracker_active_prev = False
+        self._landing_vz_applied_m_s = 0.0
+        self._last_nav_time = None
+        self.laser_contact.reset()
+        self._direct_lock_laser_samples.clear()
+        self._ramp_z_cm = 5.0
+        self._direct_lock_active = False
+        self._direct_lock_reset_started_at = None
+        with lock:
+            self.se_fc[2] = 0
+            self.se_fc[7] = 0
+        logger.warning(
+            "任务二飞控任务复位确认完成：T265坐标保持连续，"
+            f"复飞锚点=({anchor_xy[0]:+.2f},{anchor_xy[1]:+.2f})m；"
+            "开始第二次起飞"
+        )
+        # 下一控制周期复用成熟的基础起飞链。takeoff()会产生task_sta 0->1，
+        # 到达30cm后自动回到NAVIGATE并进入RETAKEOFF/RETURN_H。
+        self.state = "TAKEOFF"
+
+    def stop_all(self):
+        """After direct lock, stop software without emitting legacy command 101."""
+        if not self._direct_lock_active:
+            return super().stop_all()
+
+        logger.info("任务二结束：保持近地直接锁桨指令，不发送OneKey_Land")
+        self.set_speed(0, 0, 0, 5)
+        with lock:
+            self.se_fc[7] = FC_DIRECT_LOCK_SIGN
+        self.heading_hold.disarm("task2_direct_lock_complete")
+        self._resource_monitor.stop()
+        try:
+            if self._log_file:
+                self._log_file.close()
+        except Exception:
+            pass
+        if self.realsense:
+            self.realsense.stop()
+        self.task_running = False
+
+    def _should_handoff_to_fc_one_key_land(
+        self, command, laser_height: float | None
+    ) -> bool:
+        """达到末段高度后只触发一次飞控一键降落接管。"""
+        cfg = self.director.config
+        if (
+            not cfg.fc_one_key_land_enabled
+            or command.phase != Task2Phase.DYNAMIC_LANDING
+            or not command.landing_active
+        ):
+            return False
+        relative_height = (
+            float(laser_height)
+            if laser_height is not None
+            else float(self._ramp_z_cm) / 100.0
+        )
+        return relative_height <= cfg.fc_one_key_land_height_m
+
+    def _begin_fc_one_key_land(self, laser_height: float | None) -> None:
+        """发送飞控既有一键降落格式，并切入基础LAND确认流程。"""
+        relative_height = (
+            f"{laser_height:.2f}m" if laser_height is not None else "setpoint"
+        )
+        logger.warning(
+            "任务二末段交给飞控一键降落："
+            f"relative_height={relative_height}, task_sta=0, "
+            "next_task_sign=101"
+        )
+        self.heading_hold.disarm("task2_fc_one_key_land")
+        self.set_speed(0, 0, 0, 0)
+        with lock:
+            self.se_fc[2] = 0
+            self.se_fc[7] = 101
+        self._ramp_z_cm = 0.0
+        self.state = "LAND"
 
     def _smooth_landing_vz(self, target_vz_m_s: float, dt: float) -> float:
         """Slew only downward commands; stop/climb commands take effect now."""
@@ -567,7 +1115,7 @@ class Task2FlightMission(mission):
         return current + max(-max_delta, min(max_delta, delta))
 
     def _verify_continuous_arm_contract(self, command) -> bool:
-        """保证中途触地到复升期间不会清任务位或尝试二次解锁。"""
+        """Verify that every airborne task-two phase is actually unlocked."""
         if not command.keep_armed:
             return True
 
@@ -588,11 +1136,15 @@ class Task2FlightMission(mission):
             self.state = "HOVER_WAIT"
             return False
 
-        # 平台停留结束时若飞控已经锁桨，绝不能再制造 task_sta 0->1 边沿
-        # 尝试复飞；保留 T265 坐标并等待人工处理。
+        # 正常的第二次起飞边沿应已在平台锁桨处理链中完成。进入
+        # RETAKEOFF 导航后若仍是锁桨状态，禁止再次盲目制造起飞边沿。
         if (
             not self._dry_run
-            and command.phase == Task2Phase.RETAKEOFF
+            and command.phase
+            in (
+                Task2Phase.RETAKEOFF,
+                Task2Phase.STABILIZE_AFTER_RETAKEOFF,
+            )
             and unlock_sta == 0
         ):
             logger.error(
@@ -672,6 +1224,8 @@ class Task2FlightMission(mission):
             return self.director.sync_c
         if phase == Task2Phase.RETAKEOFF:
             return self.director._retakeoff_anchor
+        if phase == Task2Phase.STABILIZE_AFTER_RETAKEOFF:
+            return self.director._safe_hover_anchor
         if phase in (
             Task2Phase.SAFE_HOVER_D,
             Task2Phase.SAFE_HOVER_AFTER_RETAKEOFF,

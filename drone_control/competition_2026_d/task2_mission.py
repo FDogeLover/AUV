@@ -52,6 +52,7 @@ class Task2Phase(enum.Enum):
     ACTIVATE_TRACKER = "activate_tracker"
     DYNAMIC_LANDING = "dynamic_landing"
     RETAKEOFF = "retakeoff"
+    STABILIZE_AFTER_RETAKEOFF = "stabilize_after_retakeoff"
     CLIMB_150CM = "climb_150cm"
     RETURN_H = "return_h"
     LAND_H = "land_h"
@@ -100,6 +101,19 @@ class Task2Config:
     safe_descent_rate_m_s: float = 0.03
     safe_follow_cutoff_s: float = 25.0
     vision_landing_test: bool = False
+    direct_descent_after_trigger: bool = False
+    fc_one_key_land_enabled: bool = False
+    fc_one_key_land_height_m: float = 0.10
+    fc_direct_lock_enabled: bool = False
+    fc_direct_lock_height_m: float = 0.05
+    fc_direct_lock_stable_height_m: float = 0.10
+    fc_direct_lock_stable_hold_s: float = 0.80
+    fc_direct_lock_stable_tolerance_m: float = 0.01
+    fc_direct_lock_stable_min_samples: int = 8
+    platform_retakeoff_enabled: bool = False
+    platform_locked_hold_s: float = 5.0
+    platform_task_reset_hold_s: float = 0.30
+    retakeoff_stabilize_s: float = 0.80
     landing_xy_speed_high_m_s: float = 0.15
     landing_xy_speed_mid_m_s: float = 0.10
     landing_xy_speed_low_m_s: float = 0.07
@@ -208,6 +222,26 @@ class Task2MissionDirector:
         self._climb_anchor = H
         self._safe_hover_anchor = D
         self._retakeoff_anchor = H
+
+    def begin_platform_retakeoff(
+        self,
+        *,
+        now: float,
+        anchor_xy_m: tuple[float, float],
+    ) -> None:
+        """Enter the existing retakeoff/return-H path after a locked stop."""
+        if not self.config.platform_retakeoff_enabled:
+            raise RuntimeError("platform retakeoff is disabled")
+        anchor = (float(anchor_xy_m[0]), float(anchor_xy_m[1]))
+        if not all(math.isfinite(value) for value in anchor):
+            raise ValueError("retakeoff anchor must contain finite values")
+        self._retakeoff_anchor = anchor
+        self.mission_success = True
+        self._transition(
+            Task2Phase.RETAKEOFF,
+            float(now),
+            "platform_lock_hold_complete_retakeoff",
+        )
 
     def tick(self, data: Task2Input) -> Task2Command:
         cfg = self.config
@@ -418,6 +452,18 @@ class Task2MissionDirector:
                         data.now,
                         "safe_test_c_vision_centered",
                     )
+                elif cfg.direct_descent_after_trigger:
+                    # 视觉连续居中已经是唯一降落门槛；同一周期直接把控制权
+                    # 交给持续下降链路，避免再经过ACTIVATE_TRACKER二次等待。
+                    tracker_active = True
+                    landing_active = True
+                    target_xy = position_xy
+                    vx = vy = 0.0
+                    self._transition(
+                        Task2Phase.DYNAMIC_LANDING,
+                        data.now,
+                        "c_sync_ready_direct_descent",
+                    )
                 else:
                     self._transition(
                         Task2Phase.ACTIVATE_TRACKER,
@@ -569,12 +615,41 @@ class Task2MissionDirector:
                         data.now,
                         "stationary_test_retakeoff_height_reached",
                     )
+                elif cfg.platform_retakeoff_enabled:
+                    self._safe_hover_anchor = self._retakeoff_anchor
+                    self._transition(
+                        Task2Phase.STABILIZE_AFTER_RETAKEOFF,
+                        data.now,
+                        "retakeoff_height_reached_stabilize",
+                    )
                 else:
                     self._transition(
                         Task2Phase.RETURN_H,
                         data.now,
                         "retakeoff_height_reached",
                     )
+
+        elif self.phase == Task2Phase.STABILIZE_AFTER_RETAKEOFF:
+            target_xy = self._safe_hover_anchor
+            target_world_height = cfg.retakeoff_height_m
+            vx, vy = self._hold_velocity(
+                position_xy,
+                self._safe_hover_anchor,
+                data.velocity_xy_m_s,
+                cfg.hold_position_max_speed_m_s,
+            )
+            stable = (
+                data.now - self._phase_since >= cfg.retakeoff_stabilize_s
+                and abs(z_world - cfg.retakeoff_height_m) <= 0.15
+                and math.hypot(*data.velocity_xy_m_s)
+                <= cfg.hold_stable_speed_m_s
+            )
+            if stable:
+                self._transition(
+                    Task2Phase.RETURN_H,
+                    data.now,
+                    "retakeoff_stabilized_return_h",
+                )
 
         elif self.phase == Task2Phase.SAFE_HOVER_AFTER_RETAKEOFF:
             target_xy = self._safe_hover_anchor
@@ -626,9 +701,9 @@ class Task2MissionDirector:
             land_requested=land_requested,
             tracker_active=tracker_active,
             landing_active=landing_active,
-            # 任务二从首次起飞到返回 H 点的最终降落，全程只保持第一次
-            # task_sta=1；中途落到小车平台后不清零、不锁桨，也不产生
-            # 第二次起飞边沿。最终 LAND_H 交给 basic 降落流程后才允许锁桨。
+            # 飞行阶段必须保持解锁。正式平台复飞模式的锁桨、5秒停留和
+            # 第二次起飞边沿由飞行适配层在进入 RETAKEOFF 之前完成；
+            # RETAKEOFF 之后若仍未解锁，适配层会拒绝继续。
             keep_armed=self.phase not in (
                 Task2Phase.WAIT_START,
                 Task2Phase.COMPLETE,

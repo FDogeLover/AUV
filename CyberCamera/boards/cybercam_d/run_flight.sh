@@ -4,7 +4,7 @@ set -eu
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 cd "$SCRIPT_DIR"
 
-DEBUG_RECORD=${CYBERCAM_DEBUG_RECORD:-on}
+DEBUG_RECORD=${CYBERCAM_DEBUG_RECORD:-off}
 DEBUG_RECORD_DIR=${CYBERCAM_DEBUG_RECORD_DIR:-"$SCRIPT_DIR/debug_frames"}
 DEBUG_RECORD_INTERVAL=${CYBERCAM_DEBUG_RECORD_INTERVAL:-1.0}
 SERIAL_PORT=${CYBERCAM_SERIAL_PORT:-/dev/ttyS2}
@@ -15,7 +15,9 @@ CAMERA_WIDTH=${CYBERCAM_WIDTH:-640}
 CAMERA_HEIGHT=${CYBERCAM_HEIGHT:-480}
 CAMERA_FPS=${CYBERCAM_FPS:-30}
 
-sudo systemctl stop cybercam-desktop.service
+if [ "${CYBERCAM_MANAGE_DESKTOP_SERVICE:-on}" = "on" ]; then
+  sudo systemctl stop cybercam-desktop.service
+fi
 
 if [ "$CAMERA_BACKEND" = "opencv" ] && command -v v4l2-ctl >/dev/null 2>&1; then
   v4l2-ctl -d "$CAMERA_SOURCE" \

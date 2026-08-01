@@ -44,6 +44,9 @@ class LandingConfig:
     touchdown_hold_s: float = 0.40
     deck_ride_s: float = 5.0
     max_terminal_retries: int = 1
+    # 联合降落测试专用：上层完成视觉触发后持续下降到激光触地，
+    # 不再因视觉短时丢失或终端预测限时而暂停/爬升。
+    direct_descent_after_gate: bool = False
 
 
 @dataclass(frozen=True)
@@ -96,7 +99,7 @@ class DynamicLandingController:
         if data.abort_requested or (not data.t265_healthy and self.state != LandingState.TERMINAL_PREDICT):
             return self._transition(LandingState.CONTROLLED_ABORT, 0.0, False, False, "abort_or_t265")
         if self.state == LandingState.LANDING_GATE:
-            gate = (
+            gate = cfg.direct_descent_after_gate or (
                 data.visual_usable
                 and math.hypot(*data.position_error_xy_m) <= 0.12
                 and math.hypot(*data.relative_velocity_xy_m_s) <= 0.12
@@ -105,6 +108,26 @@ class DynamicLandingController:
                 return LandingCommand(self.state, 0.0, True, False, reason="gate_not_stable")
             self._set_state(LandingState.DESCEND_HIGH, now)
         if self.state in (LandingState.DESCEND_HIGH, LandingState.DESCEND_MID, LandingState.DESCEND_LOW):
+            if cfg.direct_descent_after_gate:
+                self.state = LandingState.DESCEND_HIGH
+                if self._touchdown_gate(data):
+                    if self._touchdown_since is None:
+                        self._touchdown_since = now
+                    self.state = LandingState.TOUCHDOWN_CANDIDATE
+                    return LandingCommand(
+                        self.state,
+                        0.0,
+                        data.visual_usable,
+                        True,
+                        reason="direct_descent_contact",
+                    )
+                return LandingCommand(
+                    self.state,
+                    -cfg.descend_high_m_s,
+                    data.visual_usable,
+                    True,
+                    reason="direct_descent_to_contact",
+                )
             if not data.visual_usable:
                 if data.visual_too_close and self._terminal_gate(data):
                     self._set_state(LandingState.TERMINAL_PREDICT, now)
@@ -147,6 +170,15 @@ class DynamicLandingController:
         if self.state == LandingState.TOUCHDOWN_CANDIDATE:
             if not self._touchdown_gate(data):
                 self._touchdown_since = None
+                if cfg.direct_descent_after_gate:
+                    self._set_state(LandingState.DESCEND_HIGH, now)
+                    return LandingCommand(
+                        self.state,
+                        -cfg.descend_high_m_s,
+                        data.visual_usable,
+                        True,
+                        reason="direct_contact_lost_resume_descent",
+                    )
                 self._set_state(LandingState.TERMINAL_PREDICT, now)
                 self._terminal_start_height = data.relative_height_m
                 return LandingCommand(self.state, -cfg.descend_low_m_s, False, True, reason="touchdown_rejected")
@@ -173,6 +205,12 @@ class DynamicLandingController:
 
     def _touchdown_gate(self, data: LandingInput) -> bool:
         cfg = self.config
+        if cfg.direct_descent_after_gate:
+            return (
+                data.relative_height_m
+                <= cfg.contact_height_m + cfg.touchdown_height_margin_m
+                and data.contact_evidence
+            )
         return (
             data.relative_height_m <= cfg.contact_height_m + cfg.touchdown_height_margin_m
             and abs(data.vertical_speed_m_s) <= cfg.touchdown_max_vz_m_s

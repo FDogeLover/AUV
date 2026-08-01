@@ -528,11 +528,12 @@ def _load_task_config(data: dict) -> Task1Config:
 
 
 def build_joint_drop_test_config(base: Task1Config) -> Task1Config:
-    """Pure-vision joint test: track for 3 s and release at 1.5 m."""
+    """Pure-vision joint test: hover 3 s, then track and release at 1.2 m."""
     return replace(
         base,
-        cruise_height_m=1.50,
-        follow_height_m=1.50,
+        cruise_height_m=1.20,
+        follow_height_m=1.20,
+        hold_duration_s=3.0,
         intercept_speed_m_s=0.20,
         car_speed_m_s=0.05,
         curve_speed_m_s=0.05,
@@ -551,7 +552,7 @@ def build_joint_path_drop_test_config(
     follow_speed_m_s: float = 0.060,
     follow_duration_s: float = 3.0,
 ) -> Task1Config:
-    """Stable joint test: wait at B_PRE, then use a constant T265 path speed."""
+    """Stable 1.2 m joint test using a constant T265 path speed."""
     speed = float(follow_speed_m_s)
     duration = float(follow_duration_s)
     if not 0.02 <= speed <= 0.20:
@@ -560,8 +561,8 @@ def build_joint_path_drop_test_config(
         raise ValueError("投放前伴飞时间必须在0~20s之间")
     return replace(
         base,
-        cruise_height_m=1.50,
-        follow_height_m=1.50,
+        cruise_height_m=1.20,
+        follow_height_m=1.20,
         car_speed_m_s=speed,
         curve_speed_m_s=speed,
         vision_min_quality=40,
@@ -581,12 +582,28 @@ def build_joint_path_drop_test_config(
     )
 
 
-def _wait_for_vision(reader: CyberCamReader, timeout_s: float = 5.0) -> bool:
-    deadline = time.monotonic() + timeout_s
+def _wait_for_vision(reader: CyberCamReader, timeout_s: float = 45.0) -> bool:
+    """Wait through a simultaneous-board boot without weakening preflight."""
+    started = time.monotonic()
+    deadline = started + max(0.0, float(timeout_s))
+    next_diagnostic = started + 5.0
     while time.monotonic() < deadline:
         stats = reader.stats()
         if stats["accepted_frames"] >= 3 and stats["pongs_received"] >= 1:
             return True
+        if not stats["running"]:
+            logger.warning("Cyber Camera串口接收线程已停止，结束启动等待")
+            return False
+        now = time.monotonic()
+        if now >= next_diagnostic:
+            next_diagnostic = now + 5.0
+            logger.info(
+                "等待Cyber Camera自启动: "
+                f"elapsed={now - started:.1f}s, "
+                f"accepted_frames={stats['accepted_frames']}, "
+                f"pongs_received={stats['pongs_received']}, "
+                f"ping_write_errors={stats['ping_write_errors']}"
+            )
         time.sleep(0.05)
     return False
 
@@ -644,7 +661,7 @@ def main(argv=None):
         "--joint-drop-test",
         action="store_true",
         help=(
-            "联合投放测试：等待小车CAR_START，1.5m慢速伴飞，"
+            "联合投放测试：等待小车CAR_START，起飞后悬停3s，1.2m慢速伴飞，"
             "视觉门槛连续满足3s后直接投放"
         ),
     )
@@ -695,13 +712,13 @@ def main(argv=None):
     )
     if args.joint_drop_test:
         logger.warning(
-            "联合投放测试模式：等待小车CAR_START；高度=1.50m，"
+            "联合投放测试模式：等待小车CAR_START；高度=1.20m，起飞后悬停=3.0s；"
             "中央门槛后由纯视觉持续追踪，不执行B-C固定路径；"
             "视觉偏差<=0.20m连续3.0s后直接投放，禁止下降到0.65m"
         )
     elif args.joint_path_drop_test:
         logger.warning(
-            "联合固定路径投放测试：高度=1.50m；必须到达B_PRE后才等待目标；"
+            "联合固定路径投放测试：高度=1.20m；必须到达B_PRE后才等待目标；"
             f"目标确认后以{task_config.curve_speed_m_s:.3f}m/s沿B-C恒速伴飞；"
             f"至少伴飞{task_config.min_follow_before_drop_s:.1f}s后，"
             "目标在0.30m投放区域内稳定0.20s即投放；视觉不参与速度控制，"
