@@ -18,7 +18,7 @@ RDK由`competition-2026-d-autostart.service`启动唯一的
 5. 收到`CAR_START.task_mode`后：任务一亮绿灯1秒，任务二亮蓝灯1秒。
 6. 再次核验所有门禁，先点亮红灯，再ACK CAR_START。
 7. ACK后才构造T265并启动管线；T265校零/置信度检查与红灯5秒警示并行。
-8. `task_mode=1`运行1.2m任务一联合投放；`task_mode=2`运行1.2m任务二视觉动态降落。
+8. `task_mode=1`运行1.2m任务一联合投放；`task_mode=2`运行1.3m任务二视觉动态降落。
 
 ## 故障行为
 

@@ -201,10 +201,81 @@ def _load_task_config(data: dict) -> Task2Config:
         vision_confirm_frames=int(task["vision_confirm_frames"]),
         drop_max_error_m=float(task["drop_max_error_m"]),
         t265_min_confidence=int(task.get("t265_min_confidence", 2)),
-        retakeoff_height_m=float(task.get("retakeoff_height_m", 1.50)),
+        retakeoff_height_m=float(task.get("retakeoff_height_m", 1.30)),
+        retakeoff_forward_y_speed_m_s=float(
+            task.get("retakeoff_forward_y_speed_m_s", -0.05)
+        ),
+        retakeoff_t265_jump_protection_enabled=bool(
+            task.get("retakeoff_t265_jump_protection_enabled", False)
+        ),
+        retakeoff_h_offset_x_m=float(
+            task.get("retakeoff_h_offset_x_m", -0.50)
+        ),
+        retakeoff_h_offset_y_m=float(
+            task.get("retakeoff_h_offset_y_m", -0.60)
+        ),
+        visual_return_a_enabled=bool(
+            task.get("visual_return_a_enabled", False)
+        ),
+        visual_return_a_center_radius_m=float(
+            task.get("visual_return_a_center_radius_m", 0.15)
+        ),
+        visual_return_a_stop_speed_m_s=float(
+            task.get("visual_return_a_stop_speed_m_s", 0.015)
+        ),
+        visual_return_a_stop_hold_s=float(
+            task.get("visual_return_a_stop_hold_s", 1.0)
+        ),
+        visual_return_a_min_follow_s=float(
+            task.get("visual_return_a_min_follow_s", 2.0)
+        ),
+        visual_return_a_timeout_s=float(
+            task.get("visual_return_a_timeout_s", 30.0)
+        ),
+        visual_return_a_kp=float(task.get("visual_return_a_kp", 0.65)),
+        visual_return_a_max_speed_m_s=float(
+            task.get("visual_return_a_max_speed_m_s", 0.15)
+        ),
+        visual_return_a_max_accel_m_s2=float(
+            task.get("visual_return_a_max_accel_m_s2", 0.45)
+        ),
+        return_h_auto_land_timeout_s=float(
+            task.get("return_h_auto_land_timeout_s", 15.0)
+        ),
+        land_h_auto_descend_timeout_s=float(
+            task.get("land_h_auto_descend_timeout_s", 8.0)
+        ),
+        hover_wait_auto_land_delay_s=float(
+            task.get("hover_wait_auto_land_delay_s", 3.0)
+        ),
         abort_climb_height_m=float(task.get("abort_climb_height_m", 1.50)),
         activate_tracker_timeout_s=float(
             task.get("activate_tracker_timeout_s", 3.0)
+        ),
+        vision_target_offset_x_m=float(
+            task.get("vision_target_offset_x_m", 0.0)
+        ),
+        vision_target_offset_y_m=float(
+            task.get("vision_target_offset_y_m", 0.0)
+        ),
+        c_sync_vision_kp=float(task.get("c_sync_vision_kp", 0.45)),
+        c_sync_vision_deadband_m=float(
+            task.get("c_sync_vision_deadband_m", 0.03)
+        ),
+        c_sync_vision_max_speed_m_s=float(
+            task.get("c_sync_vision_max_speed_m_s", 0.10)
+        ),
+        c_sync_vision_max_accel_m_s2=float(
+            task.get("c_sync_vision_max_accel_m_s2", 0.25)
+        ),
+        c_sync_vision_filter_window_s=float(
+            task.get("c_sync_vision_filter_window_s", 0.20)
+        ),
+        c_sync_vision_control_period_s=float(
+            task.get("c_sync_vision_control_period_s", 0.08)
+        ),
+        c_sync_vision_loss_grace_s=float(
+            task.get("c_sync_vision_loss_grace_s", 0.20)
         ),
         require_car_position_at_c=bool(
             task.get("require_car_position_at_c", True)
@@ -232,8 +303,8 @@ def build_open_loop_cd_test_config(
         raise ValueError("C-D固定速度必须在0.02~0.20m/s之间")
     return replace(
         base,
-        cruise_height_m=1.20,
-        follow_height_m=1.20,
+        cruise_height_m=1.30,
+        follow_height_m=1.30,
         hold_duration_s=0.0,
         car_speed_m_s=speed,
         car_speed_scale=1.0,
@@ -254,8 +325,9 @@ def build_vision_landing_test_config(base: Task2Config) -> Task2Config:
     """Direct-to-C moving-platform landing with continuous visual correction."""
     return replace(
         base,
-        cruise_height_m=1.20,
-        follow_height_m=1.20,
+        cruise_height_m=1.30,
+        follow_height_m=1.30,
+        retakeoff_height_m=1.30,
         hold_duration_s=0.0,
         hold_position_max_speed_m_s=0.22,
         hold_velocity_kd=0.45,
@@ -271,10 +343,12 @@ def build_vision_landing_test_config(base: Task2Config) -> Task2Config:
         fc_direct_lock_enabled=True,
         fc_direct_lock_height_m=0.05,
         fc_direct_lock_stable_height_m=0.10,
-        fc_direct_lock_stable_hold_s=0.80,
+        fc_direct_lock_stable_hold_s=0.35,
         fc_direct_lock_stable_tolerance_m=0.01,
-        fc_direct_lock_stable_min_samples=8,
+        fc_direct_lock_stable_min_samples=4,
+        fc_direct_lock_laser_dropout_grace_s=0.25,
         platform_retakeoff_enabled=True,
+        visual_return_a_enabled=True,
         platform_locked_hold_s=5.0,
         platform_task_reset_hold_s=0.30,
         retakeoff_stabilize_s=0.80,
@@ -282,6 +356,13 @@ def build_vision_landing_test_config(base: Task2Config) -> Task2Config:
         landing_xy_speed_high_m_s=0.12,
         landing_xy_speed_mid_m_s=0.09,
         landing_xy_speed_low_m_s=0.06,
+        c_sync_vision_kp=0.45,
+        c_sync_vision_deadband_m=0.03,
+        c_sync_vision_max_speed_m_s=0.10,
+        c_sync_vision_max_accel_m_s2=0.25,
+        c_sync_vision_filter_window_s=0.20,
+        c_sync_vision_control_period_s=0.08,
+        c_sync_vision_loss_grace_s=0.20,
     )
 
 
@@ -579,7 +660,7 @@ def main(argv=None):
     }
     if args.open_loop_cd_test:
         logger.warning(
-            "任务二0.5m安全联调：起飞高度=1.20m，跳过B_PRE/B-C，直飞C；"
+            "任务二0.5m安全联调：起飞高度=1.30m，跳过B_PRE/B-C，直飞C；"
             "C点等待坐标X向小值方向修正0.15m；"
             "C点等待坐标Y向大值方向修正0.25m；"
             "C点视觉中心误差<=0.15m连续5帧后，"
@@ -595,14 +676,23 @@ def main(argv=None):
         )
     elif args.vision_landing_test:
         logger.warning(
-            "任务二视觉动态降落联合测试：起飞至1.20m后直接飞往C点等待小车；"
-            "目标居中连续5帧后，以0.30m/s持续纠偏下降；"
+            "任务二视觉动态降落联合测试：起飞至1.30m后经两个中间点飞往C点等待小车；"
+            "检测到目标后以10cm/s限速、12.5Hz控制频率主动视觉居中；"
+            "目标误差不超过15cm连续5帧后，以0.30m/s持续纠偏下降；"
             "视觉失效后以相同速度开环下降，不暂停、不爬升且不使用失效观测追偏；"
             "触地候选后持续下压0cm高度目标；激光低于0.10m且稳定0.8秒后，"
             "保持task_sta=1并发送"
             "next_task_sign=102，由飞控近地门禁直接锁桨；锁桨保持5秒后重新起飞，"
-            "保留T265原点；复飞若发生一次物理不可能的重定位跳变则做坐标连续性补偿，"
-            "爬升至1.50m原地稳定0.8秒后返回H点并完成最终降落；"
+            "保持T265连续运行；以复飞锚点为局部(0,0)，"
+            "复飞爬升及稳定阶段以5cm/s沿-Y前进；"
+            "复飞后T265跳变不触发悬停，改为连续坐标补偿；"
+            f"局部H=({task_config.retakeoff_h_offset_x_m:+.2f},"
+            f"{task_config.retakeoff_h_offset_y_m:+.2f})m，"
+            "视觉跟随小车回A最长30秒，超时后从当时位置直接飞往局部H并完成最终降落；"
+            "返H超过15秒或最终接近超过8秒则在当前位置使用实时帧强制下降，"
+            "复飞后HOVER_WAIT超过3秒同样使用实时帧下降；"
+            "所有最终降落均在近地后使用102直接锁桨，不调用一键降落；"
+            "复飞若发生一次物理不可能的重定位跳变则做坐标连续性补偿；"
             "平台降落阶段不调用OneKey_Land"
         )
         logger.warning(

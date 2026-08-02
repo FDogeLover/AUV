@@ -41,6 +41,8 @@ def _flight(*, task_sta=1, next_task_sign=0, unlock_sta=1, dry_run=False):
     flight._t265_recovery_until = None
     flight._t265_recovery_used = False
     flight._t265_continuity_net_correction = (0.0, 0.0, 0.0)
+    flight._final_realtime_landing_active = False
+    flight._task2_hover_wait_started_at = None
     flight._landing_vz_applied_m_s = 0.0
     flight.serial_fc_ref = None
     flight.set_speed = lambda *args: setattr(flight, "last_speed", args)
@@ -162,11 +164,11 @@ def test_fc_direct_lock_requires_sustained_zero_height_target():
 
     flight._ramp_z_cm = 0.0
     flight._direct_lock_zero_setpoint_since = 0.0
-    for index in range(8):
+    for index in range(3):
         assert not flight._should_begin_fc_direct_lock(
             command, 0.058 + (index % 2) * 0.002, True, index * 0.10
         )
-    assert flight._should_begin_fc_direct_lock(command, 0.059, True, 0.80)
+    assert flight._should_begin_fc_direct_lock(command, 0.059, True, 0.35)
 
     flight._begin_fc_direct_lock(0.10)
     assert flight.state == "LAND"
@@ -176,16 +178,17 @@ def test_fc_direct_lock_requires_sustained_zero_height_target():
     assert flight.last_speed == (0, 0, 0, 0)
 
 
-def test_fc_direct_lock_accepts_stable_sub_ten_cm_laser_fallback():
+def test_fc_direct_lock_preserves_near_ground_samples_across_short_dropout():
     flight = _flight()
     flight.director = Task2MissionDirector(
         Task2Config(
             fc_direct_lock_enabled=True,
             fc_direct_lock_height_m=0.05,
             fc_direct_lock_stable_height_m=0.10,
-            fc_direct_lock_stable_hold_s=0.80,
+            fc_direct_lock_stable_hold_s=0.35,
             fc_direct_lock_stable_tolerance_m=0.01,
-            fc_direct_lock_stable_min_samples=8,
+            fc_direct_lock_stable_min_samples=4,
+            fc_direct_lock_laser_dropout_grace_s=0.25,
         )
     )
     command = SimpleNamespace(
@@ -195,16 +198,46 @@ def test_fc_direct_lock_accepts_stable_sub_ten_cm_laser_fallback():
     flight._ramp_z_cm = 0.0
     flight._direct_lock_zero_setpoint_since = 0.0
 
-    for index in range(8):
+    for index in range(3):
         assert not flight._should_begin_fc_direct_lock(
             command,
             0.078 + (index % 2) * 0.002,
             True,
             index * 0.10,
         )
-    assert flight._should_begin_fc_direct_lock(
-        command, 0.079, True, 0.80
+    assert not flight._should_begin_fc_direct_lock(
+        command, None, False, 0.25
     )
+    assert len(flight._direct_lock_laser_samples) == 3
+    assert flight._should_begin_fc_direct_lock(
+        command, 0.079, True, 0.35
+    )
+
+
+def test_fc_direct_lock_clears_near_ground_samples_after_long_dropout():
+    flight = _flight()
+    flight.director = Task2MissionDirector(
+        Task2Config(
+            fc_direct_lock_enabled=True,
+            fc_direct_lock_stable_hold_s=0.35,
+            fc_direct_lock_stable_min_samples=4,
+            fc_direct_lock_laser_dropout_grace_s=0.25,
+        )
+    )
+    command = SimpleNamespace(
+        phase=Task2Phase.DYNAMIC_LANDING,
+        landing_active=True,
+    )
+    flight._ramp_z_cm = 0.0
+    flight._direct_lock_zero_setpoint_since = 0.0
+
+    assert not flight._should_begin_fc_direct_lock(
+        command, 0.06, True, 0.0
+    )
+    assert not flight._should_begin_fc_direct_lock(
+        command, None, False, 0.30
+    )
+    assert not flight._direct_lock_laser_samples
 
 
 def test_fc_direct_lock_requires_explicit_unlock_and_zero_pwm_feedback():
@@ -399,40 +432,43 @@ def test_landing_height_integrates_negative_speed_downward():
     assert flight._ramp_z_cm == 0.0
 
 
-def test_retakeoff_t265_jump_is_absorbed_without_moving_h_frame():
-    flight = _flight()
-    flight.director = Task2MissionDirector(Task2Config())
-    flight.director._transition(Task2Phase.RETAKEOFF, 0.0, "test")
+def test_retakeoff_and_return_h_t265_jump_is_absorbed_once():
+    for phase in (Task2Phase.RETAKEOFF, Task2Phase.RETURN_H):
+        flight = _flight()
+        flight.director = Task2MissionDirector(Task2Config())
+        flight.director._transition(phase, 0.0, "test")
 
-    class T265Probe:
-        def __init__(self):
-            self.corrections = []
+        class T265Probe:
+            def __init__(self):
+                self.corrections = []
 
-        def apply_position_continuity_correction(self, delta):
-            self.corrections.append(tuple(delta))
+            def apply_position_continuity_correction(self, delta):
+                self.corrections.append(tuple(delta))
 
-    flight.realsense = T265Probe()
-    first = flight._preserve_retakeoff_t265_continuity(
-        now=1.0,
-        world_position=(1.90, 1.70, 1.20),
-        velocity=(0.0, 0.0, 0.30),
-    )
-    corrected = flight._preserve_retakeoff_t265_continuity(
-        now=1.03,
-        world_position=(2.24, 1.70, 1.21),
-        velocity=(0.0, 0.0, 0.30),
-    )
+        flight.realsense = T265Probe()
+        first = flight._preserve_retakeoff_t265_continuity(
+            now=1.0,
+            world_position=(1.90, 1.70, 1.20),
+            velocity=(0.0, 0.0, 0.30),
+        )
+        corrected = flight._preserve_retakeoff_t265_continuity(
+            now=1.03,
+            world_position=(2.24, 1.70, 1.21),
+            velocity=(0.0, 0.0, 0.30),
+        )
 
-    assert first == (1.90, 1.70, 1.20)
-    assert corrected[:2] == (1.90, 1.70)
-    assert abs(corrected[2] - 1.209) < 1e-9
-    assert len(flight.realsense.corrections) == 1
-    assert flight._t265_recovery_used
+        assert first == (1.90, 1.70, 1.20)
+        assert corrected[:2] == (1.90, 1.70)
+        assert abs(corrected[2] - 1.209) < 1e-9
+        assert len(flight.realsense.corrections) == 1
+        assert flight._t265_recovery_used
 
 
 def test_second_independent_t265_jump_is_not_hidden():
     flight = _flight()
-    flight.director = Task2MissionDirector(Task2Config())
+    flight.director = Task2MissionDirector(
+        Task2Config(retakeoff_t265_jump_protection_enabled=True)
+    )
     flight.director._transition(Task2Phase.RETAKEOFF, 0.0, "test")
     flight._t265_recovery_used = True
     flight._t265_recovery_until = None
@@ -449,6 +485,63 @@ def test_second_independent_t265_jump_is_not_hidden():
     )
 
     assert uncorrected == (1.40, 1.0, 1.0)
+
+
+def test_disabled_retakeoff_jump_hard_stop_absorbs_repeated_jump():
+    flight = _flight()
+    flight.director = Task2MissionDirector(
+        Task2Config(retakeoff_t265_jump_protection_enabled=False)
+    )
+    flight.director._transition(Task2Phase.VISUAL_RETURN_A, 0.0, "test")
+    flight._t265_recovery_used = True
+    flight._t265_recovery_until = None
+    flight._t265_continuity_last_time = 1.0
+    flight._t265_continuity_last_position = (1.0, 1.0, 1.0)
+    corrections = []
+    flight.realsense = SimpleNamespace(
+        apply_position_continuity_correction=lambda delta: corrections.append(
+            tuple(delta)
+        )
+    )
+
+    corrected = flight._preserve_retakeoff_t265_continuity(
+        now=1.03,
+        world_position=(3.05, 1.0, 1.0),
+        velocity=(0.0, 0.0, 0.0),
+    )
+
+    assert corrected == (1.0, 1.0, 1.0)
+    assert corrections == [(2.05, 0.0, 0.0)]
+
+
+def test_post_retakeoff_hover_timeout_forces_descent_when_unlocked():
+    flight = _flight(unlock_sta=1)
+    flight.director = Task2MissionDirector(
+        Task2Config(hover_wait_auto_land_delay_s=3.0)
+    )
+    flight.director._transition(Task2Phase.RETURN_H, 0.0, "test")
+    flight.last_world_position = (1.2, 0.8, 1.0)
+    flight._task2_hover_wait_started_at = None
+
+    assert not flight._tick_post_retakeoff_hover_auto_land(10.0)
+    assert flight._tick_post_retakeoff_hover_auto_land(13.0)
+    assert flight.state == "DESCEND"
+    assert flight._final_realtime_landing_active
+    assert flight.director.phase == Task2Phase.LAND_H
+    assert flight.director._return_h_target == (1.2, 0.8)
+
+
+def test_post_retakeoff_hover_timeout_finishes_when_already_locked():
+    flight = _flight(unlock_sta=0)
+    flight.director = Task2MissionDirector(
+        Task2Config(hover_wait_auto_land_delay_s=3.0)
+    )
+    flight.director._transition(Task2Phase.RETAKEOFF, 0.0, "test")
+    flight._task2_hover_wait_started_at = 10.0
+
+    assert flight._tick_post_retakeoff_hover_auto_land(13.0)
+    assert flight.state == "END"
+    assert flight.director.phase == Task2Phase.COMPLETE
 
 
 def test_landing_descent_speed_slews_but_stop_is_immediate():

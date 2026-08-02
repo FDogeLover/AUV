@@ -12,8 +12,11 @@ from drone_control.competition_2026_d.payload_actuator import ActuatorState
 from drone_control.competition_2026_d.task2_mission import (
     B_PRE,
     C,
+    C_TRANSIT_1,
+    C_TRANSIT_2,
     D,
     H,
+    RETURN_H_FRACTIONS,
     Task2Config,
     Task2Input,
     Task2MissionDirector,
@@ -60,9 +63,9 @@ def test_takeoff_transitions_to_hold_at_cruise_height():
 def test_hold_3s_waits_for_duration_and_height():
     director = Task2MissionDirector()
     director._transition(Task2Phase.HOLD_3S, 0.0, "test")
-    director.tick(mission_input(2.9, (0, 0, 1.5)))
+    director.tick(mission_input(2.9, (0, 0, 1.3)))
     assert director.phase == Task2Phase.HOLD_3S
-    director.tick(mission_input(3.01, (0, 0, 1.5)))
+    director.tick(mission_input(3.01, (0, 0, 1.3)))
     assert director.phase == Task2Phase.INTERCEPT_B_PRE
 
 
@@ -158,6 +161,24 @@ def test_dynamic_landing_to_retakeoff_on_deck_ride_complete():
     assert not cmd.land_requested
 
 
+def test_dynamic_landing_direct_lock_waits_for_flight_adapter_confirmation():
+    director = Task2MissionDirector(Task2Config(fc_direct_lock_enabled=True))
+    director._transition(Task2Phase.DYNAMIC_LANDING, 0.0, "test")
+
+    cmd = director.tick(
+        mission_input(
+            0.1,
+            (C[0], C[1], 0.06),
+            deck_ride_complete=True,
+        )
+    )
+
+    assert director.phase == Task2Phase.DYNAMIC_LANDING
+    assert cmd.phase == Task2Phase.DYNAMIC_LANDING
+    assert not cmd.mission_success
+    assert cmd.reason == "awaiting_fc_direct_lock_confirmation"
+
+
 def test_dynamic_landing_abort_to_climb():
     director = Task2MissionDirector()
     director._transition(Task2Phase.DYNAMIC_LANDING, 0.0, "test")
@@ -182,9 +203,9 @@ def test_retakeoff_clears_tracker_and_landing():
 def test_retakeoff_to_return_at_height():
     director = Task2MissionDirector()
     director._transition(Task2Phase.RETAKEOFF, 0.0, "test")
-    director.tick(mission_input(0.1, (C[0], C[1], 1.39)))
+    director.tick(mission_input(0.1, (C[0], C[1], 1.19)))
     assert director.phase == Task2Phase.RETAKEOFF
-    director.tick(mission_input(0.2, (C[0], C[1], 1.45)))
+    director.tick(mission_input(0.2, (C[0], C[1], 1.21)))
     assert director.phase == Task2Phase.RETURN_H
 
 
@@ -197,13 +218,13 @@ def test_platform_retakeoff_stabilizes_before_return_h():
     )
     director._transition(Task2Phase.RETAKEOFF, 0.0, "test")
 
-    director.tick(mission_input(0.1, (C[0], C[1], 1.45)))
+    director.tick(mission_input(0.1, (C[0], C[1], 1.21)))
     assert director.phase == Task2Phase.STABILIZE_AFTER_RETAKEOFF
 
     director.tick(
         mission_input(
             0.80,
-            (C[0], C[1], 1.50),
+                (C[0], C[1], 1.30),
             velocity_xy_m_s=(0.0, 0.0),
         )
     )
@@ -211,11 +232,100 @@ def test_platform_retakeoff_stabilizes_before_return_h():
     director.tick(
         mission_input(
             0.91,
-            (C[0], C[1], 1.50),
+                (C[0], C[1], 1.30),
             velocity_xy_m_s=(0.0, 0.0),
         )
     )
     assert director.phase == Task2Phase.RETURN_H
+    expected_first = (
+        C[0] * RETURN_H_FRACTIONS[0],
+        C[1] * RETURN_H_FRACTIONS[0],
+    )
+    first_return = director.tick(
+        mission_input(
+            1.0,
+            (C[0], C[1], 1.30),
+            velocity_xy_m_s=(0.0, 0.0),
+        )
+    )
+    assert first_return.target_xy_m == pytest.approx(expected_first)
+
+
+def test_segmented_return_h_stops_at_two_dynamic_waypoints_before_h():
+    director = Task2MissionDirector(
+        Task2Config(platform_retakeoff_enabled=True)
+    )
+    start = (1.80, 1.20)
+    director._begin_return_h(0.0, start, "test_segmented_return")
+    expected = (
+        (start[0] * 2.0 / 3.0, start[1] * 2.0 / 3.0),
+        (start[0] / 3.0, start[1] / 3.0),
+        H,
+    )
+    for actual_point, expected_point in zip(
+        director._return_h_waypoints, expected
+    ):
+        assert actual_point == pytest.approx(expected_point)
+
+    first = director.tick(
+        mission_input(
+            0.1,
+            (*start, 1.50),
+            velocity_xy_m_s=(0.0, 0.0),
+        )
+    )
+    assert first.target_xy_m == pytest.approx(expected[0])
+    assert first.phase == Task2Phase.RETURN_H
+
+    director.tick(
+        mission_input(
+            1.0,
+            (*expected[0], 1.50),
+            velocity_xy_m_s=(0.0, 0.0),
+        )
+    )
+    second = director.tick(
+        mission_input(
+            1.1,
+            (*expected[0], 1.50),
+            velocity_xy_m_s=(0.0, 0.0),
+        )
+    )
+    assert second.target_xy_m == pytest.approx(expected[1])
+
+    director.tick(
+        mission_input(
+            2.0,
+            (*expected[1], 1.50),
+            velocity_xy_m_s=(0.0, 0.0),
+        )
+    )
+    final = director.tick(
+        mission_input(
+            2.1,
+            (*expected[1], 1.50),
+            velocity_xy_m_s=(0.0, 0.0),
+        )
+    )
+    assert final.target_xy_m == H
+    assert final.phase == Task2Phase.RETURN_H
+
+    director.tick(
+        mission_input(
+            3.0,
+            (*H, 1.50),
+            velocity_xy_m_s=(0.15, 0.0),
+        )
+    )
+    assert director.phase == Task2Phase.RETURN_H
+    landed = director.tick(
+        mission_input(
+            3.1,
+            (*H, 1.50),
+            velocity_xy_m_s=(0.0, 0.0),
+        )
+    )
+    assert landed.phase == Task2Phase.LAND_H
 
 
 def test_platform_lock_completion_enters_existing_retakeoff_return_path():
@@ -231,10 +341,209 @@ def test_platform_lock_completion_enters_existing_retakeoff_return_path():
 
     assert director.phase == Task2Phase.RETAKEOFF
     assert director._retakeoff_anchor == (1.20, 0.80)
+    assert director._retakeoff_local_frame_pending
     assert director.mission_success
     command = director.tick(mission_input(5.1, (1.20, 0.80, 0.30)))
-    assert command.target_xy_m == (1.20, 0.80)
-    assert command.target_world_height_m == 1.50
+    assert command.target_xy_m == pytest.approx((1.20, 0.795))
+    assert command.target_world_height_m == 1.30
+
+
+def test_platform_retakeoff_rebuilds_local_frame_and_returns_directly_to_h():
+    cfg = Task2Config(
+        platform_retakeoff_enabled=True,
+        retakeoff_h_offset_x_m=-0.50,
+        retakeoff_h_offset_y_m=-0.60,
+    )
+    director = Task2MissionDirector(cfg)
+    anchor = (1.95, 2.22)
+    director.begin_platform_retakeoff(now=0.0, anchor_xy_m=anchor)
+
+    local_h_in_world = (anchor[0] - 0.50, anchor[1] - 0.60)
+    director._begin_return_h(1.0, anchor, "test_local_retakeoff_return")
+    assert director._return_h_target == pytest.approx(local_h_in_world)
+    assert len(director._return_h_waypoints) == 1
+    assert director._return_h_waypoints[0] == pytest.approx(local_h_in_world)
+
+    director._transition(Task2Phase.LAND_H, 2.0, "test_local_h")
+    landing = director.tick(
+        mission_input(2.1, (*local_h_in_world, cfg.retakeoff_height_m))
+    )
+    assert landing.target_xy_m == pytest.approx(local_h_in_world)
+
+
+def test_retakeoff_visually_follows_car_to_a_then_flies_directly_to_local_h():
+    cfg = Task2Config(
+        platform_retakeoff_enabled=True,
+        visual_return_a_enabled=True,
+        retakeoff_stabilize_s=0.80,
+        retakeoff_h_offset_x_m=-0.50,
+        retakeoff_h_offset_y_m=-0.60,
+        visual_return_a_min_follow_s=2.0,
+        visual_return_a_stop_hold_s=1.0,
+    )
+    director = Task2MissionDirector(cfg)
+    a_hover = (1.80, 1.70)
+    director.begin_platform_retakeoff(now=0.0, anchor_xy_m=a_hover)
+    director._safe_hover_anchor = a_hover
+    director._transition(
+        Task2Phase.STABILIZE_AFTER_RETAKEOFF,
+        0.0,
+        "test_retakeoff_stabilize",
+    )
+
+    entered_follow = director.tick(
+        mission_input(
+            0.81,
+            (*a_hover, cfg.retakeoff_height_m),
+            velocity_xy_m_s=(0.0, 0.0),
+        )
+    )
+    assert entered_follow.phase == Task2Phase.VISUAL_RETURN_A
+
+    following = director.tick(
+        mission_input(
+            1.0,
+            (*a_hover, cfg.retakeoff_height_m),
+            vision_seq=1,
+            vision_found=True,
+            vision_quality=80,
+            vision_error_xy_m=(0.20, -0.10),
+            car_speed_m_s=0.05,
+        )
+    )
+    assert following.phase == Task2Phase.VISUAL_RETURN_A
+    assert following.vx_m_s > 0.0
+    assert following.vy_m_s < 0.0
+    assert math.hypot(following.vx_m_s, following.vy_m_s) > 0.0125
+    assert math.hypot(following.vx_m_s, following.vy_m_s) <= 0.0225 + 1e-9
+
+    centered_position = (2.00, 1.60)
+    for now, seq in ((2.81, 2), (3.82, 3)):
+        command = director.tick(
+            mission_input(
+                now,
+                (*centered_position, cfg.retakeoff_height_m),
+                velocity_xy_m_s=(0.0, 0.0),
+                vision_seq=seq,
+                vision_found=True,
+                vision_quality=80,
+                vision_error_xy_m=(0.0, 0.0),
+                car_speed_m_s=0.0,
+            )
+        )
+
+    expected_h = (centered_position[0] - 0.50, centered_position[1] - 0.60)
+    assert command.phase == Task2Phase.RETURN_H
+    assert command.target_xy_m == pytest.approx(expected_h)
+    assert director._return_h_target == pytest.approx(expected_h)
+    assert len(director._return_h_waypoints) == 1
+    assert director._return_h_waypoints[0] == pytest.approx(expected_h)
+
+
+def test_platform_retakeoff_advances_along_negative_y_without_car_telemetry():
+    cfg = Task2Config(
+        platform_retakeoff_enabled=True,
+        retakeoff_forward_y_speed_m_s=-0.05,
+    )
+    director = Task2MissionDirector(cfg)
+    anchor = (1.80, 1.70)
+    director.begin_platform_retakeoff(now=0.0, anchor_xy_m=anchor)
+
+    command = director.tick(
+        mission_input(
+            0.10,
+            (*anchor, 0.50),
+            velocity_xy_m_s=(0.0, 0.0),
+            car_speed_m_s=None,
+            car_velocity_xy_m_s=None,
+        )
+    )
+
+    assert command.phase == Task2Phase.RETAKEOFF
+    assert command.target_xy_m == pytest.approx((1.80, 1.695))
+    assert command.vx_m_s == pytest.approx(0.0)
+    assert command.vy_m_s < -0.05
+
+
+def test_visual_return_a_timeout_forces_direct_local_h_return_despite_motion():
+    cfg = Task2Config(
+        platform_retakeoff_enabled=True,
+        visual_return_a_enabled=True,
+        visual_return_a_timeout_s=30.0,
+        retakeoff_h_offset_x_m=-0.50,
+        retakeoff_h_offset_y_m=-0.60,
+    )
+    director = Task2MissionDirector(cfg)
+    position = (1.90, 1.75)
+    director.begin_platform_retakeoff(now=0.0, anchor_xy_m=position)
+    director._begin_visual_return_a(0.0, position)
+
+    before_timeout = director.tick(
+        mission_input(
+            29.9,
+            (*position, cfg.retakeoff_height_m),
+            velocity_xy_m_s=(0.08, -0.04),
+            vision_seq=1,
+            vision_found=True,
+            vision_quality=80,
+            vision_error_xy_m=(0.25, 0.10),
+            car_speed_m_s=0.05,
+        )
+    )
+    assert before_timeout.phase == Task2Phase.VISUAL_RETURN_A
+
+    at_timeout = director.tick(
+        mission_input(
+            30.0,
+            (*position, cfg.retakeoff_height_m),
+            velocity_xy_m_s=(0.08, -0.04),
+            vision_seq=2,
+            vision_found=True,
+            vision_quality=80,
+            vision_error_xy_m=(0.25, 0.10),
+            car_speed_m_s=0.05,
+        )
+    )
+    expected_h = (position[0] - 0.50, position[1] - 0.60)
+    assert at_timeout.phase == Task2Phase.RETURN_H
+    assert at_timeout.reason == "visual_return_a_30s_timeout"
+    assert at_timeout.target_xy_m == pytest.approx(expected_h)
+    assert len(director._return_h_waypoints) == 1
+
+
+def test_return_h_timeout_lands_at_current_position():
+    cfg = Task2Config(return_h_auto_land_timeout_s=15.0)
+    director = Task2MissionDirector(cfg)
+    director._return_h_target = (0.0, 0.0)
+    director._return_h_waypoints = ((0.0, 0.0),)
+    director._transition(Task2Phase.RETURN_H, 0.0, "test")
+    position = (1.20, 0.80)
+
+    command = director.tick(
+        mission_input(15.0, (*position, cfg.retakeoff_height_m))
+    )
+
+    assert command.phase == Task2Phase.LAND_H
+    assert command.reason == "return_h_timeout_land_current_position"
+    assert command.target_xy_m == pytest.approx(position)
+    assert director._return_h_target == pytest.approx(position)
+
+
+def test_land_h_timeout_forces_basic_descent_at_current_position():
+    cfg = Task2Config(land_h_auto_descend_timeout_s=8.0)
+    director = Task2MissionDirector(cfg)
+    director._return_h_target = (0.0, 0.0)
+    director._transition(Task2Phase.LAND_H, 0.0, "test")
+    position = (0.30, -0.20)
+
+    command = director.tick(
+        mission_input(8.0, (*position, cfg.retakeoff_height_m))
+    )
+
+    assert command.phase == Task2Phase.LAND_H
+    assert command.reason == "land_h_timeout_force_descend"
+    assert command.target_xy_m == pytest.approx(position)
+    assert command.land_requested
 
 
 def test_climb_150cm_to_return_at_height():
@@ -301,8 +610,8 @@ def test_only_initial_takeoff_requests_takeoff_and_only_final_h_requests_land():
 def test_open_loop_cd_test_config_is_isolated_and_bounded():
     cfg = build_open_loop_cd_test_config(Task2Config(), cd_speed_m_s=0.08)
     assert cfg.safe_open_loop_cd_test
-    assert cfg.cruise_height_m == 1.20
-    assert cfg.follow_height_m == 1.20
+    assert cfg.cruise_height_m == 1.30
+    assert cfg.follow_height_m == 1.30
     assert cfg.safe_hover_height_m == 0.50
     assert cfg.safe_c_offset_x_m == -0.15
     assert cfg.safe_c_offset_y_m == 0.25
@@ -332,7 +641,7 @@ def test_open_loop_cd_test_flies_directly_to_c_after_takeoff():
     director.tick(
         mission_input(
             1.0,
-            (*safe_c, 1.20),
+            (*safe_c, 1.30),
             velocity_xy_m_s=(0.0, 0.0),
         )
     )
@@ -349,17 +658,27 @@ def test_vision_landing_test_flies_directly_to_c_then_activates_tracker():
     assert cfg.fc_direct_lock_enabled
     assert cfg.fc_direct_lock_height_m == 0.05
     assert cfg.fc_direct_lock_stable_height_m == 0.10
-    assert cfg.fc_direct_lock_stable_hold_s == 0.80
+    assert cfg.fc_direct_lock_stable_hold_s == 0.35
     assert cfg.fc_direct_lock_stable_tolerance_m == 0.01
-    assert cfg.fc_direct_lock_stable_min_samples == 8
+    assert cfg.fc_direct_lock_stable_min_samples == 4
+    assert cfg.fc_direct_lock_laser_dropout_grace_s == 0.25
     assert cfg.platform_retakeoff_enabled
     assert cfg.platform_locked_hold_s == 5.0
     assert cfg.platform_task_reset_hold_s == 0.30
     assert cfg.retakeoff_stabilize_s == 0.80
+    assert cfg.vision_target_offset_x_m == 0.0
+    assert cfg.vision_target_offset_y_m == 0.0
     assert not cfg.land_only_after_touchdown
     assert not cfg.require_car_position_at_c
     assert cfg.hold_position_max_speed_m_s == 0.22
     assert cfg.hold_velocity_kd == 0.45
+    assert cfg.c_sync_vision_kp == 0.45
+    assert cfg.c_sync_vision_deadband_m == 0.03
+    assert cfg.c_sync_vision_max_speed_m_s == 0.10
+    assert cfg.c_sync_vision_max_accel_m_s2 == 0.25
+    assert cfg.c_sync_vision_filter_window_s == 0.20
+    assert cfg.c_sync_vision_control_period_s == 0.08
+    assert cfg.c_sync_vision_loss_grace_s == 0.20
     assert cfg.landing_xy_speed_high_m_s == 0.12
     assert cfg.landing_xy_speed_mid_m_s == 0.09
     assert cfg.landing_xy_speed_low_m_s == 0.06
@@ -367,6 +686,50 @@ def test_vision_landing_test_flies_directly_to_c_then_activates_tracker():
     director._transition(Task2Phase.HOLD_3S, 0.0, "test")
     transit = director.tick(mission_input(0.1, (*H, 1.20)))
     assert transit.phase == Task2Phase.TRANSIT_C
+
+    first_leg = director.tick(mission_input(0.2, (*H, 1.20)))
+    assert first_leg.target_xy_m == C_TRANSIT_1
+
+    director.tick(
+        mission_input(
+            1.0,
+            (*C_TRANSIT_1, 1.20),
+            velocity_xy_m_s=(0.0, 0.0),
+        )
+    )
+    second_leg = director.tick(
+        mission_input(
+            1.1,
+            (*C_TRANSIT_1, 1.20),
+            velocity_xy_m_s=(0.0, 0.0),
+        )
+    )
+    assert second_leg.target_xy_m == C_TRANSIT_2
+
+    director.tick(
+        mission_input(
+            2.0,
+            (*C_TRANSIT_2, 1.20),
+            velocity_xy_m_s=(0.0, 0.0),
+        )
+    )
+    final_leg = director.tick(
+        mission_input(
+            2.1,
+            (*C_TRANSIT_2, 1.20),
+            velocity_xy_m_s=(0.0, 0.0),
+        )
+    )
+    assert final_leg.target_xy_m == C
+
+    reached_c = director.tick(
+        mission_input(
+            3.0,
+            (*C, 1.20),
+            velocity_xy_m_s=(0.0, 0.0),
+        )
+    )
+    assert reached_c.phase == Task2Phase.SYNC_TARGET_AT_C
 
     director._transition(Task2Phase.SYNC_TARGET_AT_C, 1.0, "test")
     for seq in range(1, 6):
@@ -384,6 +747,67 @@ def test_vision_landing_test_flies_directly_to_c_then_activates_tracker():
     assert ready.tracker_active
     assert ready.landing_active
     assert ready.reason == "c_sync_ready_direct_descent"
+
+
+def test_vision_landing_test_actively_centers_target_before_descent():
+    cfg = build_vision_landing_test_config(Task2Config())
+    director = Task2MissionDirector(cfg)
+    director._transition(Task2Phase.SYNC_TARGET_AT_C, 0.0, "test")
+
+    command = director.tick(
+        mission_input(
+            0.1,
+            (*C, 1.20),
+            velocity_xy_m_s=(0.0, 0.0),
+            vision_seq=1,
+            vision_found=True,
+            vision_quality=80,
+            vision_error_xy_m=(-0.30, 0.20),
+        )
+    )
+
+    assert command.phase == Task2Phase.SYNC_TARGET_AT_C
+    assert command.reason == "c_sync_visual_centering"
+    assert command.target_xy_m == pytest.approx((C[0] - 0.30, C[1] + 0.20))
+    assert command.vx_m_s < 0.0
+    assert command.vy_m_s > 0.0
+    assert math.hypot(command.vx_m_s, command.vy_m_s) <= 0.10 + 1e-9
+    assert math.hypot(command.vx_m_s, command.vy_m_s) <= 0.0125 + 1e-9
+
+
+def test_vision_landing_test_holds_current_position_after_target_loss():
+    cfg = build_vision_landing_test_config(Task2Config())
+    director = Task2MissionDirector(cfg)
+    director._transition(Task2Phase.SYNC_TARGET_AT_C, 0.0, "test")
+
+    director.tick(
+        mission_input(
+            0.1,
+            (*C, 1.20),
+            vision_seq=1,
+            vision_found=True,
+            vision_quality=80,
+            vision_error_xy_m=(-0.30, 0.0),
+        )
+    )
+    lost_position = (C[0] - 0.05, C[1] + 0.02)
+    lost = director.tick(
+        mission_input(
+            0.5,
+            (*lost_position, 1.20),
+            velocity_xy_m_s=(0.0, 0.0),
+            vision_seq=2,
+            vision_found=False,
+            vision_quality=0,
+            vision_error_xy_m=None,
+        )
+    )
+
+    assert lost.phase == Task2Phase.SYNC_TARGET_AT_C
+    assert lost.reason == "c_sync_waiting_for_visual"
+    assert lost.target_xy_m == pytest.approx(lost_position)
+    assert lost.vx_m_s == pytest.approx(0.0)
+    assert lost.vy_m_s == pytest.approx(0.0)
 
 
 def test_vision_landing_mode_is_mutually_exclusive_with_other_test_modes():
@@ -446,7 +870,7 @@ def test_open_loop_cd_test_descends_by_progress_and_stops_at_half_meter():
             car_speed_m_s=0.20,
         )
     )
-    assert math.isclose(start.target_world_height_m, 1.20, abs_tol=1e-9)
+    assert math.isclose(start.target_world_height_m, 1.30, abs_tol=1e-9)
     assert start.vy_m_s < 0.0
     assert math.hypot(start.vx_m_s, start.vy_m_s) <= 0.03 + 1e-9
 

@@ -48,6 +48,7 @@ _PHASE_MAP = {
     Task2Phase.ACTIVATE_TRACKER: UavPhase.DESCEND,
     Task2Phase.RETAKEOFF: UavPhase.RETAKEOFF,
     Task2Phase.STABILIZE_AFTER_RETAKEOFF: UavPhase.HOVER,
+    Task2Phase.VISUAL_RETURN_A: UavPhase.FORMATION_FOLLOW,
     Task2Phase.CLIMB_150CM: UavPhase.RETURN_H,
     Task2Phase.RETURN_H: UavPhase.RETURN_H,
     Task2Phase.LAND_H: UavPhase.LAND_H,

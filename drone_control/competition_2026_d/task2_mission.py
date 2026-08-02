@@ -14,7 +14,9 @@ from __future__ import annotations
 
 import enum
 import math
+from collections import deque
 from dataclasses import dataclass
+from statistics import median
 
 from .control.task1_path_controller import (
     PathCommand,
@@ -34,6 +36,11 @@ BC_2 = (1.125, 3.00)
 BC_3 = (1.655, 2.78)
 C = (1.875, 2.25)
 D = (1.875, 0.75)
+# 任务二视觉降落模式的H→C分段定点。两点位于直线H-C的1/3和2/3处，
+# 每个点都要求减速并重新收敛后才继续，降低长距离直飞C点的过冲。
+C_TRANSIT_1 = (0.625, 0.75)
+C_TRANSIT_2 = (1.250, 1.50)
+RETURN_H_FRACTIONS = (2.0 / 3.0, 1.0 / 3.0)
 
 
 class Task2Phase(enum.Enum):
@@ -53,6 +60,7 @@ class Task2Phase(enum.Enum):
     DYNAMIC_LANDING = "dynamic_landing"
     RETAKEOFF = "retakeoff"
     STABILIZE_AFTER_RETAKEOFF = "stabilize_after_retakeoff"
+    VISUAL_RETURN_A = "visual_return_a"
     CLIMB_150CM = "climb_150cm"
     RETURN_H = "return_h"
     LAND_H = "land_h"
@@ -62,8 +70,8 @@ class Task2Phase(enum.Enum):
 @dataclass(frozen=True)
 class Task2Config:
     # 路径与巡航参数（与任务一一致）
-    cruise_height_m: float = 1.50
-    follow_height_m: float = 1.00
+    cruise_height_m: float = 1.30
+    follow_height_m: float = 1.30
     final_height_m: float = 0.15
     hold_duration_s: float = 3.0
     intercept_speed_m_s: float = 0.20
@@ -90,7 +98,7 @@ class Task2Config:
     path_only_b_pre_descent: bool = False
     c_sync_vision_enabled: bool = True
     # 任务二特有参数
-    retakeoff_height_m: float = 1.50
+    retakeoff_height_m: float = 1.30
     abort_climb_height_m: float = 1.50
     activate_tracker_timeout_s: float = 3.0
     require_car_position_at_c: bool = True
@@ -107,13 +115,39 @@ class Task2Config:
     fc_direct_lock_enabled: bool = False
     fc_direct_lock_height_m: float = 0.05
     fc_direct_lock_stable_height_m: float = 0.10
-    fc_direct_lock_stable_hold_s: float = 0.80
+    fc_direct_lock_stable_hold_s: float = 0.35
     fc_direct_lock_stable_tolerance_m: float = 0.01
-    fc_direct_lock_stable_min_samples: int = 8
+    fc_direct_lock_stable_min_samples: int = 4
+    fc_direct_lock_laser_dropout_grace_s: float = 0.25
     platform_retakeoff_enabled: bool = False
     platform_locked_hold_s: float = 5.0
     platform_task_reset_hold_s: float = 0.30
     retakeoff_stabilize_s: float = 0.80
+    retakeoff_forward_y_speed_m_s: float = -0.05
+    retakeoff_t265_jump_protection_enabled: bool = False
+    retakeoff_h_offset_x_m: float = -0.50
+    retakeoff_h_offset_y_m: float = -0.60
+    visual_return_a_enabled: bool = False
+    visual_return_a_center_radius_m: float = 0.15
+    visual_return_a_stop_speed_m_s: float = 0.015
+    visual_return_a_stop_hold_s: float = 1.0
+    visual_return_a_min_follow_s: float = 2.0
+    visual_return_a_timeout_s: float = 30.0
+    visual_return_a_kp: float = 0.65
+    visual_return_a_max_speed_m_s: float = 0.15
+    visual_return_a_max_accel_m_s2: float = 0.45
+    return_h_auto_land_timeout_s: float = 15.0
+    land_h_auto_descend_timeout_s: float = 8.0
+    hover_wait_auto_land_delay_s: float = 3.0
+    vision_target_offset_x_m: float = 0.0
+    vision_target_offset_y_m: float = 0.0
+    c_sync_vision_kp: float = 0.45
+    c_sync_vision_deadband_m: float = 0.03
+    c_sync_vision_max_speed_m_s: float = 0.10
+    c_sync_vision_max_accel_m_s2: float = 0.25
+    c_sync_vision_filter_window_s: float = 0.20
+    c_sync_vision_control_period_s: float = 0.08
+    c_sync_vision_loss_grace_s: float = 0.20
     landing_xy_speed_high_m_s: float = 0.15
     landing_xy_speed_mid_m_s: float = 0.10
     landing_xy_speed_low_m_s: float = 0.07
@@ -222,6 +256,26 @@ class Task2MissionDirector:
         self._climb_anchor = H
         self._safe_hover_anchor = D
         self._retakeoff_anchor = H
+        self._retakeoff_forward_last_time: float | None = None
+        self._return_h_target = H
+        self._retakeoff_local_frame_pending = False
+        self._transit_c_waypoints = (
+            (C_TRANSIT_1, C_TRANSIT_2, self.sync_c)
+            if self.config.vision_landing_test
+            and not self.config.stationary_retakeoff_test
+            else (self.sync_c,)
+        )
+        self._transit_c_index = 0
+        self._sync_vision_errors: deque[tuple[float, int, float, float]] = deque()
+        self._sync_vision_last_seq: int | None = None
+        self._sync_vision_last_valid_time: float | None = None
+        self._sync_vision_control_time: float | None = None
+        self._sync_vision_xy_m_s = (0.0, 0.0)
+        self._sync_vision_active = False
+        self._sync_hold_anchor = self.sync_c
+        self._visual_return_a_stopped_since: float | None = None
+        self._return_h_waypoints = (H,)
+        self._return_h_index = 0
 
     def begin_platform_retakeoff(
         self,
@@ -236,6 +290,7 @@ class Task2MissionDirector:
         if not all(math.isfinite(value) for value in anchor):
             raise ValueError("retakeoff anchor must contain finite values")
         self._retakeoff_anchor = anchor
+        self._retakeoff_local_frame_pending = True
         self.mission_success = True
         self._transition(
             Task2Phase.RETAKEOFF,
@@ -324,27 +379,49 @@ class Task2MissionDirector:
                     )
 
         elif self.phase == Task2Phase.TRANSIT_C:
-            target_xy = self.sync_c
+            target_xy = self._transit_c_waypoints[self._transit_c_index]
             target_world_height = cfg.cruise_height_m
             vx, vy = self._point_velocity(
-                position_xy, self.sync_c, cfg.intercept_speed_m_s
+                position_xy, target_xy, cfg.intercept_speed_m_s
             )
-            if self._near(position_xy, self.sync_c) and math.hypot(
-                *data.velocity_xy_m_s
-            ) <= cfg.hold_stable_speed_m_s:
-                self._transition(
-                    Task2Phase.SYNC_TARGET_AT_C,
-                    data.now,
-                    (
-                        "stationary_test_point_reached"
-                        if cfg.stationary_retakeoff_test
-                        else (
-                            "vision_landing_test_c_reached"
-                            if cfg.vision_landing_test
-                            else "safe_test_c_reached"
-                        )
-                    ),
-                )
+            is_intermediate = self._transit_c_index < (
+                len(self._transit_c_waypoints) - 1
+            )
+            arrival_radius = (
+                min(cfg.point_arrival_radius_m, 0.10)
+                if is_intermediate
+                else cfg.point_arrival_radius_m
+            )
+            stable_speed = (
+                min(cfg.hold_stable_speed_m_s, 0.08)
+                if is_intermediate
+                else cfg.hold_stable_speed_m_s
+            )
+            arrived = (
+                math.dist(position_xy, target_xy) <= arrival_radius
+                and math.hypot(*data.velocity_xy_m_s) <= stable_speed
+            )
+            if arrived:
+                if is_intermediate:
+                    self._transit_c_index += 1
+                    self.reason = (
+                        f"vision_landing_transit_waypoint_"
+                        f"{self._transit_c_index}_reached"
+                    )
+                else:
+                    self._transition(
+                        Task2Phase.SYNC_TARGET_AT_C,
+                        data.now,
+                        (
+                            "stationary_test_point_reached"
+                            if cfg.stationary_retakeoff_test
+                            else (
+                                "vision_landing_test_c_reached"
+                                if cfg.vision_landing_test
+                                else "safe_test_c_reached"
+                            )
+                        ),
+                    )
 
         elif self.phase == Task2Phase.INTERCEPT_B_PRE:
             target_xy = B_PRE
@@ -422,11 +499,44 @@ class Task2MissionDirector:
                     )
 
         elif self.phase == Task2Phase.SYNC_TARGET_AT_C:
-            target_xy = self.sync_c
             target_world_height = cfg.follow_height_m
-            vx, vy = self._point_velocity(
-                position_xy, self.sync_c, cfg.hold_position_max_speed_m_s
+            active_visual_centering = (
+                cfg.vision_landing_test
+                and cfg.c_sync_vision_enabled
+                and not cfg.stationary_retakeoff_test
             )
+            if active_visual_centering:
+                visual_command, target_recent = self._sync_vision_command(data)
+                if target_recent:
+                    self._sync_vision_active = True
+                    self._sync_hold_anchor = position_xy
+                    target_xy = (
+                        position_xy
+                        if data.vision_error_xy_m is None
+                        else (
+                            position_xy[0] + data.vision_error_xy_m[0],
+                            position_xy[1] + data.vision_error_xy_m[1],
+                        )
+                    )
+                    vx, vy = visual_command
+                    self.reason = "c_sync_visual_centering"
+                else:
+                    if self._sync_vision_active:
+                        self._sync_hold_anchor = position_xy
+                        self._sync_vision_active = False
+                    target_xy = self._sync_hold_anchor
+                    vx, vy = self._hold_velocity(
+                        position_xy,
+                        self._sync_hold_anchor,
+                        data.velocity_xy_m_s,
+                        cfg.hold_position_max_speed_m_s,
+                    )
+                    self.reason = "c_sync_waiting_for_visual"
+            else:
+                target_xy = self.sync_c
+                vx, vy = self._point_velocity(
+                    position_xy, self.sync_c, cfg.hold_position_max_speed_m_s
+                )
             ready = True
             if (
                 cfg.c_sync_vision_enabled
@@ -573,9 +683,17 @@ class Task2MissionDirector:
             target_world_height = cfg.follow_height_m
             if data.landing_aborted:
                 self._begin_climb(data.now, position_xy, "landing_aborted")
+            elif data.deck_ride_complete and cfg.fc_direct_lock_enabled:
+                # DynamicLandingController reaching RETAKEOFF_GATE only proves
+                # that its touchdown sequence completed.  In direct-lock mode
+                # the flight adapter must still send 102, confirm unlock_sta=0
+                # and zero motor PWM, hold five seconds, then reset the FC task.
+                # Never let this controller-local flag bypass that contract.
+                self.reason = "awaiting_fc_direct_lock_confirmation"
             elif data.deck_ride_complete:
                 self.mission_success = True
                 self._retakeoff_anchor = position_xy
+                self._retakeoff_local_frame_pending = True
                 if cfg.land_only_after_touchdown:
                     self._safe_hover_anchor = position_xy
                     self._transition(
@@ -599,13 +717,10 @@ class Task2MissionDirector:
         elif self.phase == Task2Phase.RETAKEOFF:
             tracker_active = False
             landing_active = False
-            target_xy = self._retakeoff_anchor
             target_world_height = cfg.retakeoff_height_m
-            vx, vy = self._hold_velocity(
+            target_xy, vx, vy = self._retakeoff_forward_command(
+                data,
                 position_xy,
-                self._retakeoff_anchor,
-                data.velocity_xy_m_s,
-                cfg.hold_position_max_speed_m_s,
             )
             if z_world >= cfg.retakeoff_height_m - 0.10:
                 if cfg.stationary_retakeoff_test:
@@ -623,21 +738,19 @@ class Task2MissionDirector:
                         "retakeoff_height_reached_stabilize",
                     )
                 else:
-                    self._transition(
-                        Task2Phase.RETURN_H,
+                    self._begin_return_h(
                         data.now,
+                        position_xy,
                         "retakeoff_height_reached",
                     )
 
         elif self.phase == Task2Phase.STABILIZE_AFTER_RETAKEOFF:
-            target_xy = self._safe_hover_anchor
             target_world_height = cfg.retakeoff_height_m
-            vx, vy = self._hold_velocity(
+            target_xy, vx, vy = self._retakeoff_forward_command(
+                data,
                 position_xy,
-                self._safe_hover_anchor,
-                data.velocity_xy_m_s,
-                cfg.hold_position_max_speed_m_s,
             )
+            self._safe_hover_anchor = target_xy
             stable = (
                 data.now - self._phase_since >= cfg.retakeoff_stabilize_s
                 and abs(z_world - cfg.retakeoff_height_m) <= 0.15
@@ -645,10 +758,82 @@ class Task2MissionDirector:
                 <= cfg.hold_stable_speed_m_s
             )
             if stable:
-                self._transition(
-                    Task2Phase.RETURN_H,
+                if cfg.visual_return_a_enabled:
+                    self._begin_visual_return_a(data.now, position_xy)
+                else:
+                    self._begin_return_h(
+                        data.now,
+                        position_xy,
+                        "retakeoff_stabilized_return_h",
+                    )
+
+        elif self.phase == Task2Phase.VISUAL_RETURN_A:
+            target_world_height = cfg.retakeoff_height_m
+            (vx, vy), target_recent = self._sync_vision_command(data)
+            if target_recent and data.vision_error_xy_m is not None:
+                target_xy = (
+                    position_xy[0] + data.vision_error_xy_m[0],
+                    position_xy[1] + data.vision_error_xy_m[1],
+                )
+            else:
+                target_xy = position_xy
+
+            follow_timed_out = (
+                cfg.visual_return_a_timeout_s > 0.0
+                and data.now - self._phase_since
+                >= cfg.visual_return_a_timeout_s
+            )
+            if follow_timed_out:
+                self._begin_return_h(
                     data.now,
-                    "retakeoff_stabilized_return_h",
+                    position_xy,
+                    "visual_return_a_30s_timeout",
+                )
+                target_xy = self._return_h_waypoints[0]
+                vx, vy = self._point_velocity(
+                    position_xy, target_xy, cfg.return_speed_m_s
+                )
+            else:
+                centered = self._visual_return_a_centered(target_recent)
+                if data.car_speed_m_s is not None:
+                    stopped = (
+                        abs(float(data.car_speed_m_s))
+                        <= cfg.visual_return_a_stop_speed_m_s
+                    )
+                else:
+                    stopped = (
+                        math.hypot(*data.velocity_xy_m_s)
+                        <= cfg.visual_return_a_stop_speed_m_s
+                    )
+                ready_to_confirm = (
+                    data.now - self._phase_since
+                    >= cfg.visual_return_a_min_follow_s
+                    and centered
+                    and stopped
+                )
+                if ready_to_confirm:
+                    if self._visual_return_a_stopped_since is None:
+                        self._visual_return_a_stopped_since = data.now
+                    elif (
+                        data.now - self._visual_return_a_stopped_since
+                        >= cfg.visual_return_a_stop_hold_s
+                    ):
+                        self._begin_return_h(
+                            data.now,
+                            position_xy,
+                            "car_a_visual_centered_and_stopped",
+                        )
+                        target_xy = self._return_h_waypoints[0]
+                        vx, vy = self._point_velocity(
+                            position_xy, target_xy, cfg.return_speed_m_s
+                        )
+                else:
+                    self._visual_return_a_stopped_since = None
+            if self.phase == Task2Phase.VISUAL_RETURN_A:
+                self.reason = (
+                    "visual_follow_car_to_a"
+                    if target_recent
+                    else "visual_return_a_target_lost_hover"
                 )
 
         elif self.phase == Task2Phase.SAFE_HOVER_AFTER_RETAKEOFF:
@@ -670,24 +855,78 @@ class Task2MissionDirector:
                 cfg.hold_position_max_speed_m_s,
             )
             if z_world >= cfg.abort_climb_height_m - 0.10:
-                self._transition(Task2Phase.RETURN_H, data.now, self.reason)
+                self._begin_return_h(data.now, position_xy, self.reason)
 
         elif self.phase == Task2Phase.RETURN_H:
-            target_xy = H
-            vx, vy = self._point_velocity(position_xy, H, cfg.return_speed_m_s)
-            if self._near(position_xy, H):
-                self._transition(Task2Phase.LAND_H, data.now, "h_reached")
+            target_xy = self._return_h_waypoints[self._return_h_index]
+            vx, vy = self._point_velocity(
+                position_xy, target_xy, cfg.return_speed_m_s
+            )
+            is_intermediate = self._return_h_index < (
+                len(self._return_h_waypoints) - 1
+            )
+            arrival_radius = (
+                min(cfg.point_arrival_radius_m, 0.10)
+                if is_intermediate
+                else cfg.point_arrival_radius_m
+            )
+            stable_speed = (
+                min(cfg.hold_stable_speed_m_s, 0.08)
+                if is_intermediate
+                else min(cfg.hold_stable_speed_m_s, 0.10)
+            )
+            arrived = (
+                math.dist(position_xy, target_xy) <= arrival_radius
+                and math.hypot(*data.velocity_xy_m_s) <= stable_speed
+            )
+            return_timed_out = (
+                cfg.return_h_auto_land_timeout_s > 0.0
+                and data.now - self._phase_since
+                >= cfg.return_h_auto_land_timeout_s
+            )
+            if return_timed_out:
+                self._return_h_target = position_xy
+                self._return_h_waypoints = (position_xy,)
+                self._return_h_index = 0
+                target_xy = position_xy
+                target_world_height = cfg.final_height_m
+                vx = vy = 0.0
+                self._transition(
+                    Task2Phase.LAND_H,
+                    data.now,
+                    "return_h_timeout_land_current_position",
+                )
+            elif arrived:
+                if is_intermediate:
+                    self._return_h_index += 1
+                    self.reason = (
+                        f"return_h_waypoint_{self._return_h_index}_reached"
+                    )
+                else:
+                    self._transition(Task2Phase.LAND_H, data.now, "h_reached")
 
         elif self.phase == Task2Phase.LAND_H:
-            target_xy = H
+            target_xy = self._return_h_target
             target_world_height = cfg.final_height_m
-            vx, vy = self._point_velocity(position_xy, H, 0.10)
+            vx, vy = self._point_velocity(
+                position_xy, self._return_h_target, 0.10
+            )
             land_requested = z_world <= cfg.final_height_m + 0.05
+            if (
+                cfg.land_h_auto_descend_timeout_s > 0.0
+                and data.now - self._phase_since
+                >= cfg.land_h_auto_descend_timeout_s
+            ):
+                self._return_h_target = position_xy
+                target_xy = position_xy
+                vx = vy = 0.0
+                land_requested = True
+                self.reason = "land_h_timeout_force_descend"
             if data.landed:
                 self._transition(Task2Phase.COMPLETE, data.now, "landed_at_h")
 
         elif self.phase == Task2Phase.COMPLETE:
-            target_xy = H
+            target_xy = self._return_h_target
             target_world_height = cfg.final_height_m
 
         return Task2Command(
@@ -737,6 +976,109 @@ class Task2MissionDirector:
             self._last_vision_seq = data.vision_seq
             self._vision_confirm_count += 1
         return self._vision_confirm_count >= self.config.vision_confirm_frames
+
+    def _sync_vision_command(
+        self, data: Task2Input
+    ) -> tuple[tuple[float, float], bool]:
+        """Generate a filtered, rate-limited visual centering command.
+
+        Detection continues at camera rate, while the velocity target updates at
+        a lower fixed cadence.  A short loss grace bridges isolated missed frames;
+        a longer loss smoothly brakes and holds the current T265 position.  The
+        return-to-A phase uses its own faster gains so it can follow the moving
+        car without making C-point landing alignment more aggressive.
+        """
+        cfg = self.config
+        now = float(data.now)
+        visual_return_a = self.phase == Task2Phase.VISUAL_RETURN_A
+        vision_kp = (
+            cfg.visual_return_a_kp
+            if visual_return_a
+            else cfg.c_sync_vision_kp
+        )
+        vision_max_speed = (
+            cfg.visual_return_a_max_speed_m_s
+            if visual_return_a
+            else cfg.c_sync_vision_max_speed_m_s
+        )
+        vision_max_accel = (
+            cfg.visual_return_a_max_accel_m_s2
+            if visual_return_a
+            else cfg.c_sync_vision_max_accel_m_s2
+        )
+        valid = (
+            data.vision_seq is not None
+            and data.vision_found
+            and not data.vision_ambiguous
+            and data.vision_quality >= cfg.vision_min_quality
+            and data.vision_error_xy_m is not None
+        )
+        if valid:
+            assert data.vision_seq is not None
+            assert data.vision_error_xy_m is not None
+            if data.vision_seq != self._sync_vision_last_seq:
+                error_x, error_y = data.vision_error_xy_m
+                self._sync_vision_errors.append(
+                    (now, data.vision_seq, error_x, error_y)
+                )
+                self._sync_vision_last_seq = data.vision_seq
+            self._sync_vision_last_valid_time = now
+
+        cutoff = now - max(0.05, cfg.c_sync_vision_filter_window_s)
+        while (
+            self._sync_vision_errors
+            and self._sync_vision_errors[0][0] < cutoff
+        ):
+            self._sync_vision_errors.popleft()
+
+        target_recent = (
+            self._sync_vision_last_valid_time is not None
+            and now - self._sync_vision_last_valid_time
+            <= cfg.c_sync_vision_loss_grace_s
+            and bool(self._sync_vision_errors)
+        )
+        if (
+            self._sync_vision_control_time is not None
+            and now - self._sync_vision_control_time
+            < cfg.c_sync_vision_control_period_s
+        ):
+            return self._sync_vision_xy_m_s, target_recent
+
+        desired_x = desired_y = 0.0
+        if target_recent:
+            error_x = median(item[2] for item in self._sync_vision_errors)
+            error_y = median(item[3] for item in self._sync_vision_errors)
+            error_norm = math.hypot(error_x, error_y)
+            if error_norm > cfg.c_sync_vision_deadband_m:
+                active_scale = (
+                    error_norm - cfg.c_sync_vision_deadband_m
+                ) / error_norm
+                desired_x = vision_kp * error_x * active_scale
+                desired_y = vision_kp * error_y * active_scale
+                desired_x, desired_y = _limit_norm(
+                    desired_x,
+                    desired_y,
+                    vision_max_speed,
+                )
+
+        previous_x, previous_y = self._sync_vision_xy_m_s
+        if self._sync_vision_control_time is None:
+            dt = 0.05
+        else:
+            dt = min(
+                max(0.0, now - self._sync_vision_control_time),
+                max(0.20, cfg.c_sync_vision_control_period_s * 2.0),
+            )
+        max_delta = vision_max_accel * dt
+        delta_x, delta_y = _limit_norm(
+            desired_x - previous_x,
+            desired_y - previous_y,
+            max_delta,
+        )
+        command = (previous_x + delta_x, previous_y + delta_y)
+        self._sync_vision_xy_m_s = command
+        self._sync_vision_control_time = now
+        return command, target_recent
 
     def _point_velocity(
         self,
@@ -802,9 +1144,122 @@ class Task2MissionDirector:
         self._climb_anchor = position_xy
         self._transition(Task2Phase.CLIMB_150CM, now, reason)
 
+    def _begin_visual_return_a(
+        self,
+        now: float,
+        position_xy: tuple[float, float],
+    ) -> None:
+        self._sync_vision_errors.clear()
+        self._sync_vision_last_seq = None
+        self._sync_vision_last_valid_time = None
+        self._sync_vision_control_time = None
+        self._sync_vision_xy_m_s = (0.0, 0.0)
+        self._sync_hold_anchor = position_xy
+        self._visual_return_a_stopped_since = None
+        self._transition(
+            Task2Phase.VISUAL_RETURN_A,
+            now,
+            "retakeoff_stabilized_visual_follow_to_a",
+        )
+
+    def _retakeoff_forward_command(
+        self,
+        data: Task2Input,
+        position_xy: tuple[float, float],
+    ) -> tuple[tuple[float, float], float, float]:
+        """Hold T265 stability while advancing along -Y during retakeoff.
+
+        The moving anchor prevents the position-hold P term from cancelling the
+        requested forward velocity.  This is deliberately independent of car
+        telemetry and is disabled for the stationary retakeoff bench mode.
+        """
+        now = float(data.now)
+        forward_y = (
+            float(self.config.retakeoff_forward_y_speed_m_s)
+            if self.config.platform_retakeoff_enabled
+            and not self.config.stationary_retakeoff_test
+            else 0.0
+        )
+        if self._retakeoff_forward_last_time is not None:
+            dt = min(max(0.0, now - self._retakeoff_forward_last_time), 0.20)
+            self._retakeoff_anchor = (
+                self._retakeoff_anchor[0],
+                self._retakeoff_anchor[1] + forward_y * dt,
+            )
+        self._retakeoff_forward_last_time = now
+        hold_vx, hold_vy = self._hold_velocity(
+            position_xy,
+            self._retakeoff_anchor,
+            data.velocity_xy_m_s,
+            self.config.hold_position_max_speed_m_s,
+        )
+        vx, vy = _limit_norm(
+            hold_vx,
+            hold_vy + forward_y,
+            self.config.hold_position_max_speed_m_s,
+        )
+        return self._retakeoff_anchor, vx, vy
+
+    def _visual_return_a_centered(self, target_recent: bool) -> bool:
+        if not target_recent or not self._sync_vision_errors:
+            return False
+        error_x = median(item[2] for item in self._sync_vision_errors)
+        error_y = median(item[3] for item in self._sync_vision_errors)
+        return math.hypot(error_x, error_y) <= (
+            self.config.visual_return_a_center_radius_m
+        )
+
+    def _begin_return_h(
+        self,
+        now: float,
+        position_xy: tuple[float, float],
+        reason: str,
+    ) -> None:
+        """Build the path to the active H target.
+
+        Normal abort/legacy returns keep the original global ``H``.  After a
+        platform retakeoff, ``_return_h_target`` is expressed relative to the
+        visually confirmed A hover point and is flown as one direct leg, so
+        T265's possibly drifted global origin is no longer used as the
+        physical H reference.
+        """
+        start_x, start_y = float(position_xy[0]), float(position_xy[1])
+        local_retakeoff_return = self._retakeoff_local_frame_pending
+        if local_retakeoff_return:
+            self._return_h_target = (
+                start_x + self.config.retakeoff_h_offset_x_m,
+                start_y + self.config.retakeoff_h_offset_y_m,
+            )
+            self._retakeoff_local_frame_pending = False
+        target_x, target_y = self._return_h_target
+        if local_retakeoff_return:
+            self._return_h_waypoints = (self._return_h_target,)
+        else:
+            self._return_h_waypoints = tuple(
+                (
+                    target_x + (start_x - target_x) * fraction,
+                    target_y + (start_y - target_y) * fraction,
+                )
+                for fraction in RETURN_H_FRACTIONS
+            ) + (self._return_h_target,)
+        self._return_h_index = 0
+        self._transition(Task2Phase.RETURN_H, now, reason)
+
     def _transition(
         self, phase: Task2Phase, now: float, reason: str
     ) -> None:
+        if phase == Task2Phase.RETAKEOFF:
+            self._retakeoff_forward_last_time = float(now)
+        if phase == Task2Phase.TRANSIT_C:
+            self._transit_c_index = 0
+        if phase == Task2Phase.SYNC_TARGET_AT_C:
+            self._sync_vision_errors.clear()
+            self._sync_vision_last_seq = None
+            self._sync_vision_last_valid_time = None
+            self._sync_vision_control_time = None
+            self._sync_vision_xy_m_s = (0.0, 0.0)
+            self._sync_vision_active = False
+            self._sync_hold_anchor = self.sync_c
         self.phase = phase
         self._phase_since = float(now)
         self.reason = reason

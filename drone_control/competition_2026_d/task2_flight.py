@@ -145,9 +145,11 @@ class Task2FlightMission(mission):
             "min_quality": self.director.config.vision_min_quality,
             "image_center_px": (320.0, 240.0),
             "focal_px": (570.0, 570.0),
+            "target_offset_xy_m": (
+                self.director.config.vision_target_offset_x_m,
+                self.director.config.vision_target_offset_y_m,
+            ),
             **(vision_config or {}),
-            # 任务一的投放对准偏置不得带入任务二；任务二始终以图像中心为零点。
-            "target_offset_xy_m": (0.0, 0.0),
         }
         self._last_task2_phase = self.director.phase
         self._last_runtime_log = 0.0
@@ -183,6 +185,8 @@ class Task2FlightMission(mission):
         self._t265_recovery_until: float | None = None
         self._t265_recovery_used = False
         self._t265_continuity_net_correction = (0.0, 0.0, 0.0)
+        self._task2_hover_wait_started_at: float | None = None
+        self._final_realtime_landing_active = False
 
     def navigate(self, _laser_position, yaw):
         now = time.monotonic()
@@ -354,6 +358,11 @@ class Task2FlightMission(mission):
         vx = command.vx_m_s
         vy = command.vy_m_s
         horizontal_control_source = "task2_director"
+        if (
+            command.phase == Task2Phase.SYNC_TARGET_AT_C
+            and command.reason == "c_sync_visual_centering"
+        ):
+            horizontal_control_source = "c_sync_visual_centering"
         landing_vz = 0.0
         estimate: PlatformEstimate | None = None
 
@@ -453,6 +462,7 @@ class Task2FlightMission(mission):
                     self._touchdown_confirmed = landing_cmd.touchdown_confirmed
                     self._deck_ride_complete = (
                         landing_cmd.state == LandingState.RETAKEOFF_GATE
+                        and not self.director.config.fc_direct_lock_enabled
                     )
                     self._landing_aborted = (
                         landing_cmd.state == LandingState.CONTROLLED_ABORT
@@ -605,6 +615,15 @@ class Task2FlightMission(mission):
                     "任务二达到复飞高度：原地稳定"
                     f"{self.director.config.retakeoff_stabilize_s:.1f}秒后返航"
                 )
+            elif command.phase == Task2Phase.RETURN_H:
+                target = self.director._return_h_waypoints[0]
+                logger.warning(
+                    "任务二复飞局部坐标系已建立：当前位置=(0,0)，"
+                    f"局部H=({self.director.config.retakeoff_h_offset_x_m:+.2f},"
+                    f"{self.director.config.retakeoff_h_offset_y_m:+.2f})m；"
+                    "A点上空直接飞往T265世界系H目标="
+                    f"({target[0]:+.2f},{target[1]:+.2f})"
+                )
             elif command.phase == Task2Phase.SAFE_HOVER_AFTER_RETAKEOFF:
                 logger.warning(
                     "静止平台复升联调通过：已到达复升高度并保持T265定点；"
@@ -643,10 +662,17 @@ class Task2FlightMission(mission):
         if (
             command.phase == Task2Phase.LAND_H
             and command.land_requested
-            and math.hypot(world_position[0], world_position[1])
+            and math.dist(
+                (world_position[0], world_position[1]),
+                self.director._return_h_target,
+            )
             <= self.director.config.point_arrival_radius_m
         ):
-            logger.info("任务二到达H点0.15m末航点，转入basic两级降落")
+            logger.info(
+                "任务二到达最终降落点，转入实时帧两级下降；"
+                "近地后使用102直接锁桨，不调用一键降落"
+            )
+            self._final_realtime_landing_active = True
             self.state = "DESCEND"
 
     def _preserve_retakeoff_t265_continuity(
@@ -656,14 +682,17 @@ class Task2FlightMission(mission):
         world_position: tuple[float, float, float],
         velocity: tuple[float, float, float],
     ) -> tuple[float, float, float]:
-        """Absorb one T265 relocalization episode during platform retakeoff.
+        """Absorb T265 relocalization during platform retakeoff and return.
 
         Landing vibration can make T265 relocalize while still reporting high
         confidence.  A 30+ cm step in one control period is physically
         impossible here, so shift the software calibration offset to keep the
-        original H-point frame continuous.  Only one short recovery window is
-        allowed; a later independent jump is still handled by the normal
-        safety monitor and forces HOVER_WAIT.
+        local return frame continuous.  The guarded window covers retakeoff,
+        post-retakeoff stabilization and RETURN_H.  With the jump hard-stop
+        enabled, only one bounded recovery episode is accepted.  With it
+        disabled for task two, every physically impossible step is converted
+        into a software-frame correction so it cannot force HOVER_WAIT or feed
+        a multi-metre discontinuity into flight control.
         """
         position = tuple(float(v) for v in world_position)
         last_time = self._t265_continuity_last_time
@@ -691,13 +720,25 @@ class Task2FlightMission(mission):
         active_phase = self.director.phase in (
             Task2Phase.RETAKEOFF,
             Task2Phase.STABILIZE_AFTER_RETAKEOFF,
+            Task2Phase.VISUAL_RETURN_A,
+            Task2Phase.RETURN_H,
         )
         recovering = (
             self._t265_recovery_until is not None
             and now <= self._t265_recovery_until
         )
+        jump_hard_stop = (
+            self.director.config.retakeoff_t265_jump_protection_enabled
+        )
         should_correct = active_phase and (
-            (not self._t265_recovery_used and step > T265_RETAKEOFF_JUMP_TRIGGER_M)
+            (
+                not jump_hard_stop
+                and step > T265_RETAKEOFF_JUMP_TRIGGER_M
+            )
+            or (
+                not self._t265_recovery_used
+                and step > T265_RETAKEOFF_JUMP_TRIGGER_M
+            )
             or (
                 recovering
                 and innovation_norm > T265_RETAKEOFF_RECOVERY_INNOVATION_M
@@ -715,9 +756,9 @@ class Task2FlightMission(mission):
             self._t265_continuity_net_correction[index] + innovation[index]
             for index in range(3)
         )
-        if math.sqrt(sum(value * value for value in proposed_net)) > (
-            T265_RETAKEOFF_MAX_NET_CORRECTION_M
-        ):
+        if jump_hard_stop and math.sqrt(
+            sum(value * value for value in proposed_net)
+        ) > T265_RETAKEOFF_MAX_NET_CORRECTION_M:
             # Leave this sample unmodified so Task1T265SafetyMonitor fails
             # closed instead of hiding an unbounded coordinate failure.
             self._t265_recovery_until = None
@@ -739,7 +780,8 @@ class Task2FlightMission(mission):
             "任务二复飞T265坐标连续性补偿："
             f"step={step:.3f}m/{dt:.3f}s, "
             f"delta=({innovation[0]:+.3f},{innovation[1]:+.3f},"
-            f"{innovation[2]:+.3f})m；保留原H点坐标"
+            f"{innovation[2]:+.3f})m；保留局部返航坐标连续性，"
+            f"jump_hard_stop={'on' if jump_hard_stop else 'off'}"
         )
         return predicted
 
@@ -769,7 +811,13 @@ class Task2FlightMission(mission):
             self._direct_lock_zero_setpoint_since = None
             return False
         if laser_height is None or not math.isfinite(float(laser_height)):
-            self._direct_lock_laser_samples.clear()
+            samples = self._direct_lock_laser_samples
+            if (
+                not samples
+                or now - samples[-1][0]
+                > cfg.fc_direct_lock_laser_dropout_grace_s
+            ):
+                samples.clear()
             return False
         relative_height = float(laser_height)
         zero_target_active = (
@@ -900,7 +948,10 @@ class Task2FlightMission(mission):
                 f"motor_pwm_mask={motor_pwm_mask}"
             )
             self.director.mission_success = True
-            if not cfg.platform_retakeoff_enabled:
+            if (
+                self._final_realtime_landing_active
+                or not cfg.platform_retakeoff_enabled
+            ):
                 self.stop_all()
                 return
             self._direct_lock_confirmed_at = now
@@ -1040,6 +1091,10 @@ class Task2FlightMission(mission):
         logger.warning(
             "任务二飞控任务复位确认完成：T265坐标保持连续，"
             f"复飞锚点=({anchor_xy[0]:+.2f},{anchor_xy[1]:+.2f})m；"
+            "局部H偏移="
+            f"({self.director.config.retakeoff_h_offset_x_m:+.2f},"
+            f"{self.director.config.retakeoff_h_offset_y_m:+.2f})m；"
+            "将在复飞爬升稳定后以当时位置建立局部原点；"
             "开始第二次起飞"
         )
         # 下一控制周期复用成熟的基础起飞链。takeoff()会产生task_sta 0->1，
@@ -1157,6 +1212,121 @@ class Task2FlightMission(mission):
 
         return True
 
+    def hover_wait(self):
+        """Task-two hover fallback with a bounded automatic landing delay."""
+        super().hover_wait()
+        self._tick_post_retakeoff_hover_auto_land(time.monotonic())
+
+    def descend(self, pos):
+        """Use realtime-frame descent plus guarded 102 lock for final landing."""
+        if not self._final_realtime_landing_active:
+            return super().descend(pos)
+
+        super().descend(pos)
+        if self.state == "HOVER_WAIT":
+            # A timeout must not switch the final fallback back to an indefinite
+            # hover.  Restart the realtime descent ramp from the current height.
+            for attr in ("_descend_start", "_hover_wait_start"):
+                if hasattr(self, attr):
+                    delattr(self, attr)
+            self.state = "DESCEND"
+            logger.warning(
+                "任务二最终实时帧下降超时；重新从当前高度继续下降，"
+                "不调用一键降落"
+            )
+            return
+        if self.state != "LAND":
+            return
+
+        with lock:
+            unlock_sta = int(self.re_fc[5]) if len(self.re_fc) > 5 else 0
+            laser_height = (
+                self.serial_fc_ref._last_laser_height_cm
+                if self.serial_fc_ref is not None
+                else None
+            )
+        if unlock_sta == 0:
+            logger.info("任务二最终实时帧下降后飞控已锁桨，结束任务")
+            self.director.mission_success = True
+            self.director._transition(
+                Task2Phase.COMPLETE,
+                time.monotonic(),
+                "final_realtime_descent_locked",
+            )
+            self.state = "END"
+            return
+
+        self._begin_fc_direct_lock(
+            float(laser_height)
+            if laser_height is not None and math.isfinite(laser_height)
+            else None
+        )
+        logger.warning(
+            "任务二最终实时帧下降已近地：发送102直接锁桨；"
+            "不发送101，不调用一键降落"
+        )
+
+    def _tick_post_retakeoff_hover_auto_land(self, now: float) -> bool:
+        post_retakeoff_phases = (
+            Task2Phase.RETAKEOFF,
+            Task2Phase.STABILIZE_AFTER_RETAKEOFF,
+            Task2Phase.VISUAL_RETURN_A,
+            Task2Phase.RETURN_H,
+            Task2Phase.LAND_H,
+        )
+        if self.director.phase not in post_retakeoff_phases:
+            self._task2_hover_wait_started_at = None
+            return False
+        if self._task2_hover_wait_started_at is None:
+            self._task2_hover_wait_started_at = float(now)
+            return False
+        if (
+            float(now) - self._task2_hover_wait_started_at
+            < self.director.config.hover_wait_auto_land_delay_s
+        ):
+            return False
+
+        with lock:
+            unlock_sta = int(self.re_fc[5]) if len(self.re_fc) > 5 else 0
+        if unlock_sta == 0:
+            logger.warning(
+                "任务二复飞后HOVER_WAIT超时，但飞控反馈已锁桨；"
+                "判定飞行器已经落地并结束任务"
+            )
+            self.director.mission_success = True
+            self.director._transition(
+                Task2Phase.COMPLETE,
+                float(now),
+                "hover_wait_timeout_already_locked",
+            )
+            self.state = "END"
+            return True
+
+        current_xy = (
+            float(self.last_world_position[0]),
+            float(self.last_world_position[1]),
+        )
+        self.director._return_h_target = current_xy
+        self.director._return_h_waypoints = (current_xy,)
+        self.director._return_h_index = 0
+        self.director._transition(
+            Task2Phase.LAND_H,
+            float(now),
+            "hover_wait_timeout_force_descend",
+        )
+        for attr in ("_descend_start", "_hover_wait_start"):
+            if hasattr(self, attr):
+                delattr(self, attr)
+        self._task2_hover_wait_started_at = None
+        self._final_realtime_landing_active = True
+        self.state = "DESCEND"
+        logger.warning(
+            "任务二复飞后HOVER_WAIT持续超过"
+            f"{self.director.config.hover_wait_auto_land_delay_s:.1f}秒；"
+            "停止水平运动并在当前位置强制执行basic两级下降"
+        )
+        return True
+
     def _update_stationary_platform_estimate(
         self, *, gate, world_position, now: float
     ) -> PlatformEstimate | None:
@@ -1226,6 +1396,8 @@ class Task2FlightMission(mission):
             return self.director._retakeoff_anchor
         if phase == Task2Phase.STABILIZE_AFTER_RETAKEOFF:
             return self.director._safe_hover_anchor
+        if phase == Task2Phase.LAND_H:
+            return self.director._return_h_target
         if phase in (
             Task2Phase.SAFE_HOVER_D,
             Task2Phase.SAFE_HOVER_AFTER_RETAKEOFF,
