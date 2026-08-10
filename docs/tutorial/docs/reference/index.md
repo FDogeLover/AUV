@@ -80,7 +80,7 @@ docs/reference-materials/
 !!! warning "参考资料 vs 烧录代码"
     本目录（`docs/reference-materials/04-firmware/`）中的代码仅供**阅读理解**使用，不是烧录代码。
 
-    **烧录用的固件源码**位于仓库根目录的 `飞控固件/` 文件夹中（含倾角保护功能）。如需修改并烧录固件，请使用 `飞控固件/` 目录，并通过 [固件编辑规范](../09-workflow/firmware-edit.md) 中的 `edit_firmware.py` 进行安全编辑。
+    **烧录用的固件源码**位于仓库根目录的 `飞控固件/` 文件夹中（含倾角保护功能）。如需修改固件，**人工用 Keil uVision 编辑，AI Agent 用 `edit_firmware.py` 脚本**。详见 [固件编辑规范](../09-workflow/firmware-edit.md)。
 
 !!! warning "编码注意"
     凌霄飞控 `.c/.h` 文件使用 **GB2312/GBK** 编码，请勿用普通编辑器直接修改。

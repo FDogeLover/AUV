@@ -148,7 +148,7 @@
 
 - :material-file-edit: **[固件编辑规范](09-workflow/firmware-edit.md)**
 
-    edit_firmware.py 用法，GB2312编码禁令 · `5分钟`
+    GB2312编码禁令，人工用Keil / AI用edit_firmware.py · `5分钟`
 
 - :material-help-circle: **[故障排查速查](10-troubleshoot/quick-reference.md)**
 

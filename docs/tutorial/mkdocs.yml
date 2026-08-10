@@ -91,6 +91,7 @@ nav:
     - 状态机流程: 07-architecture/state-machine.md
     - 目录结构: 07-architecture/directory-tree.md
     - 核心模块:
+      - 模块总览: 07-architecture/modules/index.md
       - 串口协议 Lprotocol: 07-architecture/modules/lprotocol.md
       - PID控制器 Lpid: 07-architecture/modules/lpid.md
       - 航向保持 HeadingHold: 07-architecture/modules/heading-hold.md
@@ -100,6 +101,7 @@ nav:
   - 开发工作流:
     - 固件编辑规范: 09-workflow/firmware-edit.md
     - 代码同步: 09-workflow/code-sync.md
+    - 匿名上位机使用: 09-workflow/ground-station.md
     - 日志分析: 09-workflow/log-analysis.md
   - 故障排查速查: 10-troubleshoot/quick-reference.md
   - 进阶开发:

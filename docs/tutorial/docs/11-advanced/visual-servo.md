@@ -29,10 +29,10 @@ Pi (RDK X5)
 
 ## 计划文档
 
-详细设计见 `.zcode/plans/visual_servo_landing_plan.md`（含3版迭代）。
+详细设计见 `.zcode/plans/visual_servo_landing_plan.md`（AI 辅助设计文档，含3版迭代，可按需参考）。
 
 !!! info "当前状态"
-    已完成设计+实现+Qoder审查，等Cyber Camera到货部署。
+    已完成设计+实现+AI审查，等Cyber Camera到货部署。
 
 ---
 

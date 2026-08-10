@@ -11,13 +11,17 @@ land() 存在假阳性问题（已知问题 #22）：飞控可能上报解锁状
 
 飞控固件使用 GB2312/GBK 编码，直接用 UTF-8 编辑器修改会导致中文注释乱码、编码损坏，严重时 Keil 编译失败或飞行异常。
 
-必须使用根目录的 `edit_firmware.py` 脚本：
+!!! example "人工操作"
+    **人类开发者修改固件：用 Keil uVision 打开工程，在 Keil 内编辑。** Keil 会正确处理 GB2312 编码。
 
-```bash
-python edit_firmware.py show <文件路径>        # 查看编码
-python edit_firmware.py replace <f> <旧> <新>  # 安全替换
-python edit_firmware.py verify <文件路径>       # 验证编码不变
-```
+!!! abstract "AI Agent 专用"
+    AI Agent 修改固件时使用 `edit_firmware.py` 脚本（确保编码不变）：
+
+    ```bash
+    python edit_firmware.py show <文件路径>        # 查看编码
+    python edit_firmware.py replace <f> <旧> <新>  # 安全替换
+    python edit_firmware.py verify <文件路径>       # 验证编码不变
+    ```
 
 ## 铁律三：飞行区域必须清空
 
@@ -25,22 +29,29 @@ python edit_firmware.py verify <文件路径>       # 验证编码不变
 
 ## 铁律四：SSH 操作遵守分级规范
 
-| 级别 | 操作 | 规则 |
-|------|------|------|
-| 放开 | `ls`/`cat`/`ps`/`git log`/`df` | 随意 |
-| 限路径 | `cp`/`scp`/`mkdir` 在你的工作目录下 | 执行前说明 |
-| 需确认 | `rm -rf`/`git reset --hard` | 展示命令后等同意 |
-| **禁止** | `systemctl`/`reboot`/`apt`/`kill` 非自己进程/改网络配置 | 停下确认 |
+!!! abstract "AI Agent 专用规范"
+    以下分级规范约束 AI Agent 在板子上的 SSH 操作行为。人类开发者通过 SSH 手动操作时，参考此表了解哪些命令需要谨慎。
+
+    | 级别 | 操作 | AI Agent 规则 |
+    |------|------|-------------|
+    | 放开 | `ls`/`cat`/`ps`/`git log`/`df` | 随意 |
+    | 限路径 | `cp`/`scp`/`mkdir` 在工作目录下 | 执行前说明 |
+    | 需确认 | `rm -rf`/`git reset --hard` | 展示命令后等用户同意 |
+    | **禁止** | `systemctl`/`reboot`/`apt`/`kill` 非自己进程/改网络配置 | 停下确认 |
+
+!!! tip "人类开发者"
+    人类开发者通过 SSH 登录板子后，可自行执行常用操作。涉及 `rm -rf`、系统级修改等高危操作时，务必确认路径后再执行。
 
 ## 铁律五：数据只存本地
 
-每次飞行结束后必须执行：
+!!! example "人工操作"
+    每次飞行结束后必须执行：
 
-```bash
-./tools/pull_flight_log.sh
-```
+    ```bash
+    ./tools/pull_flight_log.sh
+    ```
 
-把飞行日志拉取到本地 `data_archive/` 归档，清空板端数据。板子存储空间有限。
+    把飞行日志拉取到本地 `data_archive/` 归档，清空板端数据。板子存储空间有限。
 
 ---
 

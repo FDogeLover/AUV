@@ -18,10 +18,10 @@ Project2/
 ├── docs/                        项目文档体系（核心事实源）
 ├── CodeWiki/                   仓库级代码文档
 ├── tools/                      项目级工具脚本
-├── .Codex/memory/              AI Agent记忆体系（59个决策记录）
-├── .zcode/plans/               功能计划文档
-├── edit_firmware.py            ★ 固件安全编辑脚本（唯一合法编辑.c/.h方式）
-└── pull_flight_log.sh           一键拉取飞行日志
+├── .Codex/memory/              AI Agent记忆体系（AI内部使用，人工一般不需要）
+├── .zcode/plans/               功能计划文档（AI辅助设计产物）
+├── edit_firmware.py            固件安全编辑脚本（AI Agent专用，人工用Keil编辑）
+└── pull_flight_log.sh           一键拉取飞行日志（人工操作）
 ```
 
 ## basic/ 内部结构

@@ -74,7 +74,12 @@ flowchart TD
 | 核心文件 | `FcSrc/ANO_LX.c`（1ms主任务）、`User_Ctrl.c`（控制律）、`User_Task.c`（一键任务） |
 
 !!! danger "编码禁令"
-    飞控固件 `.c/.h` 文件使用 **GB2312/GBK 编码**，绝对禁止直接用编辑器打开修改。必须使用根目录的 `edit_firmware.py` 脚本。详见 [固件编辑规范](../09-workflow/firmware-edit.md)。
+    飞控固件 `.c/.h` 文件使用 **GB2312/GBK 编码**，绝对禁止用普通编辑器（VS Code、Notepad 等）直接打开修改。
+
+    - **人工修改**：用 Keil uVision 打开工程编辑
+    - **AI Agent 修改**：用 `edit_firmware.py` 脚本
+
+    详见 [固件编辑规范](../09-workflow/firmware-edit.md)。
 
 ## 第二层：上位机决策（Python 3）
 
