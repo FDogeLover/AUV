@@ -4,19 +4,19 @@
 
 仓库提供三套目标MCU工程（两套固件工程目录内各一份）：
 
-- STM32F407：[ProjectSTM32F407/ANO_LX_STM32F407.uvprojx](file:///workspace/ANO_LX_FC_T265代替光流/ProjectSTM32F407/ANO_LX_STM32F407.uvprojx)
-- MSP432：[ProjectMSP432/ANO_LX_MSP432.uvprojx](file:///workspace/ANO_LX_FC_T265代替光流/ProjectMSP432/ANO_LX_MSP432.uvprojx)
-- TM4C123：[ProjectTM4C123/ANO_LX_TM4C123.uvprojx](file:///workspace/ANO_LX_FC_T265代替光流/ProjectTM4C123/ANO_LX_TM4C123.uvprojx)
+- STM32F407：[ProjectSTM32F407/ANO_LX_STM32F407.uvprojx](file:///workspace/飞控固件/ProjectSTM32F407/ANO_LX_STM32F407.uvprojx)
+- MSP432：[ProjectMSP432/ANO_LX_MSP432.uvprojx](file:///workspace/飞控固件/ProjectMSP432/ANO_LX_MSP432.uvprojx)
+- TM4C123：[ProjectTM4C123/ANO_LX_TM4C123.uvprojx](file:///workspace/飞控固件/ProjectTM4C123/ANO_LX_TM4C123.uvprojx)
 
 ### 5.1.1 STM32F407（推荐从这里开始）
 
 1. 打开工程：`ProjectSTM32F407/ANO_LX_STM32F407.uvprojx`
 2. 目标芯片：`STM32F407VGTx`（工程内声明）：
-   - [ANO_LX_STM32F407.uvprojx](file:///workspace/ANO_LX_FC_T265代替光流/ProjectSTM32F407/ANO_LX_STM32F407.uvprojx#L17-L23)
+   - [ANO_LX_STM32F407.uvprojx](file:///workspace/飞控固件/ProjectSTM32F407/ANO_LX_STM32F407.uvprojx#L17-L23)
 3. Build
 4. 产物：
    - 工程配置 AfterMake 会把 `.axf` 转为 bin：`fromelf.exe --bin -o ./ANO-LX.bin ...`
-   - 见：[ANO_LX_STM32F407.uvprojx](file:///workspace/ANO_LX_FC_T265代替光流/ProjectSTM32F407/ANO_LX_STM32F407.uvprojx#L82-L86)
+   - 见：[ANO_LX_STM32F407.uvprojx](file:///workspace/飞控固件/ProjectSTM32F407/ANO_LX_STM32F407.uvprojx#L82-L86)
 
 ### 5.1.2 MSP432 / TM4C123
 
@@ -24,7 +24,7 @@
 
 注意 MSP432 的第三方库 driverlib 同时提供命令行 Makefile（更偏“构建库”用途）：
 
-- GCC Makefile：[driverlib/gcc/Makefile](file:///workspace/ANO_LX_FC_倾角保护版/DriversMcu/MSP432P401/Drivers/ti/devices/msp432p4xx/driverlib/gcc/Makefile#L28-L47)
+- GCC Makefile：[driverlib/gcc/Makefile](file:///workspace/飞控固件/DriversMcu/MSP432P401/Drivers/ti/devices/msp432p4xx/driverlib/gcc/Makefile#L28-L47)
 
 ## 5.2 固件下载与运行（硬件侧）
 
@@ -37,11 +37,11 @@
 
 运行时关键外设与端口角色（以 T265版 `All_Init()` 为准）：
 
-- UART1：T265：[Drv_BSP.c](file:///workspace/ANO_LX_FC_T265代替光流/DriversBsp/Drv_BSP.c#L61-L66)
-- UART3：串口拓展板：[Drv_BSP.c](file:///workspace/ANO_LX_FC_T265代替光流/DriversBsp/Drv_BSP.c#L65-L67)
-- UART4：匿名光流（若启用）：[Drv_BSP.c](file:///workspace/ANO_LX_FC_T265代替光流/DriversBsp/Drv_BSP.c#L67-L69)
-- UART5：IMU：[Drv_BSP.c](file:///workspace/ANO_LX_FC_T265代替光流/DriversBsp/Drv_BSP.c#L69-L70)
-- RC 输入：PPM/SBUS（`DrvRcInputInit()` 选择初始化方式）：[Drv_BSP.c](file:///workspace/ANO_LX_FC_T265代替光流/DriversBsp/Drv_BSP.c#L72-L101)
+- UART1：T265：[Drv_BSP.c](file:///workspace/飞控固件/DriversBsp/Drv_BSP.c#L61-L66)
+- UART3：串口拓展板：[Drv_BSP.c](file:///workspace/飞控固件/DriversBsp/Drv_BSP.c#L65-L67)
+- UART4：匿名光流（若启用）：[Drv_BSP.c](file:///workspace/飞控固件/DriversBsp/Drv_BSP.c#L67-L69)
+- UART5：IMU：[Drv_BSP.c](file:///workspace/飞控固件/DriversBsp/Drv_BSP.c#L69-L70)
+- RC 输入：PPM/SBUS（`DrvRcInputInit()` 选择初始化方式）：[Drv_BSP.c](file:///workspace/飞控固件/DriversBsp/Drv_BSP.c#L72-L101)
 
 ## 5.3 Python 端运行（树莓派）
 

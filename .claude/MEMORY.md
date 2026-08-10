@@ -2,7 +2,7 @@
 
 ## fc-firmware GB2312 编码约束
 
-飞控固件（`ANO_LX_FC_倾角保护版/` 和 `ANO_LX_FC_T265代替光流/`）的所有 C 源文件使用 **GB2312 编码**，因为必须在 Keil MDK (uVision) 中编译烧录，Keil 在中文 Windows 上原生使用 GB2312。
+飞控固件（`飞控固件/` 和 `飞控固件/`）的所有 C 源文件使用 **GB2312 编码**，因为必须在 Keil MDK (uVision) 中编译烧录，Keil 在中文 Windows 上原生使用 GB2312。
 
 **How to apply：** 在检查、修改或创建飞控固件 C 文件时：
 1. 不得改变现有文件的编码格式（保持 GB2312）
@@ -29,7 +29,7 @@
 
 | 组件 | 路径 | 语言/平台 | 说明 |
 |------|------|-----------|------|
-| 飞控固件 | `ANO_LX_FC_倾角保护版/` | C / Keil / STM32F407 | 姿态控制、导航、PID |
+| 飞控固件 | `飞控固件/` | C / Keil / STM32F407 | 姿态控制、导航、PID |
 | Python上位机 | `drone_control/` | Python / 树莓派 | 任务规划、T265定位、K230通信 |
 | K230视觉板 | `k230/` | Python / Canaan K230 | YOLOv8目标检测、UART通信 |
 

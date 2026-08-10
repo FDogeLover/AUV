@@ -7,7 +7,7 @@
 
 ```bash
 # 查看文件编码
-python edit_firmware.py show ANO_LX_FC_倾角保护版/FcSrc/User_Ctrl.c
+python edit_firmware.py show 飞控固件/FcSrc/User_Ctrl.c
 
 # 安全替换字符串（自动保持编码不变）
 python edit_firmware.py replace <文件路径> <旧字符串> <新字符串>

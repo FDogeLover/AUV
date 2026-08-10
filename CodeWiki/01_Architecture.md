@@ -26,14 +26,14 @@
 
 固件入口统一为 `main()`：
 
-- [main.c](file:///workspace/ANO_LX_FC_T265代替光流/FcSrc/main.c#L22-L37)
+- [main.c](file:///workspace/飞控固件/FcSrc/main.c#L22-L37)
   - `All_Init()`：初始化硬件与软件模块
   - `Scheduler_Setup()`：初始化“时分调度器”
   - `while(1) Scheduler_Run()`：主循环驱动任务表
 
 在 **STM32F407** 目标上，还存在“1ms 定时中断驱动主任务”的旁路（优先级通常更高、时基更稳定）：
 
-- `TIM7_IRQHandler -> ANO_LX_Task()`：[stm32f4xx_it.c](file:///workspace/ANO_LX_FC_T265代替光流/DriversMcu/STM32F407/Drivers/stm32f4xx_it.c#L59-L69)
+- `TIM7_IRQHandler -> ANO_LX_Task()`：[stm32f4xx_it.c](file:///workspace/飞控固件/DriversMcu/STM32F407/Drivers/stm32f4xx_it.c#L59-L69)
 
 可将其理解为：
 
@@ -44,7 +44,7 @@
 
 `ANO_LX_Task()` 是飞控“输入→处理→输出”的集中点（T265版更完整）：
 
-- [ANO_LX_Task](file:///workspace/ANO_LX_FC_T265代替光流/FcSrc/ANO_LX.c#L289-L341)
+- [ANO_LX_Task](file:///workspace/飞控固件/FcSrc/ANO_LX.c#L289-L341)
   - 10ms：RC采样与模式切换、用户RC处理、飞控状态机、光流状态检测
   - 100ms：电池电压采样
   - 每1ms：串口收包解析、GPS处理、外部传感器处理、匿名协议数据交换、对外发送（T265/拓展板/OpenMV）、电机输出、LED驱动
@@ -66,17 +66,17 @@ flowchart TD
 
 ### 1.3.1 T265代替光流版
 
-- 增加用户模块：`User_T265/User_Ctrl/User_ComBoard/User_Opmv/User_Oled/User_Gpio` 等（均在 [FcSrc](file:///workspace/ANO_LX_FC_T265代替光流/FcSrc)）。
-- `All_Init()` 中串口角色更明确：UART1 用于 T265，UART3 用于串口拓展板等：[Drv_BSP.c](file:///workspace/ANO_LX_FC_T265代替光流/DriversBsp/Drv_BSP.c#L61-L89)
-- 任务调度中包含“多控制模式叠加”（位置环/绕杆/巡线/现场编程等），见 [Ano_Scheduler.c](file:///workspace/ANO_LX_FC_T265代替光流/FcSrc/Ano_Scheduler.c#L38-L195)
-- `note.txt` 标注主要标志位在 `User_Ctrl/User_ComBoard/User_Task`：[note.txt](file:///workspace/ANO_LX_FC_T265代替光流/Doc/note.txt#L20-L25)
+- 增加用户模块：`User_T265/User_Ctrl/User_ComBoard/User_Opmv/User_Oled/User_Gpio` 等（均在 [FcSrc](file:///workspace/飞控固件/FcSrc)）。
+- `All_Init()` 中串口角色更明确：UART1 用于 T265，UART3 用于串口拓展板等：[Drv_BSP.c](file:///workspace/飞控固件/DriversBsp/Drv_BSP.c#L61-L89)
+- 任务调度中包含“多控制模式叠加”（位置环/绕杆/巡线/现场编程等），见 [Ano_Scheduler.c](file:///workspace/飞控固件/FcSrc/Ano_Scheduler.c#L38-L195)
+- `note.txt` 标注主要标志位在 `User_Ctrl/User_ComBoard/User_Task`：[note.txt](file:///workspace/飞控固件/Doc/note.txt#L20-L25)
 
 ### 1.3.2 倾角保护版
 
 - 额外目录 `Mycode/`，包含倾角补偿与自定义协议等：
-  - [my_protocol.c](file:///workspace/ANO_LX_FC_倾角保护版/Mycode/my_protocol.c)
-  - [angle_protect.c](file:///workspace/ANO_LX_FC_倾角保护版/Mycode/angle_protect.c)
-- 调度器中存在“灵活帧发送”用于观测/转发（例如 `flex_send_t265_vel()`）：[Ano_Scheduler.c](file:///workspace/ANO_LX_FC_倾角保护版/FcSrc/Ano_Scheduler.c#L43-L51)
+  - [my_protocol.c](file:///workspace/飞控固件/Mycode/my_protocol.c)
+  - [angle_protect.c](file:///workspace/飞控固件/Mycode/angle_protect.c)
+- 调度器中存在“灵活帧发送”用于观测/转发（例如 `flex_send_t265_vel()`）：[Ano_Scheduler.c](file:///workspace/飞控固件/FcSrc/Ano_Scheduler.c#L43-L51)
 
 ## 1.4 树莓派控制端（Python）架构
 

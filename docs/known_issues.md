@@ -50,7 +50,7 @@
 
     **2026-07-10 固件侧重试终于动手，且发现一个更根本的bug：既有的近地强制锁定兜底从未真正生效过**：查`User_Task.c`发现固件里其实早就有第二条独立于`OneKey_Land()`/`dt.wait_ck`确认机制的兜底路径（`UserTask_OneKeyCmd():70-101`）——只要`land_cmd_sent_f==1`，持续检测`ano_of.work_sta && ano_of.of_alt_cm < 10`（光流有效且高度<10cm），满足约50个调度周期(≈1秒)就直接调用`FC_Lock()`+清零四个电机PWM，完全不经过凌霄IMU的CMD确认。但变量声明处(`land_cmd_sent_f`)漏加了`static`——每20ms(50Hz)被调用一次，非static局部变量每次调用都会重新初始化成0，导致`landing_cnt`永远无法跨tick累积到阈值50，**这个近地强制锁定机制从设计之初就是死代码，从未真正生效**。这很可能是"一键降落不可靠"长期存在背后一个被忽视的重要原因。
 
-    **已修复（`ANO_LX_FC_倾角保护版/FcSrc/User_Task.c`，用`edit_firmware.py`安全编辑）**：①给`land_cmd_sent_f`补上`static`，让既有的近地强制锁定机制第一次真正生效；②新增`land_timeout_cnt`纯超时兜底——降落指令发出后不管高度/光流状态如何，持续约10秒(500 ticks@50Hz)仍未锁定就无条件强制`FC_Lock()`+清零PWM，覆盖"飞机没有真正贴地也没有被路径B兜住"的场景。编码验证和大括号配对检查(35/35)都通过。
+    **已修复（`飞控固件/FcSrc/User_Task.c`，用`edit_firmware.py`安全编辑）**：①给`land_cmd_sent_f`补上`static`，让既有的近地强制锁定机制第一次真正生效；②新增`land_timeout_cnt`纯超时兜底——降落指令发出后不管高度/光流状态如何，持续约10秒(500 ticks@50Hz)仍未锁定就无条件强制`FC_Lock()`+清零PWM，覆盖"飞机没有真正贴地也没有被路径B兜住"的场景。编码验证和大括号配对检查(35/35)都通过。
 
     **2026-07-10 已编译烧录，但真机测试前代码审查发现一个更深层的bug，会让上面这次修复在Python自主触发的降落场景下完全无法生效**：`land_cmd_sent_f`被CH_8遥控通道和`task_sta`(Python触发)两条路径共用，但只有CH_8那条路径的`else`分支(离开[1200,1700]区间时)会无条件把`land_cmd_sent_f`清零。`UserTask_OneKeyCmd()`每20ms(50Hz)执行一遍，CH_8分支排在检测逻辑之前——`task_sta`边缘触发时在本tick末尾才把`land_cmd_sent_f`设成1，中间的检测逻辑本tick还没看到；下一个tick一开始，CH_8分支如果发现遥控器CH_8通道不在[1200,1700]区间(现场确认测试时CH_8通道确实不会被触碰)，就会无条件把`land_cmd_sent_f`重新清零——中间的检测逻辑永远看不到`land_cmd_sent_f==1`超过一个tick，近地强制锁定和10秒超时兜底在Python触发的降落场景下完全没有机会介入。
 

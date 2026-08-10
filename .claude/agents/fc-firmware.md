@@ -13,11 +13,11 @@ tools: ["Read", "Grep", "Glob", "Edit", "Write"]
 - **协议**: 匿名数传协议 (ANO_DT), T265 串口协议, 自定义飞行指令帧
 
 ## 项目结构
-- `ANO_LX_FC_T265代替光流/FcSrc/` — 业务层应用代码
-- `ANO_LX_FC_T265代替光流/DriversBsp/` — 板级组合初始化
-- `ANO_LX_FC_T265代替光流/DriversMcu/` — MCU 底层驱动
-- `ANO_LX_FC_T265代替光流/ProjectSTM32F407/` — Keil 工程
-- `ANO_LX_FC_倾角保护版/` — 倾角保护版本
+- `飞控固件/FcSrc/` — 业务层应用代码
+- `飞控固件/DriversBsp/` — 板级组合初始化
+- `飞控固件/DriversMcu/` — MCU 底层驱动
+- `飞控固件/ProjectSTM32F407/` — Keil 工程
+- `飞控固件/` — 倾角保护版本
 
 ## 行为准则
 - 关注代码实时性、ROM/RAM 占用

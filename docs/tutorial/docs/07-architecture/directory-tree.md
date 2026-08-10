@@ -13,8 +13,7 @@ Project2/
 │   ├── fire_patrol/              消防巡逻赛题(G题)
 │   ├── warehouse_inventory/      立体货架盘点（已验收）
 │   └── tools/                    数据分析工具
-├── ANO_LX_FC_倾角保护版/        飞控固件（当前主用）
-├── ANO_LX_FC_T265代替光流/      飞控固件（T265版）
+├── 飞控固件/                    飞控固件源码（烧录用，含倾角保护）
 ├── CyberCamera/                核桃派视觉板代码
 ├── docs/                        项目文档体系（核心事实源）
 ├── CodeWiki/                   仓库级代码文档
