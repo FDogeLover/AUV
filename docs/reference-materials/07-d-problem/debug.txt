@@ -1,0 +1,251 @@
+Fly_point_typedef fly_point[100]=
+{
+{0,0,    FLYPOINT_ATT,0,0},	//0 起飞
+{25,-25, FLYPOINT_ATT_H,0,0},	//1 
+
+{75,-25, FLYPOINT_ATT_H,0,0},	//2 A H
+{125,-25,FLYPOINT_ATT_H,0,0},	//3 
+{175,-25,FLYPOINT_ATT_H,0,0},	//4
+
+
+{175,-25,FLYPOINT_ATT_L,0,0},	//5 A L
+{125,-25,FLYPOINT_ATT_L,0,0}, //6 
+{75,-25, FLYPOINT_ATT_L,0,0}, //7
+
+{-25,-25,FLYPOINT_ATT_L,0,0},	//8 FROM A TO B
+{-25,-125,FLYPOINT_ATT_L,0,0},	//9
+{25,-125, FLYPOINT_ATT_L,0,0},	//10 UNUSE
+
+{75,-125, FLYPOINT_ATT_L,0,0},	//11 B L
+{125,-125,FLYPOINT_ATT_L,0,0},	//12 
+{175,-125,FLYPOINT_ATT_L,0,0}, //13 
+
+{175,-125,FLYPOINT_ATT_H,0,0},  //14 B H
+{125,-125,FLYPOINT_ATT_H,0,0},  //15 
+{75, -125, FLYPOINT_ATT_H,0,0},	//16
+////////////////////////////////////////////
+{75,-225, FLYPOINT_ATT_H,0,0},	//17 c h
+{125,-225,FLYPOINT_ATT_H,0,0},	//18
+{175,-225,FLYPOINT_ATT_H,0,0},	//19
+
+{175,-225,FLYPOINT_ATT_L,0,0},	//20 C L
+{125,-225,FLYPOINT_ATT_L,0,0},	//21
+{75, -225,FLYPOINT_ATT_L,0,0}, //22
+
+{-25,-225,FLYPOINT_ATT_L,0,0},   //23  FROM C TO D
+{-25,-325,FLYPOINT_ATT_L,0,0},	  //24
+
+{75,-325,FLYPOINT_ATT_L,0,0},	  //25 d l
+{125,-325,FLYPOINT_ATT_L,0,0},	//26
+{175,-325,FLYPOINT_ATT_L,0,0},	//27
+
+{175,-325,FLYPOINT_ATT_H,0,0},	//28
+{125,-325,FLYPOINT_ATT_H,0,0},	//29
+{75,-325,FLYPOINT_ATT_H,0,0},  //30 
+
+{250,-350,FLYPOINT_ATT_H,0,0}, //31 31个点最后一个
+};//航点结构体数组
+Fly_point_typedef calibration[100]={0};//标定点数组
+Fly_point_typedef fp_point[100]=
+{
+// 			x  y  z  yaw  任务
+	{0,0,   0,0,0},	    //0 固定用作起飞前位置
+	{0,-100,100,0,0},	//1 起飞目标点
+	{0,-100,100,0,0},	//2 固定用作降落前位置
+	{100,-100,0,0,0},	//3 降落目标点
+	/**/
+    {   0, -50, 100,0},//0
+    {  12, -48, 100,0},//15
+    {  24, -43, 100,0},//30
+    {  35, -35, 100,0},//45
+    {  43, -25, 100,0},//60
+    {  48, -12, 100,0},//75
+    {  49,   0, 100,0},//90
+    {  48,  12, 100,0},//105
+    {  43,  24, 100,0},//120
+    {  35,  35, 100,0},//135
+    {  25,  43, 100,0},//150
+    {  12,  48, 100,0},//165
+    {   0,  49, 100,0},//180
+    { -12,  48, 100,0},//195
+    { -24,  43, 100,0},//210
+    { -35,  35, 100,0},//225
+    { -43,  25, 100,0},//240
+    { -48,  12, 100,0},//255
+    { -49,   0, 100,0},//270
+    { -48, -12, 100,0},//285
+    { -43, -24, 100,0},//300
+    { -35, -35, 100,0},//315
+    { -25, -43, 100,0},//330
+    { -12, -48, 100,0},//345
+    {   0, -49, 100,0},//360
+	
+};//现场编程航点
+
+/*根据标定的点计算出12个坐标*/
+void FlyPointUpdate(void)//标定点更新 每次起飞前更新一次
+{
+	fly_point[1].pos_x_exp=calibration[0].pos_x_exp;
+	fly_point[1].pos_y_exp=calibration[0].pos_y_exp;
+
+	
+	fly_point[2].pos_x_exp=calibration[0].pos_x_exp+0.25f*(calibration[1].pos_x_exp-calibration[0].pos_x_exp);
+	fly_point[2].pos_y_exp=calibration[0].pos_y_exp*0.5f+calibration[1].pos_y_exp*0.5f;
+	fly_point[7].pos_x_exp=calibration[0].pos_x_exp+0.25f*(calibration[1].pos_x_exp-calibration[0].pos_x_exp);
+	fly_point[7].pos_y_exp=calibration[0].pos_y_exp*0.5f+calibration[1].pos_y_exp*0.5f;
+
+	fly_point[3].pos_x_exp=calibration[0].pos_x_exp+0.50f*(calibration[1].pos_x_exp-calibration[0].pos_x_exp);
+	fly_point[3].pos_y_exp=calibration[0].pos_y_exp*0.5f+calibration[1].pos_y_exp*0.5f;
+	fly_point[6].pos_x_exp=calibration[0].pos_x_exp+0.50f*(calibration[1].pos_x_exp-calibration[0].pos_x_exp);
+	fly_point[6].pos_y_exp=calibration[0].pos_y_exp*0.5f+calibration[1].pos_y_exp*0.5f;
+	
+	fly_point[4].pos_x_exp=calibration[0].pos_x_exp+0.75f*(calibration[1].pos_x_exp-calibration[0].pos_x_exp);
+	fly_point[4].pos_y_exp=calibration[0].pos_y_exp*0.5f+calibration[1].pos_y_exp*0.5f;
+	fly_point[5].pos_x_exp=calibration[0].pos_x_exp+0.75f*(calibration[1].pos_x_exp-calibration[0].pos_x_exp);
+	fly_point[5].pos_y_exp=calibration[0].pos_y_exp*0.5f+calibration[1].pos_y_exp*0.5f;
+	
+	fly_point[8].pos_x_exp=calibration[0].pos_x_exp-50;
+	fly_point[8].pos_y_exp=calibration[0].pos_y_exp;
+	
+	fly_point[9].pos_x_exp=calibration[3].pos_x_exp-50;
+	fly_point[9].pos_y_exp=calibration[3].pos_y_exp;
+	
+	fly_point[11].pos_x_exp=calibration[3].pos_x_exp+0.25f*(calibration[2].pos_x_exp-calibration[3].pos_x_exp);
+	fly_point[11].pos_y_exp=calibration[3].pos_y_exp*0.5f+calibration[2].pos_y_exp*0.5f;
+	fly_point[16].pos_x_exp=calibration[3].pos_x_exp+0.25f*(calibration[2].pos_x_exp-calibration[3].pos_x_exp);
+	fly_point[16].pos_y_exp=calibration[3].pos_y_exp*0.5f+calibration[2].pos_y_exp*0.5f;
+
+	fly_point[12].pos_x_exp=calibration[3].pos_x_exp+0.50f*(calibration[2].pos_x_exp-calibration[3].pos_x_exp);
+	fly_point[12].pos_y_exp=calibration[3].pos_y_exp*0.5f+calibration[2].pos_y_exp*0.5f;
+	fly_point[15].pos_x_exp=calibration[3].pos_x_exp+0.50f*(calibration[2].pos_x_exp-calibration[3].pos_x_exp);
+	fly_point[15].pos_y_exp=calibration[3].pos_y_exp*0.5f+calibration[2].pos_y_exp*0.5f;
+	
+	fly_point[13].pos_x_exp=calibration[3].pos_x_exp+0.75f*(calibration[2].pos_x_exp-calibration[3].pos_x_exp);
+	fly_point[13].pos_y_exp=calibration[3].pos_y_exp*0.5f+calibration[2].pos_y_exp*0.5f;
+	fly_point[14].pos_x_exp=calibration[3].pos_x_exp+0.75f*(calibration[2].pos_x_exp-calibration[3].pos_x_exp);
+	fly_point[14].pos_y_exp=calibration[3].pos_y_exp*0.5f+calibration[2].pos_y_exp*0.5f;
+	
+	fly_point[23].pos_x_exp=calibration[4].pos_x_exp-50;
+	fly_point[23].pos_y_exp=calibration[4].pos_y_exp;
+	
+	fly_point[24].pos_x_exp=calibration[7].pos_x_exp-50;
+	fly_point[24].pos_y_exp=calibration[7].pos_y_exp;
+	
+	fly_point[17].pos_x_exp=calibration[4].pos_x_exp+0.25f*(calibration[5].pos_x_exp-calibration[4].pos_x_exp);
+	fly_point[17].pos_y_exp=calibration[4].pos_y_exp*0.5f+calibration[5].pos_y_exp*0.5f;
+	fly_point[22].pos_x_exp=calibration[4].pos_x_exp+0.25f*(calibration[5].pos_x_exp-calibration[4].pos_x_exp);
+	fly_point[22].pos_y_exp=calibration[4].pos_y_exp*0.5f+calibration[5].pos_y_exp*0.5f;
+
+	fly_point[18].pos_x_exp=calibration[4].pos_x_exp+0.50f*(calibration[5].pos_x_exp-calibration[4].pos_x_exp);
+	fly_point[18].pos_y_exp=calibration[4].pos_y_exp*0.5f+calibration[5].pos_y_exp*0.5f;
+	fly_point[21].pos_x_exp=calibration[4].pos_x_exp+0.50f*(calibration[5].pos_x_exp-calibration[4].pos_x_exp);
+	fly_point[21].pos_y_exp=calibration[4].pos_y_exp*0.5f+calibration[5].pos_y_exp*0.5f;
+	
+	fly_point[19].pos_x_exp=calibration[4].pos_x_exp+0.75f*(calibration[5].pos_x_exp-calibration[4].pos_x_exp);
+	fly_point[19].pos_y_exp=calibration[4].pos_y_exp*0.5f+calibration[5].pos_y_exp*0.5f;
+	fly_point[20].pos_x_exp=calibration[4].pos_x_exp+0.75f*(calibration[5].pos_x_exp-calibration[4].pos_x_exp);
+	fly_point[20].pos_y_exp=calibration[4].pos_y_exp*0.5f+calibration[5].pos_y_exp*0.5f;
+	
+	fly_point[25].pos_x_exp=calibration[7].pos_x_exp+0.25f*(calibration[6].pos_x_exp-calibration[7].pos_x_exp);
+	fly_point[25].pos_y_exp=calibration[7].pos_y_exp*0.5f+calibration[6].pos_y_exp*0.5f;
+	fly_point[30].pos_x_exp=calibration[7].pos_x_exp+0.25f*(calibration[6].pos_x_exp-calibration[7].pos_x_exp);
+	fly_point[30].pos_y_exp=calibration[7].pos_y_exp*0.5f+calibration[6].pos_y_exp*0.5f;
+
+	fly_point[26].pos_x_exp=calibration[7].pos_x_exp+0.50f*(calibration[6].pos_x_exp-calibration[7].pos_x_exp);
+	fly_point[26].pos_y_exp=calibration[7].pos_y_exp*0.5f+calibration[6].pos_y_exp*0.5f;
+	fly_point[29].pos_x_exp=calibration[7].pos_x_exp+0.50f*(calibration[6].pos_x_exp-calibration[7].pos_x_exp);
+	fly_point[29].pos_y_exp=calibration[7].pos_y_exp*0.5f+calibration[6].pos_y_exp*0.5f;
+	
+	fly_point[27].pos_x_exp=calibration[7].pos_x_exp+0.75f*(calibration[6].pos_x_exp-calibration[7].pos_x_exp);
+	fly_point[27].pos_y_exp=calibration[7].pos_y_exp*0.5f+calibration[6].pos_y_exp*0.5f;
+	fly_point[28].pos_x_exp=calibration[7].pos_x_exp+0.75f*(calibration[6].pos_x_exp-calibration[7].pos_x_exp);
+	fly_point[28].pos_y_exp=calibration[7].pos_y_exp*0.5f+calibration[6].pos_y_exp*0.5f;
+	
+	fly_point[31].pos_x_exp=calibration[8].pos_x_exp;
+	fly_point[31].pos_y_exp=calibration[8].pos_y_exp;
+
+	
+}
+
+
+
+	fly_point[1].pos_x_exp=calibration[0].pos_x_exp;
+	fly_point[1].pos_y_exp=calibration[0].pos_y_exp;
+
+	
+	fly_point[2].pos_x_exp=calibration[0].pos_x_exp+OFFSET;
+	fly_point[2].pos_y_exp=calibration[0].pos_y_exp*0.5f+calibration[1].pos_y_exp*0.5f;
+	fly_point[7].pos_x_exp=calibration[0].pos_x_exp+OFFSET;
+	fly_point[7].pos_y_exp=calibration[0].pos_y_exp*0.5f+calibration[1].pos_y_exp*0.5f;
+
+	fly_point[3].pos_x_exp=calibration[0].pos_x_exp+0.50f*(calibration[1].pos_x_exp-calibration[0].pos_x_exp)+OFFSET;
+	fly_point[3].pos_y_exp=calibration[0].pos_y_exp*0.5f+calibration[1].pos_y_exp*0.5f;
+	fly_point[6].pos_x_exp=calibration[0].pos_x_exp+0.50f*(calibration[1].pos_x_exp-calibration[0].pos_x_exp)+OFFSET;
+	fly_point[6].pos_y_exp=calibration[0].pos_y_exp*0.5f+calibration[1].pos_y_exp*0.5f;
+	
+	fly_point[4].pos_x_exp=calibration[1].pos_x_exp+OFFSET;
+	fly_point[4].pos_y_exp=calibration[0].pos_y_exp*0.5f+calibration[1].pos_y_exp*0.5f;
+	fly_point[5].pos_x_exp=calibration[1].pos_x_exp+OFFSET;
+	fly_point[5].pos_y_exp=calibration[0].pos_y_exp*0.5f+calibration[1].pos_y_exp*0.5f;
+	
+	fly_point[8].pos_x_exp=calibration[0].pos_x_exp-110;
+	fly_point[8].pos_y_exp=calibration[0].pos_y_exp;
+	
+	fly_point[9].pos_x_exp=calibration[3].pos_x_exp-110;
+	fly_point[9].pos_y_exp=calibration[3].pos_y_exp;
+	
+	fly_point[11].pos_x_exp=calibration[3].pos_x_exp+OFFSET;
+	fly_point[11].pos_y_exp=calibration[3].pos_y_exp*0.5f+calibration[2].pos_y_exp*0.5f;
+	fly_point[16].pos_x_exp=calibration[3].pos_x_exp+OFFSET;
+	fly_point[16].pos_y_exp=calibration[3].pos_y_exp*0.5f+calibration[2].pos_y_exp*0.5f;
+
+	fly_point[12].pos_x_exp=calibration[3].pos_x_exp+0.50f*(calibration[2].pos_x_exp-calibration[3].pos_x_exp)+OFFSET;
+	fly_point[12].pos_y_exp=calibration[3].pos_y_exp*0.5f+calibration[2].pos_y_exp*0.5f;
+	fly_point[15].pos_x_exp=calibration[3].pos_x_exp+0.50f*(calibration[2].pos_x_exp-calibration[3].pos_x_exp)+OFFSET;
+	fly_point[15].pos_y_exp=calibration[3].pos_y_exp*0.5f+calibration[2].pos_y_exp*0.5f;
+	
+	fly_point[13].pos_x_exp=calibration[2].pos_x_exp+OFFSET;
+	fly_point[13].pos_y_exp=calibration[3].pos_y_exp*0.5f+calibration[2].pos_y_exp*0.5f;
+	fly_point[14].pos_x_exp=calibration[2].pos_x_exp+OFFSET;
+	fly_point[14].pos_y_exp=calibration[3].pos_y_exp*0.5f+calibration[2].pos_y_exp*0.5f;
+	
+	fly_point[23].pos_x_exp=calibration[4].pos_x_exp-110;
+	fly_point[23].pos_y_exp=calibration[4].pos_y_exp;
+	
+	fly_point[24].pos_x_exp=calibration[7].pos_x_exp-110;
+	fly_point[24].pos_y_exp=calibration[7].pos_y_exp;
+	
+	fly_point[17].pos_x_exp=calibration[4].pos_x_exp+OFFSET;
+	fly_point[17].pos_y_exp=calibration[4].pos_y_exp*0.5f+calibration[5].pos_y_exp*0.5f;
+	fly_point[22].pos_x_exp=calibration[4].pos_x_exp+OFFSET;
+	fly_point[22].pos_y_exp=calibration[4].pos_y_exp*0.5f+calibration[5].pos_y_exp*0.5f;
+
+	fly_point[18].pos_x_exp=calibration[4].pos_x_exp+0.50f*(calibration[5].pos_x_exp-calibration[4].pos_x_exp)+OFFSET;
+	fly_point[18].pos_y_exp=calibration[4].pos_y_exp*0.5f+calibration[5].pos_y_exp*0.5f;
+	fly_point[21].pos_x_exp=calibration[4].pos_x_exp+0.50f*(calibration[5].pos_x_exp-calibration[4].pos_x_exp)+OFFSET;
+	fly_point[21].pos_y_exp=calibration[4].pos_y_exp*0.5f+calibration[5].pos_y_exp*0.5f;
+	
+	fly_point[19].pos_x_exp=calibration[5].pos_x_exp+OFFSET;
+	fly_point[19].pos_y_exp=calibration[4].pos_y_exp*0.5f+calibration[5].pos_y_exp*0.5f;
+	fly_point[20].pos_x_exp=calibration[5].pos_x_exp+OFFSET;
+	fly_point[20].pos_y_exp=calibration[4].pos_y_exp*0.5f+calibration[5].pos_y_exp*0.5f;
+	
+	fly_point[25].pos_x_exp=calibration[7].pos_x_exp+OFFSET;
+	fly_point[25].pos_y_exp=calibration[7].pos_y_exp*0.5f+calibration[6].pos_y_exp*0.5f;
+	fly_point[30].pos_x_exp=calibration[7].pos_x_exp+OFFSET;
+	fly_point[30].pos_y_exp=calibration[7].pos_y_exp*0.5f+calibration[6].pos_y_exp*0.5f;
+
+	fly_point[26].pos_x_exp=calibration[7].pos_x_exp+0.50f*(calibration[6].pos_x_exp-calibration[7].pos_x_exp)+OFFSET;
+	fly_point[26].pos_y_exp=calibration[7].pos_y_exp*0.5f+calibration[6].pos_y_exp*0.5f;
+	fly_point[29].pos_x_exp=calibration[7].pos_x_exp+0.50f*(calibration[6].pos_x_exp-calibration[7].pos_x_exp)+OFFSET;
+	fly_point[29].pos_y_exp=calibration[7].pos_y_exp*0.5f+calibration[6].pos_y_exp*0.5f;
+	
+	fly_point[27].pos_x_exp=calibration[6].pos_x_exp+OFFSET;
+	fly_point[27].pos_y_exp=calibration[7].pos_y_exp*0.5f+calibration[6].pos_y_exp*0.5f;
+	fly_point[28].pos_x_exp=calibration[6].pos_x_exp+OFFSET;
+	fly_point[28].pos_y_exp=calibration[7].pos_y_exp*0.5f+calibration[6].pos_y_exp*0.5f;
+	
+	fly_point[31].pos_x_exp=calibration[8].pos_x_exp;
+	fly_point[31].pos_y_exp=calibration[8].pos_y_exp;
+
+	
