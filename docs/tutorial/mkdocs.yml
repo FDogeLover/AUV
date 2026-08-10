@@ -9,7 +9,6 @@ theme:
   language: zh
   features:
     - navigation.sections
-    - navigation.expand
     - navigation.top
     - navigation.indexes
     - navigation.path
