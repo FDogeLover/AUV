@@ -35,6 +35,7 @@ Project2 是一套**自主无人机飞控系统**，让多旋翼无人机在无 
 | 2026电赛通用版 | `competition_2026/` | <span class="status-badge status-yellow">代码完成，待实飞</span> |
 | 消防巡逻（G题） | `fire_patrol/` | <span class="status-badge status-green">已实飞通过</span> |
 | 立体货架盘点 | `warehouse_inventory/` | <span class="status-badge status-green">已验收</span> |
+| 圆杆环绕飞行 | `circle_pole/` | <span class="status-badge status-green">阶段1验证</span> |
 | 基础自主飞行 | `basic/` | <span class="status-badge status-green">T-016验证通过</span> |
 
 ## 新手从哪里开始

@@ -53,9 +53,12 @@ stateDiagram-v2
     [*] --> IDLE
     IDLE --> TAKEOFF: 按键触发
     TAKEOFF --> NAVIGATE: T265置信度OK
-    NAVIGATE --> DESCEND: 最后航点到达
-    DESCEND --> LAND: 降至降落高度
-    LAND --> END: 锁桨成功
+    NAVIGATE --> DESCEND: 最后航点到达<br/>高度≤20cm
+    DESCEND --> LAND: 贴地确认/固件抢先锁桨
+    LAND --> END: 连续5帧确认上锁
+    LAND --> HOVER_WAIT: 超时25s未确认
+    DESCEND --> HOVER_WAIT: 超时20s
+    HOVER_WAIT --> END: 人工遥控接管
     TAKEOFF --> END: 异常急停
     NAVIGATE --> END: 异常急停
 ```

@@ -122,7 +122,7 @@
 
 - :material-airplane-takeoff: **[起飞流程](06-first-flight/takeoff-flow.md)**
 
-    上电 → 启动程序 → 等待 → 起飞 → 监控 → 降落，6步详解 · `15分钟`
+    上电 → 启动程序 → 等待 → 起飞 → 监控 → 降落，5步详解 · `15分钟`
 
 - :material-airplane-landing: **[飞后归档](06-first-flight/post-flight.md)**
 
@@ -144,7 +144,7 @@
 
 - :material-compare: **[版本选择指南](08-versions/comparison.md)**
 
-    7个版本对比，新手必从 basic 开始 · `5分钟`
+    6个版本对比，新手必从 basic 开始 · `5分钟`
 
 - :material-file-edit: **[固件编辑规范](09-workflow/firmware-edit.md)**
 

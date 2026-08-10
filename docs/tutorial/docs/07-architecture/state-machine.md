@@ -10,11 +10,12 @@ stateDiagram-v2
     IDLE --> TAKEOFF: 按键触发
     TAKEOFF --> NAVIGATE: T265置信度OK<br/>爬升至目标高度
     NAVIGATE --> NAVIGATE: 逐航点飞行<br/>到达确认→悬停→下一个
-    NAVIGATE --> DESCEND: 最后航点到达
-    DESCEND --> LAND: 降至降落高度
-    LAND --> HOVER_WAIT: 飞控上锁确认<br/>(或超时兜底25s)
-    HOVER_WAIT --> END: 超时/人工确认
-    LAND --> END: 锁桨成功
+    NAVIGATE --> DESCEND: 最后航点到达<br/>且高度≤20cm
+    DESCEND --> LAND: 贴地确认(10帧)<br/>或固件抢先锁桨
+    DESCEND --> HOVER_WAIT: 超时20s
+    LAND --> END: 连续5帧确认上锁
+    LAND --> HOVER_WAIT: 超时25s未确认
+    HOVER_WAIT --> END: 人工遥控接管
     TAKEOFF --> END: 异常/急停
     NAVIGATE --> END: 异常/急停
     DESCEND --> END: 异常/急停
@@ -36,17 +37,21 @@ stateDiagram-v2
 - 两种到达策略：`precision`（精确） / `cruise`（巡航）
 - 首尾航点自动降级为 `precision` 保证精度
 
-### DESCEND — 缓降
-- 水平开环控制
-- ramp 方式降高至降落高度
+### DESCEND — 两级缓降
+- 水平开环控制，ramp 方式降高（每周期 -0.45cm）
+- 贴地检测：激光高度 < 8cm 连续 10 帧 → 转 LAND
+- 固件可能通过近地强制保护抢先锁桨 → 转 LAND
+- 超时 20s → 转 HOVER_WAIT
 
 ### LAND — 等待锁桨
-- 等待飞控上锁（连续5帧 `unlock_sta==0`）
-- 超时兜底 25s
+- 循环发送 FC_Lock 指令（101），持续清零速度
+- 双确认去抖：连续 5 帧 `unlock_sta==0` 且 `motor_pwm_mask==0` → 转 END
+- 超时 25s 未确认 → 转 HOVER_WAIT
 
-### HOVER_WAIT — 人工确认
-- 等待人工目视确认电机完全停转
-- 超时后自动退出
+### HOVER_WAIT — 等待人工介入
+- **不会自动退出**：保持悬停，等待人工遥控器接管
+- 持续发送控制帧和 T265 速度参考，维持飞控悬停
+- 人工遥控器上锁或断电后退出
 
 ## 安全保护机制
 
@@ -55,7 +60,7 @@ stateDiagram-v2
 | 飞控帧超时 | 2s 无飞控帧 | 急停 |
 | T265 位姿丢失 | 置信度异常 | 急停 |
 | 激光高度异常 | 高度>10m（错误码） | 滤除 |
-| 航向保持跑飞 | yaw误差>15° | 触发保护 |
+| 航向保持跑飞 | yaw误差>8°立即锁存<br/>或1秒内增长>15° | 锁存故障，输出0°/s |
 | 近地强制锁定 | 固件层保护 | 锁桨 |
 
 ---

@@ -71,7 +71,7 @@ flowchart TD
 | IDE | Keil uVision |
 | IMU | 凌霄IMU（内置EKF，4个融合参数） |
 | 实时性 | 1ms 定时中断驱动（TIM7），硬实时 |
-| 核心文件 | `FcSrc/ANO_LX.c`（1ms主任务）、`User_Ctrl.c`（控制律）、`User_Task.c`（一键任务） |
+| 核心文件 | `FcSrc/ANO_LX.c`（1ms主任务）、`LX_FC_Fun.c`（飞控功能/控制律）、`User_Task.c`（一键任务） |
 
 !!! danger "编码禁令"
     飞控固件 `.c/.h` 文件使用 **GB2312/GBK 编码**，绝对禁止用普通编辑器（VS Code、Notepad 等）直接打开修改。
@@ -107,9 +107,9 @@ flowchart TD
 
 ```
 Lprotocol.py 内部：
-├── 监听线程    飞控→Pi   50Hz（姿态/激光高度/解锁状态）
-├── T265发送    Pi→飞控   100Hz（速度）
-└── 指令发送    Pi→飞控   50Hz（速度指令）
+├── 监听线程    飞控→Pi   50Hz（姿态/激光高度/解锁状态）+ 2Hz调试帧（电机PWM/光流）
+├── T265发送    Pi→飞控   100Hz（速度帧AA 01 + 位置帧AA 03）
+└── 指令发送    Pi→飞控   50Hz（速度指令帧AA 02）
 ```
 
 ## 第三层：视觉感知（核桃派）

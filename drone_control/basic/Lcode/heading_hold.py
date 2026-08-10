@@ -28,7 +28,7 @@ class HeadingHoldConfig:
 
     def __post_init__(self) -> None:
         if not 0.0 < self.kp <= 1.0:
-            raise ValueError("heading hold kp 必须在 (0, 0.5] 内")
+            raise ValueError("heading hold kp 必须在 (0, 1.0] 内")
         if not 0.5 <= self.deadband_deg <= 5.0:
             raise ValueError("heading hold deadband_deg 必须在 [0.5, 5.0] 内")
         if not 1 <= self.max_rate_dps <= 3:

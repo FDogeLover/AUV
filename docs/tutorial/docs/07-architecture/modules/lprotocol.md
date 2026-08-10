@@ -39,12 +39,19 @@ Lprotocol.py (Serial_fc)
 ```
 飞控下行帧:
   AA | frame_id | len | DATA[len] | checksum | FF
+  校验: checksum = (sum(frame_id + len + DATA) ) & 0xFF
 
 上行帧 (Pi→飞控):
-  AA 01: T265速度帧   — vx_cm, vy_cm, yaw_x100 (8字节)
-  AA 02: 指令帧       — task_sta, com_x/y/z/yaw (速度指令)
-  AA 03: T265位置帧   — x_cm, y_cm, z_cm (12字节)
+  AA 01: T265速度帧   — vx_cm(2) + vy_cm(2) + yaw_x100(2) = 6字节数据
+  AA 02: 指令帧       — task_sta(1) + com_x/y/z/yaw(4) + lock_cmd(1) + padding(2) = 8字节数据
+  AA 03: T265位置帧   — x_cm(4) + y_cm(4) + z_cm(4) = 12字节数据
+  校验: 上行帧使用 XOR 校验 (frame_id 到最后1字节数据逐字节异或)
 ```
+
+!!! info "校验算法差异"
+    下行帧（飞控→Pi）使用**累加和**校验：`checksum = (sum(header) + sum(data)) & 0xFF`。
+    上行帧（Pi→飞控）使用**XOR**校验：`checksum = frame_id ^ data[0] ^ ... ^ data[n-1]`。
+    两者算法不同，解析时需注意区分。
 
 ---
 
@@ -128,8 +135,8 @@ Lprotocol.py (Serial_fc)
 | 属性 | 类型 | 说明 |
 |------|------|------|
 | `ser` | `serial.Serial` | pyserial 串口对象 |
-| `debug_data` | `dict` | 调试帧(0x02)最新数据：fc_vel/of_acc/of_gyr/motor_pwm_mask |
-| `_last_laser_height_cm` | `float` | 最后有效的激光高度 (m)，过滤异常值 |
+| `debug_data` | `dict` | 调试帧(0x02)最新数据：fc_vel/of_acc/of_gyr/motor_pwm_mask/motor_pwm_mask_t/land_timeout_gaveup |
+| `_last_laser_height_cm` | `float` | 最后有效的激光高度（米），过滤异常值 |
 
 ---
 

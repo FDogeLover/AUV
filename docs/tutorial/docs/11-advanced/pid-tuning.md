@@ -2,11 +2,18 @@
 
 ## 当前参数（basic版，已验证）
 
-| 控制环 | Kp | Ki | Kd | 来源 |
-|--------|-----|-----|-----|------|
-| XY位置环 | 0.82 | — | 0.06 | T-016验证 |
-| Z高度环 | 0.8 | 0.05 | 0.2 | T-016验证 |
-| 航向保持 | 0.5 | — | — | #45修复 |
+以下参数定义在 `Lcode/Lpid.py` 中，与代码完全一致：
+
+| 控制环 | Kp | Ki | Kd | 输出限幅 | 来源 |
+|--------|-----|-----|-----|---------|------|
+| XY位置环 (`type=0`) | 0.7 | 0.002 | 0.05 | ±40 cm/s | T-016验证 |
+| Yaw角速度环 (`type=1`) | 1.5 | 0.0 | 0.3 | ±30 °/s | T-016验证 |
+
+!!! info "Z高度控制"
+    Z 轴没有独立的 PID 参数，复用 `type=0`（XY 位置环）的参数。高度设定值通过 `_step_ramp_z()` 做 ramp 渐变，每周期步进 1.5cm。
+
+!!! warning "航向保持参数注意"
+    航向保持（`heading_hold.py`）的 dataclass 默认值为 `kp=0.5, max_rate_dps=3`（#45 修复后的新值），但 `from_env()` 的环境变量默认值仍为旧值 `kp=0.25, max_rate_dps=1`。Mission_GPT 使用 `HeadingHoldConfig.from_env()` 构造配置——如果不设置 `DRONE_HEADING_HOLD_KP` 和 `DRONE_HEADING_HOLD_MAX_DPS` 环境变量，实际生效的是旧值 0.25 和 1。详见 [航向保持模块文档](../07-architecture/modules/heading-hold.md)。
 
 ## 调参建议
 

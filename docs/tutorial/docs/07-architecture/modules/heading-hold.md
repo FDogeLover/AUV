@@ -67,8 +67,10 @@ T265 Yaw → [HeadingHoldController] → yaw_rate_cmd → Lprotocol → 飞控�
 | `runaway_window_s` | `float` | `1.0` | — | > 0 |
 | `runaway_growth_deg` | `float` | `15.0` | — | > 0 |
 
-!!! warning "from_env 中的默认值与 dataclass 默认值不同"
-    `from_env()` 中 `kp` 默认读 `"0.25"`，`max_rate_dps` 默认读 `"1"`——这是旧值，保留向后兼容。如果环境变量未设置，实际生效的是 dataclass 默认值（0.5 和 3），因为 Mission_GPT 使用 `HeadingHoldConfig()` 无参构造。
+!!! warning "from_env 默认值与 dataclass 默认值不同"
+    `from_env()` 中 `kp` 默认读 `"0.25"`，`max_rate_dps` 默认读 `"1"`——这是 #45 修复前的旧值，保留在 `from_env()` 中未更新。Mission_GPT 使用 `HeadingHoldConfig.from_env()` 构造配置（不是无参构造），所以如果不设置 `DRONE_HEADING_HOLD_KP` 和 `DRONE_HEADING_HOLD_MAX_DPS` 环境变量，实际生效的是旧值 `kp=0.25`、`max_rate_dps=1`，而非 dataclass 默认值 0.5 和 3。
+
+    **建议**：在板端环境变量中显式设置 `DRONE_HEADING_HOLD_KP=0.5` 和 `DRONE_HEADING_HOLD_MAX_DPS=3` 以确保使用修复后的参数。
 
 ### HeadingHoldStatus
 

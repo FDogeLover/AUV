@@ -15,7 +15,7 @@ Project2/
 ├── 飞控固件/                    飞控固件源码（烧录用，含倾角保护）
 ├── docs/                        项目文档体系（核心事实源）
 ├── CodeWiki/                   仓库级代码文档
-├── tools/                      项目级工具脚本
+├── tools/                      项目级工具脚本（flight_log_analyzer.py、pull_flight_log.sh 等）
 ├── .Codex/memory/              AI Agent记忆体系（AI内部使用，人工一般不需要）
 ├── .zcode/plans/               功能计划文档（AI辅助设计产物）
 ├── edit_firmware.py            固件安全编辑脚本（AI Agent专用，人工用Keil编辑）
