@@ -40,9 +40,10 @@ mkdocs serve
 | 版本 | 目录 | 状态 | 说明 |
 |------|------|:----:|------|
 | 基础飞行 | `drone_control/basic/` | ✅ 已验证 | **新手必从这里开始** |
-| D题陆空协同 | `drone_control/competition_2026_d/` | ✅ 已实飞 | 空地DCP + 双T265 |
+| D题陆空协同 | `drone_control/competition_2026_d/` | ✅ 已实飞 | 空地DCP + 双T265 + 视觉伺服 |
 | 消防巡逻 | `drone_control/fire_patrol/` | ✅ 已实飞 | G题火情检测+抛投 |
 | 货架盘点 | `drone_control/warehouse_inventory/` | ✅ 已验收 | QR视觉+异步扫码 |
+| 圆杆环绕 | `drone_control/circle_pole/` | ✅ 阶段1验证 | circle_planner + 雷达避障 |
 | 2026通用版 | `drone_control/competition_2026/` | 🟡 待实飞 | 事件总线+视频+UDP |
 
 所有版本共享 `Lcode/` 核心库（串口协议、PID、航向保持等），`basic/` 是所有版本的基础。
@@ -53,16 +54,20 @@ mkdocs serve
 Project2/
 ├── drone_control/          Python上位机（核心代码）
 │   ├── basic/               ★ 新手起点
-│   └── ...                  各赛题版本
+│   ├── circle_pole/         圆杆环绕（雷达避障）
+│   ├── competition_2026_d/  D题陆空协同（含视觉伺服）
+│   ├── fire_patrol/         消防巡逻（G题）
+│   └── ...                  其他赛题版本
 ├── 飞控固件/                飞控固件源码（烧录用，含倾角保护）
 ├── docs/
 │   ├── tutorial/            MkDocs 教程（人类面向）
 │   ├── known_issues.md      46条已知问题
 │   ├── architecture/        架构文档
 │   └── reference-materials/ 参考资料（协议/原理图/Datasheet/赛题）
+├── tools/                  工具脚本（同步/日志分析）
 ├── CodeWiki/               代码级文档
 ├── edit_firmware.py        固件安全编辑脚本（AI Agent 专用）
-└── pull_flight_log.sh       一键拉取飞行日志
+└── sync-to-ubuntu-pi.sh    一键同步代码到板子
 ```
 
 ## 硬件需求
@@ -72,7 +77,8 @@ Project2/
 | 飞控板 | STM32F407 + 凌霄IMU（集成模块） |
 | 上位机 | 地瓜派 RDK X5（ARM Linux） |
 | 视觉里程计 | Intel RealSense T265 |
-| 电池 | 3S 3300mAh / 4S 5300mAh |
+| 视觉板 | 核桃派 CyberCamera（AprilTag/蓝块检测） |
+| 电池 | 3S 3300mAh / 3S 4000mAh / 4S 5300mAh |
 
 ## 安全须知
 

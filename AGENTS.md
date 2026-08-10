@@ -106,7 +106,7 @@ Qoder CLI：`C:\Users\FJJ\.qoder-cn\bin\qoderclicn\qoderclicn.exe`
 | 45 | 航向保持runaway误触 | ✅ | 2026-07-24调大阈值修复 |
 | 46 | 两级降落DESCEND/HOVER_WAIT | ✅ | 2026-07-24真机验证通过 |
 | T-004 | 视觉伺服精准降落（新功能） | 🟡 | 已完成设计+实现+Qoder审查，等Cyber Camera到货部署 |
-| 其余 | 见 `docs/known_issues.md` | — | 完整40条 |
+| 其余 | 见 `docs/known_issues.md` | — | 完整46条 |
 
 ## 索引
 
@@ -115,8 +115,8 @@ docs/TODO.md                                         ← 待办事务总览（�
 docs/architecture/competition_2026_airborne_architecture.md  ← 备赛版架构+视觉伺服(5.3)
 docs/guides/imu_parameters_and_fusion_architecture.md ← IMU参数理解（2026-07-24）
 docs/known_issues.md                                  ← 已知问题完整详情
-.Codex/memory/                                        ← 48个详细记忆文件
-drone_control/competition_2026_d/vision/              ← 视觉伺服（servo_controller等，含原CyberCamera端检测代码）
+.Codex/memory/                                        ← 59个详细记忆文件
+drone_control/competition_2026_d/vision/              ← 视觉检测+跟踪+相机后端（原CyberCamera端代码已整合至此）
 .agents/skills/doc-manager/                           ← 文档管理子智能体（/doc check/map/sync/todo/update）
 .zcode/plans/visual_servo_landing_plan.md             ← 视觉伺服计划文档（含3版迭代）
 .zcode/plans/two_stage_landing_plan.md                ← 两级降落计划文档
