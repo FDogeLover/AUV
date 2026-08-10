@@ -93,13 +93,12 @@ nav:
   - 代码架构解析:
     - 状态机流程: 07-architecture/state-machine.md
     - 目录结构: 07-architecture/directory-tree.md
-    - 核心模块:
-      - 模块总览: 07-architecture/modules/index.md
-      - 串口协议 Lprotocol: 07-architecture/modules/lprotocol.md
-      - PID控制器 Lpid: 07-architecture/modules/lpid.md
-      - 航向保持 HeadingHold: 07-architecture/modules/heading-hold.md
-      - 导航策略 NavigationProfile: 07-architecture/modules/nav-profile.md
-      - T265接口: 07-architecture/modules/t265.md
+    - 模块总览: 07-architecture/modules/index.md
+    - 串口协议 Lprotocol: 07-architecture/modules/lprotocol.md
+    - PID控制器 Lpid: 07-architecture/modules/lpid.md
+    - 航向保持 HeadingHold: 07-architecture/modules/heading-hold.md
+    - 导航策略 NavigationProfile: 07-architecture/modules/nav-profile.md
+    - T265接口: 07-architecture/modules/t265.md
   - 版本选择指南: 08-versions/comparison.md
   - 开发工作流:
     - 固件编辑规范: 09-workflow/firmware-edit.md

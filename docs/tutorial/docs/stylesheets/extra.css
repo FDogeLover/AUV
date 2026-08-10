@@ -376,3 +376,48 @@
   .phase-step:not(:last-child)::after { display: none; }
   .api-method { padding-left: 0.6rem; }
 }
+
+/* ===== 侧边栏导航层级样式 ===== */
+
+/* 顶级节标题（项目概览、安全须知…）— 加粗加大 + 字母间距 */
+.md-nav--primary > .md-nav__list > .md-nav__item--nested > .md-nav__link {
+  font-weight: 700;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-top: 0.6rem;
+}
+
+/* 顶级直接页面链接（首页、版本选择指南、故障排查速查、参考资料索引）— 中等粗细 */
+.md-nav--primary > .md-nav__list > .md-nav__item:not(.md-nav__item--nested) > .md-nav__link {
+  font-weight: 600;
+  font-size: 0.82rem;
+  margin-top: 0.6rem;
+}
+
+/* 二级页面链接 — 较小较细，与顶级形成对比 */
+.md-nav--primary .md-nav__item--nested > .md-nav .md-nav__list > .md-nav__item > .md-nav__link {
+  font-weight: 400;
+  font-size: 0.76rem;
+}
+
+/* 二级嵌套节标题（如有）— 中等粗细 */
+.md-nav--primary .md-nav__item--nested > .md-nav .md-nav__list > .md-nav__item--nested > .md-nav__link {
+  font-weight: 600;
+  font-size: 0.76rem;
+  text-transform: none;
+  letter-spacing: 0;
+  margin-top: 0.3rem;
+}
+
+/* 三级页面链接 — 最小字号 */
+.md-nav--primary .md-nav__item--nested > .md-nav .md-nav__item--nested > .md-nav .md-nav__list > .md-nav__item > .md-nav__link {
+  font-weight: 400;
+  font-size: 0.72rem;
+}
+
+/* 部署指南节标题也需要大写间距 */
+[data-md-level="1"].md-nav__item--nested > .md-nav__link {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
