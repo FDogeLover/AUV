@@ -2,8 +2,7 @@
 
 背景：`PoleTracker`/`body_to_world_xy()` 的世界系坐标转换需要一个 yaw_sign(+1或-1)，
 因为 t265.py 内部经过多层轴重映射+取反+欧拉角提取，get_orientation()[2] 的符号约定
-不是标准数学CCW正角度，具体该用哪个符号一直没有标定（见
-docs/superpowers/specs/2026-07-08-yaw-sign-calibration-tool-design.md）。
+不是标准数学CCW正角度，具体该用哪个符号一直没有标定（原设计文档已删除）。
 
 操作方法：
   1. 把雷达和T265刚性固定在一起(模拟真实装机状态)，雷达对准一个固定目标(比如台架

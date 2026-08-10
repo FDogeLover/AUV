@@ -10,17 +10,7 @@ import cv2
 import numpy as np
 
 
-class FeatureFlag(IntFlag):
-    OUTER_VALID = 1 << 0
-    INNER_VALID = 1 << 1
-    CROSS_VALID = 1 << 2
-    PARTIAL = 1 << 3
-    TOO_CLOSE = 1 << 4
-    AMBIGUOUS = 1 << 5
-    SURROGATE_SQUARE = 1 << 6
-    APRILTAG_VALID = 1 << 7
-    TEMPORAL_TRACKED = 1 << 8
-    COLOR_SHAPE_TRACKED = 1 << 9
+from .platform_observation import FeatureFlag  # noqa: F401
 
 
 @dataclass(frozen=True)

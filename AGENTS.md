@@ -116,8 +116,7 @@ docs/architecture/competition_2026_airborne_architecture.md  ← 备赛版架构
 docs/guides/imu_parameters_and_fusion_architecture.md ← IMU参数理解（2026-07-24）
 docs/known_issues.md                                  ← 已知问题完整详情
 .Codex/memory/                                        ← 48个详细记忆文件
-CyberCamera/boards/cybercam/                          ← Cyber Camera（核桃派）端检测代码
-drone_control/competition_2026/vision/                ← Pi 端视觉伺服（servo_controller等）
+drone_control/competition_2026_d/vision/              ← 视觉伺服（servo_controller等，含原CyberCamera端检测代码）
 .agents/skills/doc-manager/                           ← 文档管理子智能体（/doc check/map/sync/todo/update）
 .zcode/plans/visual_servo_landing_plan.md             ← 视觉伺服计划文档（含3版迭代）
 .zcode/plans/two_stage_landing_plan.md                ← 两级降落计划文档

@@ -3,7 +3,7 @@
 #
 # 用法:
 #   ./tools/pull_flight_log.sh                         # 拉取 basic 版本
-#   ./tools/pull_flight_log.sh basic_radar             # 拉取 basic_radar 版本
+#   ./tools/pull_flight_log.sh circle_pole             # 拉取 circle_pole 版本
 #   ./tools/pull_flight_log.sh competition_2026        # 拉取备赛版
 #
 # 数据只保存在本地，板子上不留副本

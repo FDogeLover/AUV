@@ -43,6 +43,37 @@ def parse_control(line: bytes | str) -> tuple[str, int]:
     return command, seq
 
 
+def encode(
+    stream_id: int,
+    seq: int,
+    capture_ms: int,
+    found: bool,
+    cx: int,
+    cy: int,
+    outer_px: int,
+    inner_px: int,
+    angle_cdeg: int,
+    quality: int,
+    flags: int,
+) -> bytes:
+    """Encode a VS1 observation packet (mirrors Cyber Camera side)."""
+    values = (
+        "VS1",
+        str(int(stream_id) & 0xFFFF),
+        str(int(seq) & 0xFFFFFFFF),
+        str(int(capture_ms) & 0xFFFFFFFF),
+        "1" if found else "0",
+        str(int(cx)),
+        str(int(cy)),
+        str(max(0, int(outer_px))),
+        str(max(0, int(inner_px))),
+        str(int(angle_cdeg)),
+        str(max(0, min(100, int(quality)))),
+        str(int(flags) & 0xFFFF),
+    )
+    body = ",".join(values).encode("ascii")
+    return body + b"," + f"{_crc16(body):04X}".encode("ascii") + b"\n"
+
 def parse_line(line: bytes | str, received_monotonic: float | None = None) -> PlatformObservation:
     raw = line.encode("ascii") if isinstance(line, str) else bytes(line)
     raw = raw.strip()

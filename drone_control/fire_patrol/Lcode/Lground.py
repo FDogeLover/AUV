@@ -1,5 +1,4 @@
-"""无人机→消防车透明UART广播。见 docs/superpowers/specs/2026-07-16-fire-patrol-design.md
-"通信协议"一节。参照 original/Lcode/Lprotocol.py 的 Serial_dmz 透明UART模式
+"""无人机→消防车透明UART广播。参照 original/Lcode/Lprotocol.py 的 Serial_dmz 透明UART模式
 (AA...FF帧、独立发送线程)，但帧内容从cls/cnt改为坐标+帧类型：
   帧类型0=心跳位置帧(1Hz，满足基本要求(3)"每秒1次位置坐标")
   帧类型1=火情帧(一次性，HOVER_DROP阶段触发)

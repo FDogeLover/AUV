@@ -6,7 +6,6 @@
 Project2/
 ├── drone_control/              ★ Python上位机（核心代码）
 │   ├── basic/                   ★ 基础飞行版（新手从这里开始）
-│   ├── basic_radar/             basic + N10P雷达避障
 │   ├── circle_pole/             圆杆环绕飞行
 │   ├── competition_2026/         2026备赛版
 │   ├── competition_2026_d/       D题陆空协同（最新活跃版本）
@@ -14,7 +13,6 @@ Project2/
 │   ├── warehouse_inventory/      立体货架盘点（已验收）
 │   └── tools/                    数据分析工具
 ├── 飞控固件/                    飞控固件源码（烧录用，含倾角保护）
-├── CyberCamera/                核桃派视觉板代码
 ├── docs/                        项目文档体系（核心事实源）
 ├── CodeWiki/                   仓库级代码文档
 ├── tools/                      项目级工具脚本

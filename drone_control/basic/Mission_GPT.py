@@ -56,7 +56,7 @@ LAND_UNLOCK_CONFIRM_COUNT = 5  # 降落确认去抖：要连续读到N次unlock_
                                 # 2026-07-09真机观察到疑似假阳性——终端打印"已上锁"退出，但用户确认电机实际
                                 # 未停转/没有真正降落；飞行日志显示确认发生的那一刻之前unlock_sta全程是1，
                                 # 说明原逻辑单次读到0就退出，容易被单帧通信噪声/校验巧合触发误判
-LASER_HEIGHT_MAX_M = 10.0  # 激光高度覆盖Z轴前的合理性上限：2026-07-10真机测试(basic_radar)发现降落末尾
+LASER_HEIGHT_MAX_M = 10.0  # 激光高度覆盖Z轴前的合理性上限：2026-07-10真机测试发现降落末尾
                             # 激光传感器偶发返回类似0xFFFFFFFF的错误码，除以100后变成约4.29e7米的垃圾值，
                             # 原逻辑只判断laser_h>0.05、没有上限，会把这个垃圾值当真实高度写进pos[2]。
                             # 10m远超室内飞行实际高度(实测未超过1.4m)，只用来挡掉这种量级的错误码。
@@ -94,7 +94,7 @@ def arrival_window_confirmed(window, need, ratio):
 
 def laser_height_valid(laser_h):
     """激光高度是否合理，可以用来覆盖pos[2]/land_pos[2]。见 LASER_HEIGHT_MAX_M 注释：
-    2026-07-10真机测试(basic_radar)捕获到传感器错误码(约0xFFFFFFFF/100)未被过滤污染日志的真实案例。"""
+    2026-07-10真机测试捕获到传感器错误码(约0xFFFFFFFF/100)未被过滤污染日志的真实案例。"""
     return 0.05 < laser_h <= LASER_HEIGHT_MAX_M
 
 
@@ -526,7 +526,7 @@ class mission:
             self._vel_window.clear()
             self.arrival_confirmed_time = None
             self._cruise_arrival_count = 0
-            # 2026-07-09从basic_radar/补同步(2026-07-08已在那边修复)：这里原本直接return
+            # 2026-07-09从原basic_radar/（已删除）补同步(2026-07-08已在那边修复)：这里原本直接return
             # 会跳过日志写入，导致T265追踪丢失期间完全没有数据记录。
             now = time.time()
             if self._log_file and now - self._last_log_time >= FLIGHT_LOG_INTERVAL:

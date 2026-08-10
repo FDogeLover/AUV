@@ -7,7 +7,7 @@
 持续观察终端输出的检测结果；测试过程中轻轻晃动/小幅移动摄像头，
 模拟飞行时的振动/微小位移，看识别是否稳定（不丢失、不剧烈跳变）。
 
-见 docs/superpowers/specs/2026-07-16-fire-patrol-design.md "APPROACH"一节
+见原设计文档(已删除)"APPROACH"一节
 关于HSV阈值/面积阈值需要现场标定的说明。
 """
 import argparse

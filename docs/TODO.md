@@ -38,7 +38,7 @@
 | T-004 | 视觉伺服精准降落模块（新功能） | 4 | 3 | **12** | 🟡 待部署 |
 | T-014 | ✈️ competition_2026 execute 任务实飞 | 5 | 2 | **10** | 🟡 待办 |
 | **T-019** | ✈️ 任务二动态降落实飞验证 | 5 | 2 | **10** | 🟡 待办 |
-| **T-015** | 两级降落同步到 basic_radar / competition 版本 | 4 | 2 | **8** | 🟢 待办 |
+| **T-015** | 两级降落同步到 competition 版本 | 4 | 2 | **8** | 🟢 待办 |
 | **T-016** | ✈️ Basic 版本完整系统测试（长/短/高） | 5 | 3 | **15** | ✅ 已执行 |
 | T-001 | 电机安全隐患（已缓解，持续观察） | 3 | 2 | **6** | 🟢 已缓解 |
 | T-007 | drone_link 缺少串口断线重连 | 3 | 2 | **6** | 🟢 待办 |
@@ -101,7 +101,7 @@
   - [x] `vision/servo_controller.py` — tick-based IBVS 控制器
   - [x] `vision/cyber_cam_reader.py` — UART 串口接收解析
   - [x] `vision/square_detector.py` — 桌面调试用 OpenCV 检测
-  - [x] `CyberCamera/boards/cybercam/` — Cyber CAM 端检测代码
+  - [x] `competition_2026_d/vision/` — Cyber CAM 端检测代码（原 CyberCamera/ 已迁移至此）
   - [x] Vision → VISUAL_SERVO 状态集成到 Mission_GPT
   - [x] 20 个单元测试全部通过
   - [x] Qoder 双轮审查通过
@@ -163,12 +163,11 @@
 - **下一步**：
   - [ ] 改为配置文件或环境变量读取
 
-### T-015 · 两级降落同步到 basic_radar / competition 版本
+### T-015 · 两级降落同步到 competition 版本
 - **I**: 4 · **U**: 2 · **P**: 8
 - **状态**：待办
 - **说明**：DESCEND/HOVER_WAIT 已在本机 `basic/` 实现并真机验证通过，需要同步到其他版本
 - **步骤**：
-  - [ ] basic_radar 版本同步（Mission_GPT.py + test_land_logging.py + heading_hold.py + test_heading_hold.py）
   - [ ] competition_2026 版本同步
   - [ ] 各版本 60+ 测试通过
 

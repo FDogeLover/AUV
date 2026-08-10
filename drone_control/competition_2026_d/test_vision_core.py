@@ -3,15 +3,15 @@ import unittest
 import cv2
 import numpy as np
 
-from CyberCamera.boards.cybercam_d.detector import (
+from drone_control.competition_2026_d.vision.detector import (
     AprilTagDetector,
     BlueSquareDetector,
     FeatureFlag,
     PlatformDetection,
     PlatformDetector,
 )
-from CyberCamera.boards.cybercam_d.protocol import encode
-from CyberCamera.boards.cybercam_d.camera_backend import WalnutPiCSICapture
+from drone_control.competition_2026_d.vision.cybercam_protocol import encode
+from drone_control.competition_2026_d.vision.camera_backend import WalnutPiCSICapture
 from drone_control.competition_2026_d.control.formation_controller import (
     FormationConfig,
     FormationController,

@@ -1,5 +1,4 @@
 """6列x5行格心弓字形(boustrophedon)全覆盖巡逻航点生成。
-见 docs/superpowers/specs/2026-07-16-fire-patrol-design.md "覆盖巡逻路径"一节。
 
 赛题40dm x 48dm巡防区域按8dm x 8dm划分成6列x5行=30个格心，本地坐标系原点
 (0,0,0)取T265上电点，起降点物理上放在row0/col0格心，格心间距0.8m。

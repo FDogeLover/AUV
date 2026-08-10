@@ -22,13 +22,13 @@ tools: ["Read", "Grep", "Glob", "Edit", "Write"]
 - `drone_control/original/Mission_GPT.py` — 任务状态机（起飞→导航→检测→降落）
 - `drone_control/original/t265.py` — T265 位姿读取与坐标变换
 - `drone_control/basic/` — 精简版（仅基本飞行，无K230/地面站）
-- `drone_control/basic_radar/` — 精简版+N10P雷达（`Lcode/Lradar.py` 解析模块 + `radar_bench_test.py` 台架测试）
+- `drone_control/circle_pole/` — 圆杆环绕飞行版（原 `basic_radar/` 已删除，由 `circle_pole/` 替代）
 
 ## 通信协议
 - 飞控串口：460800 bps，速度帧(0x01) + 指令帧(0x02) + 回传帧
 - 地面站串口：115200 bps，禁飞区上行 + 检测结果下行
 - K230 串口：115200 bps
-- N10P雷达串口：460800 bps，108字节定长帧，详见 `drone_control/basic_radar/Lcode/Lradar.py` 顶部注释
+- N10P雷达串口：460800 bps，108字节定长帧（原 `basic_radar/Lcode/Lradar.py` 已随目录删除）
 - 详见：`CodeWiki/` 和 `地面站通信协议.md`（这两个文档路径引用还是旧的 `drone_control/xxx.py`，未跟随本次目录整理更新，实际文件已在 `drone_control/original/` 下）
 
 ## 行为准则

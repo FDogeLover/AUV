@@ -2,7 +2,7 @@
 
 ## 概述
 
-参考 `competition_2026/vision/` 和 `CyberCamera/boards/cybercam/`。核桃派运行黑色方块检测，UART发送目标偏移给Pi，IBVS控制器闭环控制无人机对准降落点。
+参考 `competition_2026_d/vision/`。核桃派运行黑色方块检测，UART发送目标偏移给Pi，IBVS控制器闭环控制无人机对准降落点。
 
 ## 架构
 
@@ -21,11 +21,12 @@ Pi (RDK X5)
 
 | 文件 | 位置 | 职责 |
 |------|------|------|
-| `servo_controller.py` | `competition_2026/vision/` | tick-based IBVS控制器 |
-| `cyber_cam_reader.py` | `competition_2026/vision/` | UART读取CyberCAM检测结果 |
-| `square_detector.py` | `competition_2026/vision/` | 方块检测 |
-| `detector.py` | `CyberCamera/boards/cybercam/` | 核桃派端检测算法 |
-| `protocol.py` | `CyberCamera/boards/cybercam/` | 串口协议编码 |
+| `servo_controller.py` | `competition_2026_d/vision/` | tick-based IBVS控制器 |
+| `cyber_cam_reader.py` | `competition_2026_d/vision/` | UART读取CyberCAM检测结果 |
+| `square_detector.py` | `competition_2026_d/vision/` | 方块检测 |
+| `detector.py` | `competition_2026_d/vision/` | 核桃派端检测算法 |
+| `camera_backend.py` | `competition_2026_d/vision/` | 摄像头采集后端 |
+| `protocol.py` | `competition_2026_d/vision/` | 串口协议编码 |
 
 ## 计划文档
 

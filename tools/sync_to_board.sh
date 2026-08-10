@@ -3,7 +3,7 @@
 #
 # 用法:
 #   ./tools/sync_to_board.sh                   # 同步 basic 版本
-#   ./tools/sync_to_board.sh basic_radar       # 同步 basic_radar 版本
+#   ./tools/sync_to_board.sh circle_pole       # 同步 circle_pole 版本
 #   ./tools/sync_to_board.sh competition_2026  # 同步备赛版
 #
 # 板子路径: /home/sunrise/Desktop/FJJ/<version>/

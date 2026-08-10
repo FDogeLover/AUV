@@ -1,2 +1,0 @@
-# 共享基础依赖（含 pyrealsense2 硬件依赖）
--r ../requirements-base.txt

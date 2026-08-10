@@ -1,5 +1,4 @@
-"""下视摄像头红色火源检测。见 docs/superpowers/specs/2026-07-16-fire-patrol-design.md
-"覆盖巡逻路径"/"APPROACH"一节。
+"""下视摄像头红色火源检测。
 
 2026-07-16确认：下视摄像头硬件是IMX219 CSI摄像头(ubuntu-pi/RDK X5, /dev/video10)，
 不是标准USB摄像头——官方文档明确警告不能直接`cv2.VideoCapture(device)`("当前 RDK

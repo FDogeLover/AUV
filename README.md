@@ -40,7 +40,6 @@ mkdocs serve
 | 版本 | 目录 | 状态 | 说明 |
 |------|------|:----:|------|
 | 基础飞行 | `drone_control/basic/` | ✅ 已验证 | **新手必从这里开始** |
-| 雷达避障 | `drone_control/basic_radar/` | ✅ 已验证 | basic + N10P雷达 |
 | D题陆空协同 | `drone_control/competition_2026_d/` | ✅ 已实飞 | 空地DCP + 双T265 |
 | 消防巡逻 | `drone_control/fire_patrol/` | ✅ 已实飞 | G题火情检测+抛投 |
 | 货架盘点 | `drone_control/warehouse_inventory/` | ✅ 已验收 | QR视觉+异步扫码 |
@@ -56,7 +55,6 @@ Project2/
 │   ├── basic/               ★ 新手起点
 │   └── ...                  各赛题版本
 ├── 飞控固件/                飞控固件源码（烧录用，含倾角保护）
-├── CyberCamera/            核桃派视觉板代码
 ├── docs/
 │   ├── tutorial/            MkDocs 教程（人类面向）
 │   ├── known_issues.md      46条已知问题

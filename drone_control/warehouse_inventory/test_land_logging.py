@@ -173,7 +173,7 @@ class TestLandLogging:
         assert entry["motor_pwm_mask"] == 0x0F
 
     def test_logs_motor_pwm_mask_arrival_timestamp(self):
-        """2026-07-10严重案例(basic_radar)：unlock_sta+motor_pwm_mask双条件都归零、
+        """2026-07-10严重案例：unlock_sta+motor_pwm_mask双条件都归零、
         land()正常确认退出，但用户现场确认电机实际没有停转。怀疑motor_pwm_mask可能是
         帧2降频(~2.5秒一次)导致的滞后快照。Lprotocol.py已经给debug_data加了到达时间
         戳(motor_pwm_mask_t)，这里验证land()把它也写进飞行日志，方便下次核实"读到的
@@ -337,7 +337,7 @@ class TestLandUnlockDebounce:
 
 
 class TestLandUnlockPwmConfirm:
-    """2026-07-10矩形路径到达确认耗时基线测试(basic_radar)复现了问题7描述的假阳性：
+    """2026-07-10矩形路径到达确认耗时基线测试复现了问题7描述的假阳性：
     终端打印"降落确认：已上锁"、用户确认是人工接管完成的降落。核对飞行日志发现
     `unlock_sta`确实连续读到0满足了去抖要求，但同一时刻`motor_pwm_mask`全程稳定为15
     (四电机都还在出PWM)，两个字段直接矛盾——说明只看`unlock_sta`的去抖不够，需要

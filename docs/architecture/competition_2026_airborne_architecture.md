@@ -320,18 +320,16 @@ VISUAL_SERVO → 对中成功/超时 → _advance_waypoint() → LAND
 #### 模块文件
 
 ```
-drone_control/competition_2026/vision/
+drone_control/competition_2026_d/vision/
 ├── servo_controller.py       # VisualServoController — tick-based IBVS
 ├── cyber_cam_reader.py       # UART 读取 + 协议解析
 ├── square_detector.py        # OpenCV 检测（桌面调试/USB 备用）
+├── detector.py               # 黑色方块检测（1920×1080，原 CyberCamera 端代码）
+├── camera_backend.py         # 摄像头采集后端（原 CyberCamera 端代码）
+├── protocol.py               # ASCII 协议编解码（原 CyberCamera 端代码）
+├── calib.py                  # 焦距标定工具
 ├── test_servo_controller.py  # 10 个控制器测试
 └── test_square_detector.py   # 9 个检测器测试
-
-CyberCamera/boards/cybercam/（部署到 CyberCAM 板）
-├── main.py                   # 入口：捕获→检测→UART 发送
-├── detector.py               # 黑色方块检测（1920×1080）
-├── protocol.py               # ASCII 协议编解码
-└── calib.py                  # 焦距标定工具
 ```
 
 #### 安全保护

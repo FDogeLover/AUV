@@ -6,7 +6,7 @@
 改成滑动窗口比例制后，偶发的单帧噪声不会清空已经积累的进度。
 
 运行（先确保已 pip install pytest pyserial）：
-    cd drone_control/basic_radar && python -m pytest test_arrival_confirm.py -v
+    cd drone_control/basic && python -m pytest test_arrival_confirm.py -v
 """
 import os
 import sys

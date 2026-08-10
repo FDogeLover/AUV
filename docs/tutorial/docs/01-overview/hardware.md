@@ -19,8 +19,7 @@
 
 | 硬件 | 用途 | 需要的版本 |
 |------|------|-----------|
-| 核桃派 Cyber Camera | 目标检测，视觉伺服降落 | `competition_2026/` |
-| N10P TOF雷达 | 避障 | `basic_radar/` |
+| 核桃派 Cyber Camera | 目标检测，视觉伺服降落 | `competition_2026_d/vision/` |
 | 蓝牙模块 | 空地通信（D题） | `competition_2026_d/` |
 | 舵机 | 投放装置 | `competition_2026_d/` |
 | OLED屏 | 状态显示 | `competition_2026_d/` |

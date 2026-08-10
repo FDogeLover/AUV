@@ -1,11 +1,11 @@
 """离线回放：用2026-07-07真实杆子测试飞行的T265轨迹(pos/yaw)，按实测命中率合成雷达候选点，
 对比旧版(机体系角度/距离容差)和新版(世界系位置聚类) PoleTracker 匹配逻辑能否确认出杆子。
 
-背景见 docs/superpowers/specs/2026-07-08-pole-tracker-world-frame-design.md。
+注意：此工具依赖原 basic_radar/Lcode/Lradar.py，该目录已删除，工具暂不可用。
 不接真实雷达/飞控，纯离线分析工具。
 
 运行：
-    cd drone_control/basic_radar && pip install pyserial   # Lradar.py 顶部 import serial 需要
+    # 原 basic_radar/ 已删除，Lradar.py 不再存在，此工具暂无法运行
     cd drone_control/tools && python replay_pole_tracker.py
 """
 import json
@@ -14,7 +14,7 @@ import os
 import random
 import sys
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "basic_radar"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "basic_radar"))  # 原 basic_radar/ 已删除，此 import 会失败
 
 from Lcode.Lradar import PoleTracker, world_to_body_angle_dist  # noqa: E402
 

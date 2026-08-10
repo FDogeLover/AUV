@@ -3,8 +3,7 @@
 circle_pole阶段2的视觉识别(pole_vision)/雷达监听(Lradar)/T265 SDK都是同一个
 Python进程里的线程，本进程CPU%已经能回答"是circle_pole自己在吃CPU还是板子上
 其他东西"，线程级CPU拆分收益不够抵消/proc读取+C扩展线程无法命名的复杂度，
-本模块只做进程级+系统级采样。见
-docs/superpowers/specs/2026-07-15-board-resource-monitor-design.md。
+本模块只做进程级+系统级采样。
 """
 import json
 import os
