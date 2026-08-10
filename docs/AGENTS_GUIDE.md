@@ -35,13 +35,13 @@
 | ⭐⭐ | `docs/guides/` | 操作指南（IMU参数理解、导航配置等） |
 | ⭐ | `.zcode/plans/` | 功能计划文档（两级降落等） |
 
-### 各 Agent 配置说明
+### Agent 配置入口
 
 | 文件 | 作用 |
 |------|------|
-| `.claude/CLAUDE.md` | ZCode Agent：编码规范 + SSH 操作 + 已知问题速查 |
-| `.Codex/CLAUDE.md` | Codex Agent：交互偏好 + Qoder 协作流程 |
-| 两者都在开头指向本指南 | 所以无论哪个 Agent 启动，最终都会读到这里 |
+| `AGENTS.md`（根目录） | **单一权威配置入口**：编码规范 + SSH 操作 + 协作流程 + 交互偏好 + 已知问题 |
+| `.claude/CLAUDE.md` | 仅保留 frontmatter，指向 `AGENTS.md` |
+| `.Codex/CLAUDE.md` | 仅保留 frontmatter，指向 `AGENTS.md` |
 
 ---
 
@@ -73,7 +73,7 @@
 | 需确认 | `rm -rf`/`git reset --hard` | 展示命令后等同意 |
 | **禁止** | `systemctl`/`reboot`/`apt`/`kill` 非自己进程/改网络配置 | 停下确认 |
 
-完整规范见 `.claude/CLAUDE.md`「远程设备操作规范」。
+完整规范见 `AGENTS.md`「远程设备操作规范」。
 
 ### 文件同步约定
 - 本机 → 板子：逐文件 `scp`，不用 `scp -r`（避免 `__pycache__`）

@@ -32,6 +32,22 @@ description: >
 - **写局部**：只自动修改第①层和②层中明确定义可写的文件
 - **只读检测**：对③层和②层中标记为只读的文件，检测不一致并报告给用户
 
+### 依赖文档索引
+
+> 以下链接建立 doc-manager 与项目核心文档的结构依赖信号。
+> 当被链接文件发生移动、重命名或删除时，`/doc check` 应检测到断裂并报告。
+
+**CodeWiki（仓库级架构文档）：**
+- [CodeWiki 总览](CodeWiki/README.md) — 仓库结构导航与快速入口
+- [01 总体架构](CodeWiki/01_Architecture.md) — 仓库分层概览
+- [02 目录与模块](CodeWiki/02_Modules.md) — 飞控/上位机目录结构
+- [05 构建与运行](CodeWiki/05_Build_and_Run.md) — 固件构建与运行指南
+
+**docs/（项目文档）：**
+- [项目待办事务总览](docs/TODO.md) — 待办事项与优先级分级
+- [Agent 快速入门](docs/AGENTS_GUIDE.md) — Agent 首次进入项目指南
+- [已知问题详情](docs/known_issues.md) — bug 时间线与调试记录
+
 ### 操作模式
 
 | 命令 | 功能 | CWD 位置要求 |

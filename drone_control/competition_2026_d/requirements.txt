@@ -1,0 +1,8 @@
+# 共享基础依赖（含 pyrealsense2 硬件依赖）
+-r ../requirements-base.txt
+
+# 模块特有依赖
+opencv-python>=4.5.0
+
+# RDK 硬件依赖（OLED 状态监控脚本可选）
+# i2cdev>=0.2.0

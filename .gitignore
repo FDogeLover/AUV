@@ -46,3 +46,12 @@ drone_control/competition_2026/sessions/
 
 # 备份文件（git 历史本身可回退）
 *.bak
+
+# Qoder CLI 审查产物（本机生成，不共享）
+.qoder/
+
+# Trae HTML 分享包（临时产物）
+.trae-html-share-packages/
+
+# 旧版 HTML 教程残留（已迁移到 docs/tutorial/ MkDocs）
+drone-tutorial/

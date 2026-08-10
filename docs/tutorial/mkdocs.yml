@@ -1,0 +1,111 @@
+site_name: Project2 无人机开发教程
+site_description: 从认识硬件、搭建环境、桌面模拟到第一次真机起飞
+theme:
+  name: material
+  language: zh
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - navigation.indexes
+    - navigation.path
+    - search.suggest
+    - search.highlight
+    - search.share
+    - toc.integrate
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+  palette:
+    - scheme: default
+      primary: blue
+      accent: cyan
+      toggle:
+        icon: material/brightness-7
+        name: 切换暗色模式
+    - scheme: slate
+      primary: blue
+      accent: cyan
+      toggle:
+        icon: material/brightness-4
+        name: 切换亮色模式
+  font:
+    text: Noto Sans SC
+    code: JetBrains Mono
+  icon:
+    logo: material/drone
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - tables
+  - toc:
+      permalink: true
+  - def_list
+  - attr_list
+  - md_in_html
+
+extra_css:
+  - stylesheets/extra.css
+
+nav:
+  - 首页: index.md
+  - 项目概览:
+    - 项目是什么: 01-overview/what-is-this.md
+    - 三层架构详解: 01-overview/three-layer-arch.md
+    - 硬件清单: 01-overview/hardware.md
+  - 安全须知:
+    - 五条铁律: 02-safety/critical-rules.md
+    - 高危已知问题: 02-safety/known-hazards.md
+  - 前置知识:
+    - 你需要会什么: 03-prerequisites/required-knowledge.md
+  - 环境搭建:
+    - 本地开发环境: 04-setup/local-env.md
+    - 板端环境配置: 04-setup/board-env.md
+  - 5分钟快速体验:
+    - 桌面模拟飞行: 05-quick-start/dry-run.md
+    - 运行单元测试: 05-quick-start/run-tests.md
+  - 第一次真机飞行:
+    - 飞行前检查: 06-first-flight/preflight-check.md
+    - 起飞流程: 06-first-flight/takeoff-flow.md
+    - 飞后归档: 06-first-flight/post-flight.md
+  - 代码架构解析:
+    - 状态机流程: 07-architecture/state-machine.md
+    - 目录结构: 07-architecture/directory-tree.md
+    - 核心模块:
+      - 串口协议 Lprotocol: 07-architecture/modules/lprotocol.md
+      - PID控制器 Lpid: 07-architecture/modules/lpid.md
+      - 航向保持 HeadingHold: 07-architecture/modules/heading-hold.md
+      - 导航策略 NavigationProfile: 07-architecture/modules/nav-profile.md
+      - T265接口: 07-architecture/modules/t265.md
+  - 版本选择指南: 08-versions/comparison.md
+  - 开发工作流:
+    - 固件编辑规范: 09-workflow/firmware-edit.md
+    - 代码同步: 09-workflow/code-sync.md
+    - 日志分析: 09-workflow/log-analysis.md
+  - 故障排查速查: 10-troubleshoot/quick-reference.md
+  - 进阶开发:
+    - 视觉伺服精准降落: 11-advanced/visual-servo.md
+    - 空地协同（D题）: 11-advanced/air-ground.md
+    - 事件总线架构: 11-advanced/event-bus.md
+    - PID调参指南: 11-advanced/pid-tuning.md
+    - 推荐阅读顺序: 11-advanced/further-reading.md
+  - 参考资料索引: reference/index.md

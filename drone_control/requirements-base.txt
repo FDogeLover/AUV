@@ -1,0 +1,11 @@
+# drone_control 共享运行时依赖
+# 各子模块通过 `-r ../requirements-base.txt` 引用本文件，再追加模块特有依赖。
+# 硬件依赖（pyrealsense2）：真机必须安装；桌面 DRY_RUN 模式下可缺省，t265.py 自动降级为模拟。
+
+numpy>=1.21.0
+simple_pid>=0.7.0
+pyserial>=3.5
+psutil>=5.9.0
+
+# 硬件依赖 — 所有子模块均通过 t265.py 或 car_t265.py 使用 pyrealsense2
+pyrealsense2>=2.50.0
