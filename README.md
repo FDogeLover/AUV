@@ -19,21 +19,31 @@
 └─────────────────────────────────────────────────┘
 ```
 
-## 快速开始
+## 教程访问
+
+本教程提供两种访问方式：
+
+### 方式一：在线直接访问（推荐）
+
+GitHub Pages 自动部署，无需安装任何环境：
+
+**[https://fdogelover.github.io/AUV/](https://fdogelover.github.io/AUV/)**
+
+### 方式二：本地部署
 
 ```bash
 # 1. 克隆仓库
 git clone https://github.com/FDogeLover/AUV.git
 cd AUV
 
-# 2. 进入教程目录，启动本地文档
+# 2. 安装依赖并启动
 cd docs/tutorial
-pip install mkdocs mkdocs-material
+pip install -r requirements.txt
 mkdocs serve
 # 浏览器打开 http://127.0.0.1:8000
 ```
 
-**新手请从 [MkDocs 教程](docs/tutorial/docs/index.md) 开始**，跟随 5 步学习路径完成首次飞行。
+**新手请从 [教程首页](docs/tutorial/docs/index.md) 开始**，跟随学习路径完成首次飞行。
 
 ## 版本说明
 
@@ -91,7 +101,7 @@ Project2/
 
 | 需要什么 | 去哪里 |
 |---------|--------|
-| 新手教程 | `docs/tutorial/`（`mkdocs serve` 启动） |
+| 新手教程 | [在线访问](https://fdogelover.github.io/AUV/) 或 `docs/tutorial/`（`mkdocs serve` 启动） |
 | 已知问题 | `docs/known_issues.md` |
 | 架构设计 | `docs/architecture/` |
 | 参考资料索引 | `docs/tutorial/docs/reference/index.md` |

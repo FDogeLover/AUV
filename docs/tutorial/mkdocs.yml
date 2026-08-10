@@ -1,5 +1,9 @@
 site_name: Project2 无人机开发教程
 site_description: 从认识硬件、搭建环境、桌面模拟到第一次真机起飞
+site_url: https://fdogelover.github.io/AUV/
+repo_url: https://github.com/FDogeLover/AUV
+repo_name: FDogeLover/AUV
+edit_uri: blob/main/docs/tutorial/docs/
 theme:
   name: material
   language: zh
@@ -110,4 +114,7 @@ nav:
     - 事件总线架构: 11-advanced/event-bus.md
     - PID调参指南: 11-advanced/pid-tuning.md
     - 推荐阅读顺序: 11-advanced/further-reading.md
+  - 部署指南:
+    - 在线访问: 12-deployment/github-pages.md
+    - 本地部署: 12-deployment/self-host.md
   - 参考资料索引: reference/index.md

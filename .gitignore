@@ -55,3 +55,6 @@ drone-tutorial/
 
 # Superpowers skill 本地缓存（brainstorm 会话产物等）
 .superpowers/
+
+# MkDocs 构建产物
+docs/tutorial/site/
